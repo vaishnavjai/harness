@@ -1,1 +1,0 @@
-ALTER TABLE `inference_usage_ledger_entries` ADD `provider_usage` json;

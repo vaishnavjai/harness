@@ -1,1 +1,0 @@
-CREATE INDEX `plugin_directory_page` ON `plugin` (`organization_id`,`status`,`updated_at`,`id`);
