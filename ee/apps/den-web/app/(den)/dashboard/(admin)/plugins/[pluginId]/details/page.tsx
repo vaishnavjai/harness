@@ -1,6 +1,0 @@
-import { PluginDetailScreen } from "../../../../_components/plugin-detail-screen";
-
-export default async function PluginDetailsPage({ params }: { params: Promise<{ pluginId: string }> }) {
-  const { pluginId } = await params;
-  return <PluginDetailScreen pluginId={pluginId} />;
-}
