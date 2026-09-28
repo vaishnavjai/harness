@@ -11,6 +11,7 @@ import { chmod, mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { appendEngineOutputTail, createEngineStartupLineReader } from "./engine-output.js";
 import { ENGINE_PRIVACY_ENV } from "./engine-privacy-env.js";
+import { engineGlobalConfigDir, keepConfigDirInstallsLocal } from "./engine-npm-local.js";
 
 export { installOpencodeV2Binary } from "./opencode-v2-binary.js";
 
@@ -234,6 +235,9 @@ export async function createManagedOpencodeV2Server(
   // Cloud skills use Connect on demand, just like v1. No generated Cloud
   // skill directory is registered with the native engine.
   await writeConfig();
+  // Keep OpenCode's background @opencode-ai/plugin install off the network.
+  await keepConfigDirInstallsLocal(configDir).catch(() => false);
+  await keepConfigDirInstallsLocal(engineGlobalConfigDir(inherited), { onlyIfUnmanaged: true }).catch(() => false);
   const child = spawn(options.bin, ["serve", "--hostname", hostname, "--port", String(port)], {
     env: {
       ...inherited,

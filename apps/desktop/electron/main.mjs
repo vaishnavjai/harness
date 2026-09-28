@@ -448,6 +448,15 @@ async function resolveArchitectureInfo() {
 // completes. macOS uses the native spellchecker; these calls are no-ops there.
 // An empty persisted list is re-defaulted by Electron on the next boot, so a
 // quit before activation cannot leave the spellchecker off for good.
+// Harness never lets that download happen: dictionary requests go to a
+// loopback address where nothing answers. Windows keeps its native
+// spellchecker; Linux spellchecks only with dictionaries already on disk.
+const SPELLCHECKER_DICTIONARY_URL = "http://127.0.0.1:9/";
+function keepSpellcheckerDictionariesLocal() {
+  if (process.platform === "darwin") return;
+  session.defaultSession.setSpellCheckerDictionaryDownloadURL(SPELLCHECKER_DICTIONARY_URL);
+}
+
 let spellcheckerLanguagesHeldForActivation = null;
 function holdSpellcheckerUntilActivation(bootstrapConfig) {
   if (!desktopActivationRequired(DESKTOP_DISTRIBUTION, bootstrapConfig)) return;
@@ -2469,7 +2478,7 @@ const desktopCommandHandlers = {
       const init = args[1] ?? {};
       if (!url) throw new Error("URL is required.");
       const destination = describeDestination(url);
-      if (destination.network && !destination.loopback) egressRecorder.egress(destination.host, "main");
+      if (destination.network && !destination.loopback) egressRecorder.egress(destination.host, "main", destination.path);
       /** @type {RequestInit} */
       const requestInit = {
         method: typeof init.method === "string" ? init.method : undefined,
@@ -3012,6 +3021,9 @@ or use: pnpm dev:worktree`);
   });
 
   app.whenReady().then(async () => {
+    // First touch of the default session: the dictionary URL must be set in
+    // the same synchronous step that creates it, before any download starts.
+    keepSpellcheckerDictionariesLocal();
     holdSpellcheckerUntilActivation(workspaceStore.readDesktopBootstrapConfigSync());
     const systemCaCertificates = await runtimeManager.systemCaCertificates();
     session.defaultSession.setCertificateVerifyProc(createSystemCaCertificateVerifyProc(systemCaCertificates));

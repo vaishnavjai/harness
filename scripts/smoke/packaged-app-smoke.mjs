@@ -10,9 +10,13 @@
 //   - the audit log's hash chain verifies.
 //
 //   node scripts/smoke/packaged-app-smoke.mjs      # Linux, needs Xvfb; run as root
+//   node scripts/smoke/packaged-app-smoke.mjs --log-hosts
+//     routes the app through a local proxy that refuses every request and
+//     reports the hostnames asked for, to explain a failed egress check
 //
 // Prints a JSON report and exits non-zero on any failure.
 import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
 import { chownSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -168,6 +172,23 @@ async function main() {
   writeFileSync(join(configHome, "harness", "memory.json"), JSON.stringify({ enabled: true, port: memoryPort }));
   chownTree(root, NOBODY);
 
+  // --log-hosts: a proxy that refuses everything but records what was asked.
+  const requestedHosts = new Set();
+  let hostLogger = null;
+  if (process.argv.includes("--log-hosts")) {
+    hostLogger = createServer((request, response) => {
+      request.socket.on("error", () => undefined);
+      requestedHosts.add(`http ${request.headers.host ?? request.url}`);
+      response.writeHead(403).end();
+    });
+    hostLogger.on("connect", (request, socket) => {
+      socket.on("error", () => undefined);
+      requestedHosts.add(request.url);
+      socket.end("HTTP/1.1 403 Forbidden\r\n\r\n");
+    });
+    await new Promise((resolveListen) => hostLogger.listen(0, "127.0.0.1", resolveListen));
+  }
+
   const display = 90 + Math.floor(Math.random() * 100);
   const xvfb = spawn("Xvfb", [`:${display}`, "-screen", "0", "1280x800x24", "-nolisten", "tcp", "-ac"], { stdio: "ignore" });
   await sleep(1_000);
@@ -185,6 +206,11 @@ async function main() {
     // only needs the app to start, so use the mock keychain Harness ships for tests.
     HARNESS_ELECTRON_USE_MOCK_KEYCHAIN: "1",
   };
+  if (hostLogger) {
+    const address = hostLogger.address();
+    const proxy = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+    Object.assign(env, { HTTPS_PROXY: proxy, HTTP_PROXY: proxy, https_proxy: proxy, http_proxy: proxy, NO_PROXY: "127.0.0.1,localhost,::1", no_proxy: "127.0.0.1,localhost,::1" });
+  }
   const appProcess = spawn(executable, ["--no-sandbox", "--disable-gpu"], { env, uid: NOBODY, gid: NOBODY, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   appProcess.stdout.on("data", (chunk) => { output = (output + chunk).slice(-20_000); });
@@ -192,13 +218,16 @@ async function main() {
   let exited = null;
   appProcess.once("exit", (code, signal) => { exited = { code, signal }; });
 
-  const remoteConnections = new Set();
+  /** remote address -> the process that opened it */
+  const remoteConnections = new Map();
   const sampler = setInterval(() => {
-    const pids = processesOwnedBy(NOBODY).map((process) => process.pid);
-    for (const socket of socketsOf(pids)) {
+    const owned = processesOwnedBy(NOBODY);
+    const argsByPid = new Map(owned.map((process) => [process.pid, process.args]));
+    for (const socket of socketsOf(owned.map((process) => process.pid))) {
       if (socket.state === TCP_STATE.LISTEN) continue;
       if (!isLoopbackAddress(socket.remote.address) && socket.remote.address !== "0.0.0.0" && socket.remote.address !== "::") {
-        remoteConnections.add(`${socket.remote.address}:${socket.remote.port}`);
+        const remote = `${socket.remote.address}:${socket.remote.port}`;
+        if (!remoteConnections.has(remote)) remoteConnections.set(remote, (argsByPid.get(socket.pid) ?? "").slice(0, 200));
       }
     }
   }, 250);
@@ -245,7 +274,9 @@ async function main() {
     }).catch(() => processesOwnedBy(NOBODY));
     check("no process survives quit", survivors.length === 0, { survivors: survivors.map((process) => process.args.slice(0, 160)) });
 
-    check("no connection left the machine", remoteConnections.size === 0, { remote: [...remoteConnections] });
+    check("no connection left the machine", remoteConnections.size === 0, {
+      remote: [...remoteConnections].map(([remote, owner]) => ({ remote, owner })),
+    });
 
     const { verifyAuditLog } = await import(pathToFileURL(join(repoRoot, "packages", "audit", "dist", "index.js")).href);
     const verification = await verifyAuditLog(auditPath);
@@ -253,6 +284,10 @@ async function main() {
     report.passed = true;
   } finally {
     clearInterval(sampler);
+    if (hostLogger) {
+      report.requestedHosts = [...requestedHosts].sort();
+      hostLogger.close();
+    }
     if (!exited) appProcess.kill("SIGKILL");
     for (const leftover of processesOwnedBy(NOBODY)) {
       try { process.kill(leftover.pid, "SIGKILL"); } catch { /* gone */ }
@@ -260,7 +295,8 @@ async function main() {
     xvfb.kill("SIGTERM");
     if (!report.passed) report.output = output.slice(-4_000);
     process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-    rmSync(root, { recursive: true, force: true });
+    if (process.argv.includes("--keep")) process.stdout.write(`Kept ${root}\n`);
+    else rmSync(root, { recursive: true, force: true });
   }
 }
 

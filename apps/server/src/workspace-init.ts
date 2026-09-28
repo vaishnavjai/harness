@@ -1,7 +1,8 @@
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 import { readFile } from "node:fs/promises";
 
 import { ensureDir, exists } from "./utils.js";
+import { keepConfigDirInstallsLocal } from "./engine-npm-local.js";
 import { ApiError } from "./errors.js";
 import { opencodeConfigPath } from "./workspace-files.js";
 import { readJsoncFile } from "./jsonc.js";
@@ -83,6 +84,7 @@ export async function ensureWorkspaceFiles(workspaceRoot: string, presetInput: s
   }
   const reloadReasons = new Set<ReloadReason>();
   if (await ensureOpencodeConfig(workspaceRoot)) reloadReasons.add("config");
+  await keepConfigDirInstallsLocal(join(workspaceRoot, ".opencode"));
   // harness config is seeded into the runtime DB by the caller, not written
   // as a file here.
   void preset;

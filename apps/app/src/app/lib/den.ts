@@ -1063,10 +1063,20 @@ async function resolveBootBootstrapConfig(
   input: Parameters<typeof resolveDenBootstrapConfig>[0],
 ): Promise<DenBootstrapConfig> {
   const resolved = resolveDenBootstrapConfig(input);
-  if (enterpriseActivationRequired(readDesktopDistributionInfo(), resolved)) {
+  if (enterpriseActivationRequired(readDesktopDistributionInfo(), resolved) || !denServerWasChosen(resolved)) {
     return resolved;
   }
   return resolveDenBootstrapConfigWithRuntimeApi(input);
+}
+
+/**
+ * Whether a person or their administrator pointed this install at a Den
+ * server. The build default names a hosted service nobody configured, and
+ * Harness makes no request to a host nobody chose, so it is never probed.
+ */
+export function denServerWasChosen(bootstrap: Pick<DenBootstrapConfig, "baseUrl" | "source">): boolean {
+  if (bootstrap.source === "file") return true;
+  return normalizeDenBaseUrl(bootstrap.baseUrl) !== normalizeDenBaseUrl(HOSTED_DEFAULT_DEN_BASE_URL);
 }
 
 /**

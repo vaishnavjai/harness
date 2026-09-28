@@ -3,6 +3,7 @@ import net from "node:net";
 import { randomUUID } from "node:crypto";
 import { appendEngineOutputTail, createEngineStartupLineReader } from "./engine-output.js";
 import { ENGINE_PRIVACY_ENV } from "./engine-privacy-env.js";
+import { engineGlobalConfigDir, keepConfigDirInstallsLocal } from "./engine-npm-local.js";
 
 export type ManagedChildProcess = {
   exitCode: number | null;
@@ -172,6 +173,8 @@ async function startManagedOpencodeServer(
   // The managed engine needs its own provider environment, but never the key
   // that decrypts Harness-owned OAuth credentials.
   delete env.HARNESS_ENCRYPTION_KEY;
+  // Keep OpenCode's background @opencode-ai/plugin install off the network.
+  await keepConfigDirInstallsLocal(engineGlobalConfigDir(env), { onlyIfUnmanaged: true }).catch(() => false);
   const injectedEnv = Object.entries({
     ...engineEnvDefaults,
     ...(options.env ?? {}),

@@ -38,7 +38,7 @@ export function isLoopbackHostname(hostname) {
 
 /**
  * @param {string} rawUrl
- * @returns {{ network: false } | { network: true, host: string, loopback: boolean }}
+ * @returns {{ network: false } | { network: true, host: string, path: string, loopback: boolean }}
  */
 export function describeDestination(rawUrl) {
   let url;
@@ -48,19 +48,20 @@ export function describeDestination(rawUrl) {
     return { network: false };
   }
   if (!NETWORK_SCHEMES.has(url.protocol)) return { network: false };
-  return { network: true, host: url.host.toLowerCase(), loopback: isLoopbackHostname(url.hostname) };
+  // The path, never the query string: queries can carry tokens.
+  return { network: true, host: url.host.toLowerCase(), path: url.pathname, loopback: isLoopbackHostname(url.hostname) };
 }
 
 /**
  * Decide one request from the app window.
  * @param {{ url: string, resourceType: string }} request
- * @returns {{ allow: true, egressHost: string | null } | { allow: false, host: string }}
+ * @returns {{ allow: true, egressHost: string | null, egressPath: string | null } | { allow: false, host: string }}
  */
 export function classifyAppWindowRequest({ url, resourceType }) {
   const destination = describeDestination(url);
-  if (!destination.network || destination.loopback) return { allow: true, egressHost: null };
+  if (!destination.network || destination.loopback) return { allow: true, egressHost: null, egressPath: null };
   if (PASSIVE_REMOTE_RESOURCE_TYPES.has(resourceType)) return { allow: false, host: destination.host };
-  return { allow: true, egressHost: destination.host };
+  return { allow: true, egressHost: destination.host, egressPath: destination.path };
 }
 
 /**
@@ -76,9 +77,9 @@ export function createEgressRecorder(audit) {
     record();
   };
   return {
-    /** @param {string} host @param {string} via */
-    egress(host, via) {
-      once(`egress:${host}`, () => audit.event("network.egress", { host, via }));
+    /** @param {string} host @param {string} via @param {string | null} [path] first path requested */
+    egress(host, via, path = null) {
+      once(`egress:${host}`, () => audit.event("network.egress", { host, via, path }));
     },
     /** @param {string} host @param {string} resourceType */
     blocked(host, resourceType) {
@@ -109,7 +110,7 @@ export function installAppWindowNetworkBoundary({ session, isAppWebContents, rec
       callback({ cancel: true });
       return;
     }
-    if (decision.egressHost) recorder.egress(decision.egressHost, "app-window");
+    if (decision.egressHost) recorder.egress(decision.egressHost, "app-window", decision.egressPath);
     callback({ cancel: false });
   });
 }

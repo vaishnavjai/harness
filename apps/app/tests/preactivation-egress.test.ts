@@ -150,12 +150,22 @@ describe("pre-activation outbound egress", () => {
     expect(fetches.every((url) => new URL(url).hostname === "den.example.test")).toBe(true);
   });
 
-  test("the public flavor keeps probing the runtime config at boot", async () => {
+  test("the public flavor never probes the build-default Den nobody chose", async () => {
     installWindow(publicDistribution);
 
     await initializeDenBootstrapConfig();
+    await refreshDenBootstrapConfigFromShell();
 
-    expect(fetches).toEqual(["https://app.harness.invalid/api/runtime-config"]);
+    expect(fetches).toEqual([]);
+  });
+
+  test("the public flavor resolves the runtime config of a Den someone chose", async () => {
+    installWindow(publicDistribution);
+    shellBootstrap = { baseUrl: "https://den.example.test", requireSignin: false };
+
+    await initializeDenBootstrapConfig();
+
+    expect(fetches).toEqual(["https://den.example.test/api/runtime-config"]);
   });
 });
 
@@ -182,14 +192,9 @@ describe("outboundEgressAllowed", () => {
 describe("AppRoot egress wiring", () => {
   const appRootSource = readFileSync(new URL("../src/react-app/shell/app-root.tsx", import.meta.url), "utf8");
 
-  test("gates analytics and the Cloud inventory prefetch on outbound egress being allowed", () => {
-    const analyticsEffect = appRootSource.slice(
-      appRootSource.indexOf("if (!egressAllowed || appOpenedCaptured) return;"),
-      appRootSource.indexOf('captureAnalyticsEvent("app_opened", {});'),
-    );
-    expect(analyticsEffect).toContain("initAnalytics();");
+  test("gates the Cloud inventory prefetch on outbound egress being allowed, and has no analytics", () => {
     expect(appRootSource).toContain("if (!egressAllowed) return;\n    prefetchCloudInventory();");
     expect(appRootSource).toContain("desktopConfigLoading: desktopConfig.loading,");
-    expect(appRootSource).not.toMatch(/useEffect\(\(\) => \{\n    if \(appOpenedCaptured\) return;/);
+    expect(appRootSource).not.toMatch(/initAnalytics|captureAnalyticsEvent|posthog/i);
   });
 });
