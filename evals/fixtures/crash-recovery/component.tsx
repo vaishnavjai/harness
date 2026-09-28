@@ -2,14 +2,11 @@
 import * as React from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppErrorBoundary } from '@/react-app/shell/app-error-boundary';
-import { startWebErrorMonitoring, reportCaughtWebError } from '@/app/lib/error-monitoring';
-import { isAnalyticsEnabled } from '@/app/lib/analytics';
 import type {} from './state';
 
 const witness = window.crashRecovery;
 if (!witness) throw new Error('Pre-initialization witness missing');
 const query = new URLSearchParams(location.search);
-if (query.get('init') !== 'no') { startWebErrorMonitoring(); witness.initCalled = true; }
 const rootElement = document.getElementById('root');
 const controls = document.getElementById('controls');
 if (!rootElement || !controls) throw new Error('Fixture roots missing');
@@ -28,15 +25,10 @@ function thrownValue(): unknown {
   return error;
 }
 function ThrowingChild(): React.ReactNode { if (witness) witness.throws++; throw thrownValue(); }
-function sync() { if (witness) { witness.analytics = isAnalyticsEnabled(); witness.active = window.__harnessWebErrorMonitorActive === true; } }
 function button(label: string, action: () => void) {
   const element = document.createElement('button'); element.textContent = label;
-  element.onclick = () => { action(); sync(); }; controls?.append(element);
+  element.onclick = action; controls?.append(element);
 }
 button('Crash', () => root.render(<AppErrorBoundary key={++count}><ThrowingChild /></AppErrorBoundary>));
-button('Analytics off', () => localStorage.setItem('harness.preferences', JSON.stringify({ analyticsEnabled: false })));
-button('Analytics on', () => localStorage.setItem('harness.preferences', JSON.stringify({ analyticsEnabled: true })));
-button('Unique report', () => reportCaughtWebError({ name: 'Error', message: `synthetic unique ${++count}`, stack: 'safe stack' }));
-button('Burst', () => { for (let i = 0; i < 15; i++) reportCaughtWebError({ name: 'Error', message: `synthetic burst ${i}` }); });
 root.render(<AppErrorBoundary><p>Healthy synthetic child</p></AppErrorBoundary>);
-sync(); witness.ready = true;
+witness.ready = true;

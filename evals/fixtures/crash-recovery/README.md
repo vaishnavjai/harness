@@ -1,9 +1,9 @@
 # Crash Recovery Source Proof
 
-This is a browser-driving E2E spec for the real `AppErrorBoundary`, error
-monitoring, analytics preferences and diagnostic formatter source graph. It is
-not a packaged-desktop, full renderer boot, pre-boot beacon or native clipboard
-test.
+This is a browser-driving E2E spec for the real `AppErrorBoundary` and
+diagnostic formatter source graph. It also proves Harness ships no crash
+reporter: a render crash never sends a fetch, beacon or any other request. It
+is not a packaged-desktop, full renderer boot or native clipboard test.
 
 Install this checkout's usual app and eval dependencies first. Vite, React and
 React DOM resolve through `apps/app/package.json`; no sibling checkout or
@@ -23,8 +23,8 @@ does not need Den, Electron or a staged HTTP server. The dedicated config avoids
 unrelated full-stack setup while preserving the E2E opt-in and capability APIs.
 
 By default each test process snapshots current app source into its own
-`evals/results/crash-recovery/source-*` directory and builds the three variants
-once. To compare an earlier Git revision without changing product files, set
+`evals/results/crash-recovery/source-*` directory and builds the web and desktop
+variants once. To compare an earlier Git revision without changing product files, set
 `HARNESS_RECOVERY_SOURCE_REF=<sha>`; `git archive` exports only `apps/app/src`
 into that owned directory. Build manifests record source hashes, actual imported
 modules, version/release identifiers and output hashes. The version assertions
@@ -33,14 +33,13 @@ come from those build identifiers, not a fixed commit or release string.
 The world installs CDP request interception before navigation. It fulfills only
 the virtual loopback fixture's GETs from the immutable local Vite bytes and never
 forwards requests. The page's synthetic fetch and clipboard witnesses are
-installed before product initialization. Tests assert no external/non-GET browser
-requests and no interception errors; eligible report envelopes exist only in
-memory. All user clicks use testkit's trusted input channel, with `isTrusted`
+installed before product initialization. Tests assert no fetch or beacon call,
+no external/non-GET browser request and no interception errors. All user clicks use testkit's trusted input channel, with `isTrusted`
 observed independently. Browser reads use typed callbacks, not code strings.
 
 Each run retains manifests and per-browser observations alongside ambient
-testkit receipts in `evals/results/test-runs`. No recorder handle, provider key,
-production DSN or real user content is needed. Missing prerequisites remain
+testkit receipts in `evals/results/test-runs`. No recorder handle, provider key
+or real user content is needed. Missing prerequisites remain
 failures/skips rather than reducing assertions. Only the synthetic Error/value,
-transport, clipboard, runtime marker and preference edges are supplied by the
-fixture; boundary, reporter, gates and sanitizer are real source.
+network witness, clipboard and runtime marker edges are supplied by the fixture;
+boundary and sanitizer are real source.

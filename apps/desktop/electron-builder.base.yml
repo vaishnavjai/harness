@@ -36,6 +36,8 @@ extraResources:
     filter:
       - "*.js"
       - "*.wasm"
+      # tsc also emits the plugins' tests here; they never ship.
+      - "!*.test.js"
   - from: ../../packages/docs
     to: harness-docs
     filter:

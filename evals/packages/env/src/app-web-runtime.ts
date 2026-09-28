@@ -62,8 +62,6 @@ export function isolatedRuntimeEnvironment(root: string): NodeJS.ProcessEnv {
     HOST: "127.0.0.1",
     VITE_HOST: "127.0.0.1",
     VITE_DISABLE_HARNESS_MODELS: "1",
-    VITE_HARNESS_POSTHOG_KEY: "",
-    VITE_HARNESS_SENTRY_DSN: "",
     NO_PROXY: "127.0.0.1,localhost",
   };
 }

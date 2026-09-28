@@ -26,11 +26,6 @@ jobs:
       - name: Run stats script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
-          POSTHOG_HOST: https://us.i.posthog.com
-          POSTHOG_LEGACY_EVENT: download
-          POSTHOG_V2_EVENT: release_asset_snapshot
-          POSTHOG_DISTINCT_ID: harness-download
           GITHUB_REPO: vaishnavjai/harness
         run: node scripts/stats.mjs
 

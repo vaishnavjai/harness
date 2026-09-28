@@ -132,9 +132,14 @@ const PASSTHROUGH_ENV = [
   "PROCESSOR_ARCHITECTURE",
 ] as const;
 
-/** Opt-outs for every library in the engine that could otherwise phone home. */
+/**
+ * Opt-outs for every library in the engine that could otherwise phone home.
+ * Applied after the launch command's env, so no caller can turn one back on.
+ */
 const NO_PHONE_HOME_ENV: Readonly<Record<string, string>> = {
+  ENABLE_TELEMETRY: "false",
   DO_NOT_TRACK: "1",
+  HINDSIGHT_API_OTEL_TRACES_ENABLED: "false",
   OTEL_SDK_DISABLED: "true",
   OTEL_TRACES_EXPORTER: "none",
   OTEL_METRICS_EXPORTER: "none",
@@ -333,7 +338,7 @@ export class HindsightSupervisor {
       if (value !== undefined) env[name] = value;
     }
     const engineHome = join(this.options.dataDir, "home");
-    Object.assign(env, NO_PHONE_HOME_ENV, this.options.launch.env ?? {}, {
+    Object.assign(env, this.options.launch.env ?? {}, NO_PHONE_HOME_ENV, {
       // Everything the engine writes under "~" (pg0's Postgres install,
       // caches) stays inside the Harness data directory.
       HOME: engineHome,

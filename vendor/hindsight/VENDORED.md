@@ -24,6 +24,15 @@ binding, per-launch API token, egress allowlist, orphan guard, no `.env`
 discovery, pinned data directory) live in
 `packages/memory/python/harness_hindsight_launcher.py`, which runs the engine.
 
+The runtime build then uninstalls the packages listed in
+`scripts/hindsight/runtime-policy.mjs`. Right now that is `sentry-sdk`, which
+arrives only through `fastapi[standard]` → `fastapi-cloud-cli`, plus that CLI
+itself. Harness ships no crash reporting, and nothing the engine runs imports
+either package. The packaged-app check fails if either one is still
+importable. OpenTelemetry stays, because the engine imports it. Tracing is off
+unless an OTLP endpoint is configured, and the supervisor forces
+`OTEL_SDK_DISABLED=true` and `HINDSIGHT_API_OTEL_TRACES_ENABLED=false`.
+
 ## Updating
 
 ```bash

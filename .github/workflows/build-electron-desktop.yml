@@ -61,8 +61,6 @@ jobs:
 
       - name: Package Electron desktop (unpacked)
         env:
-          HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
-          HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
         run: pnpm --filter @harness/desktop package:electron:dir
 
       - name: Upload Electron artifacts
@@ -117,8 +115,6 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
           APPLE_API_KEY_PATH: ${{ env.NOTARY_KEY_PATH }}
-          HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
-          HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
         run: |
           set -euo pipefail
           pnpm --filter @harness/desktop run build:electron

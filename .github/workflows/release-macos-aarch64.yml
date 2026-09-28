@@ -486,8 +486,6 @@ jobs:
       # dependency closure. Without this, pnpm may "repair" the intentionally
       # partial workspace with a second all-workspace install before scripts.
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
-      HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
-      HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
 
     strategy:
       fail-fast: false
@@ -917,8 +915,6 @@ jobs:
       SIGN_WINDOWS: ${{ needs.resolve-release.outputs.sign_windows }}
       BENCHMARK_ONLY: ${{ needs.resolve-release.outputs.benchmark_only }}
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
-      HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
-      HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
 
     strategy:
       fail-fast: false

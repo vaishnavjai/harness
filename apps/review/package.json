@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "scripts": {
     "test": "node --test test/*.test.ts",
-    "dev": "next dev --hostname 127.0.0.1 --port ${REVIEW_PORT:-3011}",
-    "build": "next build",
-    "start": "next start --hostname 127.0.0.1 --port ${REVIEW_PORT:-3011}",
+    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev --hostname 127.0.0.1 --port ${REVIEW_PORT:-3011}",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "start": "NEXT_TELEMETRY_DISABLED=1 next start --hostname 127.0.0.1 --port ${REVIEW_PORT:-3011}",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

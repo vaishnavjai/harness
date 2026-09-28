@@ -34,6 +34,7 @@ interface FakeOptions {
   hookTarget?: ProcessHookTarget;
   installExitHooks?: boolean;
   handleSignals?: boolean;
+  launchEnv?: Record<string, string>;
 }
 
 async function fakeSupervisor(options: FakeOptions = {}) {
@@ -49,6 +50,7 @@ async function fakeSupervisor(options: FakeOptions = {}) {
         FAKE_ENGINE_ENV_FILE: envFile,
         FAKE_ENGINE_MODE: options.mode ?? "normal",
         FAKE_ENGINE_CRASH_MARKER: join(dataDir, "crashed"),
+        ...options.launchEnv,
       },
     },
     dataDir,
@@ -105,6 +107,17 @@ describe("HindsightSupervisor", () => {
     await expect(wrong.listBanks()).rejects.toThrow("401");
   });
 
+  test("keeps every telemetry opt-out even when the launch command asks otherwise", async () => {
+    const { supervisor, childEnv } = await fakeSupervisor({
+      launchEnv: { ENABLE_TELEMETRY: "true", DO_NOT_TRACK: "0", HINDSIGHT_API_OTEL_TRACES_ENABLED: "true" },
+    });
+    await supervisor.start();
+    const env = await childEnv();
+    expect(env.ENABLE_TELEMETRY).toBe("false");
+    expect(env.DO_NOT_TRACK).toBe("1");
+    expect(env.HINDSIGHT_API_OTEL_TRACES_ENABLED).toBe("false");
+  });
+
   test("builds the child environment from an allowlist, never the ambient environment", async () => {
     const { supervisor, childEnv, dataDir } = await fakeSupervisor({
       baseEnv: {
@@ -122,6 +135,8 @@ describe("HindsightSupervisor", () => {
     expect(env.OPENAI_API_KEY).toBeUndefined();
     expect(env.OTEL_EXPORTER_OTLP_ENDPOINT).toBeUndefined();
     expect(env.OTEL_SDK_DISABLED).toBe("true");
+    expect(env.ENABLE_TELEMETRY).toBe("false");
+    expect(env.HINDSIGHT_API_OTEL_TRACES_ENABLED).toBe("false");
     expect(env.LITELLM_LOCAL_MODEL_COST_MAP).toBe("True");
     expect(env.HINDSIGHT_API_HOST).toBe("127.0.0.1");
     // Never pg0's well-known default login, and never a socket in /tmp.

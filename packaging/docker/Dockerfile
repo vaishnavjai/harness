@@ -62,6 +62,11 @@ RUN set -eux; \
 ENV HARNESS_DATA_DIR=/data/harness-orchestrator
 ENV HARNESS_SIDECAR_DIR=/data/sidecars
 
+# No telemetry from anything in the image. harness-server and OpenCode are Bun
+# binaries, and Bun uploads crash reports unless DO_NOT_TRACK is set.
+ENV ENABLE_TELEMETRY=false
+ENV DO_NOT_TRACK=1
+
 # The workspace is mounted from the host/volume.
 ENV HARNESS_WORKSPACE=/workspace
 

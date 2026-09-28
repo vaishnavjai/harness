@@ -18,6 +18,7 @@ import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { FORBIDDEN_MODULE_PROBE, REMOVED_RUNTIME_PACKAGES } from "./runtime-policy.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const vendorRoot = join(repoRoot, "vendor", "hindsight");
@@ -121,12 +122,17 @@ function main() {
   // Every dependency is pinned with sha256 hashes; a changed artifact fails the build.
   run("uv", [...installArgs, "--require-hashes", "-r", lockfile]);
   run("uv", [...installArgs, "--no-deps", vendorRoot]);
+  const uninstallArgs = ["pip", "uninstall", "--python", python, ...(options.dev ? [] : ["--break-system-packages"])];
+  run("uv", [...uninstallArgs, ...REMOVED_RUNTIME_PACKAGES]);
 
   if (!options.dev) pruneBundledRuntime(python);
   cpSync(launcherSource, join(options.outdir, "harness_hindsight_launcher.py"));
-  run(python, ["-c", "import hindsight_api.main, pg0; print('hindsight runtime import check: ok')"], {
-    env: { PATH: process.env.PATH ?? "", PYTHONNOUSERSITE: "1" },
-  });
+  const checkEnv = { PATH: process.env.PATH ?? "", PYTHONNOUSERSITE: "1" };
+  run(python, ["-c", "import hindsight_api.main, pg0; print('hindsight runtime import check: ok')"], { env: checkEnv });
+  const leftover = spawnSync(python, ["-c", FORBIDDEN_MODULE_PROBE], { encoding: "utf8", env: checkEnv, shell: false });
+  if (leftover.status !== 0 || leftover.stdout.trim()) {
+    throw new Error(`The memory runtime still contains telemetry modules: ${leftover.stdout.trim() || leftover.stderr.trim()}`);
+  }
 
   const pyproject = readFileSync(join(vendorRoot, "pyproject.toml"), "utf8");
   const provenance = {
@@ -136,6 +142,7 @@ function main() {
     arch: process.arch,
     kind: options.dev ? "development-venv" : "bundled",
     lockfileSha256: createHash("sha256").update(readFileSync(lockfile)).digest("hex"),
+    removedPackages: [...REMOVED_RUNTIME_PACKAGES],
     builtWith: uvVersion,
     builtAt: new Date().toISOString(),
   };

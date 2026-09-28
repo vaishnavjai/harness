@@ -4,11 +4,6 @@ import fs from "node:fs/promises"
 import { resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
-const POSTHOG_KEY = process.env.POSTHOG_KEY || process.env.POSTHOG_API_KEY
-const POSTHOG_HOST = process.env.POSTHOG_HOST || "https://us.i.posthog.com"
-const POSTHOG_LEGACY_EVENT = process.env.POSTHOG_LEGACY_EVENT || process.env.POSTHOG_EVENT || "download"
-const POSTHOG_V2_EVENT = process.env.POSTHOG_V2_EVENT || "release_asset_snapshot"
-const POSTHOG_DISTINCT_ID = process.env.POSTHOG_DISTINCT_ID || "harness-download"
 const GITHUB_REPO = process.env.GITHUB_REPO || "vaishnavjai/harness"
 const STATS_FILE = process.env.STATS_FILE || "STATS.md"
 const STATS_V2_FILE = process.env.STATS_V2_FILE || "STATS_V2.md"
@@ -33,31 +28,6 @@ const V2_HEADER = [
 
 const MANUAL_INSTALL_SUFFIXES = [".dmg", ".msi", ".deb", ".rpm", ".pkg", ".appimage", ".exe"]
 const UPDATER_SUFFIXES = ["latest.json", ".blockmap", ".app.tar.gz", ".app.tar.gz.sig"]
-const V2_BUCKETS = ["manual_install", "updater", "other", "all"]
-
-async function sendToPostHog(event, properties, distinctId = POSTHOG_DISTINCT_ID) {
-  if (!POSTHOG_KEY) {
-    console.warn("POSTHOG_KEY not set, skipping PostHog event")
-    return
-  }
-
-  const response = await fetch(`${POSTHOG_HOST}/i/v0/e/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      distinct_id: distinctId,
-      api_key: POSTHOG_KEY,
-      event,
-      properties,
-    }),
-  }).catch(() => null)
-
-  if (response && !response.ok) {
-    console.warn(`PostHog API error: ${response.status}`)
-  }
-}
 
 function isDesktopRelease(release) {
   return typeof release?.tag_name === "string" && /^v\d/.test(release.tag_name)
@@ -284,24 +254,6 @@ async function saveV2Stats(totals) {
   }
 }
 
-async function sendClassifiedSnapshot(snapshot) {
-  for (const bucket of V2_BUCKETS) {
-    await sendToPostHog(
-      POSTHOG_V2_EVENT,
-      {
-        metric_version: 2,
-        bucket,
-        total: snapshot.totals[bucket],
-        delta: snapshot.deltas[bucket],
-        source: "github",
-        repo: GITHUB_REPO,
-        date: snapshot.date,
-      },
-      `${POSTHOG_DISTINCT_ID}-${bucket}`,
-    )
-  }
-}
-
 export async function main() {
   console.log(`Fetching GitHub releases for ${GITHUB_REPO}...\n`)
 
@@ -309,17 +261,9 @@ export async function main() {
   console.log(`\nFetched ${releases.length} releases total\n`)
 
   const { total: githubTotal, buckets } = calculate(releases)
-  const legacySnapshot = await saveLegacyStats(githubTotal)
-  const v2Snapshot = await saveV2Stats(buckets)
-
-  await sendToPostHog(POSTHOG_LEGACY_EVENT, {
-    count: githubTotal,
-    source: "github",
-    repo: GITHUB_REPO,
-    date: legacySnapshot.date,
-  })
-
-  await sendClassifiedSnapshot(v2Snapshot)
+  // Counts stay in this repository's STATS files; nothing is sent elsewhere.
+  await saveLegacyStats(githubTotal)
+  await saveV2Stats(buckets)
 
   console.log("=".repeat(60))
   console.log(`TOTAL DOWNLOADS: ${githubTotal.toLocaleString()}`)

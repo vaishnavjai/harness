@@ -23,7 +23,7 @@ export function dependencyRecipe(world: PreviewWorld): string {
   return `${world === "desktop" ? "export COREPACK_HOME=/opt/harness-preview/corepack\n" : ""}# Only manifests/config/patches remain when we install this reusable layer.
 # No application lifecycle scripts or pnpm hooks may mutate the shared cache.
 pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --filter @harness/app... --filter @harness/server... ${world === "desktop" ? "--filter @harness/desktop..." : "--filter @harness/world..."}
-pnpm --config.ignore-pnpmfile=true rebuild esbuild better-sqlite3 sharp node-pty electron @sentry/cli @whiskeysockets/baileys protobufjs`;
+pnpm --config.ignore-pnpmfile=true rebuild esbuild better-sqlite3 sharp node-pty electron @whiskeysockets/baileys protobufjs`;
 }
 
 export function checkoutRecipe(sha: string): string {

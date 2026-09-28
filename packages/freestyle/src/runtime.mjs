@@ -19,7 +19,6 @@ const runtime = await launchHeadlessWeb({
     OPENCODE_CONFIG_DIR: `${root}/config/opencode`, OPENCODE_DB: `${root}/data/opencode/opencode.db`,
     // Local MIT core only: no hosted organization proxy.
     HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "0", VITE_DISABLE_HARNESS_MODELS: "0",
-    VITE_HARNESS_POSTHOG_KEY: "", VITE_HARNESS_SENTRY_DSN: "",
     HARNESS_PORT: "8778", HARNESS_WEB_PORT: "5178", HOST: "127.0.0.1", VITE_HOST: "127.0.0.1",
   },
 });

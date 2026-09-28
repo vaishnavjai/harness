@@ -59,6 +59,10 @@ RUN test -f /opt/harness/opencode-plugins/harness-extensions-preview.js \
   && test "$(harness-server --version)" = "$HARNESS_SERVER_VERSION" \
   && opencode --version
 
+# No telemetry from anything in the image. harness-server and OpenCode are Bun
+# binaries, and Bun uploads crash reports unless DO_NOT_TRACK is set.
+ENV ENABLE_TELEMETRY=false
+ENV DO_NOT_TRACK=1
 ENV HARNESS_EXTENSIONS_PLUGIN_DIR=/opt/harness/opencode-plugins
 ENV HARNESS_DATA_DIR=/data/harness-server
 ENV HARNESS_SIDECAR_DIR=/data/sidecars

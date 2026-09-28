@@ -41,11 +41,11 @@ async function buildFixture() {
   const release = `source.${sourceHash}`;
   const manifest = { at: new Date().toISOString(), head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), ref: ref ?? null, sourceHash, version, release, sourceFiles, variants: [], files: [] };
   const preload = await readFile(resolve(fixture, 'preload.js'), 'utf8');
-  for (const [name, deployment, dsn] of [['web', 'web', 'https://fakepublickey@telemetry.invalid/123'], ['missing', 'web', ''], ['desktop', 'desktop', 'https://fakepublickey@telemetry.invalid/123']]) {
-    const variant = { name, deployment, dsn, modules: [] };
+  for (const [name, deployment] of [['web', 'web'], ['desktop', 'desktop']]) {
+    const variant = { name, deployment, modules: [] };
     await build({
       root: fixture, configFile: false, envDir: false, envPrefix: 'CRASH_FIXTURE_NO_ENV_', publicDir: false, base: `/${name}/`, logLevel: 'warn',
-      define: { 'process.env.NODE_ENV': JSON.stringify('production'), 'import.meta.env.VITE_HARNESS_APP_VERSION': JSON.stringify(version), 'import.meta.env.VITE_HARNESS_BUILD_SHA': JSON.stringify(release), 'import.meta.env.VITE_HARNESS_DEPLOYMENT': JSON.stringify(deployment), 'import.meta.env.VITE_HARNESS_SENTRY_DSN': JSON.stringify(dsn), 'import.meta.env.VITE_HARNESS_POSTHOG_KEY': JSON.stringify(''), 'import.meta.env.VITE_DEN_BASE_URL': JSON.stringify('https://den.invalid') },
+      define: { 'process.env.NODE_ENV': JSON.stringify('production'), 'import.meta.env.VITE_HARNESS_APP_VERSION': JSON.stringify(version), 'import.meta.env.VITE_HARNESS_BUILD_SHA': JSON.stringify(release), 'import.meta.env.VITE_HARNESS_DEPLOYMENT': JSON.stringify(deployment), 'import.meta.env.VITE_DEN_BASE_URL': JSON.stringify('https://den.invalid') },
       esbuild: { jsx: 'automatic', jsxDev: false },
       resolve: { alias: { '@': resolve(source, 'apps/app/src'), react: dirname(requireApp.resolve('react/package.json')), 'react-dom': dirname(requireApp.resolve('react-dom/package.json')) } },
       plugins: [{ name: 'source-fixture-provenance', transformIndexHtml: { order: 'pre', handler: () => [{ tag: 'script', children: preload, injectTo: 'head-prepend' }] }, async generateBundle() { for (const id of this.getModuleIds()) if (id.startsWith(source) && !id.includes('?')) variant.modules.push({ path: relative(source, id), sha256: digest(await readFile(id)) }); } }],

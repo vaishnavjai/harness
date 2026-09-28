@@ -162,11 +162,12 @@ async function startManagedOpencodeServer(
   // That audit POST depends on npm's advisories endpoint, which has been observed
   // to hang for the full five-minute registry timeout, so first-run must not wait.
   // @npmcli/config reads npm_config_* settings from the environment.
-  const engineEnvDefaults = { npm_config_audit: "false", ...ENGINE_PRIVACY_ENV };
+  const engineEnvDefaults = { npm_config_audit: "false" };
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ...engineEnvDefaults,
     ...options.env,
+    ...ENGINE_PRIVACY_ENV,
     OPENCODE_SERVER_USERNAME: username,
     OPENCODE_SERVER_PASSWORD: password,
   };
@@ -178,6 +179,7 @@ async function startManagedOpencodeServer(
   const injectedEnv = Object.entries({
     ...engineEnvDefaults,
     ...(options.env ?? {}),
+    ...ENGINE_PRIVACY_ENV,
     OPENCODE_SERVER_USERNAME: username,
     OPENCODE_SERVER_PASSWORD: password,
   })

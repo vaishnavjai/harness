@@ -23,6 +23,7 @@ import { createHash } from "node:crypto";
 import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { FORBIDDEN_MODULE_PROBE, REMOVED_RUNTIME_PACKAGES } from "./hindsight/runtime-policy.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const desktopRoot = join(repoRoot, "apps", "desktop");
@@ -74,15 +75,20 @@ export function checkToolchain(probe = capture) {
   return problems;
 }
 
-/** The runtime can be reused when it was built from the same lockfile for this platform. */
+/**
+ * The runtime can be reused when it was built from the same lockfile for this
+ * platform, with every package the runtime policy removes already removed.
+ */
 export function runtimeIsCurrent(dir, lockfileText, platform = process.platform, arch = process.arch) {
   try {
     const provenance = JSON.parse(readFileSync(join(dir, "runtime.json"), "utf8"));
     if (existsSync(join(dir, ".partial"))) return false;
+    const removed = Array.isArray(provenance.removedPackages) ? provenance.removedPackages : [];
     return provenance.kind === "bundled"
       && provenance.platform === platform
       && provenance.arch === arch
-      && provenance.lockfileSha256 === createHash("sha256").update(lockfileText).digest("hex");
+      && provenance.lockfileSha256 === createHash("sha256").update(lockfileText).digest("hex")
+      && REMOVED_RUNTIME_PACKAGES.every((name) => removed.includes(name));
   } catch {
     return false;
   }
@@ -116,7 +122,18 @@ export function requiredArtifactPaths(platform = process.platform) {
     join("hindsight-runtime", "harness_hindsight_launcher.py"),
     join("hindsight-runtime", python),
     join("licenses", "THIRD_PARTY_LICENSES.txt"),
+    // Audit trail, encrypted provider keys and long-term memory for the agent.
+    join("opencode-plugins", "harness-audit.js"),
+    join("opencode-plugins", "harness-provider-keys.js"),
+    join("opencode-plugins", "harness-memory.js"),
   ];
+}
+
+/** Test files that reached the build's engine plugins folder; none may ship. */
+export function shippedTestFiles(resourcesDir) {
+  const dir = join(resourcesDir, "opencode-plugins");
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => /\.test\.[cm]?js$/.test(name)).map((name) => join("opencode-plugins", name));
 }
 
 function electronDistDir() {
@@ -179,6 +196,8 @@ function main() {
   if (!app) throw new Error("electron-builder produced no unpacked app in apps/desktop/dist-electron.");
   const missing = requiredArtifactPaths().filter((path) => !existsSync(join(app.resources, path)));
   if (missing.length) throw new Error(`The build is missing:\n  - ${missing.join("\n  - ")}`);
+  const tests = shippedTestFiles(app.resources);
+  if (tests.length) throw new Error(`The build ships test files:\n  - ${tests.join("\n  - ")}`);
   const opencode = join(app.resources, "sidecars", isWindows ? "opencode.exe" : "opencode");
   const opencodeVersion = capture(opencode, ["--version"]);
   if (!opencodeVersion) throw new Error("The bundled OpenCode engine does not start.");
@@ -186,6 +205,10 @@ function main() {
   const importCheck = spawnSync(python, ["-I", "-c", "import hindsight_api.main, pg0; print('ok')"], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
   if (importCheck.status !== 0 || importCheck.stdout.trim() !== "ok") {
     throw new Error(`The bundled memory engine does not import: ${importCheck.stderr || importCheck.stdout}`);
+  }
+  const telemetryCheck = spawnSync(python, ["-I", "-c", FORBIDDEN_MODULE_PROBE], { encoding: "utf8", env: { PATH: process.env.PATH ?? "" } });
+  if (telemetryCheck.status !== 0 || telemetryCheck.stdout.trim()) {
+    throw new Error(`The bundled memory engine ships telemetry modules: ${telemetryCheck.stdout.trim() || telemetryCheck.stderr.trim()}`);
   }
 
   const seconds = Math.round((Date.now() - started) / 1000);

@@ -217,6 +217,32 @@ describe("managed OpenCode startup", () => {
     await managedOverride.close();
   });
 
+  test("both engines keep every telemetry opt-out even when the caller asks otherwise", async () => {
+    const root = await createRoot();
+    const privacyDumper = (name: string, dumpPath: string) => writeExecutable(root, name, [
+      "import { writeFileSync } from 'node:fs';",
+      "const names = ['ENABLE_TELEMETRY', 'DO_NOT_TRACK', 'OPENCODE_DISABLE_AUTOUPDATE', 'OPENCODE_DISABLE_SHARE'];",
+      `writeFileSync(${JSON.stringify(dumpPath)}, JSON.stringify(Object.fromEntries(names.map((key) => [key, process.env[key] ?? null]))));`,
+      "const server = Bun.serve({ hostname: '127.0.0.1', port: Number(process.argv[process.argv.indexOf('--port') + 1]), fetch: () => Response.json({ healthy: true, version: 'test', pid: process.pid }) });",
+      "console.log(`opencode server listening on http://127.0.0.1:${server.port}`);",
+      "process.on('SIGTERM', () => { server.stop(true); process.exit(0); });",
+    ]);
+    const hostile = { ENABLE_TELEMETRY: "true", DO_NOT_TRACK: "0", OPENCODE_DISABLE_AUTOUPDATE: "0", OPENCODE_DISABLE_SHARE: "0" };
+    const expected = { ENABLE_TELEMETRY: "false", DO_NOT_TRACK: "1", OPENCODE_DISABLE_AUTOUPDATE: "1", OPENCODE_DISABLE_SHARE: "1" };
+
+    const v1DumpPath = join(root, "v1-env.json");
+    const v1 = await createManagedOpencodeServer({ bin: await privacyDumper("v1-privacy.mjs", v1DumpPath), cwd: root, env: hostile });
+    try {
+      expect(JSON.parse(await readFile(v1DumpPath, "utf8"))).toEqual(expected);
+    } finally { await v1.close(); }
+
+    const v2DumpPath = join(root, "v2-env.json");
+    const v2 = await createManagedOpencodeV2Server({ bin: await privacyDumper("v2-privacy.mjs", v2DumpPath), rootDir: join(root, "v2"), env: hostile });
+    try {
+      expect(JSON.parse(await readFile(v2DumpPath, "utf8"))).toEqual(expected);
+    } finally { await v2.close(); }
+  });
+
   test("waits for inherited diagnostic streams before retrying a code-1 EADDRINUSE exit", async () => {
     const root = await createRoot();
     const attemptsPath = join(root, "attempts.log");
