@@ -86,6 +86,8 @@ import ConnectionsModals from "@/react-app/domains/connections/modals";
 import { AiSettingsView } from "@/react-app/domains/settings/pages/ai-view";
 // Side-effect imports: register extension config components into the registry.
 import { OllamaConfig } from "@/react-app/domains/settings/ollama-config";
+import { AuditLogView } from "../domains/settings/pages/audit-log-view";
+import { MemoryView } from "../domains/settings/pages/memory-view";
 import "@/react-app/domains/settings/computer-use-config";
 import "@/react-app/domains/settings/browser-extension-config";
 import { useSettingsExtensionController } from "@/react-app/domains/settings/settings-extension-controller";
@@ -316,6 +318,8 @@ export function parseSettingsPath(pathname: string): {
     case "general":
     case "ai":
     case "ollama":
+    case "memory":
+    case "audit":
     case "preferences":
     case "permissions":
     case "appearance":
@@ -2517,6 +2521,10 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             }
           />
         );
+      case "memory":
+        return <MemoryView />;
+      case "audit":
+        return <AuditLogView />;
       case "ollama":
         return (
           <OllamaConfig

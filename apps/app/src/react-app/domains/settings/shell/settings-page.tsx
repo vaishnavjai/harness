@@ -2,6 +2,7 @@
 import type * as React from "react";
 import {
   ArrowLeft,
+  Brain,
   Bug,
   Cable,
   ChevronDown,
@@ -13,6 +14,7 @@ import {
   Paintbrush,
   Puzzle,
   RefreshCcw,
+  ScrollText,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -66,6 +68,10 @@ export function getSettingsTabIcon(tab: SettingsTab) {
   switch (tab) {
     case "ai":
       return Zap;
+    case "memory":
+      return Brain;
+    case "audit":
+      return ScrollText;
     case "preferences":
       return SlidersHorizontal;
     case "permissions":
@@ -109,6 +115,10 @@ export function getSettingsTabLabel(tab: SettingsTab) {
       return "AI Providers";
     case "ollama":
       return "Ollama";
+    case "memory":
+      return "Memory";
+    case "audit":
+      return "Audit log";
     case "preferences":
       return "Preferences";
     case "permissions":
@@ -154,6 +164,10 @@ export function getSettingsTabDescription(tab: SettingsTab) {
       return "Connect services that provide AI models";
     case "ollama":
       return "Connect to Ollama and manage local models";
+    case "memory":
+      return "Long-term memory that stays on this device";
+    case "audit":
+      return "Every command, tool run and file write, tamper-evident";
     case "preferences":
       return "Default model, reasoning, and compaction";
     case "permissions":
@@ -201,7 +215,7 @@ export function getGlobalSettingsTabs(
   developerMode: boolean,
   capabilities: Pick<PlatformCapabilities, "autoUpdate">,
 ): SettingsTab[] {
-  const tabs: SettingsTab[] = ["ai", "ollama", "appearance", "shortcuts", "environment"];
+  const tabs: SettingsTab[] = ["ai", "ollama", "memory", "audit", "appearance", "shortcuts", "environment"];
   if (capabilities.autoUpdate) tabs.push("updates");
   if (developerMode) tabs.push("debug");
   return tabs;

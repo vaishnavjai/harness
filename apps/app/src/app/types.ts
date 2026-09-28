@@ -187,6 +187,8 @@ export const SETTINGS_TAB_VALUES = [
   "general",
   "ai",
   "ollama",
+  "memory",
+  "audit",
   "preferences",
   "permissions",
   "cloud-account",
