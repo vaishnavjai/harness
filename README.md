@@ -1,224 +1,73 @@
 # Harness
 
-Harness is the free, open-source alternative to Claude Cowork and Codex: a desktop app for macOS, Windows, and Linux where AI agents do real work on your own files. It is built on [OpenCode](https://opencode.ai), works with any model — 50+ providers, your own API keys, or local models via Ollama — and lets teams share skills and MCP servers.
+Harness is a local agent desktop for macOS, Windows and Linux. AI agents work on your own files, remember what they learn across sessions, and talk only to the models you choose — including models running on your own machine.
 
-[**Download Harness**](https://github.com/vaishnavjai/harness/releases) · [GitHub releases](https://github.com/vaishnavjai/harness/releases) · [Docs](https://github.com/vaishnavjai/harness/tree/dev/packages/docs)
+It is a fork of [OpenWork](https://github.com/different-ai/openwork) (MIT), runs the [OpenCode](https://github.com/anomalyco/opencode) agent engine, and embeds [Hindsight](https://github.com/vectorize-io/hindsight) (MIT) for long-term memory. See [Attribution](#license-and-attribution).
 
-Read this in: [简体中文](./translated_readmes/README_ZH.md) · [繁體中文](./translated_readmes/README_ZH_hk.md) · [日本語](./translated_readmes/README_JA.md)
+## What makes it different
 
-Add one Harness MCP to Codex, Claude Code, Cursor, or another compatible agent and reuse the same skills, MCPs, and connected services across your tools, teammates, and machines. Create something once, share it with coworkers or friends, or keep it for yourself.
+- **Local-first by default.** Out of the box Harness makes no request to any host you did not configure: no analytics, no crash reporting, no update checks, no remote model catalog, no icon CDNs. Details: [Outbound network access](packages/docs/start-here/outbound-network-access.mdx).
+- **Bring your own model.** Point it at Ollama, vLLM, llama.cpp or LM Studio (for example `http://127.0.0.1:11434/v1`), or add an API key for a hosted provider. Hosted services nobody configured, such as OpenCode Zen, are not offered.
+- **Long-term memory on your machine.** Hindsight runs as a supervised child process on `127.0.0.1:8888` with its own embedded PostgreSQL + pgvector. Memories are stored in `~/.config/harness/data/hindsight`, and the memory engine can reach only loopback and the model endpoint you set.
+- **Keys stay encrypted.** API keys go to your OS keychain (Electron `safeStorage`) or an AES-256-GCM vault keyed by it — never plaintext JSON or `.env` files. The agent engine receives them in memory only.
+- **Everything the agent does is on record.** Tool runs, terminal commands, file writes and every remote host contacted are appended to a hash-chained audit log at `~/.config/harness/audit.log`. **Settings → Audit log** shows it in plain language and verifies the chain.
 
-The desktop app is there when you want a dedicated workspace, but it is not required. You can use Harness from the agent you already have. For larger organizations, the admin interface lets you publish capabilities, manage access, and configure shared or per-user connections.
+## Build it
 
-<img width="1481" height="842" alt="Harness desktop app" src="https://github.com/user-attachments/assets/66a8dd9b-5260-488c-957d-e54331e78c1c" />
-
-## Why Harness instead of Claude Cowork
-
-- **Free and open source.** The desktop app is MIT-licensed; no Harness account is required to use it locally.
-- **Any model.** Bring your own API key, sign in with ChatGPT, or run local models through Ollama or any OpenAI-compatible server. See [Add a custom LLM](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/connect-your-stack/add-a-custom-llm.mdx).
-- **Runs on macOS, Windows, and Linux** as a desktop app — not a CLI.
-- **Your files stay local.** Cloud is optional.
-- **Share skills and MCP servers with your team.** See [Share skills with your team](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/do-work-with-it/share-your-setup.mdx) and [Shared MCP connections](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/cloud/share-with-your-team/shared-mcp-connections.mdx).
-- **Self-host** the team control plane on your own infrastructure. See [Self-host](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/self-host.mdx).
-- **Bring your Cowork setup.** Skills, Claude-compatible plugins, and MCP servers carry over. See [Migrate from Claude Cowork](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/migrate-from-claude-cowork.mdx).
-
-## Install with your AI agent
-
-Already use an AI agent? Copy this prompt and paste it into Claude Code, Cursor, Codex, ChatGPT, or any agent that can run commands on your computer.
-
-```text
-Install Harness on my computer, set up my first workspace, and open it ready to use. Follow the steps in https://harness.invalid/start.md?v=hero
-```
-
-1. Installs Harness
-2. Creates your workspace
-3. Opens it ready to run
-
-## Use Harness from any agent
-
-The Harness MCP brings your assigned skills, plugins, MCP connections, Google Workspace, and Microsoft 365 capabilities into any compatible agent.
-
-It exposes four tools: `search_capabilities` finds what you can use, `execute_capability` runs it, and `list_skills` / `get_skill` list your skills and read one SKILL.md directly. After adding the MCP, your client opens a browser so you can sign in and choose your Harness organization.
-
-### Codex
+One command produces a self-contained app for the machine you run it on:
 
 ```bash
-codex mcp add harness --url https://api.harness.invalid/mcp/agent
+corepack enable        # pnpm, pinned in package.json
+npm run package
 ```
 
-### Claude Code
+Prerequisites: Node 22+, [bun](https://bun.sh) and [uv](https://docs.astral.sh/uv/). The command installs dependencies, typechecks, builds the Python runtime for the memory engine, builds the desktop app with its OpenCode engine, aggregates every third-party license into `THIRD_PARTY_LICENSES.txt`, assembles the app with electron-builder, and then checks that the bundled engine and memory runtime start. The app lands in `apps/desktop/dist-electron/` (`linux-unpacked/`, `mac-*/Harness.app`, or `win-unpacked/`).
+
+Network access is needed while building (packages, CPython, the pinned OpenCode release). The packaged app downloads nothing.
+
+Flags: `--skip-install`, `--skip-typecheck`, `--fresh-runtime` (rebuild the memory runtime even when it is current).
+
+## Set up models and memory
+
+1. Open **Settings → Providers** and add a local server or an API key.
+2. Open **Settings → Memory**, turn memory on, and pick the model and embedding endpoints (Ollama with `llama3.1:8b` and `nomic-embed-text` is the default). The page shows where the engine listens, where data lives, and the only remote host memory text can reach, if any.
+
+Memories are retained and recalled through the local engine; nothing leaves the device unless you choose a hosted model.
+
+## Develop
 
 ```bash
-claude mcp add --transport http harness https://api.harness.invalid/mcp/agent
-```
-
-### OpenCode
-
-Add this to `opencode.json`:
-
-```json
-{
-  "mcp": {
-    "harness": {
-      "type": "remote",
-      "enabled": true,
-      "url": "https://api.harness.invalid/mcp/agent",
-      "oauth": {}
-    }
-  }
-}
-```
-
-### Any MCP client
-
-Use this remote MCP server URL:
-
-```text
-https://api.harness.invalid/mcp/agent
-```
-
-## Harness Den
-
-Harness Den is the control plane for managing Harness across a team or organization.
-
-- Provision inference at scale and control which members and teams can use each model provider.
-- Invite teammates, create teams, and manage access from one place.
-- Set desktop policies, restrict local model access, and control which app versions your organization can use.
-- Publish skills and plugins through marketplaces, then assign them to the organization, a team, or specific people.
-- Import Agent Plugins or Anthropic-compatible plugins and make their supported skills and remote MCPs available through the Harness MCP.
-
-<img width="1546" height="915" alt="Harness Den organization control plane" src="https://github.com/user-attachments/assets/033dbbfe-5661-4f7c-869c-46278406d6cc" />
-
-## Licensing
-
-This repository uses a directory-split license, similar to GitLab:
-
-- **Everything outside `ee/` is MIT** — the desktop app and core platform are open source, free for any use.
-- **Everything under `ee/` (Harness Den — the org control plane) is under the [Harness EE License](ee/LICENSE)**, a source-available license. The code is public so you can audit exactly what you deploy. Production use requires an [Harness subscription](https://harness.invalid/pricing), except that it is **free for organizations with up to 5 users**, **free to evaluate for 30 days at any size**, and always free for development and testing. Each `ee/` release additionally converts to MIT two years after publication.
-
-Versions released before this license was adopted remain under their original license (FSL-1.1-MIT). See [pricing](https://harness.invalid/pricing) and the [subscription terms](https://harness.invalid/terms/subscription).
-
-## Documentation
-
-[Read the Harness docs.](https://github.com/vaishnavjai/harness/tree/dev/packages/docs)
-
-## Getting started (contributors)
-
-The fastest path from a fresh clone to a running dev build.
-
-### Prerequisites
-
-- **Node 24** — pinned in [`.nvmrc`](./.nvmrc) (`nvm use` picks it up).
-- **pnpm 11** — pinned in `package.json` (`packageManager`); run `corepack enable` to use the pinned version automatically. Never use npm or yarn.
-- **Git with DCO sign-off** — every commit needs a `Signed-off-by` trailer (`git commit -s`). See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-### First run
-
-```bash
-git clone https://github.com/vaishnavjai/harness
-cd harness
-corepack enable
 pnpm install
-pnpm dev   # launches the Electron desktop app with hot reload
+pnpm dev                                   # Electron app with hot reload
+node scripts/hindsight/prepare-runtime.mjs --dev   # memory engine runtime for dev (./.hindsight-runtime)
 ```
 
-### Repository layout
+Tests:
 
-| Path | What lives there |
+```bash
+pnpm --filter @harness/app test:core
+pnpm --filter @harness/server test:core
+pnpm --filter @harness/desktop test:core
+cd packages/memory && bun test src test/e2e   # includes a real Hindsight retain/recall run
+pnpm test:packaging
+```
+
+`HARNESS_TEST_OPENCODE_BIN=/path/to/opencode bun test apps/server/src/provider-keys.real-engine.e2e.test.ts` drives the real engine end to end.
+
+Contributor rules live in [AGENTS.md](AGENTS.md); UI work follows [DESIGN.md](DESIGN.md).
+
+### Layout
+
+| Path | What it is |
 | --- | --- |
-| `apps/` | the desktop app: React UI (`apps/app`), Electron shell (`apps/desktop`), and `harness-server` (`apps/server`) (MIT) |
-| `packages/` | shared core packages (MIT) |
-| `ee/` | Harness Den — the org control plane, MCP gateway, and inference (EE License, see [Licensing](#licensing)) |
-| `evals/` | executable test specs built on `@harness/testkit` — see [`evals/README.md`](./evals/README.md) |
-| `worlds/` | declarative dev/test environment definitions for `pnpm world` |
-| `docs/` | operator, feature, and release docs |
-| `.opencode/skills/` | repository agent skills (testing, release, Daytona, and more) |
+| `apps/desktop` | Electron main process: windows, keychain, audit log, memory supervisor wiring, packaging |
+| `apps/app` | React renderer (settings, chat, memory and audit views) |
+| `apps/server` | Local Harness server and the OpenCode engine plugins |
+| `packages/memory` | `HindsightSupervisor`, loopback client, settings, Python launcher |
+| `packages/audit` | Hash-chained, append-only audit log |
+| `vendor/hindsight` | Vendored Hindsight engine (unmodified; see `VENDORED.md`) |
+| `scripts/package.mjs` | `npm run package` |
 
-### Testing
+## License and attribution
 
-All executable coverage lives in `evals/specs/**/*.test.ts`; app-driving journeys use `.e2e.test.ts`.
-
-```bash
-pnpm --dir evals install --frozen-lockfile   # once
-pnpm evals:pr specs/<name>.test.ts           # app-less PR-lane spec
-pnpm evals:e2e <name> --local                # app-driving E2E journey, run locally
-```
-
-Runtime-observable changes need test evidence on the PR. `AGENTS.md` and [`evals/README.md`](./evals/README.md) describe the verification contract and vocabulary.
-
-### Sending a pull request
-
-1. Branch from `dev` (the default branch) and open your PR against `dev`.
-2. Sign off every commit: `git commit -s`.
-3. Keep the diff as small as possible, and include or update test evidence for runtime-observable changes.
-4. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the DCO and licensing rules — contributions under `ee/` additionally require a CLA.
-
-## Local development
-
-For one checkout, keep using `pnpm dev`; with no extra environment variables it reuses the existing shared dev profile.
-
-To run multiple git worktrees at once, use:
-
-```bash
-pnpm dev:worktree
-```
-
-That sets `HARNESS_DEV_PROFILE=auto`, derives a stable profile name from the worktree path, lets Electron choose a free CDP port, and asks Vite for a free dev-server port. You can also choose a named profile, for example `HARNESS_DEV_PROFILE=my-feature HARNESS_ELECTRON_REMOTE_DEBUG_PORT=0 PORT=0 pnpm dev`.
-
-`dev:worktree` also defaults `HARNESS_ELECTRON_USE_MOCK_KEYCHAIN=1`. A brand-new profile has no stored credentials, so on macOS the real keychain prompts as soon as Chromium persists an authenticated cookie, and that modal blocks Electron's main loop until it is dismissed. Set `HARNESS_ELECTRON_USE_MOCK_KEYCHAIN=0` if you specifically want the system keychain in an isolated profile.
-
-Dev startup prints a banner like `[harness] dev profile=... cdp=http://127.0.0.1:9823`; use it to find the profile directory and pass the CDP URL to local tooling.
-
-If a second instance cannot get the profile lock it now says so and exits, instead of lingering with an open CDP port and no window.
-
-### Headless web (no Electron)
-
-To run the Harness UI in a browser against a local `harness-server` (no desktop shell):
-
-```bash
-pnpm world up dev-headless --detach
-```
-
-`pnpm dev:headless-web` is a compatibility alias for the same script. The alias
-remains foreground by default and accepts `--detach`; `world up` is foreground
-unless `--detach` is explicit.
-
-This is an isolated launcher:
-
-- Writes `tmp/headless-server.json` and never reads `~/.config/harness/server.json`
-- Authorizes the chosen workspace root automatically, and merges (never rewrites) that config on relaunch, so workspaces you add through the UI survive `--replace`
-- Starts Vite + `harness-server` with a stable owner bearer forced into the UI. Crash-restarts keep open tabs working. The privileged host token stays on the server process and is never inlined into the Vite bundle.
-- Proxies Den Cloud calls same-origin: Vite serves `/api/den` (forwarded to the Den control plane) and the app pins its Den API there via `VITE_DEN_API_BASE_URL`, so Cloud calls are never CORS-blocked and stale `localStorage` base URLs are cleared on load
-- Publishes an owner-only runtime manifest at `tmp/dev-headless-web.json` (`0600`), and allows browser calls to the local server only from the web app's own origins — not every site you visit
-- Uses stable ports by default (web `5178`, server `8778`; falls back to free ports when taken, override with `HARNESS_WEB_PORT` / `HARNESS_PORT`)
-- Is single-instance as `dev-headless`; stop it with `pnpm world down dev-headless` before launching it again
-- Keeps Vite and the backend under one script lifecycle, so either sibling exiting stops the other instead of leaving an orphan
-- In detached mode, waits for health, prints non-secret outputs and receipt/log paths, and exits
-
-Script-specific options must follow `--`:
-
-```bash
-pnpm world up dev-headless --detach -- --replace
-pnpm world up dev-headless --detach -- --replace --keep-tokens
-```
-
-`--replace` restarts the headless runtime with fresh tokens; add
-`--keep-tokens` to retain the previous tokens. `--rotate-tokens` is also
-accepted by this script. These are not generic `world` options.
-
-Open the printed Web URL. Cloud sign-in in headless web uses the **copy/paste** handoff (hosted Den cannot redirect session grants back to `http://127.0.0.1`):
-
-1. Account → Sign in (opens Den; the paste field opens in Settings)
-2. Sign in on Den
-3. Copy the Harness link / one-time code Den shows
-4. Paste it under **Paste sign-in code** → Finish sign-in
-
-Point Den at a local stack with `HARNESS_DEV_DEN_PROXY_TARGET=http://127.0.0.1:3005` while `pnpm dev:web-local` is running. Set `HARNESS_DEV_HEADLESS_WEB_DEN_PROXY=0` to disable the Den wiring.
-
-The other checked-in scripts include `worlds/headless-prod-live.ts` and
-`worlds/desktop-prod-live.ts`. Both intentionally share installed production
-state and require their script-specific opt-in after `--`, for example
-`pnpm world up desktop-prod-live -- --allow-shared-state`. List scripts and
-running receipts with `pnpm world list`. The headless
-production world is hard-limited to loopback; remote-access/public-host settings
-are refused because its browser session uses production credentials.
+Harness is MIT licensed (see [LICENSE](LICENSE)). It keeps OpenWork's original MIT copyright notice and includes Hindsight under its MIT license; both notices are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Every build also ships `THIRD_PARTY_LICENSES.txt` with the license of each bundled npm package, Python package and runtime.
