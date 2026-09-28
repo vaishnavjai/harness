@@ -3,9 +3,6 @@ import { browserScript } from "@harness/cdp";
 import { typeWithCadence, typingPlan } from "@harness/behaviors";
 import {
   control,
-  createNativeConnector,
-  createOrgConnection,
-  denFetch,
   evalIn,
   listSessions,
   readComposerState,
@@ -13,12 +10,10 @@ import {
   readBrowserTabMetrics,
   readConnectorCatalog,
   renameSessionAndWait,
-  signInDesktopAs,
   waitUntilInteractive,
 } from "@harness/behaviors";
 import {
   callFunctionOnSurface,
-  addInitScript,
   callFunction, connect, debuggerUrlFor, listTargets,
   clickTarget,
   dumpScreenState,
@@ -36,18 +31,15 @@ import {
 } from "@harness/cdp";
 import type { Located, Surface, Target } from "@harness/cdp";
 import {
-  app as startApp,
   appWeb as startAppWeb,
-  faultProxy as startFaultProxy,
   mcpMock,
-  server,
   requestBrowserTask,
   readBrowserFixtureState,
   setBrowserFixtureDiscovery,
   requireWorldResource,
   validateWorldResources,
 } from "@harness/env";
-import type { App, Den, Place, WorldResources } from "@harness/env";
+import type { App, Place, WorldResources } from "@harness/env";
 import { chrome, desktop } from "@harness/hosts";
 import type { DesktopHandle } from "@harness/hosts";
 import { findCheckpointCapability, screenshot, takeCheckpoint, validate } from "@harness/test-evidence";
@@ -62,7 +54,6 @@ import type {
   TraceEntryInput,
 } from "@harness/test-evidence";
 import { eventually } from "../eventually.ts";
-import { denLink as startDenLink } from "../link.ts";
 import { readConnectState } from "../state.ts";
 import type {
   Agent,
@@ -72,7 +63,6 @@ import type {
   Seed,
   SeedAppWebOptions,
   SeedDesktopOptions,
-  SeedWebOptions,
   SeeOptions,
   SpecAdapters,
   Step,
@@ -315,11 +305,6 @@ export class SpecRuntime {
     this.sink = sink;
   }
 
-  requireDen(den: Den): void {
-    requireWorldResource(this.resources, "den");
-    if (Object.keys(den.mocks).length > 0) requireWorldResource(this.resources, "mock");
-  }
-
   async own<T extends AsyncDisposable>(resource: T, expectedKind?: "chrome" | "electron"): Promise<T> {
     try {
       if (expectedKind && (!isSurface(resource) || !isRecord(resource.handle) || resource.handle.kind !== expectedKind)) {
@@ -492,15 +477,6 @@ function requireSurface(surface: Surface | null): Surface {
   return surface;
 }
 
-function sessionFromWebOptions(options: SeedWebOptions) {
-  const identity = options.signedInAs;
-  if (typeof identity === "object" && identity !== null) return identity;
-  if (identity === undefined || identity === "admin") return options.den.admin;
-  const member = options.den.members[identity];
-  if (!member) throw new Error(`Unknown Den member ${JSON.stringify(identity)}.`);
-  return member;
-}
-
 export class SeedChannel implements Seed {
   readonly #runtime: SpecRuntime;
 
@@ -508,51 +484,13 @@ export class SeedChannel implements Seed {
     this.#runtime = runtime;
   }
 
-  den(options: Omit<import("@harness/env").ServerOptions, "place"> = {}): Promise<Den> {
-    requireWorldResource(this.#runtime.resources, "den");
-    if (options.mocks && Object.keys(options.mocks).length > 0) requireWorldResource(this.#runtime.resources, "mock");
-    return this.#runtime.call("seed", "den", `den(${this.#runtime.place.kind})`, null, async () => {
-      const den = await server({ ...options, place: this.#runtime.place });
-      return this.#runtime.own(den);
-    });
-  }
-
-  desktop(options: SeedDesktopOptions & { den: Den }): Promise<App>;
-  desktop(options?: SeedDesktopOptions): Promise<App | DesktopHandle>;
   desktop(options: SeedDesktopOptions = {}): Promise<App | DesktopHandle> {
     requireWorldResource(this.#runtime.resources, "desktop");
-    if (options.den) this.#runtime.requireDen(options.den);
     const requestedSurface = process.env.HARNESS_EVAL_APP_SURFACE?.trim();
     if (requestedSurface && requestedSurface !== "electron") {
       throw new Error(`seed.desktop() conflicts with app surface ${requestedSurface}; select an explicit desktop world.`);
     }
-    return this.#runtime.call("seed", "desktop", `desktop(${options.den ? `as ${options.signIn === false ? "signed-out" : options.as ?? "admin"}` : this.#runtime.place.kind})`, null, async () => {
-      if (options.den) {
-        if (options.signIn === false) {
-          return this.#runtime.own(await startApp({
-            den: options.den,
-            place: this.#runtime.place,
-            signIn: false,
-            model: options.model,
-            env: options.env,
-            workspacePath: options.workspacePath,
-            profileDir: options.profileDir,
-            enterpriseActivated: options.enterpriseActivated,
-          }), "electron");
-        }
-        return this.#runtime.own(await startApp({
-          den: options.den,
-          place: this.#runtime.place,
-          as: options.as ?? "admin",
-          model: options.model,
-          env: options.env,
-          workspace: options.workspace,
-          workspacePath: options.workspacePath,
-          profileDir: options.profileDir,
-          enterpriseActivated: options.enterpriseActivated,
-        }), "electron");
-      }
-      if (options.as) throw new Error("seed.desktop({ as }) requires a Den.");
+    return this.#runtime.call("seed", "desktop", `desktop(${this.#runtime.place.kind})`, null, async () => {
       const app = await this.#runtime.own(await desktop({
         name: options.name,
         host: this.#runtime.place.host(),
@@ -577,39 +515,6 @@ export class SeedChannel implements Seed {
     return this.#runtime.call("seed", "appWeb", `appWeb(${this.#runtime.place.kind})`, null, async () => {
       const web = await startAppWeb({ ...options, place: this.#runtime.place });
       return this.#runtime.own(web, "chrome");
-    });
-  }
-
-  web(options: SeedWebOptions) {
-    requireWorldResource(this.#runtime.resources, "web");
-    this.#runtime.requireDen(options.den);
-    return this.#runtime.call("seed", "web", `web(${options.signedInAs ? "signed in" : "signed out"})`, null, async () => {
-      const web = await this.#runtime.own(await chrome({
-        name: "spec-web",
-        host: this.#runtime.place.host(),
-        startUrl: options.signedInAs === undefined ? options.den.ref.webUrl : "about:blank",
-        headless: options.headless,
-      }), "chrome");
-      if (options.viewport) await setViewport(web, {
-        ...options.viewport,
-        deviceScaleFactor: options.viewport.deviceScaleFactor ?? 1,
-      });
-      if (options.signedInAs !== undefined) {
-        const session = sessionFromWebOptions(options);
-        const denOrigin = new URL(options.den.ref.webUrl).origin;
-        // Seed before hydration: a running anonymous page can otherwise clear the token.
-        await using initialSession = await addInitScript(web.client, browserScript((origin, token) => {
-          if (location.origin === origin) localStorage.setItem("harness:web:auth-token", token);
-        }, [denOrigin, session.token]));
-        await navigate(web.client, new URL(options.startPath ?? "/", options.den.ref.webUrl).toString());
-        await eventually(() => evaluateOnSurface(web, browserScript((origin) =>
-          location.origin === origin && document.readyState !== "loading", [denOrigin])),
-        { within: 30_000, intervalMs: 250, label: "Seeded Den origin document" });
-        return web;
-      }
-      const startPath = options.startPath ?? "/";
-      await navigate(web.client, new URL(startPath, options.den.ref.webUrl).toString());
-      return web;
     });
   }
 
@@ -655,49 +560,9 @@ export class SeedChannel implements Seed {
     });
   }
 
-  signIn(app: Surface, member: import("@harness/behaviors").DenSession, identity: string) {
-    return this.#runtime.call("seed", "signIn", `signIn(${identity})`, app, () => signInDesktopAs(app, member, member));
-  }
-
-  api(session: import("@harness/behaviors").DenSession, path: string, init: RequestInit = {}) {
-    const method = init.method?.toUpperCase() ?? "GET";
-    return this.#runtime.call("seed", "api", `[seed] api ${method} ${path}`, null, () => {
-      const headers = new Headers(init.headers);
-      headers.set("authorization", `Bearer ${session.token}`);
-      return denFetch(session, path, { ...init, headers });
-    });
-  }
-
-  orgConnection(admin: import("@harness/behaviors").DenSession, input: import("./types.ts").OrgConnectionInput) {
-    return this.#runtime.call("seed", "orgConnection", `orgConnection(${JSON.stringify(input.name)})`, null, () => createOrgConnection(admin, input));
-  }
-
-  nativeConnector(admin: import("@harness/behaviors").DenSession, input: import("@harness/behaviors").NativeConnectorInput) {
-    return this.#runtime.call("seed", "nativeConnector", `nativeConnector(${JSON.stringify(input.name)})`, null, () => createNativeConnector(admin, input));
-  }
-
   mock(options: Parameters<typeof mcpMock>[0] = {}) {
     requireWorldResource(this.#runtime.resources, "mock");
     return this.#runtime.sync("seed", "mock", "mock(mcp)", () => mcpMock(options));
-  }
-
-  faultProxy(den: Den) {
-    this.#runtime.requireDen(den);
-    return this.#runtime.call("seed", "faultProxy", `faultProxy(${this.#runtime.place.kind})`, null, async () => {
-      const proxy = await startFaultProxy(den.ref, {
-        place: this.#runtime.place,
-        sandbox: den.placement?.kind === "daytona" ? den.placement.sandboxId : undefined,
-      });
-      return this.#runtime.own(proxy);
-    });
-  }
-
-  denLink(den: Den, options: import("@harness/env").SeedDenLinkOptions = {}) {
-    this.#runtime.requireDen(den);
-    return this.#runtime.call("seed", "denLink", `denLink(${options.client ?? "public-preview"})`, null, async () => {
-      const link = await startDenLink(den.ref, options);
-      return this.#runtime.own(link);
-    });
   }
 
   tmpPath(label: string): string {
@@ -1114,16 +979,6 @@ export class ProbeChannel implements Probe {
 
   connectState(app: Surface) {
     return this.#runtime.call("probe", "connectState", "connectState", app, () => readConnectState(app));
-  }
-
-  api(session: import("@harness/behaviors").DenSession, path: string, init: RequestInit = {}) {
-    const method = init.method?.toUpperCase() ?? "GET";
-    return this.#runtime.call("probe", "api", `api(GET ${path})`, null, () => {
-      if (method !== "GET") throw new Error(`probe.api is read-only; ${method} is not allowed.`);
-      const headers = new Headers(init.headers);
-      headers.set("authorization", `Bearer ${session.token}`);
-      return denFetch(session, path, { ...init, method: "GET", headers });
-    });
   }
 
   desktopApi(path: string): Promise<{ status: number; body: unknown }> {

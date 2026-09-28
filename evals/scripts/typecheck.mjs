@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 /**
  * Type-check the evals program and report only the diagnostics that belong to it:
  * files under `evals/` plus the files `tsconfig.json` includes explicitly. Sources
- * the specs pull in transitively from `apps/` and `ee/` are compiled by their own
+ * the specs pull in transitively from `apps/` and `packages/` are compiled by their own
  * projects with their own flags; their diagnostics are not this check's claim.
  */
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));

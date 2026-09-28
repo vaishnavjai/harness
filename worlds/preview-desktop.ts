@@ -4,5 +4,5 @@ import { runPreview } from "./lib/preview.ts";
  * blank release; Freestyle runs the signed-out `fresh` desktop from a pushed commit.
  */
 export const supportedTargets = ["local/host", "daytona/linux", "daytona/windows", "freestyle/linux"];
-export async function main(): Promise<void> { await runPreview("desktop"); }
+export async function main(): Promise<void> { await runPreview(); }
 if (import.meta.main) await main();

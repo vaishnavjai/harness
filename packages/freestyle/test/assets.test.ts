@@ -20,7 +20,7 @@ test("files resolved against import.meta.url are string literals, never computed
 });
 
 test("every controller asset resolves to its own file", async () => {
-  for (const name of ["runtime.mjs", "acme-runtime.mjs", "desktop-runtime.mjs", "gateway.mjs", "builder.ts"] as const) {
+  for (const name of ["runtime.mjs", "desktop-runtime.mjs", "gateway.mjs", "builder.ts"] as const) {
     assert.equal(await readAsset(name), await readFile(new URL(name, src), "utf8"), name);
   }
 });

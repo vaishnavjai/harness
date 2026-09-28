@@ -15,12 +15,14 @@ function snapshot(slug: string, createdHoursAgo: number, usedHoursAgo?: number):
 const reasons = (plan: { slug: string; reason: string }[]) => Object.fromEntries(plan.map((item) => [item.slug, item.reason]));
 
 test("old preview naming versions are reclaimed; current ones only after a day without launches", () => {
-  const current = snapshotSlug(sha("a"), "acme-web");
+  const current = snapshotSlug(sha("a"), "app-web");
   const old = current.replace(/-v\d+-/, "-v3-");
+  const retired = `harness-acme-web-v7-${sha("f")}`;
   const idle = snapshotSlug(sha("b"), "app-web");
   const fresh = snapshotSlug(sha("c"), "desktop");
-  const plan = reasons(planCleanup([snapshot(old, 30), snapshot(current, 5), snapshot(idle, 40, 30), snapshot(fresh, 40, 3)], { now, inUse: new Set() }));
+  const plan = reasons(planCleanup([snapshot(old, 30), snapshot(retired, 5), snapshot(current, 5), snapshot(idle, 40, 30), snapshot(fresh, 40, 3)], { now, inUse: new Set() }));
   assert.equal(plan[old], "preview from an old naming version");
+  assert.equal(plan[retired], "preview from an old naming version");
   assert.equal(plan[idle], "preview not launched for a day");
   assert.equal(plan[current], undefined);
   assert.equal(plan[fresh], undefined);
@@ -34,25 +36,22 @@ test("anything touched in the last two hours or booted by a VM is kept", () => {
 });
 
 test("only the most recently used layer of each kind survives once superseded for a day", () => {
-  const newest = snapshot(`ow-build-v1-acme-web-${digest("1")}`, 50, 3);
-  const superseded = snapshot(`ow-build-v1-acme-web-${digest("2")}`, 60, 30);
-  const recentlyUsed = snapshot(`ow-build-v1-acme-web-${digest("3")}`, 60, 10);
-  const otherWorld = snapshot(`ow-build-v1-app-web-${digest("4")}`, 90, 80);
-  const evidenceNewest = snapshot(`ow-evidence-web-v2-${digest("5")}`, 30, 4);
-  const evidenceOld = snapshot(`ow-evidence-web-v2-${digest("6")}`, 60, 40);
-  const plan = reasons(planCleanup([newest, superseded, recentlyUsed, otherWorld, evidenceNewest, evidenceOld], { now, inUse: new Set() }));
-  assert.deepEqual(plan, {
-    [superseded.slug ?? ""]: "superseded cache layer",
-    [evidenceOld.slug ?? ""]: "superseded cache layer",
-  });
+  const newest = snapshot(`ow-build-v1-app-web-${digest("1")}`, 50, 3);
+  const superseded = snapshot(`ow-build-v1-app-web-${digest("2")}`, 60, 30);
+  const recentlyUsed = snapshot(`ow-build-v1-app-web-${digest("3")}`, 60, 10);
+  const otherWorld = snapshot(`ow-build-v1-desktop-${digest("4")}`, 90, 80);
+  const plan = reasons(planCleanup([newest, superseded, recentlyUsed, otherWorld], { now, inUse: new Set() }));
+  assert.deepEqual(plan, { [superseded.slug ?? ""]: "superseded cache layer" });
 });
 
-test("old evidence template versions and expired checkpoints are reclaimed", () => {
-  const oldTemplate = snapshot(`ow-evidence-web-v1-${digest("7")}`, 30, 25);
+test("every layer of a retired world is reclaimed, even the newest; expired checkpoints too", () => {
+  const acme = snapshot(`ow-build-v1-acme-web-${digest("5")}`, 30, 4);
+  const evidenceDeps = snapshot(`ow-evidence-deps-v1-${digest("6")}`, 30, 4);
+  const evidenceTemplate = snapshot(`ow-evidence-web-v2-${digest("7")}`, 30, 4);
   const expired = snapshot(`ow-evidence-v1-${"f".repeat(32)}`, 30);
   const live = snapshot(`ow-evidence-v1-${"e".repeat(32)}`, 10);
-  const plan = reasons(planCleanup([oldTemplate, expired, live], { now, inUse: new Set() }));
-  assert.equal(plan[oldTemplate.slug ?? ""], "evidence template from an old naming version");
+  const plan = reasons(planCleanup([acme, evidenceDeps, evidenceTemplate, expired, live], { now, inUse: new Set() }));
+  for (const retired of [acme, evidenceDeps, evidenceTemplate]) assert.equal(plan[retired.slug ?? ""], "layer of a retired world");
   assert.equal(plan[expired.slug ?? ""], "expired checkpoint");
   assert.equal(plan[live.slug ?? ""], undefined);
 });
@@ -61,7 +60,8 @@ test("snapshots Harness did not create are never planned or counted", () => {
   const personal = [snapshot("jalil-harness-dev-1234", 500), snapshot("test-something", 500), { ...snapshot("", 500), slug: null }];
   assert.deepEqual(planCleanup(personal, { now, inUse: new Set() }), []);
   for (const item of personal) assert.equal(isOurs(item.slug), false);
-  assert.equal(isOurs(snapshotSlug(sha("a"), "acme-web")), true);
+  assert.equal(isOurs(snapshotSlug(sha("a"), "desktop")), true);
+  assert.equal(isOurs(`ow-warm-v1-acme-web-${digest("8")}`), true);
 });
 
 test("deletion retries rate limits, treats already-gone as deleted, and reports other failures", async () => {

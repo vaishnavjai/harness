@@ -1,17 +1,14 @@
 # Daytona / Dev Container Setup
 
-Full-stack dev environment that runs the **real Electron app** + Den stack in a cloud sandbox. You see and steer the desktop app through your browser via noVNC.
+Dev environment that runs the **real Electron app** in a cloud sandbox. You see and steer the desktop app through your browser via noVNC.
 
 ## What's included
 
 | Service | Port | Description |
 |---------|------|-------------|
 | **Desktop App (noVNC)** | 6080 | The real Electron app rendered in a virtual display, accessible in your browser |
-| **Den Web** | 3005 | Admin dashboard for managing orgs, restrictions, providers |
-| **Den API** | 8788 | Control plane API |
 | **CDP Debug** | 9825 | Chrome DevTools Protocol — for app and browser automation |
 | **Vite HMR** | 5173 | Hot module replacement for the React UI |
-| **MySQL** | 3306 | Database (internal) |
 
 ## Quick start with Daytona Electron/noVNC
 
@@ -57,27 +54,6 @@ Do not use the generic `daytona create https://github.com/vaishnavjai/harness`
 flow for Electron/noVNC tests. The default resource size is too small and the
 generic image path does not guarantee the desktop stack we need.
 
-## Quick start with Daytona server
-
-```bash
-bash .devcontainer/create-daytona-harness-server-snapshot.sh  # one-time / refresh when deps change
-bash .devcontainer/test-server-on-daytona.sh [branch-or-commit]
-```
-
-The server helper creates a separate public Daytona sandbox for the Den stack:
-MySQL, Den API, and Den Web. It prints public preview URLs and
-the exact Electron command to point a desktop sandbox at that server:
-
-```bash
-bash .devcontainer/test-on-daytona.sh [branch-or-commit] \
-  --den-base-url https://3005-...daytonaproxy... \
-  --den-api-base-url https://8788-...daytonaproxy...
-```
-
-This keeps the architecture simple: the server sandbox owns cloud auth, orgs,
-policies, workers, and persistence; the Electron sandbox stays a real desktop
-client and talks to the server through public Daytona preview URLs.
-
 ## How it works
 
 1. `.devcontainer/Dockerfile.daytona-vnc` starts from `daytonaio/sandbox:0.6.0`,
@@ -119,15 +95,6 @@ The Daytona toolbox is exposed to opencode through focused skills:
 - `record-a-demo`: supplementary screenshots, recordings, and presentation artifacts.
 - `run-tests`: runs `evals/specs` coverage; the CLI chooses and reports placement.
 
-## Testing the customization system
-
-1. Open **Den Web** (port 3005) in a separate tab
-2. Sign up → create org → Org Settings → UI Customization
-3. Set overrides → Save
-4. In the **Electron app** (noVNC on port 6080):
-   - Cloud → developer mode → base URL `http://localhost:3005`
-   - Sign in → Settings → see the desktop policy banner
-
 ## Architecture
 
 ```
@@ -137,15 +104,7 @@ Your Browser
     │                              │
     │                              ├── CDP :9825 (automatable)
     │                              └── Vite HMR :5173
-    │
-    ├── :3005 Den Web (Next.js)
-    │
-    └── :8788 Den API (Hono) ──▶ MySQL :3306
 ```
-
-With a separate server sandbox, the Electron box uses Daytona preview URLs for
-Den Web/API instead of `localhost`, while the server sandbox still keeps its
-internal service graph local.
 
 ## Automation
 

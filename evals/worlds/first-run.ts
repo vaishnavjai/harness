@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { chmod, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { app as startApp, server as startServer, resolveEvalEngine } from "@harness/env";
+import { app as startApp, resolveEvalEngine } from "@harness/env";
 import { SkipError } from "@harness/env";
 import type { Place, Seed } from "@harness/env";
 import { createAndSelectWorkspace, evalIn, go, waitFor as waitForBehavior } from "@harness/behaviors";
@@ -27,16 +27,8 @@ import { sessionlessTransition } from "./sessionless-transition.ts";
 import { close, listen, readBody, sendJson, sendMockError } from "./harness-server-cli.ts";
 import { matchVerdictExpectations } from "@harness/matchers";
 import {
-  assignPluginToMarketplace,
   completeDesktopHandoff,
-  createDesktopHandoffGrant,
-  createMarketplace,
-  createPluginWithSkill,
-  ensureMemberSession,
-  grantMarketplaceAccess,
   readHandoffDeepLink,
-  readResolvedMarketplace,
-  signIn,
   signInInBrowser,
 } from "@harness/behaviors";
 
@@ -115,7 +107,7 @@ export async function appSmokeWorld(seed: Seed) {
 }
 
 export async function bareFirstRunWorld(seed: Seed, { place }: { place: Place }) {
-  const app = await seed.desktop({ name: "first-run", signIn: false });
+  const app = await seed.desktop({ name: "first-run" });
   const url = new URL(await evalIn(app, () => location.href));
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("The non-desktop welcome journey requires the source app's HTTP surface.");
@@ -128,47 +120,6 @@ export async function bareFirstRunWorld(seed: Seed, { place }: { place: Place })
     async openedUrls() { return (await listTargets(web.handle.cdpUrl)).map((target) => target.url); },
     async [Symbol.asyncDispose]() { await web[Symbol.asyncDispose](); },
   };
-}
-
-export async function localFirstRunWorld(seed: Seed) {
-  const prompt = "Create a short welcome checklist for this Harness workspace. Use exactly three bullets and mention one thing I can do next.";
-  const reply = "Your workspace is ready. You can draft a document next.";
-  const den = await seed.den({
-    provision: false,
-    mocks: { starter: seed.mock({ agentWorkloads: [{ promptMarker: prompt, finalReply: reply, steps: [] }] }) },
-  });
-  const mock = den.mocks.starter;
-  // Only replace the provider transport. Do not seed a workspace, session,
-  // sign-in, onboarding preference, or selected model: the app must supply them.
-  const app = await seed.desktop({
-    name: "first-run-local",
-    signIn: false,
-    env: {
-      DAYTONA_SECRETS_ENV: "/tmp/harness-first-run-no-secrets",
-      HARNESS_DESKTOP_DISTRIBUTION: "public",
-      HARNESS_EVAL_MODEL: "",
-      VITE_DISABLE_HARNESS_MODELS: "0",
-      OPENCODE_CONFIG: "",
-      OPENCODE_CONFIG_CONTENT: JSON.stringify({
-        enabled_providers: ["opencode"],
-        small_model: "opencode/big-pickle",
-        provider: {
-          opencode: {
-            npm: "@ai-sdk/openai-compatible",
-            options: { baseURL: `${mock.url}/v1`, apiKey: "sk-eval-fixture" },
-            whitelist: ["big-pickle"],
-            models: {
-              "big-pickle": {
-                name: "Big Pickle",
-                provider: { npm: "@ai-sdk/openai-compatible", api: `${mock.url}/v1` },
-              },
-            },
-          },
-        },
-      }),
-    },
-  });
-  return { app, mock, prompt, reply };
 }
 
 export async function workspaceWorld(seed: Seed) {
@@ -561,52 +512,6 @@ export async function skillsLocalWorld(seed: Seed) {
   return { app, workspace };
 }
 
-export async function firstRunBootstrapWorld(seed: Seed) {
-  const den = await seed.den({
-    org: {
-      name: "First Run Bootstrap",
-      admin: { name: "First Run Bootstrap Admin" },
-      members: { member: { name: "First Run Bootstrap Member" } },
-    },
-  });
-  const proxy = await seed.faultProxy(den);
-  proxy.faults.status("/api/den/v1/me/desktop-config", 429, { times: 5 });
-  const proxiedDen = { ...den, ref: proxy.ref };
-  const grant = await createDesktopHandoffGrant(den.members.member);
-  const app = await seed.desktop({ den: proxiedDen, signIn: false });
-  return { app, den, proxy, grant };
-}
-
-export async function firstSignInWorld(seed: Seed) {
-  const den = await seed.den({
-    org: {
-      name: "First Signin Heal",
-      admin: { name: "First Signin Admin" },
-      members: { fresh: { name: "Fresh Profile Member" } },
-    },
-  });
-  const proxy = await seed.faultProxy(den);
-  proxy.faults.status("/api/den/v1/me/orgs", 429, { times: 3 });
-  const proxiedDen = { ...den, ref: proxy.ref };
-  const grant = await createDesktopHandoffGrant(den.members.fresh);
-  const app = await seed.desktop({ den: proxiedDen, signIn: false });
-  return { app, den, proxy, grant };
-}
-
-export async function testkitAppBootWorld(_seed: Seed, { place }: { place: Place }) {
-  const stack = new AsyncDisposableStack();
-  const den = stack.use(await startServer({ place }));
-  if (!den.ports) throw new Error("The local testkit Den did not expose its ports.");
-  const app = stack.use(await startApp({ den, as: "admin", place }));
-  let closed = false;
-  const close = async () => {
-    if (closed) return;
-    closed = true;
-    await stack.disposeAsync();
-  };
-  return { app, den, ports: den.ports, close, [Symbol.asyncDispose]: close };
-}
-
 export async function unconfiguredNotificationWorld(seed: Seed) {
   const workspacePath = await mkdtemp(join(tmpdir(), "harness-notification-shell-"));
   const app = await seed.desktop({ name: "opencode-unconfigured-notification" });
@@ -929,129 +834,6 @@ async function cleanup(label: string, action: () => PromiseLike<unknown>): Promi
   }
 }
 
-export async function enterpriseTlsWorld(seed: Seed, { place }: { place: Place }) {
-  const den = await seed.den();
-  const provisioned = await provisionDesktopSandbox({
-    ref: process.env.HARNESS_EVAL_REF?.trim() || process.env.GITHUB_SHA?.trim() || "dev",
-    name: "den-behind-enterprise-tls",
-    reuse: process.env.HARNESS_EVAL_DAYTONA_SANDBOX?.trim(),
-    log: (line) => console.error(`[harness/testkit] ${line}`),
-  });
-  const profileDir = `/workspace/.harness-daytona/profiles/enterprise-tls-${process.pid}-${Date.now()}`;
-  const edge = enterpriseTlsEdgeDaytonaCommands({ sandboxId: provisioned.sandbox, upstream: den.ref.webUrl });
-  let edgeStarted = false;
-  let rootInstallAttempted = false;
-  let rawApp: Awaited<ReturnType<typeof desktop>> | null = null;
-  let trustedApp: Awaited<ReturnType<typeof startApp>> | null = null;
-  const host = daytonaSandbox(provisioned.sandbox);
-
-  const dispose = async () => {
-    if (trustedApp) await cleanup("dispose trusted enterprise TLS app", () => trustedApp?.[Symbol.asyncDispose]() ?? Promise.resolve());
-    if (rawApp) await cleanup("dispose pre-trust enterprise TLS app", () => rawApp?.stop() ?? Promise.resolve());
-    await cleanup("remove caller-owned enterprise TLS profile", () => checkedExec(
-      defaultDaytonaExec,
-      ["exec", provisioned.sandbox, "--", "rm", "-rf", profileDir],
-      `remove caller-owned profile ${profileDir}`,
-      { timeoutMs: 30_000 },
-    ));
-    if (rootInstallAttempted) {
-      await cleanup("remove enterprise TLS root", () => checkedExec(defaultDaytonaExec, edge.removeRoot, "remove enterprise TLS root", { timeoutMs: 120_000 }));
-    }
-    if (edgeStarted) {
-      await cleanup("stop enterprise TLS edge", () => checkedExec(defaultDaytonaExec, edge.stop, "stop enterprise TLS edge", { timeoutMs: 30_000 }));
-    }
-    await cleanup("dispose Daytona desktop host", () => host[Symbol.asyncDispose]());
-    if (provisioned.created) await cleanup("delete Daytona desktop sandbox", () => deleteSandboxes([provisioned.sandbox]));
-  };
-
-  try {
-    for (const [index, command] of edge.prepare.entries()) {
-      await checkedExec(defaultDaytonaExec, command, `prepare enterprise TLS edge chunk ${index + 1}/${edge.prepare.length}`, { timeoutMs: 30_000 });
-    }
-    await checkedExec(defaultDaytonaExec, edge.start, "start enterprise TLS edge", { timeoutMs: 120_000 });
-    edgeStarted = true;
-    await checkedExec(defaultDaytonaExec, edge.probe, "probe enterprise TLS edge", { timeoutMs: 30_000 });
-    rawApp = await desktop({
-      name: "enterprise-tls-before-os-trust",
-      host,
-      profileDir,
-      bootstrap: { baseUrl: edge.candidateUrl, requireSignin: false },
-    });
-    // TODO(primitive): seed a named workspace in a caller-owned desktop profile.
-    const seededWorkspaceNames = await seed.evalIn(
-      rawApp,
-      browserScript((folderPath) => window.__HARNESS_ELECTRON__.invokeDesktop("workspaceCreate", {
-        folderPath,
-        name: "enterprise-tls-profile-continuity"
-      }).then((state) => state.workspaces.map((workspace) => workspace.displayName)), [`${profileDir}/continuity-workspace`]),
-      { awaitPromise: true },
-    );
-    if (!Array.isArray(seededWorkspaceNames) || !seededWorkspaceNames.includes("enterprise-tls-profile-continuity")) {
-      throw new Error("Could not seed the enterprise TLS continuity workspace.");
-    }
-    await waitForBehavior(
-      rawApp,
-      () => (window.__harnessControl?.listActions?.().some((action) => action.id === "auth.exchange-grant")),
-      { timeoutMs: 60_000, label: "pre-trust sign-in reachability action" },
-    );
-    const grant = await createDesktopHandoffGrant(den.admin);
-    const app = rawApp;
-    return {
-      app,
-      den,
-      edge,
-      grant,
-      profileDir,
-      async installTrust() {
-        await app.stop();
-        rawApp = null;
-        rootInstallAttempted = true;
-        await checkedExec(
-          defaultDaytonaExec,
-          edge.installRoot,
-          "ENTERPRISE_TLS_ROOT_INSTALL_REQUIRED (root and update-ca-certificates)",
-          { timeoutMs: 120_000 },
-        );
-        const candidateDen = { ...den, ref: { webUrl: edge.candidateUrl, apiUrl: `${edge.candidateUrl}/api/den` } };
-        trustedApp = await startApp({ den: candidateDen, as: "admin", place, host, profileDir });
-        return trustedApp;
-      },
-      inspectBundle() {
-        const bundlePath = `${profileDir}/electron-userdata/system-ca-bundle.pem`;
-        return checkedExec(
-          defaultDaytonaExec,
-          remoteCommand(provisioned.sandbox, [
-            "set -euo pipefail",
-            `test -s ${shellQuote(bundlePath)}`,
-            `/usr/bin/openssl crl2pkcs7 -nocrl -certfile ${shellQuote(bundlePath)} | /usr/bin/openssl pkcs7 -print_certs -noout`,
-          ].join("; ")),
-          "inspect product-generated profile system CA bundle",
-          { timeoutMs: 30_000 },
-        );
-      },
-      probeSelectiveTrust(encodedProbe: string) {
-        const bundlePath = `${profileDir}/electron-userdata/system-ca-bundle.pem`;
-        return checkedExec(
-          defaultDaytonaExec,
-          remoteCommand(
-            provisioned.sandbox,
-            `export NODE_EXTRA_CA_CERTS=${shellQuote(bundlePath)}; /usr/bin/env node --input-type=module -e "\$(printf %s ${shellQuote(encodedProbe)} | base64 -d)" ${shellQuote(edge.candidateUrl)} ${shellQuote(edge.negativeUrl)}`,
-          ),
-          "probe selective trust with product-generated CA bundle",
-          { timeoutMs: 30_000 },
-        );
-      },
-      readEdgeRequests() {
-        return checkedExec(defaultDaytonaExec, edge.requests, "read enterprise TLS edge requests", { timeoutMs: 30_000 });
-      },
-      [Symbol.asyncDispose]: dispose,
-    };
-  } catch (error) {
-    await dispose();
-    throw error;
-  }
-}
-
 export async function appDenTlsFaultWorld(_seed: Seed, { place }: { place: Place }) {
   const edge = await startEgressLab({ profile: "intercept" });
   const app = await desktop({
@@ -1073,52 +855,6 @@ export async function appDenTlsFaultWorld(_seed: Seed, { place }: { place: Place
   };
 }
 
-export async function firstRunCloudShareWorld(seed: Seed, { place }: { place: Place }) {
-  const den = await seed.den({
-    org: {
-      name: "Acme",
-      admin: { email: `first-run-cloud-admin-${Date.now()}@harness.test`, name: "Alex" },
-      members: { colleague: { email: `first-run-cloud-colleague-${Date.now()}@harness.test`, name: "Jordan" } },
-    },
-  });
-  const app = await desktop({
-    name: "first-run-cloud-share",
-    host: place.host(),
-    bootstrap: { baseUrl: den.ref.webUrl, requireSignin: false },
-  });
-  const web = await seed.web({
-    den,
-    startPath: "/",
-    headless: true,
-    viewport: { width: 1280, height: 900, deviceScaleFactor: 1 },
-  });
-  const shareSkill = async () => {
-    const stamp = Date.now();
-    const skillName = `shared-standup-${stamp}`;
-    const marketplace = await createMarketplace(den.admin, { name: `Team Marketplace ${stamp}` });
-    const plugin = await createPluginWithSkill(den.admin, {
-      name: `Standup Kit ${stamp}`,
-      skillName,
-      skillBody: "Summarise yesterday, today, and blockers in three short bullets.",
-      marketplaceId: marketplace.id,
-    });
-    await assignPluginToMarketplace(den.admin, marketplace.id, plugin.id).catch(async (error: unknown) => {
-      const resolved = await readResolvedMarketplace(den.admin, marketplace.id);
-      if (!resolved.pluginNames.includes(plugin.name)) throw error;
-    });
-    await grantMarketplaceAccess(den.admin, marketplace.id, { orgWide: true });
-    const visible = await readResolvedMarketplace(den.members.colleague, marketplace.id);
-    return { plugin, skillName, visible };
-  };
-  return {
-    app,
-    web,
-    den,
-    shareSkill,
-    async [Symbol.asyncDispose]() { await app.stop(); },
-  };
-}
-
 function toolResultJson(result: unknown): Record<string, unknown> {
   if (!isRecord(result)) return {};
   const content = Array.isArray(result.content) ? result.content.filter(isRecord) : [];
@@ -1126,161 +862,6 @@ function toolResultJson(result: unknown): Record<string, unknown> {
   if (!text) return {};
   const parsed: unknown = JSON.parse(text);
   return isRecord(parsed) ? parsed : {};
-}
-
-export async function toolTesterWorld(seed: Seed) {
-  const connectorBoot = seed.mock();
-  const den = await seed.den({
-    org: { name: `Tool Tester Eval ${Date.now()}`, admin: { name: "Sarah" } },
-    mocks: { connector: connectorBoot },
-  });
-  const connector = den.mocks.connector;
-  const connection = await seed.orgConnection(den.admin, {
-    name: `Tool Tester Probe ${Date.now()}`,
-    url: connector.mcpUrl,
-    authType: "oauth",
-    credentialMode: "shared",
-    access: { orgWide: true },
-  });
-  const orgs = await seed.api(den.admin, "/v1/me/orgs");
-  const organizations = isRecord(orgs.body) && Array.isArray(orgs.body.orgs) ? orgs.body.orgs.filter(isRecord) : [];
-  const orgId = organizations[0] && typeof organizations[0].id === "string" ? organizations[0].id : "";
-  if (!orgId) throw new Error("Could not resolve the Tool Tester organization.");
-  const tokenResult = await seed.api(den.admin, "/v1/mcp/token", {
-    method: "POST",
-    headers: { "x-harness-org-id": orgId },
-    body: JSON.stringify({}),
-  });
-  const mcpToken = isRecord(tokenResult.body) && typeof tokenResult.body.token === "string" ? tokenResult.body.token : "";
-  if (!mcpToken.startsWith("ow_mcp_at_")) throw new Error("Could not mint the Tool Tester MCP token.");
-  const web = await seed.web({
-    den,
-    signedInAs: "admin",
-    startPath: `/dashboard/mcp-connections/${encodeURIComponent(connection.id)}`,
-    headless: true,
-    viewport: { width: 1440, height: 1000 },
-  });
-  let requestId = 0;
-  const callTool = async (name: "search_capabilities" | "execute_capability", args: Record<string, unknown>) => {
-    const response = await fetch(`${den.ref.apiUrl}/mcp/agent`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${mcpToken}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: ++requestId, method: "tools/call", params: { name, arguments: args } }),
-      signal: AbortSignal.timeout(120_000),
-    });
-    const raw = await response.text();
-    if (!response.ok) throw new Error(`MCP tools/call failed: HTTP ${response.status} ${raw.slice(0, 500)}`);
-    const data = raw.split("\n").find((line) => line.startsWith("data:"));
-    if (!data) throw new Error(`MCP tools/call returned no data frame: ${raw.slice(0, 500)}`);
-    const frame: unknown = JSON.parse(data.slice(5));
-    return isRecord(frame) ? frame.result : null;
-  };
-  const search = async () => {
-    const result = await callTool("search_capabilities", { query: "mock echo", limit: 20 });
-    const payload = toolResultJson(result);
-    return Array.isArray(payload.matches) ? payload.matches.filter(isRecord) : [];
-  };
-  return {
-    web,
-    den,
-    connector,
-    connection,
-    toolTesterUrl: `${den.ref.webUrl}/dashboard/tool-tester?connectionId=${encodeURIComponent(connection.id)}`,
-    search,
-    execute: (schemaDigest: string, text: string) => callTool("execute_capability", {
-      name: `mcp:${connection.id}:mock_echo`, schemaDigest, body: { text },
-    }),
-    /** Return to the connector page after the mock OAuth flow finishes. */
-    async closeSignInTab(): Promise<void> {
-      const targets = await listTargets(web.handle.cdpUrl);
-      for (const target of targets) {
-        if (target.type === "page" && target.id !== web.client.targetId
-          && target.url.startsWith(`${den.ref.webUrl}/connect/oauth`)) {
-          await web.client.send("Target.closeTarget", { targetId: target.id });
-        }
-      }
-      await web.client.send("Page.bringToFront");
-    },
-    /** The Tool Tester link destination for this connection. */
-    // TODO(primitive): read a visible link destination by test id.
-    async testToolsHref(): Promise<string> {
-      const value = await seed.evalIn(web, browserScript((connectionId) => document.querySelector<HTMLElement>('a[href*="/tool-tester?connectionId=' + encodeURIComponent(connectionId) + '"]')?.getAttribute("href") ?? "", [connection.id]));
-      return typeof value === "string" ? value : "";
-    },
-    /** Whether Tool Tester appears in Manage rather than Settings. */
-    // TODO(primitive): identify a nav item's containing sidebar group.
-    async toolTesterSidebarPlacement(): Promise<{ inManage: boolean; inSettings: boolean }> {
-      const value = await seed.evalIn(web, () => {
-        const sidebar = document.querySelector<HTMLElement>('[data-testid="den-org-sidebar"]');
-        const links = sidebar ? [...sidebar.querySelectorAll('a')] : [];
-        const toolTester = links.find((link) => link.textContent?.trim() === "Tool Tester");
-        const settings = links.find((link) => link.textContent?.trim() === "Settings");
-        return {
-          inManage: toolTester?.closest('[data-sidebar-section="manage"]') != null,
-          inSettings: settings?.parentElement?.contains(toolTester ?? null) ?? false,
-        };
-      });
-      if (!isRecord(value) || typeof value.inManage !== "boolean" || typeof value.inSettings !== "boolean") {
-        throw new Error(`Expected Tool Tester sidebar placement booleans, received ${JSON.stringify(value)}.`);
-      }
-      return { inManage: value.inManage, inSettings: value.inSettings };
-    },
-    /** The current web location. */
-    async location(): Promise<string> {
-      const value = await seed.evalIn(web, () => (location.href));
-      if (typeof value !== "string") throw new Error("Expected the web location to be a string.");
-      return value;
-    },
-    /** The checked states of the arguments editor modes by label. */
-    // TODO(primitive): assert selected and unselected radio state.
-    async argumentsEditorModes(): Promise<Record<string, string | null>> {
-      const value = await seed.evalIn(web, () => {
-        const editor = document.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Arguments editor mode"]');
-        const radios = editor ? [...editor.querySelectorAll<HTMLElement>('[role="radio"]')] : [];
-        return Object.fromEntries(radios.map((radio) => [(radio.textContent ?? "").trim(), radio.getAttribute("aria-checked")]));
-      });
-      if (!isRecord(value) || !Object.values(value).every((entry) => typeof entry === "string" || entry === null)) {
-        throw new Error(`Expected arguments editor modes, received ${JSON.stringify(value)}.`);
-      }
-      const modes: Record<string, string | null> = {};
-      for (const [label, checked] of Object.entries(value)) {
-        if (typeof checked === "string" || checked === null) modes[label] = checked;
-      }
-      return modes;
-    },
-    /** The selected Tool call inspection tab's label. */
-    // TODO(primitive): assert the selected result tab state.
-    async selectedInspectionTab(): Promise<string> {
-      const value = await seed.evalIn(web, () => (document.querySelector<HTMLElement>('[aria-label="Tool call inspection"] [role="tab"][aria-selected="true"]')?.textContent?.trim() ?? ""));
-      return typeof value === "string" ? value : "";
-    },
-    /** The organization tools switch's checked state. */
-    // TODO(primitive): assert a visible switch's checked state.
-    async orgToolsSwitchChecked(): Promise<string | null> {
-      const value = await seed.evalIn(web, () => (document.querySelector<HTMLElement>('[role="switch"][aria-label="Tools enabled for your organization"]')?.getAttribute("aria-checked")));
-      return typeof value === "string" ? value : null;
-    },
-    /** The arguments editor's nested-schema fallback state. */
-    // TODO(primitive): assert disabled and selected radio state.
-    async argumentsEditorFallback(): Promise<{ formDisabled: boolean; jsonChecked: string }> {
-      const value = await seed.evalIn(web, () => {
-        const editor = document.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Arguments editor mode"]');
-        const radios = editor ? [...editor.querySelectorAll<HTMLElement>('[role="radio"]')] : [];
-        const form = radios.find((radio) => (radio.textContent ?? "").trim() === "Form");
-        const json = radios.find((radio) => (radio.textContent ?? "").trim() === "JSON");
-        return { formDisabled: form?.hasAttribute("disabled") ?? false, jsonChecked: json?.getAttribute("aria-checked") ?? "" };
-      });
-      if (!isRecord(value) || typeof value.formDisabled !== "boolean" || typeof value.jsonChecked !== "string") {
-        throw new Error(`Expected arguments editor fallback state, received ${JSON.stringify(value)}.`);
-      }
-      return { formDisabled: value.formDisabled, jsonChecked: value.jsonChecked };
-    },
-    /** Whether the Run tool button is disabled. */
-    // TODO(primitive): assert a visible button's disabled state.
-    async runToolDisabled(): Promise<boolean> {
-      return await seed.evalIn(web, () => ([...document.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Run tool" && button.disabled))) === true;
-    },
-  };
 }
 
 export async function managedVaultWorld(_seed: Seed, { place }: { place: Place }) {
@@ -1413,7 +994,7 @@ declare global {
 }
 
 export async function backgroundUpdateWorld(seed: Seed) {
-  const app = await seed.desktop({ name: "background-update", signIn: false });
+  const app = await seed.desktop({ name: "background-update" });
   const workspace = await seed.workspace(app, seed.tmpPath("background-update"));
   await evalIn(app, async () => {
     const currentVersion = "0.18.0";
@@ -1501,63 +1082,6 @@ export async function backgroundUpdateWorld(seed: Seed) {
       window.__backgroundUpdateWitness.offset += 16 * 60 * 1000;
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event("online"));
-    }),
-    openSettings: () => go(app, `/workspace/${workspace.workspaceId}/settings/updates`),
-    harnessspace: () => go(app, `/workspace/${workspace.workspaceId}/session`),
-  };
-}
-
-/** A desktop signed in to a real Den whose organization pins allowed desktop
- * versions. The fake feed offers 9.9.9; the pin decides whether it installs. */
-export async function savedUpdatePolicyWorld(seed: Seed) {
-  const den = await seed.den({
-    org: { name: `Update policy ${Date.now()}`, admin: { name: "Update Policy Admin" } },
-  });
-  const allowVersions = async (versions: string[]) => {
-    const result = await seed.api(den.admin, "/v1/org", {
-      method: "PATCH", body: JSON.stringify({ allowedDesktopVersions: versions }),
-    });
-    if (!result.response.ok) throw new Error(`Setting allowed desktop versions failed: HTTP ${result.response.status} ${result.text.slice(0, 300)}`);
-  };
-  await allowVersions(["9.9.9"]);
-  const app = await seed.desktop({ name: "revoked-update", den, as: "admin" });
-  const workspace = await seed.workspace(app, seed.tmpPath("revoked-update"));
-  await evalIn(app, async () => {
-    // Report the real installed version: a different one would re-key the
-    // background auto-check and start a second check beside the manual one.
-    const { currentVersion } = await window.__HARNESS_ELECTRON__.updater.getChannel();
-    const state: Window["__backgroundUpdateWitness"] = { checks: 0, downloads: 0, installs: 0, offset: 0, finishDownload: null, intervalCheck: null };
-    window.__backgroundUpdateWitness = state;
-    window.__harnessReadDesktopVersionMetadataEval = () => ({
-      minAppVersion: "0.1.0", latestAppVersion: "9.9.9", publishedDesktopVersions: ["9.9.9"],
-    });
-    window.__harnessUpdaterEvalBridge = {
-      getChannel: async () => ({ channel: "stable", currentVersion }),
-      setChannel: async (channel) => ({ channel, currentVersion }),
-      check: async () => {
-        state.checks++;
-        return { available: true, channel: "stable", currentVersion, latestVersion: "9.9.9" };
-      },
-      download: async () => {
-        state.downloads++;
-        return { ok: true };
-      },
-      installAndRestart: async () => {
-        state.installs++;
-        return { ok: true };
-      },
-      onDownloadProgress: () => () => {},
-    };
-  }, { awaitPromise: true });
-  return {
-    app,
-    den,
-    allowVersions,
-    snapshot: () => evalIn(app, () => {
-      const { downloads, installs } = window.__backgroundUpdateWitness;
-      const installButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-        .find((button) => button.textContent?.trim() === "Install & restart");
-      return { downloads, installs, installEnabled: installButton != null && !installButton.disabled };
     }),
     openSettings: () => go(app, `/workspace/${workspace.workspaceId}/settings/updates`),
     harnessspace: () => go(app, `/workspace/${workspace.workspaceId}/session`),

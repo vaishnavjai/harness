@@ -35,7 +35,7 @@ test("PRs touching the app, server, or Den are product changes", () => {
 test("website-only PRs are separated from product changes", () => {
   const website = classifyPr({
     title: "feat(website): refresh branding",
-    paths: ["ee/apps/landing/app/page.tsx", "packages/docs/index.mdx", "ee/apps/den-api/scripts/openapi.ts", ".github/pr-assets/a.png"],
+    paths: ["packages/landing/app/page.tsx", "packages/docs/index.mdx", ".github/pr-assets/a.png"],
     releaseNote: null,
   })
   assert.equal(website.audience, "website")

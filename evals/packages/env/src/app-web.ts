@@ -33,13 +33,12 @@ export interface SeedAppWebOptions {
   emptyWorkspace?: boolean;
   /** Explicit fixture runtime settings; the normal isolated environment is retained. */
   env?: Record<string, string>;
-  syntheticPreactivatedDenOrigin?: string;
   name?: string;
   mocks?: Record<string, MockBoot>;
   headless?: boolean;
 }
 
-/** A test-owned real app-web stack. This is distinct from seed.web(), which drives Den. */
+/** A test-owned real app-web stack. */
 export interface AppWeb extends AttachedSurface {
   webUrl: string;
   harnessUrl: string;
@@ -207,15 +206,15 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
   let localSourceSha: string | null = null;
   try {
     if (remote) {
-      const repoSource = options.place.denBase();
-      if (repoSource.kind !== "daytona") throw new Error("Daytona app-web placement did not expose a source ref.");
+      const sourceRef = options.place.sourceRef();
+      if (!sourceRef) throw new Error("Daytona app-web placement did not expose a source ref.");
       const preparedSandbox = process.env.HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX?.trim();
       if (preparedSandbox) {
         // A supplied/borrowed room bypasses DaytonaPlacementHost provisioning,
         // so enforce its checkout before Chrome or either app process starts.
         source = await prepareSandboxRepo({
           sandbox: preparedSandbox,
-          ref: repoSource.ref,
+          ref: sourceRef,
           log: (line) => console.error(`[harness/testkit] ${line}`),
         });
       }
@@ -236,7 +235,7 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
       // Newly provisioned placements prepare source before spawning Chrome and
       // persist this receipt. Supplied placements use the in-memory receipt
       // from the preboot gate above.
-      source ??= await readSandboxRepoSourceReceipt({ sandbox, expectedRef: repoSource.ref });
+      source ??= await readSandboxRepoSourceReceipt({ sandbox, expectedRef: sourceRef });
       browser.handle.meta = {
         ...browser.handle.meta,
         requestedSourceRef: source.requestedRef,
@@ -245,7 +244,7 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
         sourcePreparedFingerprint: source.preparedFingerprint,
       };
       mocks = await bootRemoteMocks(sandbox, options.mocks ?? {});
-      runtime = await startRemoteRuntime(sandbox, worldName, workspaceRoot, source, { syntheticPreactivatedDenOrigin: options.syntheticPreactivatedDenOrigin, env: options.env, emptyWorkspace: options.emptyWorkspace });
+      runtime = await startRemoteRuntime(sandbox, worldName, workspaceRoot, source, { env: options.env, emptyWorkspace: options.emptyWorkspace });
     } else {
       // Capture only the commit identity, before mocks or app processes launch.
       // Do not expose git stderr, checkout paths, or environment in evidence.
@@ -263,7 +262,7 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
         throw new Error("Invalid local app-web source SHA receipt.");
       }
       mocks = await bootLocalMocks(options.place, options.mocks ?? {});
-      runtime = await startLocalRuntime(worldName, workspaceRoot, { syntheticPreactivatedDenOrigin: options.syntheticPreactivatedDenOrigin, env: options.env, emptyWorkspace: options.emptyWorkspace });
+      runtime = await startLocalRuntime(worldName, workspaceRoot, { env: options.env, emptyWorkspace: options.emptyWorkspace });
       browser = await chrome({
         name: worldName,
         host: options.place.host(),

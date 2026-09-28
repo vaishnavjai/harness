@@ -26,7 +26,6 @@
     "@harness/hosts": "workspace:*",
     "@harness/freestyle": "link:../../../packages/freestyle",
     "@harness/labs": "workspace:*",
-    "@harness/world": "link:../../../packages/world",
-    "mysql2": "^3.11.3"
+    "@harness/world": "link:../../../packages/world"
   }
 }

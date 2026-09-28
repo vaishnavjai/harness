@@ -6,7 +6,6 @@ import { defaultDaytonaExec, execInSandbox } from "@harness/hosts";
 import type { SandboxRepoSourceReceipt } from "@harness/hosts";
 import { launchHeadlessWeb, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { resolveEvalEngine } from "./eval-engine.ts";
-import { seedSyntheticPreactivatedDen } from "./app-web-bootstrap.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 const EXECUTABLE_ENV_KEYS = ["PATH", "PNPM_HOME", "TMPDIR", "SHELL", "SYSTEMROOT", "COMSPEC", "PATHEXT", "WINDIR", "npm_execpath", "npm_node_execpath"];
@@ -22,7 +21,6 @@ export interface AppWebRuntime {
 
 export interface AppWebRuntimeOptions {
   emptyWorkspace?: boolean;
-  syntheticPreactivatedDenOrigin?: string;
   env?: Record<string, string>;
   browserHostSuffix?: string;
 }
@@ -79,7 +77,6 @@ export async function startLocalRuntime(worldName: string, workspaceRoot: string
   const runtimeDirectory = resolveHeadlessWorldRuntimePaths(REPO_ROOT, worldName).directory;
   try {
     await Promise.all([mkdir(workspaceRoot, { recursive: true }), ...runtimeDirectories(fixtureRoot).map((path) => mkdir(path, { recursive: true }))]);
-    const bootstrapEnv = await seedSyntheticPreactivatedDen(fixtureRoot, options.syntheticPreactivatedDenOrigin);
     const runtime = await launchHeadlessWeb({
       repoRoot: REPO_ROOT,
       name: worldName,
@@ -87,7 +84,7 @@ export async function startLocalRuntime(worldName: string, workspaceRoot: string
       workspace: workspaceRoot,
       emptyWorkspace: options.emptyWorkspace,
       browserHostSuffix: options.browserHostSuffix,
-      env: { ...executableEnvironment(process.env), ...isolatedRuntimeEnvironment(fixtureRoot), ...options.env, ...bootstrapEnv },
+      env: { ...executableEnvironment(process.env), ...isolatedRuntimeEnvironment(fixtureRoot), ...options.env },
     });
     return { webUrl: runtime.manifest.webUrl, harnessUrl: runtime.manifest.harnessUrl, runtimeDirectory, fixtureRoot, source: null, stop: () => runtime.stop() };
   } catch (error) {
@@ -131,7 +128,6 @@ const REMOTE_LAUNCH_SOURCE = `
 import { constants } from "node:fs";
 import { access, mkdir, readdir, symlink } from "node:fs/promises";
 import { launchHeadlessWeb } from "/workspace/packages/world/src/headless-web.ts";
-import { seedSyntheticPreactivatedDen } from "/workspace/evals/packages/env/src/app-web-bootstrap.ts";
 const input = JSON.parse(Buffer.from(process.argv[2], "base64url").toString("utf8"));
 await Promise.all(input.directories.map((path) => mkdir(path, { recursive: true })));
 const executable = {};
@@ -149,10 +145,9 @@ for (const tool of ["bun", "opencode"]) {
   }
 }
 executable.PATH = [toolBin, executable.PATH].filter(Boolean).join(":");
-const bootstrapEnv = await seedSyntheticPreactivatedDen(input.fixtureRoot, input.syntheticPreactivatedDenOrigin);
 const handle = await launchHeadlessWeb({
   repoRoot: input.repoRoot, name: input.name, state: "isolated", workspace: input.workspace, emptyWorkspace: input.emptyWorkspace,
-  browserHostSuffix: input.browserHostSuffix, env: { ...executable, ...input.env, ...bootstrapEnv },
+  browserHostSuffix: input.browserHostSuffix, env: { ...executable, ...input.env },
 });
 await handle.detach();
 console.log(JSON.stringify({ webUrl: handle.manifest.webUrl, harnessUrl: handle.manifest.harnessUrl, runtimeManifestPath: handle.manifest.runtimeManifestPath }));
@@ -175,7 +170,6 @@ export async function startRemoteRuntime(sandbox: string, worldName: string, wor
   const launchModulePath = `/tmp/${worldName}-launch.mjs`;
   const stopModulePath = `/tmp/${worldName}-stop.mjs`;
   const output = await runRemoteModule(sandbox, launchModulePath, REMOTE_LAUNCH_SOURCE, {
-    syntheticPreactivatedDenOrigin: options.syntheticPreactivatedDenOrigin,
     emptyWorkspace: options.emptyWorkspace,
     directories: [workspaceRoot, ...runtimeDirectories(fixtureRoot)],
     env: { ...isolatedRuntimeEnvironment(fixtureRoot), ...options.env },

@@ -52,18 +52,6 @@ export interface ChromeSurfaceOptions {
   headless?: boolean;
 }
 
-export interface DenServiceOptions {
-  orgMode?: "single_org" | "multi_org";
-  seed?: "acme" | "none";
-}
-
-export interface DenServiceHandle {
-  webUrl: string;
-  apiUrl: string;
-  orgMode: "single_org" | "multi_org";
-  hostKind: string;
-}
-
 export type ShareLinks = { label: string; url: string }[];
 
 export interface Host {
@@ -82,7 +70,6 @@ export interface Host {
   /** Launch without requiring product readiness; app crashes remain inspectable through the host viewer. */
   spawnElectronRetained?(name: string, opts?: ElectronSurfaceOptions): Promise<RetainedElectronSurface>;
   spawnChrome(name: string, opts?: ChromeSurfaceOptions): Promise<SurfaceHandle>;
-  startDen?(opts?: DenServiceOptions): Promise<DenServiceHandle>;
   share?(): Promise<ShareLinks>;
   disposeSurface(handle: SurfaceHandle): Promise<void>;
 }

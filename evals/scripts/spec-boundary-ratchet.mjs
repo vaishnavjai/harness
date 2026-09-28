@@ -15,10 +15,10 @@ function importedSpecifiers(source) {
 
 export function classifySpec(source) {
   const imports = importedSpecifiers(source);
-  const productSource = /^\.\.\/\.\.\/(?:apps|packages|ee)\//;
+  const productSource = /^\.\.\/\.\.\/(?:apps|packages)\//;
   return {
     importsProductSource: imports.some((specifier) => productSource.test(specifier))
-      || /\bnew\s+URL\(\s*["']\.\.\/\.\.\/(?:apps|packages|ee)\/[^"']*["']\s*,\s*import\.meta\.url\s*\)/.test(source),
+      || /\bnew\s+URL\(\s*["']\.\.\/\.\.\/(?:apps|packages)\/[^"']*["']\s*,\s*import\.meta\.url\s*\)/.test(source),
     importsNodeFs: imports.some((specifier) => /^(?:node:)?fs(?:\/promises)?$/.test(specifier)),
     importsChildProcess: imports.some((specifier) => /^(?:node:)?child_process$/.test(specifier)),
     crossesBoundary: imports.some((specifier) => /^(?:\.\.\/)?\.\.\/worlds\/|^@harness\/world$/.test(specifier))

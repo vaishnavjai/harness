@@ -9,11 +9,6 @@
       "development": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./den": {
-      "types": "./src/den.ts",
-      "development": "./src/den.ts",
-      "default": "./src/den.ts"
-    },
     "./desktop": {
       "types": "./src/desktop.ts",
       "development": "./src/desktop.ts",

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { resolveEvalEngineValue } from "./eval-engine.ts";
-import type { ChromeSurfaceOptions, DenServiceHandle, DenServiceOptions, ElectronSurfaceOptions, Host, RetainedElectronSurface, ShareLinks, SurfaceHandle } from "./types.ts";
+import type { ChromeSurfaceOptions, ElectronSurfaceOptions, Host, RetainedElectronSurface, ShareLinks, SurfaceHandle } from "./types.ts";
 
 export interface DaytonaExecResult {
   stdout: string;
@@ -24,14 +24,12 @@ export interface DaytonaHostOptions {
   repoRoot: string;
   reservedChromePorts?: number[];
   reservedElectronPorts?: number[];
-  serverScript?: boolean;
   waitForCdp?: (url: string, timeoutMs: number, label: string) => Promise<void>;
 }
 
 export interface DaytonaHost extends Host, AsyncDisposable {
   previewUrl(port: number): Promise<string>;
   spawnElectronRetained(name: string, opts?: ElectronSurfaceOptions): Promise<RetainedElectronSurface>;
-  startDen(opts?: DenServiceOptions): Promise<DenServiceHandle>;
   share(): Promise<ShareLinks>;
   stop(): Promise<void>;
 }
@@ -65,16 +63,9 @@ interface PortAllocation {
   used: Set<number>;
 }
 
-interface ProcessRunOptions {
-  cwd: string;
-  timeoutMs: number;
-  onOutput: (text: string) => void;
-}
-
 const ELECTRON_CDP_WAIT_MS = 180_000;
 const CHROME_CDP_WAIT_MS = 60_000;
 const CDP_POLL_INTERVAL_MS = 1_000;
-const SERVER_SCRIPT_TIMEOUT_MS = 20 * 60 * 1_000;
 const STANDARD_NOVNC_PORT = 6080;
 const STANDARD_ARTIFACTS_PORT = 8090;
 const HTTPS_URL = /https:\/\/[^\s"'<>)]+/;
@@ -151,44 +142,6 @@ export function defaultDaytonaExec(
   });
 }
 
-function runProcess(command: string, args: string[], opts: ProcessRunOptions): Promise<DaytonaExecResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: opts.cwd, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    let timedOut = false;
-    const timer = globalThis.setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, opts.timeoutMs);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      const text = String(chunk);
-      stdout += text;
-      opts.onOutput(text);
-    });
-    child.stderr.on("data", (chunk) => {
-      const text = String(chunk);
-      stderr += text;
-      opts.onOutput(text);
-    });
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve({
-        stdout,
-        stderr: timedOut ? `${stderr}\nTimed out after ${opts.timeoutMs}ms.` : stderr,
-        code: timedOut ? 124 : code ?? 1,
-      });
-    });
-  });
-}
-
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
@@ -247,29 +200,8 @@ function cleanBaseUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
-function isOrgMode(value: unknown): value is "single_org" | "multi_org" {
-  return value === "single_org" || value === "multi_org";
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function runtimeOrgMode(webUrl: string): Promise<"single_org" | "multi_org"> {
-  const response = await fetch(`${cleanBaseUrl(webUrl)}/api/runtime-config`, { signal: AbortSignal.timeout(5_000) });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body: unknown = await response.json();
-  if (isRecord(body) && isOrgMode(body.orgMode)) return body.orgMode;
-  throw new Error("response did not include orgMode");
-}
-
-async function orgModeOrDefault(webUrl: string, log: (msg: string) => void): Promise<"single_org" | "multi_org"> {
-  try {
-    return await runtimeOrgMode(webUrl);
-  } catch (error) {
-    log(`Could not read Den runtime config from ${cleanBaseUrl(webUrl)}/api/runtime-config; assuming multi_org: ${messageText(error)}`);
-    return "multi_org";
-  }
 }
 
 /**
@@ -478,23 +410,6 @@ function electronProfileRoot(profileDir: string): string {
 
 function killGroupsForPatternCommand(pattern: string, signal: "TERM" | "KILL"): string {
   return `for pid in $(pgrep -f ${shellQuote(pattern)} || true); do pgid=$(ps -o pgid= -p "$pid" | tr -d ' '); if [ -n "$pgid" ]; then kill -${signal} -"$pgid" 2>/dev/null || true; fi; done`;
-}
-
-function parseUrlAfterLabels(output: string, labels: string[]): string | null {
-  for (const line of output.split(/\r?\n/)) {
-    for (const label of labels) {
-      if (line.includes(label)) {
-        const url = firstHttpsUrl(line);
-        if (url) return url;
-      }
-    }
-  }
-  return null;
-}
-
-function serverRefArg(): string | null {
-  const explicit = process.env.HARNESS_EVAL_DAYTONA_REF?.trim() || process.env.HARNESS_EVAL_REF?.trim() || "";
-  return explicit || null;
 }
 
 function portSet(values: number[] | undefined): Set<number> {
@@ -883,49 +798,6 @@ PYEOF`;
     }
   }
 
-  async function startDen(opts: DenServiceOptions = {}): Promise<DenServiceHandle> {
-    const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
-    const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
-    if (apiUrl && webUrl) {
-      return {
-        webUrl,
-        apiUrl,
-        orgMode: await orgModeOrDefault(webUrl, options.log),
-        hostKind: "daytona",
-      };
-    }
-
-    if (!options.serverScript) {
-      throw new Error("No Den URLs in HARNESS_EVAL_DEN_API_URL/HARNESS_EVAL_DEN_WEB_URL. Set them, or create the server with bash .devcontainer/test-server-on-daytona.sh <ref> and rerun with serverScript enabled.");
-    }
-
-    const args = [".devcontainer/test-server-on-daytona.sh"];
-    const ref = serverRefArg();
-    // The provisioning script can take several minutes because it may create a
-    // Daytona sandbox and build/install the Den stack; keep the timeout generous.
-    if (ref) args.push(ref);
-    const result = await runProcess("bash", args, {
-      cwd: options.repoRoot,
-      timeoutMs: SERVER_SCRIPT_TIMEOUT_MS,
-      onOutput: options.log,
-    });
-    if (result.code !== 0) {
-      const details = (result.stderr || result.stdout).trim();
-      throw new Error(`Daytona Den server script failed with exit ${result.code}${details ? `: ${details}` : ""}`);
-    }
-    const parsedWebUrl = parseUrlAfterLabels(result.stdout, ["DEN_WEB_URL", "Den Web:"]);
-    const parsedApiUrl = parseUrlAfterLabels(result.stdout, ["DEN_API_URL", "Den API:"]);
-    if (!parsedWebUrl || !parsedApiUrl) {
-      throw new Error("Daytona Den server script did not print Den Web and Den API URLs.");
-    }
-    return {
-      webUrl: parsedWebUrl,
-      apiUrl: parsedApiUrl,
-      orgMode: opts.orgMode ?? await orgModeOrDefault(parsedWebUrl, options.log),
-      hostKind: "daytona",
-    };
-  }
-
   async function disposeSurface(handle: SurfaceHandle): Promise<void> {
     if (handle.hostKind !== "daytona") return;
     const sandbox = handle.sandboxId?.trim() || requireSandbox();
@@ -1028,7 +900,6 @@ PYEOF`;
     spawnElectron,
     spawnElectronRetained,
     spawnChrome,
-    startDen,
     share,
     disposeSurface,
     stop,

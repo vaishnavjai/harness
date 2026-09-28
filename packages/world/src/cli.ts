@@ -336,7 +336,7 @@ async function helpText(options: WorldCliOptions): Promise<string> {
 
 World scripts run in the foreground by default; use --detach for background lifecycle receipts.
 Use --env KEY only for nonsecret configuration whose value must match before reusing a running world. Never select credentials.
---source composes preview-den, preview-desktop, app-web, and acme-web; --seed composes preview-den and preview-desktop. Other worlds reject them.
+--source composes preview-desktop and app-web; --seed composes preview-desktop. Other worlds reject them.
 Available world scripts: ${sources.join(", ") || "(none)"}`;
 }
 
@@ -531,9 +531,9 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
           name: script.name,
           path: displayWorldPath(script.path, options.cwd),
           supportedTargets: targets ?? null,
-          ...(script.name === "preview-desktop" || script.name === "preview-den"
-            ? { sources: script.name === "preview-desktop" ? ["den", "desktop"] : ["den"], seeds: ["fresh", "team", "restricted", "workspace", "blank"] }
-            : script.name === "app-web" || script.name === "acme-web" ? { sources: ["*"], seeds: [] } : {}),
+          ...(script.name === "preview-desktop"
+            ? { sources: ["desktop"], seeds: ["fresh", "blank"] }
+            : script.name === "app-web" ? { sources: ["*"], seeds: [] } : {}),
         };
         if (command.json) print(JSON.stringify(info));
         else print(`${info.name}: ${info.path}\nSupported targets: ${supportedTargetDescription(targets)}${"sources" in info ? `\nSources: ${info.sources?.join(", ")}\nSeeds: ${info.seeds?.join(", ")}` : ""}`);
@@ -569,8 +569,8 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
         throw new Error("Daytona Windows requires a blank published preview-desktop release; use --source desktop=release:<version>/<distribution> --seed blank.");
       }
       // These are opt-in for now: never silently accept inputs a recipe cannot apply.
-      const preview = script.name === "preview-desktop" || script.name === "preview-den";
-      const web = script.name === "app-web" || script.name === "acme-web";
+      const preview = script.name === "preview-desktop";
+      const web = script.name === "app-web";
       if (!preview && !web && ((command.sources?.length ?? 0) > 0 || (command.seeds?.length ?? 0) > 0)) {
         throw new Error(`World ${script.name} does not yet declare --source/--seed support. Use its existing script arguments after --.`);
       }
@@ -584,33 +584,17 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
           || (place === "local" ? webSource.kind !== "local" : webSource.kind !== "sha")) {
           throw new Error(`${script.name} --source accepts local on this computer or one pushed SHA/ref on remote placements; do not combine it with -- --ref or --seed.`);
         }
-        if (webSource.kind === "sha" && (script.name === "app-web" || place === "freestyle")) {
-          scriptArgs = ["--ref", webSource.sha, ...command.args];
-        }
+        if (webSource.kind === "sha") scriptArgs = ["--ref", webSource.sha, ...command.args];
       }
       const env: NodeJS.ProcessEnv = Object.fromEntries((command.env ?? []).map((key) => [key, process.env[key]]));
-      // Existing previews use origin/dev by default. Resolve it before adoption,
-      // otherwise a moved branch silently reuses an older running world.
-      if ((preview || script.name === "acme-web") && place === "daytona" && !sources.den && !sources["*"]) {
-        const pinned = process.env.HARNESS_EVAL_REF?.trim();
-        const sha = pinned ?? await resolveRef("dev");
-        if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("Preview Den source must be a full reviewed, pushed commit SHA.");
-        sources.den = { kind: "sha", sha };
-      }
       // A Freestyle snapshot is built from one pushed commit. Pin it before
-      // adoption, exactly as Daytona previews pin their Den source.
+      // adoption, otherwise a moved branch silently reuses an older running world.
       if (script.name === "preview-desktop" && place === "freestyle" && !sources.desktop && !sources["*"]) {
         const sha = process.env.HARNESS_EVAL_REF?.trim() || await resolveRef("dev");
         if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("Freestyle desktop source must be a full reviewed, pushed commit SHA.");
         sources.desktop = { kind: "sha", sha };
       }
-      if (script.name === "acme-web" && place === "daytona") {
-        if (command.args.length > 0) throw new Error("Daytona acme-web uses --source to select a ref; script arguments after -- are not supported.");
-        const acmeSource = sources["*"] ?? sources.den;
-        if (acmeSource?.kind !== "sha") throw new Error("Daytona acme-web requires a pinned commit SHA.");
-        env.HARNESS_EVAL_REF = acmeSource.sha;
-      }
-      if (place === "daytona" && script.name !== "app-web" && !preview && script.name !== "acme-web") {
+      if (place === "daytona" && !web) {
         const pinned = process.env.HARNESS_EVAL_REF?.trim() || process.env.GITHUB_SHA?.trim() || await resolveRef("dev");
         if (!/^[0-9a-f]{40}$/.test(pinned)) throw new Error("Daytona world source must be a full reviewed, pushed commit SHA.");
         env.HARNESS_EVAL_REF = pinned;

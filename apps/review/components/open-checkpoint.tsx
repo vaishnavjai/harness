@@ -56,7 +56,7 @@ export function CheckpointProvider({ children }: { children: ReactNode }) {
         || !("expiresAt" in value) || typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt))
         || Date.parse(value.expiresAt) <= Date.now()) throw new Error("Invalid launch");
       const url = new URL(value.url);
-      if (url.protocol !== "https:" || !/^evidence-[a-f0-9]{32}\.preview\.harness\.software$/.test(url.hostname)
+      if (url.protocol !== "https:" || !/^evidence-[a-f0-9]{32}\.preview\.harness-legacy\.invalid$/.test(url.hostname)
         || url.pathname !== "/__harness_launch" || url.username || url.password) throw new Error("Invalid viewer");
       pending.current.delete(key);
       update({ fork: { url: value.url, expiresAt: value.expiresAt }, unavailable: false });

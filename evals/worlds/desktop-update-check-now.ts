@@ -27,7 +27,7 @@ export async function desktopUpdateCheckNowWorld(seed: Seed) {
   const releases: { channel: "stable" | "alpha"; staged: string; newer: string } = process.platform === "darwin"
     ? { channel: "alpha", staged: "0.18.47-alpha.2962", newer: "0.18.47-alpha.2966" }
     : { channel: "stable", staged: "999999999.999999999.999999998", newer: "999999999.999999999.999999999" };
-  const app = await seed.desktop({ name: "desktop-update-check-now", signIn: false });
+  const app = await seed.desktop({ name: "desktop-update-check-now" });
   await setViewport(app, { width: 1200, height: 820, deviceScaleFactor: 1 });
   const workspace = await seed.workspace(app, seed.tmpPath("desktop-update-check-now"));
   await evalIn(app, browserScript(async (releases) => {

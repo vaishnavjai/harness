@@ -1,7 +1,7 @@
 import { browserScript, evaluate } from "@harness/cdp";
 import type { Surface } from "@harness/cdp";
 import { configureBrowserFixtureModel, startBrowserFixture } from "@harness/env";
-import type { Den, Seed } from "@harness/env";
+import type { Seed } from "@harness/env";
 import { builtinBrowserWorld } from "./browser-panel.ts";
 import { selectModel } from "@harness/behaviors";
 
@@ -60,22 +60,6 @@ export async function browserConsentSummaryWorld(seed: Seed) {
     await world[Symbol.asyncDispose]();
     throw error;
   }
-}
-
-/** Mid-flow fixture update uses the body's Seed and preserves every unrelated policy field. */
-export async function setBrowserPolicy(seed: Seed, app: Surface, den: Den, origins: string[] | null, blockBrowserUploads = false) {
-  const listed = await seed.api(den.admin, "/v1/desktop-policies");
-  if (!listed.response.ok || !record(listed.body) || !Array.isArray(listed.body.desktopPolicies)) throw new Error("No organization policies.");
-  const current = listed.body.desktopPolicies.find((item: unknown) => record(item) && item.isDefault === true);
-  if (!record(current) || typeof current.id !== "string" || !record(current.policy)) throw new Error("Missing default policy.");
-  const execution = { ...(record(current.policy.execution) ? current.policy.execution : {}), blockBrowserUploads };
-  const policy = { ...current.policy, execution: { ...execution, ...(origins === null ? {} : { browserOrigins: origins }) } };
-  if (origins === null) Reflect.deleteProperty(policy.execution, "browserOrigins");
-  const patched = await seed.api(den.admin, `/v1/desktop-policies/${current.id}`, {
-    method: "PATCH", body: JSON.stringify({ policyName: current.policyName, policy }),
-  });
-  if (!patched.response.ok) throw new Error("The organization rejected its browser policy update.");
-  await seed.evalIn(app, () => window.dispatchEvent(new Event('harness-den-settings-changed')));
 }
 
 export async function setBrowserEnabled(seed: Seed, app: Surface, enabled: boolean) {

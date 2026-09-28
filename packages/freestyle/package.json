@@ -9,8 +9,7 @@
     "./progress": "./src/progress.ts",
     "./outputs": "./src/outputs.ts",
     "./checkpoints": "./src/checkpoints.ts",
-    "./checkpoint-schema": "./src/checkpoint-schema.ts",
-    "./evidence-builder": "./src/evidence-builder.ts"
+    "./checkpoint-schema": "./src/checkpoint-schema.ts"
   },
   "scripts": {
     "test": "node --test test/*.test.ts test/*.test.mjs"

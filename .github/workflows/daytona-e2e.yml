@@ -236,15 +236,12 @@ jobs:
           ref: ${{ needs.authorize.outputs.sha || github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-tests
-      - name: Prepare local Den and Electron
+      - name: Prepare Electron
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y xvfb x11-utils libgtk-3-0 libnss3 libasound2t64 libgbm1
           pnpm --filter @harness/types build
-          pnpm --filter @harness-ee/den-db build
-          pnpm --filter @harness/email build
-          pnpm dev:den:mysql
       - name: Run user journey
         id: run
         env:

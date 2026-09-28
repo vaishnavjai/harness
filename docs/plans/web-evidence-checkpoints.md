@@ -5,7 +5,10 @@
 > `checkpoints`), capture no longer waits for the snapshot to be saved, CI selects
 > tagged specs, and records publish through the normal evidence report. The
 > synthetic probe, branch-format report and per-PR review deployment below were
-> removed. See `packages/freestyle/README.md` for current behavior.
+> removed. Later, the co-located evidence world was retired with the organization
+> control plane it booted: no world captures new checkpoints, and the review app
+> only reopens checkpoints that have not yet expired. This plan is historical.
+> See `packages/freestyle/README.md` for current behavior.
 
 ## Outcome and scope
 

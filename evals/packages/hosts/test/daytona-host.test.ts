@@ -607,29 +607,3 @@ test("enterprise TLS edge commands reject steering and port collisions", () => {
     /must be distinct/,
   );
 });
-
-test("startDen attaches to preset Den env without running daytona exec", async () => {
-  const server = await startRuntimeConfigStub("single_org");
-  const previousApi = process.env.HARNESS_EVAL_DEN_API_URL;
-  const previousWeb = process.env.HARNESS_EVAL_DEN_WEB_URL;
-  const { exec, calls } = createFakeExec(() => "https://unused.example.test");
-  const host = createDaytonaHost({ sandboxId: "harness-test-den", log: () => undefined, exec, repoRoot: "/repo" });
-
-  try {
-    process.env.HARNESS_EVAL_DEN_API_URL = "https://den-api.example.test";
-    process.env.HARNESS_EVAL_DEN_WEB_URL = server.url;
-    const handle = await host.startDen();
-
-    assert.equal(handle.webUrl, server.url);
-    assert.equal(handle.apiUrl, "https://den-api.example.test");
-    assert.equal(handle.orgMode, "single_org");
-    assert.equal(handle.hostKind, "daytona");
-    assert.equal(calls.length, 0);
-  } finally {
-    if (previousApi === undefined) delete process.env.HARNESS_EVAL_DEN_API_URL;
-    else process.env.HARNESS_EVAL_DEN_API_URL = previousApi;
-    if (previousWeb === undefined) delete process.env.HARNESS_EVAL_DEN_WEB_URL;
-    else process.env.HARNESS_EVAL_DEN_WEB_URL = previousWeb;
-    await server.close();
-  }
-});

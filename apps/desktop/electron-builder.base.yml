@@ -10,6 +10,7 @@ files:
   - "!electron/**/*.test.cjs"
   - server/**/*
   - "!server/dist/opencode-plugins/**"
+  - "!server/dist/**/*.test.js"
   - package.json
   - from: .electron-runtime/node_modules
     to: node_modules

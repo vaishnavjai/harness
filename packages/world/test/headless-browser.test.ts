@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { headlessBrowserEnvironment } from "../src/headless-browser.ts";
-import { appWebEnvironment, parseAppWebOptions } from "../../../worlds/lib/app-web-options.ts";
+import { parseAppWebOptions } from "../../../worlds/lib/app-web-options.ts";
 import { assertDevHeadlessPlacement } from "../../../worlds/dev-headless.ts";
-
-const selection = { HARNESS_WORLD_SELECTED_ENV_KEYS: '["HARNESS_DEV_HEADLESS_WEB_DEN_PROXY","HARNESS_DEV_DEN_PROXY_TARGET"]' };
 
 test("headless browser transport is opt-in and leaves loopback defaults unchanged", () => {
   assert.deepEqual(headlessBrowserEnvironment({ harnessUrl: "http://127.0.0.1:8778" }), {});
@@ -22,17 +20,6 @@ test("headless browser transport rejects origins, malformed suffixes and nonloop
   assert.throws(() => headlessBrowserEnvironment({ browserHostSuffix: ".example.test", harnessUrl: "https://api.example.test" }), /loopback/);
 });
 
-test("app-web selects only explicit nonsecret app environment, without Cloud opt-in by default", () => {
-  assert.deepEqual(appWebEnvironment({ HARNESS_TOKEN: "secret", HARNESS_HOST_TOKEN: "secret", OPENAI_API_KEY: "secret", HOME: "/personal" }), {});
-  assert.deepEqual(appWebEnvironment({ ...selection, HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: "https://den.example.test/", OTHER: "secret" }), {
-    HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: "https://den.example.test", VITE_DISABLE_HARNESS_MODELS: "0",
-  });
-  for (const target of ["https://user:secret@example.test", "https://example.test?key=secret", "file:///tmp/data", "https://example.test/path"]) {
-    assert.throws(() => appWebEnvironment({ ...selection, HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: target }));
-  }
-  assert.throws(() => appWebEnvironment({ ...selection, HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "maybe" }));
-});
-
 test("app-web requires exact Daytona source and rejects cloud/reuse flags", () => {
   const ref = "a".repeat(40);
   assert.deepEqual(parseAppWebOptions([], {}), { place: "local", ref: undefined, lifetimeMinutes: 120 });
@@ -44,19 +31,6 @@ test("app-web requires exact Daytona source and rejects cloud/reuse flags", () =
   }
   assert.throws(() => parseAppWebOptions(["--ref", ref], {}));
   assert.throws(() => parseAppWebOptions([], { HARNESS_WORLD_PLACE: "elsewhere" }));
-});
-
-test("app-web consumes only CLI-selected settings and rejects secret or unknown selections", () => {
-  const ambient = { HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: "https://den.example.test" };
-  assert.deepEqual(appWebEnvironment({ ...ambient, HARNESS_WORLD_SELECTED_ENV_KEYS: "[]" }), {});
-  assert.deepEqual(appWebEnvironment(ambient), {});
-  for (const marker of ['["HARNESS_DEV_HEADLESS_WEB_DEN_PROXY"]', '["HARNESS_DEV_DEN_PROXY_TARGET"]']) {
-    assert.throws(() => appWebEnvironment({ ...ambient, HARNESS_WORLD_SELECTED_ENV_KEYS: marker }), /together/);
-  }
-  assert.throws(() => appWebEnvironment({ ...ambient, ...selection, HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "0" }), /together/);
-  for (const marker of ['["HARNESS_TOKEN"]', '["HOME"]', '[1]', '{}', 'invalid']) {
-    assert.throws(() => appWebEnvironment({ ...ambient, HARNESS_WORLD_SELECTED_ENV_KEYS: marker }));
-  }
 });
 
 test("dev-headless explicitly rejects nonlocal placement without changing its local default", () => {

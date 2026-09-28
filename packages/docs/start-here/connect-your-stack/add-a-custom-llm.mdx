@@ -6,7 +6,7 @@ description: "Bring your own API key or connect any OpenAI-compatible endpoint (
 Harness works with any model you have access to. If the provider is in Harness's catalog (OpenRouter, Mistral, Fireworks, Google, Anthropic, OpenAI, and many more), paste your API key under `Settings > AI Providers > Connect provider`. If it is not, or you run your own gateway, add it as a custom OpenAI-compatible provider in your workspace's `opencode.jsonc`.
 
 <Note>
-**Local provider setup.** A custom provider can stay entirely in your workspace. Harness remains free, and you do not need to sign in to Harness Cloud. To give a whole team the same provider without sharing keys by hand, see [Share a provider with your team](#share-a-provider-with-your-team).
+**Local provider setup.** A custom provider stays entirely in your workspace. Harness remains free and needs no account.
 </Note>
 
 ## Option 1: Bring your own API key for a catalog provider
@@ -69,17 +69,6 @@ Add one entry under `models` for every model ID the endpoint exposes.
 
 For Ollama, the built-in `Settings > Ollama` screen writes this config for you. See [Use local models](/start-here/connect-your-stack/use-local-models).
 
-## Share a provider with your team
-
-If several people need the same provider, have a Harness Cloud admin add it once instead of passing keys around:
-
-- [Managed LLM provider](/cloud/share-with-your-team/managed-llm-provider): a catalog provider with one shared org key.
-- [Custom LLM provider](/cloud/share-with-your-team/custom-llm-provider): any OpenAI-compatible endpoint, including your own gateway, entered as a base URL plus model IDs.
-- [Per-member LLM credentials](/cloud/share-with-your-team/per-member-llm-credentials): one provider, a separate key per member (for example, LiteLLM virtual keys).
-- [Harness AI Gateway](/ai-gateway/overview): route providers through Harness with per-team model access, limits, and usage tracking.
-
-Org providers sync to members' apps automatically. Members can check their status under `Settings > AI Providers > Cloud providers`. Admins can also block locally added providers with [desktop policies](/cloud/share-with-your-team/desktop-policies) so everyone uses the approved setup.
-
 ## FAQ
 
 <AccordionGroup>
@@ -87,10 +76,10 @@ Org providers sync to members' apps automatically. Members can check their statu
     Yes. OpenRouter is in the provider catalog: open `Settings > AI Providers > Connect provider`, search for OpenRouter, and paste your key.
   </Accordion>
   <Accordion title="Can I use my company's own AI gateway?">
-    Yes, if it exposes an OpenAI-compatible endpoint. Add it with Option 2 for yourself, or ask an admin to add it once as a [custom LLM provider](/cloud/share-with-your-team/custom-llm-provider) for the team.
+    Yes, if it exposes an OpenAI-compatible endpoint. Add it with Option 2.
   </Accordion>
   <Accordion title="Where does Harness store my API key?">
-    Keys entered in `Connect provider` are stored by the local OpenCode engine on your computer. Values saved in `Settings > Environment` stay on this device. Org-managed keys are stored in Harness Cloud and synced to the workspaces that are allowed to use them.
+    Keys entered in `Connect provider` are encrypted with your OS keychain (AES-256-GCM) and handed to the local engine in memory only; they are never written to a plaintext file. Values saved in `Settings > Environment` are encrypted the same way and stay on this device.
   </Accordion>
   <Accordion title="The model shows up but tool calls fail.">
     Some models or gateways do not support tool calling. Try a model that advertises tool or function calling support, and check the gateway passes tool definitions through.

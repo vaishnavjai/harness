@@ -5,27 +5,10 @@ import { evalIn } from "@harness/behaviors";
 import { defaultDaytonaExec, electronProfilePaths, execInSandbox } from "@harness/hosts";
 import type { Surface } from "@harness/cdp";
 
-export interface DenClientState {
-  authTokenPresent: boolean;
-  activeOrgId: string | null;
-  activeOrgSlug: string | null;
-  activeOrgName: string | null;
-}
-
 export interface ConnectState {
   ok: boolean;
   status: "available" | "missing" | "invalid" | "unreadable" | null;
   connectEnabled: boolean | null;
-  raw: unknown;
-}
-
-export interface CloudMcpHealthSummary {
-  ok: boolean;
-  phase: string | null;
-  usable: boolean | null;
-  engineStatus: string | null;
-  tools: { present: string[]; missing: string[] };
-  direct: { checked: boolean; source: string | null; present: string[]; missing: string[] };
   raw: unknown;
 }
 
@@ -48,22 +31,6 @@ function stringArray(value: unknown): string[] {
 
 function errorCode(error: unknown): string | null {
   return isRecord(error) && typeof error.code === "string" ? error.code : null;
-}
-
-export async function readDenClientState(app: Surface): Promise<DenClientState> {
-  const value = await evalIn(app, () => ((() => ({
-    authTokenPresent: Boolean((localStorage.getItem("harness.den.authToken") ?? "").trim()),
-    activeOrgId: (localStorage.getItem("harness.den.activeOrgId") ?? "").trim() || null,
-    activeOrgSlug: (localStorage.getItem("harness.den.activeOrgSlug") ?? "").trim() || null,
-    activeOrgName: (localStorage.getItem("harness.den.activeOrgName") ?? "").trim() || null,
-  }))()));
-  if (!isRecord(value)) throw new Error("The desktop returned an invalid Den client state.");
-  return {
-    authTokenPresent: value.authTokenPresent === true,
-    activeOrgId: nullableString(value.activeOrgId),
-    activeOrgSlug: nullableString(value.activeOrgSlug),
-    activeOrgName: nullableString(value.activeOrgName),
-  };
 }
 
 export async function readConnectState(app: Surface): Promise<ConnectState> {
@@ -127,76 +94,6 @@ export async function readConnectState(app: Surface): Promise<ConnectState> {
       : null,
     connectEnabled: typeof value.connectEnabled === "boolean" ? value.connectEnabled : null,
     raw: value.raw,
-  };
-}
-
-export async function readCloudMcpHealth(
-  app: Surface,
-  workspaceId: string,
-  opts?: { probe?: boolean; timeoutMs?: number },
-): Promise<CloudMcpHealthSummary> {
-  const value = await evalIn(app, browserScript(async (workspaceId, value) => {
-    // Resolve the local server the same way the app does: live runtime info
-    // from the Electron bridge first (loopback port + token are ephemeral per
-    // boot), then the web-mode localStorage overrides as a fallback.
-    let baseUrl = "";
-    let token = "";
-    try {
-      const invokeDesktop = window.__HARNESS_ELECTRON__ && window.__HARNESS_ELECTRON__.invokeDesktop;
-      if (invokeDesktop) {
-        const info = await invokeDesktop("harnessServerInfo");
-        if (info && info.running === true) {
-          baseUrl = String(info.baseUrl ?? info.connectUrl ?? "").trim().replace(/\/+$/, "");
-          token = String(info.ownerToken ?? info.clientToken ?? "").trim();
-        }
-      }
-    } catch {}
-    if (!baseUrl || !token) {
-      const port = (localStorage.getItem("harness.server.port") ?? "").trim();
-      baseUrl = port ? "http://127.0.0.1:" + port : baseUrl;
-      token = token || (localStorage.getItem("harness.server.token") ?? "").trim();
-    }
-    if (!baseUrl || !token) {
-      return { ok: false, raw: { error: "Local server credentials are unavailable." } };
-    }
-    try {
-      const response = await fetch(
-        baseUrl + "/workspace/" + encodeURIComponent(workspaceId) + "/mcp/harness-cloud/health" + value,
-        { headers: { Authorization: "Bearer " + token } },
-      );
-      const text = await response.text();
-      let raw: unknown = text;
-      try { raw = text ? JSON.parse(text) : null; } catch {}
-      return { ok: response.ok, raw };
-    } catch (error) {
-      return {
-        ok: false,
-        raw: { error: error instanceof Error ? error.message : String(error) },
-      };
-    }
-  }, [workspaceId, opts?.probe === true ? "?probe=1" : ""]), { awaitPromise: true, timeoutMs: opts?.timeoutMs ?? 15_000 });
-  const result: Record<string, unknown> = isRecord(value) ? value : {};
-  const raw = result.raw;
-  const health = isRecord(raw) ? raw : {};
-  const engine = isRecord(health.engine) ? health.engine : {};
-  const tools = isRecord(health.tools) ? health.tools : {};
-  const direct = isRecord(tools.direct) ? tools.direct : {};
-  return {
-    ok: result.ok === true,
-    phase: nullableString(health.phase),
-    usable: typeof health.usable === "boolean" ? health.usable : null,
-    engineStatus: nullableString(engine.status),
-    tools: {
-      present: stringArray(tools.present),
-      missing: stringArray(tools.missing),
-    },
-    direct: {
-      checked: direct.checked === true,
-      source: nullableString(direct.source),
-      present: stringArray(direct.present),
-      missing: stringArray(direct.missing),
-    },
-    raw,
   };
 }
 

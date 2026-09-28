@@ -98,15 +98,17 @@ test("launch waits through the restored app's first transient 502", async () => 
   assert.equal(creates.length, 1);
 });
 
-test("fresh ACME clones skip guest startup while old snapshots rotate their demo session", async () => {
-  const fresh = mockApi();
-  const ready = await launchPreview({ gitSha: sha, world: "acme-web" }, fresh.api, reachable);
-  assert.equal(fresh.commands.length, 0);
-  assert.ok(ready.outputs.denWeb?.value.includes("__harness_launch"));
-  const old = mockApi(new Date(Date.now() - 6 * 24 * 60 * 60_000).toISOString());
-  await launchPreview({ gitSha: sha, world: "acme-web" }, old.api, reachable);
-  assert.equal(old.commands.length, 1);
-  assert.match(old.commands[0], /resume\.mjs/);
+test("app-web clones never run guest commands, even from old snapshots, and link only the app", async () => {
+  for (const createdAt of [new Date().toISOString(), new Date(Date.now() - 6 * 24 * 60 * 60_000).toISOString()]) {
+    const provider = mockApi(createdAt);
+    const session = await launchPreview({ gitSha: sha, world: "app-web" }, provider.api, reachable);
+    assert.deepEqual(provider.commands, []);
+    assert.deepEqual(session.outputs, {});
+    assert.match(new URL(session.url).hostname, /^ow-[a-f0-9]{32}\.preview\.harness-legacy\.invalid$/);
+    const tls = provider.creates[0].tls;
+    assert.ok(typeof tls === "object" && tls !== null && "rules" in tls && Array.isArray(tls.rules));
+    assert.deepEqual(tls.rules.map((rule: unknown) => typeof rule === "object" && rule !== null && "domain" in rule ? rule.domain : null), [new URL(session.url).hostname]);
+  }
 });
 
 test("public readiness retries are bounded and do not conceal denied access", async () => {
@@ -225,8 +227,8 @@ test("an existing immutable snapshot is reused without creating a builder", asyn
 
 test("snapshot identity separates worlds and rejects unknown recipes", async () => {
   const { previewWorld } = await import("../src/index.ts");
-  assert.notEqual(snapshotSlug(sha, "app-web"), snapshotSlug(sha, "acme-web"));
-  assert.throws(() => previewWorld("arbitrary-command"), /Unsupported/);
+  assert.notEqual(snapshotSlug(sha, "app-web"), snapshotSlug(sha, "desktop"));
+  for (const retired of ["arbitrary-command", "acme-web"]) assert.throws(() => previewWorld(retired), /Unsupported/);
 });
 
 test("world outputs accept disposable credentials but reject malformed values", async () => {
@@ -238,16 +240,6 @@ test("world outputs accept disposable credentials but reject malformed values", 
   assert.throws(() => parsePreviewOutputs({ password: { value: "synthetic", secret: "false" } }), /Invalid/);
 });
 
-test("the review page accepts every service link an ACME launch returns, including the desktop viewer", async () => {
-  const { parsePreviewOutputs } = await import("../src/outputs.ts");
-  const ready = mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "ready", group: "Desktop" } }) });
-  const session = await launchPreview({ gitSha: sha, world: "acme-web" }, ready.api, reachable);
-  // The browser re-validates the launch response; a rejected link hides a working sandbox.
-  const parsed = parsePreviewOutputs(JSON.parse(JSON.stringify(session.outputs)));
-  assert.ok(parsed.desktopUrl, "the desktop viewer link must survive client validation");
-  assert.throws(() => parsePreviewOutputs({ desktopUrl: { value: "https://evil.example/__harness_launch?token=x", group: "Services" } }), /Invalid private service link/);
-});
-
 const desktopFiles = {
   "source-sha": sha,
   "status": "ready-signed-out",
@@ -255,6 +247,16 @@ const desktopFiles = {
 };
 const desktopReachable: typeof fetch = async (input) => new URL(String(input)).pathname === "/vnc.html"
   ? new Response("<title>noVNC</title>") : reachable(input);
+
+test("the review page accepts every service link a desktop launch returns", async () => {
+  const { parsePreviewOutputs } = await import("../src/outputs.ts");
+  const ready = mockApi(undefined, desktopFiles);
+  const session = await launchPreview({ gitSha: sha, world: "desktop" }, ready.api, desktopReachable);
+  // The browser re-validates the launch response; a rejected link hides a working sandbox.
+  const parsed = parsePreviewOutputs(JSON.parse(JSON.stringify(session.outputs)));
+  assert.ok(parsed.desktopUrl, "the desktop viewer link must survive client validation");
+  assert.throws(() => parsePreviewOutputs({ desktopUrl: { value: "https://evil.example/__harness_launch?token=x", group: "Services" } }), /Invalid private service link/);
+});
 
 test("desktop clones use only their viewer, isolated access and exact source even for old snapshots", async () => {
   const provider = mockApi("2020-01-01T00:00:00Z", desktopFiles);
@@ -271,7 +273,7 @@ test("desktop clones use only their viewer, isolated access and exact source eve
   assert.deepEqual(provider.commands, []);
   for (const session of [first, second]) {
     const domain = new URL(session.url).hostname;
-    assert.match(domain, /^desktop-[a-f0-9]{32}\.preview\.harness\.software$/);
+    assert.match(domain, /^desktop-[a-f0-9]{32}\.preview\.harness-legacy\.invalid$/);
     // Concurrent file uploads can complete in either order. Match receipts to
     // their VM, never to the index at which a response body finished reading.
     const creation = provider.createsByVm.get(session.id);
@@ -286,7 +288,6 @@ test("desktop clones use only their viewer, isolated access and exact source eve
     assert.equal(access.expiresAt, session.expiresAt);
   }
   assert.notEqual(snapshotSlug(sha, "desktop"), snapshotSlug(sha, "app-web"));
-  assert.notEqual(snapshotSlug(sha, "desktop"), snapshotSlug(sha, "acme-web"));
 });
 
 for (const files of [
@@ -307,43 +308,4 @@ test("desktop viewer readiness failure cleans up and does not accept web HTML", 
   await assert.rejects(launchPreview({ gitSha: sha, world: "desktop" }, provider.api, async () => new Response(null, { status: 401 })), /could not be reached/);
   assert.deepEqual(provider.deleted, ["/v5/vms/vm-1"]);
   await assert.rejects(waitForPublicAccess("https://unused.example", reachable, async () => undefined, "desktop"), /Public sandbox readiness failed/);
-});
-
-test("ACME clones link the desktop viewer only when the snapshot started the desktop", async () => {
-  const ready = mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "starting", group: "Desktop" } }) });
-  const session = await launchPreview({ gitSha: sha, world: "acme-web" }, ready.api, reachable);
-  const desktop = new URL(session.outputs.desktopUrl?.value ?? "https://missing.invalid");
-  assert.match(desktop.hostname, /^desktop-[a-f0-9]{32}\.preview\.harness\.software$/);
-  assert.equal(desktop.pathname, "/__harness_launch");
-  assert.equal(desktop.searchParams.get("token"), new URL(session.url).searchParams.get("token"));
-  assert.equal(session.outputs.desktopUrl?.group, "Services");
-  const tls = ready.creates[0].tls;
-  assert.ok(typeof tls === "object" && tls !== null && "rules" in tls && Array.isArray(tls.rules));
-  assert.ok(tls.rules.some((rule: unknown) => typeof rule === "object" && rule !== null && "domain" in rule && rule.domain === desktop.hostname));
-
-  const unavailable = mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "unavailable", group: "Desktop" } }) });
-  const web = await launchPreview({ gitSha: sha, world: "acme-web" }, unavailable.api, reachable);
-  assert.equal(web.outputs.desktopUrl, undefined, "a failed desktop never produces a dead link");
-  assert.ok(web.outputs.webUrl?.value.includes("__harness_launch"), "the web preview still launches");
-  const older = mockApi();
-  assert.equal((await launchPreview({ gitSha: sha, world: "acme-web" }, older.api, reachable)).outputs.desktopUrl, undefined, "snapshots from before this change are unaffected");
-});
-
-test("ACME launches return only after every linked service hostname routes to the clone", async () => {
-  const handshakes = (seen: string[]): typeof fetch => async (input, init) => {
-    const url = new URL(String(input));
-    if (url.pathname === "/__harness_launch") seen.push(url.hostname.split("-")[0]);
-    return reachable(input, init);
-  };
-  const withDesktop: string[] = [];
-  await launchPreview({ gitSha: sha, world: "acme-web" }, mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "ready", group: "Desktop" } }) }).api, handshakes(withDesktop));
-  assert.deepEqual(withDesktop.sort(), ["api", "den", "desktop", "engine", "gateway", "ow"]);
-  const withoutDesktop: string[] = [];
-  await launchPreview({ gitSha: sha, world: "acme-web" }, mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "unavailable", group: "Desktop" } }) }).api, handshakes(withoutDesktop));
-  assert.deepEqual(withoutDesktop.sort(), ["api", "den", "engine", "gateway", "ow"], "an unlinked desktop is not required to route");
-
-  const dead = mockApi();
-  await assert.rejects(launchPreview({ gitSha: sha, world: "acme-web" }, dead.api, async (input, init) =>
-    new URL(String(input)).hostname.startsWith("api-") ? new Response(null, { status: 403 }) : reachable(input, init)), /could not be reached/);
-  assert.deepEqual(dead.deleted, ["/v5/vms/vm-1"], "a clone whose links do not route is deleted, not handed out");
 });

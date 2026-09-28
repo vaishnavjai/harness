@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { advance, formatElapsed, readinessRows, startTracking, visibleSteps } from "../lib/build-readiness.ts";
+import { advance, formatElapsed, readinessRows, startTracking } from "../lib/build-readiness.ts";
 
 const t0 = Date.parse("2026-09-25T10:00:00Z");
 const at = (seconds: number) => t0 + seconds * 1000;
@@ -45,9 +45,3 @@ test("durations read like the world CLI", () => {
   assert.equal(formatElapsed(245_000), "4m 05s");
 });
 
-test("the umbrella boot step is hidden once individual services are reported", () => {
-  const appWeb = [{ id: "checkout", ms: 5000 }, { id: "boot-and-verify", ms: 20000 }];
-  assert.deepEqual(visibleSteps(appWeb), appWeb);
-  const acme = [...appWeb, { id: "world-services", ms: 42000 }];
-  assert.deepEqual(visibleSteps(acme).map((step) => step.id), ["checkout", "world-services"]);
-});

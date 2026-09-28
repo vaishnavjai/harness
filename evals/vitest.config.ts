@@ -13,8 +13,7 @@ const appResolve = {
   alias: [{ find: /^@\//, replacement: appSource }],
 };
 
-const attachedDen = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
-const managedStack = parallelSuite(process.argv) && !attachedDen;
+const managedStack = parallelSuite(process.argv);
 const e2eWorkers = managedStack ? suiteWorkerCount(process.argv, process.env) : 1;
 const namedLiveSpec = process.argv.some((argument) => argument.endsWith(".live.test.ts") || argument.endsWith("/live.test.ts"));
 
@@ -28,7 +27,7 @@ export default defineConfig({
           ...common,
           name: "pr",
           // Live specs are attached-system incident signals: exclude them unless explicitly named.
-          include: ["specs/**/*.test.ts", "../scenarios/**/*.test.ts"],
+          include: ["specs/**/*.test.ts"],
           exclude: ["**/*.e2e.test.ts", "**/e2e.test.ts", ...(namedLiveSpec ? [] : ["**/*.live.test.ts", "**/live.test.ts"])],
         },
       },
@@ -42,7 +41,7 @@ export default defineConfig({
           testTimeout: 600_000,
           hookTimeout: 600_000,
           globalSetup: ["./runner/prepare-stack.ts"],
-          include: ["specs/**/*.e2e.test.ts", "../scenarios/**/e2e.test.ts"],
+          include: ["specs/**/*.e2e.test.ts"],
         },
       },
     ],

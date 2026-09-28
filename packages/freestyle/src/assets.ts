@@ -11,7 +11,6 @@ import { readFile } from "node:fs/promises";
  * rejects computed paths anywhere in src/.
  */
 const assets = {
-  "acme-runtime.mjs": new URL("./acme-runtime.mjs", import.meta.url),
   "browser-health.mjs": new URL("./browser-health.mjs", import.meta.url),
   "browser-recipe.ts": new URL("./browser-recipe.ts", import.meta.url),
   "build-recipes.ts": new URL("./build-recipes.ts", import.meta.url),
@@ -22,13 +21,9 @@ const assets = {
   "desktop-runtime.mjs": new URL("./desktop-runtime.mjs", import.meta.url),
   "desktop-state.mjs": new URL("./desktop-state.mjs", import.meta.url),
   "desktop.mjs": new URL("./desktop.mjs", import.meta.url),
-  "evidence-control.mjs": new URL("./evidence-control.mjs", import.meta.url),
-  "evidence-runtime.mjs": new URL("./evidence-runtime.mjs", import.meta.url),
   "gateway.mjs": new URL("./gateway.mjs", import.meta.url),
   "health.mjs": new URL("./health.mjs", import.meta.url),
-  "origins.mjs": new URL("./origins.mjs", import.meta.url),
   "refresh.mjs": new URL("./refresh.mjs", import.meta.url),
-  "resume.mjs": new URL("./resume.mjs", import.meta.url),
   "runtime.mjs": new URL("./runtime.mjs", import.meta.url),
 };
 

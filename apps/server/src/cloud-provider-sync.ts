@@ -636,8 +636,7 @@ function readHarnessInferenceBaseUrl(providerConfig: JsonRecord): string | null 
   return api ? api.replace(/\/api\/v1\/?$/, "") : null;
 }
 
-// Ported from ee/apps/den-api/src/llm/cloud-provider-materialization.ts.
-// Keep local: the open-source server must never depend on ee modules.
+// Materializes a Den provider connection into engine environment entries.
 function providerEnvEntries(provider: DenProviderConnection): EnvEntry[] {
   const entries: EnvEntry[] = [];
   const envNames = readProviderEnvNames(provider.providerConfig);

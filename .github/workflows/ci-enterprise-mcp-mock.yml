@@ -5,7 +5,6 @@ on:
     branches: [dev]
     paths:
       - "packages/enterprise-mcp-mock-server/**"
-      - "ee/apps/enterprise-mock-lab/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -43,10 +42,6 @@ jobs:
         run: >-
           pnpm install --frozen-lockfile --ignore-scripts
           --filter @harness/enterprise-mcp-mock-server...
-          --filter @harness-ee/enterprise-mock-lab...
 
       - name: Check reusable mock package
         run: pnpm check:enterprise-mcp-mock-server
-
-      - name: Check standalone mock lab
-        run: pnpm check:enterprise-mock-lab

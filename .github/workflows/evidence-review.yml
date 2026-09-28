@@ -132,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        world: [app-web, acme-web]
+        world: [app-web]
     concurrency:
       group: freestyle-prebuild-${{ github.event.workflow_run.head_sha }}-${{ matrix.world }}
       cancel-in-progress: false

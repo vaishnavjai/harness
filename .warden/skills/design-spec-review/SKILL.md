@@ -17,7 +17,7 @@ Advisory contract — this skill only warns:
 - Never report `high`. Nothing from this skill blocks clearance.
 
 Scope: only changed lines in user-facing surfaces — `apps/app/src/**` (React
-UI, `index.css`, styles), `apps/desktop/**` renderer UI, `ee/apps/den-web/**`,
+UI, `index.css`, styles), `apps/desktop/**` renderer UI,
 and MCP App / artifact view sources. Ignore tests, mocks, fixtures,
 storybook, docs, server code, and pre-existing code you did not change.
 

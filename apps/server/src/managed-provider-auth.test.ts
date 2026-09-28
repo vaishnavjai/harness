@@ -58,6 +58,9 @@ async function makeConfig(dir: string): Promise<ServerConfig> {
     approval: "manual",
     readOnly: false,
     storageDir: dir,
+    // Keeps the runtime store and provider-key vault in this test's directory,
+    // never the developer's real config (a vault there is under another key).
+    configPath: join(dir, "server.json"),
     opencodeBaseUrl: "http://127.0.0.1:39999",
     opencodeUsername: "engine-user",
     opencodePassword: "engine-pass",

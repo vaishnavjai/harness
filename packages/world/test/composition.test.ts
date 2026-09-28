@@ -25,16 +25,16 @@ test("sources resolve moving refs before their identity is calculated", async ()
   assert.deepEqual(parseSourceFlag("desktop=release:0.18.52/enterprise"), {
     component: "desktop", spec: { kind: "release", version: "0.18.52", distribution: "enterprise" },
   });
-  const sources = await resolveSources([parseSourceFlag("den=ref:dev"), parseSourceFlag("desktop=release:0.18.52/enterprise")], async (ref) => {
+  const sources = await resolveSources([parseSourceFlag("app-web=ref:dev"), parseSourceFlag("desktop=release:0.18.52/enterprise")], async (ref) => {
     assert.equal(ref, "dev");
     return SHA;
   });
-  assert.deepEqual(sourceFor(sources, "den"), { kind: "sha", sha: SHA, ref: "dev" });
-  assert.deepEqual(sourceFor({ "*": { kind: "local" } }, "den"), { kind: "local" });
+  assert.deepEqual(sourceFor(sources, "app-web"), { kind: "sha", sha: SHA, ref: "dev" });
+  assert.deepEqual(sourceFor({ "*": { kind: "local" } }, "app-web"), { kind: "local" });
   assert.deepEqual(sourcesFromEnv({ HARNESS_WORLD_SOURCES: JSON.stringify(sources) }), sources);
   await assert.rejects(resolveSources([parseSourceFlag("local"), parseSourceFlag("sha:" + SHA)], async () => SHA), /given twice/);
   assert.throws(() => parseSourceFlag("desktop=release:latest"), /release source/);
-  assert.throws(() => parseSourceFlag("den=sha:dev"), /full 40-character/);
+  assert.throws(() => parseSourceFlag("app-web=sha:dev"), /full 40-character/);
 });
 
 test("seeds have a bounded, round-trippable syntax", () => {
@@ -49,8 +49,8 @@ test("world support is read without importing the script and rejects unsupported
   assert.deepEqual(support, ["local/host", "daytona/linux", "daytona/windows", "freestyle/linux"]);
   assert.doesNotThrow(() => assertWorldSupport("preview-desktop", support, { provider: "daytona", os: "linux" }));
   assert.doesNotThrow(() => assertWorldSupport("preview-desktop", support, { provider: "freestyle", os: "linux" }));
-  const den = await readWorldSupport(fileURLToPath(new URL("../../../worlds/preview-den.ts", import.meta.url)));
-  assert.throws(() => assertWorldSupport("preview-den", den, { provider: "freestyle", os: "linux" }), /cannot run on freestyle\/linux/);
+  const local = await readWorldSupport(fileURLToPath(new URL("../../../worlds/dev-headless.ts", import.meta.url)));
+  assert.throws(() => assertWorldSupport("dev-headless", local, { provider: "freestyle", os: "linux" }), /cannot run on freestyle\/linux/);
   assert.throws(() => assertWorldSupport("custom", undefined, { provider: "freestyle", os: "linux" }), /no supportedTargets declaration/);
 });
 

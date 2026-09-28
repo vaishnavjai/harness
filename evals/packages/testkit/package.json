@@ -19,7 +19,6 @@
     "@harness/test-artifacts": "workspace:*",
     "@harness/hosts": "workspace:*",
     "@harness/labs": "workspace:*",
-    "mysql2": "^3.11.3",
     "vitest": "^4.1.11"
   }
 }

@@ -4,7 +4,7 @@ import test from "node:test";
 import { toolsRecipe } from "../src/build-recipes.ts";
 import { snapshotSlug, type PreviewWorld } from "../src/index.ts";
 
-const worlds: PreviewWorld[] = ["desktop", "acme-web", "app-web"];
+const worlds: PreviewWorld[] = ["desktop", "app-web"];
 for (const world of worlds) {
   test(`${world} tools recipe parses and provisions a browser only for desktop worlds`, () => {
     const recipe = toolsRecipe(world);
@@ -22,5 +22,4 @@ test("old browserless desktop snapshots cannot satisfy the new image version", (
   const sha = "a".repeat(40);
   assert.equal(snapshotSlug(sha, "app-web"), `harness-app-web-v6-${sha}`);
   assert.equal(snapshotSlug(sha, "desktop"), `harness-desktop-v7-${sha}`);
-  assert.equal(snapshotSlug(sha, "acme-web"), `harness-acme-web-v7-${sha}`);
 });

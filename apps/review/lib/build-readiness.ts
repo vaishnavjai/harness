@@ -45,10 +45,9 @@ export function formatElapsed(ms: number): string {
 export type RowState = "done" | "running" | "pending" | "failed";
 export interface Row { label: string; state: RowState; detail?: string }
 
-export const TYPICAL: Record<string, string> = { "app-web": "about 2 min", "acme-web": "about 6 min", desktop: "about 3 min" };
+export const TYPICAL: Record<string, string> = { "app-web": "about 2 min", desktop: "about 3 min" };
 export const STEP_LABELS: Record<string, string> = {
-  checkout: "Check out", compile: "Unpack build", "boot-and-verify": "Boot and verify", "world-services": "Den, database and engine",
-  "den-pages": "Den pages", "app-modules": "App modules", "gateway-probe": "AI Gateway", desktop: "Desktop app",
+  checkout: "Check out", compile: "Unpack build", "boot-and-verify": "Boot and verify",
 };
 const SECTIONS: { label: string; layers: number[] }[] = [
   { label: "Dependencies", layers: [0, 1] },
@@ -56,14 +55,6 @@ const SECTIONS: { label: string; layers: number[] }[] = [
   { label: "Start services", layers: [3] },
   { label: "Apply this commit", layers: [4] },
 ];
-
-// ACME reports its services one by one; its boot step is then only their total.
-const SERVICE_STEPS = new Set(["world-services", "den-pages", "app-modules", "gateway-probe", "desktop"]);
-
-/** Sub-steps worth showing: the umbrella boot step is hidden when its parts are known. */
-export function visibleSteps(steps: BuildStepView[]): BuildStepView[] {
-  return steps.some((step) => SERVICE_STEPS.has(step.id)) ? steps.filter((step) => step.id !== "boot-and-verify") : steps;
-}
 
 export function readinessRows(tracker: BuildTracker, now: number): Row[] {
   const firstSeen = tracker.layerStarted.find((value) => value !== undefined);

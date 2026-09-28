@@ -1,7 +1,6 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { FreestyleApiError, type Freestyle } from "freestyle";
 import { snapshotSlug, type PreviewWorld } from "./index.ts";
-import { EVIDENCE_TEMPLATE_PREFIX } from "./evidence-builder.ts";
 
 /**
  * Snapshot storage is billed until deletion, and every CI-built layer is ours to
@@ -22,10 +21,11 @@ const LAYER_IDLE = 24 * HOUR;
 /** Checkpoints carry a 24-hour TTL; this only catches ones the provider missed. */
 const CHECKPOINT_MAX_AGE = 26 * HOUR;
 
-const WORLDS: PreviewWorld[] = ["app-web", "acme-web", "desktop"];
+const WORLDS: PreviewWorld[] = ["app-web", "desktop"];
 const PREVIEW = /^harness-[a-z-]+-v\d+-[0-9a-f]{40}$|^harness-web-v\d+-[0-9a-f]{40}$/;
-const LAYER = /^ow-(tools|deps|build|warm)-v1-(app-web|acme-web|desktop)-[0-9a-f]{40}$|^ow-evidence-(tools|deps)-v1-[0-9a-f]{40}$/;
-const TEMPLATE = /^ow-evidence-web-v\d+-[0-9a-f]{40}$/;
+const LAYER = /^ow-(tools|deps|build|warm)-v1-(app-web|desktop)-[0-9a-f]{40}$/;
+/** Layers of worlds this package no longer builds: nothing reuses them. */
+const RETIRED = /^ow-(tools|deps|build|warm)-v1-acme-web-[0-9a-f]{40}$|^ow-evidence-(tools|deps)-v1-[0-9a-f]{40}$|^ow-evidence-web-v\d+-[0-9a-f]{40}$/;
 const CHECKPOINT = /^ow-evidence-v1-[0-9a-f]{32}$|^ow-checkpoint-probe-[a-z0-9-]+$/;
 
 function currentPreviewPrefixes(): string[] {
@@ -50,9 +50,9 @@ export function planCleanup(snapshots: CleanupSnapshot[], options: CleanupOption
     if (PREVIEW.test(slug)) {
       if (!current.some((prefix) => slug.startsWith(prefix))) plan.push({ id: snapshot.id, slug, reason: "preview from an old naming version" });
       else if (idle > PREVIEW_IDLE) plan.push({ id: snapshot.id, slug, reason: "preview not launched for a day" });
-    } else if (TEMPLATE.test(slug) && !slug.startsWith(EVIDENCE_TEMPLATE_PREFIX)) {
-      plan.push({ id: snapshot.id, slug, reason: "evidence template from an old naming version" });
-    } else if (LAYER.test(slug) || TEMPLATE.test(slug)) {
+    } else if (RETIRED.test(slug)) {
+      plan.push({ id: snapshot.id, slug, reason: "layer of a retired world" });
+    } else if (LAYER.test(slug)) {
       const group = slug.slice(0, -41);
       layers.set(group, [...(layers.get(group) ?? []), snapshot]);
     } else if (CHECKPOINT.test(slug) && options.now - Date.parse(snapshot.createdAt) > CHECKPOINT_MAX_AGE) {
@@ -71,7 +71,7 @@ export function planCleanup(snapshots: CleanupSnapshot[], options: CleanupOption
 
 export function isOurs(slug: string | null | undefined): boolean {
   const value = slug ?? "";
-  return PREVIEW.test(value) || LAYER.test(value) || TEMPLATE.test(value) || CHECKPOINT.test(value);
+  return PREVIEW.test(value) || LAYER.test(value) || RETIRED.test(value) || CHECKPOINT.test(value);
 }
 
 export async function listAllSnapshots(api: Freestyle): Promise<CleanupSnapshot[]> {

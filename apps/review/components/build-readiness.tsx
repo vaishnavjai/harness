@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { STEP_LABELS, TYPICAL, formatElapsed, readinessRows, visibleSteps, type BuildTracker } from "../lib/build-readiness";
+import { STEP_LABELS, TYPICAL, formatElapsed, readinessRows, type BuildTracker } from "../lib/build-readiness";
 export { advance, startTracking, type BuildStepView, type BuildTracker } from "../lib/build-readiness";
 
 const SPINNER = ["◐", "◓", "◑", "◒"];
@@ -25,7 +25,7 @@ export function BuildReadiness({ tracker, world, worldName }: { tracker: BuildTr
         <span className="readiness-label">{row.label}</span>
         {row.detail && <span className="readiness-detail">{row.detail}</span>}
         {row.label === "Start services" && tracker.steps.length > 0 && <ul>
-          {visibleSteps(tracker.steps).map((step) => <li key={step.id} data-state="done">
+          {tracker.steps.map((step) => <li key={step.id} data-state="done">
             <span className="readiness-glyph" aria-hidden="true">✔</span>
             <span className="readiness-label">{STEP_LABELS[step.id] ?? step.id}</span>
             <span className="readiness-detail">{formatElapsed(step.ms)}</span>

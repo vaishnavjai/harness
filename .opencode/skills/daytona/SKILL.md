@@ -30,16 +30,10 @@ the reusable desktop snapshot, starts XFCE/noVNC, Vite, and Electron, and prints
 the sandbox and preview URLs. Keep that sandbox for exploration or debugging
 instead of reproducing its provisioning commands.
 
-## Long-lived manual server sandbox
-
-Run `bash .devcontainer/test-server-on-daytona.sh <ref>`. It starts the separate
-MySQL, Den API, and Den Web sandbox and prints public URLs for a desktop sandbox
-to consume. Use this helper rather than assembling the server manually.
-
 ## Debugging
 
-Inspect `/tmp/start-vnc.log`, `/tmp/vite.log`, `/tmp/electron.log`, and
-`/tmp/den-api.log` in the relevant sandbox. Electron CDP is port `9825`; get CDP
+Inspect `/tmp/start-vnc.log`, `/tmp/vite.log`, and `/tmp/electron.log` in the
+sandbox. Electron CDP is port `9825`; get CDP
 and noVNC URLs with:
 
 ```bash
@@ -59,7 +53,6 @@ Electron sandboxes mount the reusable secrets volume at `/daytona-secrets`.
 
 ```bash
 bash .devcontainer/create-daytona-harness-snapshot.sh
-bash .devcontainer/create-daytona-harness-server-snapshot.sh
 ```
 
 ## Teardown

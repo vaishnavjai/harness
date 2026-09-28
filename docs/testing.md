@@ -5,7 +5,7 @@ with `pnpm install --frozen-lockfile` and
 `pnpm --dir evals install --frozen-lockfile` first. Use Node 24, Bun 1.3.14,
 pnpm 11.4.0, and the OpenCode version in `constants.json` on PATH, matching CI.
 The core suite uses local fixtures and scripted providers; no cloud account,
-provider key, Docker daemon, or running Den database is required.
+provider key, Docker daemon, or database server is required.
 
 ## What blocks a merge
 
@@ -16,7 +16,7 @@ For ordinary code changes it requires two independent Linux jobs:
   state, attachments, provider credentials, and Connect reconciliation in the
   client; real server routes for threads, groups, proxying, folder permissions,
   upload approval, artifact I/O, cloud configuration, engine eviction and
-  reloads; token scope and export safety; Den authentication; desktop workspace
+  reloads; token scope and export safety; desktop workspace
   persistence, archives, links, credential keys, automation execution, process resilience, and TLS.
   Three existing real-engine journeys additionally check remembered thread
   approvals, effective permission attribution, and PDF model routing.
@@ -39,7 +39,7 @@ until green or silently ignored.
 
 ## Broader coverage
 
-The same Harness Tests workflow runs the broad app, server, Den, desktop,
+The same Harness Tests workflow runs the broad app, server, desktop,
 release, test-framework, PR-spec, and engine-smoke suites on Linux and macOS at
 07:37 UTC daily, or through **Run workflow** on a selected branch. Each suite
 reports even if an earlier suite fails; failures still make that run red.

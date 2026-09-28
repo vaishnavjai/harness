@@ -1,47 +1,26 @@
 import { browserScript } from "@harness/cdp";
-import { createAndSelectWorkspace, signInDesktopAs } from "@harness/behaviors";
+import { createAndSelectWorkspace } from "@harness/behaviors";
 import { attachSurface, evaluateOnSurface, isInteractive, probeAppStateOnSurface } from "@harness/cdp";
 import type { Surface } from "@harness/cdp";
 import { desktop, retainedDesktop } from "@harness/hosts";
 import { liveSharedProductionStateEnv } from "@harness/hosts";
 import { progress, trackResource } from "@harness/world";
 import type { AppReadiness, DesktopHandle, DesktopRelease, Host, InstalledProductionDesktopState, RetainedDesktopHandle } from "@harness/hosts";
-import type { Den } from "./den.ts";
 import type { Place } from "./place.ts";
 
 const steps = progress();
 
-interface SharedAppOptions {
-  den: Den;
+export interface AppOptions {
   place: Place;
   host?: Host;
   model?: string;
   /** Extra environment for this isolated Electron process. */
   env?: Record<string, string>;
   workspacePath?: string;
-  /** Arrange a previously activated private-Den installation; does not test activation. */
-  enterpriseActivated?: boolean;
   /** Reuse this caller-owned local Electron profile root instead of creating one. */
   profileDir?: string;
   /** Eval-only delay before the desktop starts its embedded Harness server. */
   localServerDelayMs?: number;
-  /** Observe a fresh profile after workspace setup but before Cloud sign-in. */
-  beforeSignIn?: (surface: Surface) => Promise<void>;
-}
-
-export interface SignedInAppOptions extends SharedAppOptions {
-  as: string;
-  signIn?: true;
-  /**
-   * `false` signs the member in without creating a workspace: an organization
-   * member who has not made one yet. `workspaceId` is then "".
-   */
-  workspace?: false;
-}
-
-export interface FreshAppOptions extends SharedAppOptions {
-  as?: never;
-  signIn: false;
   /**
    * `false` leaves the first launch exactly as a person sees it: no harness
    * workspace is added next to whatever the app arranges itself, and
@@ -49,8 +28,6 @@ export interface FreshAppOptions extends SharedAppOptions {
    */
   workspace?: false;
 }
-
-export type AppOptions = SignedInAppOptions | FreshAppOptions;
 
 /** A desktop; its Electron profile root is available at handle.profileDir. */
 export interface App extends DesktopHandle {
@@ -176,101 +153,18 @@ export async function liveSharedProductionApp(options: {
 }
 
 export async function app(options: AppOptions): Promise<App> {
-  if (options.signIn === false) {
-    const env: Record<string, string> = { ...options.env };
-    if (options.model) env.HARNESS_EVAL_MODEL = options.model;
-    if (options.localServerDelayMs !== undefined) {
-      env.HARNESS_EVAL_LOCAL_SERVER_DELAY_MS = String(options.localServerDelayMs);
-    }
-    const electronStep = steps.step("electron-fresh", "Electron (fresh)");
-    let surface: Awaited<ReturnType<typeof desktop>>;
-    try {
-      surface = await desktop({
-        name: "testkit-fresh",
-        host: options.host ?? options.place.host(),
-        profileDir: options.profileDir,
-        bootstrap: {
-          baseUrl: options.den.ref.webUrl,
-          requireSignin: false,
-          ...(options.enterpriseActivated ? { enterpriseActivation: {
-            activatedAt: new Date().toISOString(), denBaseUrl: options.den.ref.apiUrl,
-          } } : {}),
-        },
-        env: Object.keys(env).length > 0 ? env : undefined,
-      });
-    } catch (error) {
-      await electronStep.fail(error instanceof Error ? error.message : String(error));
-      throw error;
-    }
-    await electronStep.note(`log ${surface.handle.meta?.log}`);
-    await electronStep.ok(surface.handle.cdpUrl);
-    if (surface.handle.pid !== undefined) {
-      await trackResource({ kind: "process", id: String(surface.handle.pid), label: "electron", match: process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim() || "dev:electron" });
-    }
-    if (surface.handle.meta?.profileOwner !== "caller" && typeof surface.handle.profileDir === "string") {
-      await trackResource({ kind: "tmpdir", id: surface.handle.profileDir, label: "electron-profile" });
-    }
-    if (options.workspace === false) {
-      try {
-        await options.beforeSignIn?.(surface);
-        return {
-          handle: surface.handle,
-          client: surface.client,
-          readiness: surface.readiness,
-          workspaceRoot: surface.workspaceRoot,
-          workspaceId: "",
-          stop: () => surface.stop(),
-          [Symbol.asyncDispose]: () => surface[Symbol.asyncDispose](),
-        };
-      } catch (error) {
-        await surface[Symbol.asyncDispose]();
-        throw error;
-      }
-    }
-    try {
-      const path = options.workspacePath ?? `/tmp/harness-fresh-${Date.now()}`;
-      const workspaceStep = steps.step("workspace-fresh", "Create workspace");
-      const { workspaceId } = await createAndSelectWorkspace(surface, { path });
-      await workspaceStep.ok(workspaceId);
-      await options.beforeSignIn?.(surface);
-      return {
-        handle: surface.handle,
-        client: surface.client,
-        readiness: surface.readiness,
-        workspaceRoot: surface.workspaceRoot,
-        workspaceId,
-        stop: () => surface.stop(),
-        [Symbol.asyncDispose]: () => surface[Symbol.asyncDispose](),
-      };
-    } catch (error) {
-      await surface[Symbol.asyncDispose]();
-      throw error;
-    }
-  }
-  const member = options.as === "admin" ? options.den.admin : options.den.members[options.as];
-  if (!member) {
-    const available = ["admin", ...Object.keys(options.den.members)].join(", ");
-    throw new Error(`Unknown Den member ${JSON.stringify(options.as)}. Available: ${available}`);
-  }
   const env: Record<string, string> = { ...options.env };
   if (options.model) env.HARNESS_EVAL_MODEL = options.model;
   if (options.localServerDelayMs !== undefined) {
     env.HARNESS_EVAL_LOCAL_SERVER_DELAY_MS = String(options.localServerDelayMs);
   }
-  const electronStep = steps.step(`electron-${options.as}`, `Electron (${options.as})`);
+  const electronStep = steps.step("electron-fresh", "Electron (fresh)");
   let surface: Awaited<ReturnType<typeof desktop>>;
   try {
     surface = await desktop({
-      name: `testkit-${options.as}`,
+      name: "testkit-fresh",
       host: options.host ?? options.place.host(),
       profileDir: options.profileDir,
-      bootstrap: {
-        baseUrl: options.den.ref.webUrl,
-        requireSignin: false,
-        ...(options.enterpriseActivated ? { enterpriseActivation: {
-          activatedAt: new Date().toISOString(), denBaseUrl: options.den.ref.apiUrl,
-        } } : {}),
-      },
       env: Object.keys(env).length > 0 ? env : undefined,
     });
   } catch (error) {
@@ -285,49 +179,25 @@ export async function app(options: AppOptions): Promise<App> {
   if (surface.handle.meta?.profileOwner !== "caller" && typeof surface.handle.profileDir === "string") {
     await trackResource({ kind: "tmpdir", id: surface.handle.profileDir, label: "electron-profile" });
   }
-  if (options.workspace === false) {
-    try {
-      await options.beforeSignIn?.(surface);
-      const signInStep = steps.step(`signin-${options.as}`, `Sign in as ${options.as} (no workspace)`);
-      await signInDesktopAs(surface, options.den.ref, member);
-      await signInStep.ok();
-      return {
-        handle: surface.handle,
-        client: surface.client,
-        readiness: surface.readiness,
-        workspaceRoot: surface.workspaceRoot,
-        workspaceId: "",
-        stop: () => surface.stop(),
-        [Symbol.asyncDispose]: () => surface[Symbol.asyncDispose](),
-      };
-    } catch (error) {
-      await surface[Symbol.asyncDispose]();
-      throw error;
-    }
-  }
+  let workspaceId = "";
   try {
-    // Workspace first, then the org sign-in: the signed-in org shell offers no
-    // Add workspace entry, so a member's workspace exists before they connect.
-    const path = options.workspacePath ?? `/tmp/harness-${options.as}-${Date.now()}`;
-    const workspaceStep = steps.step(`workspace-${options.as}`, "Create workspace");
-    const { workspaceId: initialWorkspaceId } = await createAndSelectWorkspace(surface, { path });
-    await workspaceStep.ok(initialWorkspaceId);
-    await options.beforeSignIn?.(surface);
-    const signInStep = steps.step(`signin-${options.as}`, `Sign in as ${options.as}`);
-    await signInDesktopAs(surface, options.den.ref, member);
-    await signInStep.ok();
-    const { workspaceId } = await createAndSelectWorkspace(surface, { path });
-    return {
-      handle: surface.handle,
-      client: surface.client,
-      readiness: surface.readiness,
-      workspaceRoot: surface.workspaceRoot,
-      workspaceId,
-      stop: () => surface.stop(),
-      [Symbol.asyncDispose]: () => surface[Symbol.asyncDispose](),
-    };
+    if (options.workspace !== false) {
+      const path = options.workspacePath ?? `/tmp/harness-fresh-${Date.now()}`;
+      const workspaceStep = steps.step("workspace-fresh", "Create workspace");
+      ({ workspaceId } = await createAndSelectWorkspace(surface, { path }));
+      await workspaceStep.ok(workspaceId);
+    }
   } catch (error) {
     await surface[Symbol.asyncDispose]();
     throw error;
   }
+  return {
+    handle: surface.handle,
+    client: surface.client,
+    readiness: surface.readiness,
+    workspaceRoot: surface.workspaceRoot,
+    workspaceId,
+    stop: () => surface.stop(),
+    [Symbol.asyncDispose]: () => surface[Symbol.asyncDispose](),
+  };
 }

@@ -5,8 +5,8 @@ import { join, relative, resolve } from "node:path";
 import { prepareParityBinaries } from "./engine-parity-binaries.mjs";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const cases = ["PARITY-BOOT", "PARITY-STREAM", "PARITY-SKILLS", "PARITY-GATEWAY", "PARITY-CONNECTORS"];
-const specs = ["engine-parity", "engine-gateway-parity", "engine-connectors-parity"].map(name => `specs/${name}.e2e.test.ts`);
+const cases = ["PARITY-BOOT", "PARITY-STREAM", "PARITY-SKILLS"];
+const specs = ["engine-parity"].map(name => `specs/${name}.e2e.test.ts`);
 
 export function verifyRun(report, engine, required = cases) {
   const assertions = (report.testResults ?? []).flatMap(file => file.assertionResults ?? []);
@@ -43,7 +43,7 @@ async function main() {
       const before = new Set(await readdir(evidenceRoot).catch(() => []));
       const args = ["--dir", "evals", "exec", "vitest", "run", "--config", "vitest.config.ts", "--project", "e2e",
         ...(iteration === 0 ? specs : [specs[0], "-t", "PARITY-BOOT"]), "--no-file-parallelism", "--reporter=default", "--reporter=json", `--outputFile.json=${jsonPath}`];
-      console.log(`\n${label}: ${iteration === 0 ? "all five user journeys" : "fresh-profile app launch sample"}`);
+      console.log(`\n${label}: ${iteration === 0 ? "all three user journeys" : "fresh-profile app launch sample"}`);
       let log = "";
       const cli = process.env.npm_execpath;
       const child = spawn(cli ? process.execPath : "pnpm", cli ? [cli, ...args] : args, {
@@ -71,12 +71,12 @@ async function main() {
       await writeFile(join(out, "results.json"), JSON.stringify({ status: failures.length ? "NOT READY" : "RUNNING", results, failures }, null, 2));
     }
   }
-  const lines = ["# OpenCode app parity", "", failures.length ? "**NOT READY — required checks failed or did not run.**" : "**PASS — all five journeys passed on both engines.**", "",
-    "Real development web app, Harness server, pinned engines, Den and Gateway. Model responses and the external connector are local witnesses. Fresh profiles; shared build/package caches. These are not packaged desktop startup measurements.", "",
-    "V1 verifies installed-skill consumption and uses its explicit legacy engine reload and app refresh for Gateway changes. V2 additionally verifies five skill lifecycle turns and Gateway updates in one document and conversation, with the same engine PID and no reload or rollover activity. This result covers these journeys, not the entire historical E2E suite.", "",
+  const lines = ["# OpenCode app parity", "", failures.length ? "**NOT READY — required checks failed or did not run.**" : "**PASS — all three journeys passed on both engines.**", "",
+    "Real development web app, Harness server and pinned engines. Model responses are local witnesses. Fresh profiles; shared build/package caches. These are not packaged desktop startup measurements.", "",
+    "V1 verifies installed-skill consumption. V2 additionally verifies five skill lifecycle turns in one document and conversation, with the same engine PID and no reload or rollover activity. This result covers these journeys, not the entire historical E2E suite.", "",
     "| Journey | Result | Evidence |", "| --- | --- | --- |"];
   for (const result of results.filter(result => result.iteration === 1)) for (const item of result.evidence) lines.push(`| ${item.name} | ${item.outcome} | [Steps and screenshots](${item.path}) |`);
-  lines.push("", "## Launch timing (milliseconds)", "", "Boundary starts before launching the real app-web stack and ends at the visible composer. Model/connector/Den fixture setup is excluded. First-answer timing starts at Send. Figures include browser and development-server overhead.", "", "| Metric | v1 median (min–max), n | v2 median (min–max), n |", "| --- | --- | --- |");
+  lines.push("", "## Launch timing (milliseconds)", "", "Boundary starts before launching the real app-web stack and ends at the visible composer. Model fixture setup is excluded. First-answer timing starts at Send. Figures include browser and development-server overhead.", "", "| Metric | v1 median (min–max), n | v2 median (min–max), n |", "| --- | --- | --- |");
   for (const [metric, label] of [["interactiveMs", "App interactive"], ["composerReadyMs", "Ready to send"], ["userRenderedMs", "Send → user message visible"], ["completedMs", "Send → complete answer"]]) {
     const cells = ["v1", "v2"].map(engine => {
       const values = results.filter(result => result.engine === engine).flatMap(result => result.timings).map(sample => sample[metric]);

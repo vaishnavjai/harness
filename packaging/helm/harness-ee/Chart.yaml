@@ -1,6 +1,0 @@
-apiVersion: v2
-name: harness-ee
-description: Harness EE Den control plane, web app, and optional Harness Gateway
-type: application
-version: 0.2.0
-appVersion: "0.1.0"

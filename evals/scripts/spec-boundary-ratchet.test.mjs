@@ -7,7 +7,7 @@ const clean = classifySpec('import { spec } from "@harness/testkit"; spec.world(
 test("classifySpec detects product-source imports and URL reads", () => {
   assert.equal(classifySpec('import thing from "../../apps/app/src/thing"; app();').importsProductSource, true);
   assert.equal(classifySpec('export { thing } from "../../packages/thing"; app();').importsProductSource, true);
-  assert.equal(classifySpec('new URL("../../ee/apps/den-api", import.meta.url); app();').importsProductSource, true);
+  assert.equal(classifySpec('new URL("../../apps/server", import.meta.url); app();').importsProductSource, true);
   assert.equal(classifySpec('import thing from "../apps/app/src/thing"; app();').importsProductSource, false);
 });
 

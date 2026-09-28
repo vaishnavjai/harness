@@ -26,14 +26,9 @@ switch lanes to turn a red Daytona run green.
 
 ```bash
 pnpm --filter @harness/types build
-pnpm --filter @harness-ee/den-db build
-pnpm --filter @harness/email build
-pnpm dev:den:mysql
 ```
 
-- Local `server()` requires MySQL at `127.0.0.1:3306`.
-- Build those workspace dependencies before local Den; otherwise den-api imports
-  can fail.
+- Worlds run against the local MIT core only: no MySQL, Redis or Docker is needed.
 - If the checkout path contains spaces, set `HARNESS_EVAL_SURFACES_DIR` to a
   space-free path before E2E tests. node-gyp and electron-rebuild require it.
 
@@ -45,7 +40,7 @@ pnpm dev:den:mysql
 pnpm evals:pr specs/<name>.test.ts
 ```
 
-- Run one app/Den-driving E2E test:
+- Run one app-driving E2E test:
 
 ```bash
 pnpm evals:e2e <name>
@@ -75,7 +70,6 @@ A green run on the wrong runtime is not evidence.
 
 ## Iterate, then cold-boot
 
-- While iterating, reuse a warm Den with `HARNESS_EVAL_DEN_API_URL`.
-- Before declaring `Passed`, remove the reuse override and cold-boot through
-  `server()` on the same commit.
+- While iterating, keep a world running with `pnpm world up <name> --detach`.
+- Before declaring `Passed`, tear it down and cold-boot the spec on the same commit.
 - Inject secrets with `infisical run --silent --`; never print or echo values.

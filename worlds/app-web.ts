@@ -12,7 +12,7 @@ import { hold } from "../packages/world/src/hold.ts";
 import { LEDGER_ENV, readLedger, rewriteLedger, trackResource } from "../packages/world/src/ledger.ts";
 import type { WorldOutput } from "../packages/world/src/outputs.ts";
 import { receiptName, resolveStage } from "../packages/world/src/stage.ts";
-import { appWebEnvironment, parseAppWebOptions } from "./lib/app-web-options.ts";
+import { parseAppWebOptions } from "./lib/app-web-options.ts";
 import type { AppWebWorldOptions } from "./lib/app-web-options.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -50,17 +50,11 @@ export async function bootAppWebWorld(
   env: NodeJS.ProcessEnv = process.env,
   deps: typeof dependencies = dependencies,
 ): Promise<Record<string, WorldOutput>> {
-  const selectedEnv = appWebEnvironment(env);
   const lifetimeMinutes = options.lifetimeMinutes ?? 120;
   if (!Number.isInteger(lifetimeMinutes) || lifetimeMinutes < 10 || lifetimeMinutes > 1430) throw new Error("app-web lifetime must be 10-1430 minutes.");
-  if (options.place === "daytona" && selectedEnv.HARNESS_DEV_DEN_PROXY_TARGET !== undefined
-    && selectedEnv.HARNESS_DEV_DEN_PROXY_TARGET !== "https://app.harness.invalid") {
-    throw new Error("Remote app-web supports only https://app.harness.invalid as its Den proxy target.");
-  }
   const runtimeName = `${receiptName("app-web", resolveStage(env))}-${randomUUID().slice(0, 8)}`;
   if (options.place === "freestyle") {
     if (!options.ref) throw new Error("Freestyle requires a full pushed source SHA.");
-    if (Object.keys(selectedEnv).length) throw new Error("Freestyle snapshots use isolated state and do not accept Den proxy overrides.");
     const { ensureSnapshot } = await import("../packages/freestyle/src/builder.ts");
     const { launchPreview, deletePreview } = await import("../packages/freestyle/src/index.ts");
     await ensureSnapshot(options.ref, undefined, (message) => console.error(message));
@@ -76,7 +70,7 @@ export async function bootAppWebWorld(
   }
   if (options.place === "local") {
     const source = await deps.localSource();
-    const runtime = await deps.local(runtimeName, REPO_ROOT, { env: selectedEnv });
+    const runtime = await deps.local(runtimeName, REPO_ROOT);
     stack.adopt(runtime, async (owned) => {
       await owned.stop();
       await Promise.all([owned.runtimeDirectory, owned.fixtureRoot].map((path) => rm(path, { recursive: true, force: true })));
@@ -101,7 +95,7 @@ export async function bootAppWebWorld(
   const previewIssuedAt = Date.now();
   const preview = await deps.preview(sandboxId, WEB_PORT, undefined, (lifetimeMinutes + 10) * 60);
   const runtime = await deps.remote(sandboxId, runtimeName, "/workspace", room.source, {
-    env: { ...selectedEnv, HARNESS_WEB_PORT: String(WEB_PORT), VITE_HOST: "0.0.0.0" },
+    env: { HARNESS_WEB_PORT: String(WEB_PORT), VITE_HOST: "0.0.0.0" },
     browserHostSuffix: preview.browserHostSuffix,
   });
   stack.adopt(runtime, (owned) => owned.stop());

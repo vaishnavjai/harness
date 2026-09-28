@@ -228,8 +228,8 @@ function printGuidance(badTag, targetTag) {
   console.log(`    git push origin v${nextVersion}        # admins only; triggers Release App`);
   console.log("");
   log(`After npm publish: npm deprecate harness-server@${badVersion} "rolled back — use ${nextVersion}"`);
-  log("The org install door follows published GitHub releases at runtime: demoting the bad release to");
-  log("prerelease removes it from den-api's published list; the reissue becomes latest once published.");
+  log("Demoting the bad release to prerelease stops the desktop updater from offering it; the reissue");
+  log("becomes latest once published.");
 }
 
 export function runRollback(args, dependencies = {}) {

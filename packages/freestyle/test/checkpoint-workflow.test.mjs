@@ -24,7 +24,8 @@ test("checkpoint proof uses contributor-aware approval; unit prerequisites canno
   for (const actor of ["github.event.pull_request.user.login", "github.actor", "github.triggering_actor"]) {
     assert.ok(gate.includes(`${actor} != 'dependabot[bot]'`));
   }
-  assert.match(checkpoint, /FREESTYLE_API_KEY: \$\{\{ secrets.FREESTYLE_API_KEY \}\}/);
+  // No checkpoint world is provisioned, so PR code never receives the Freestyle credential.
+  assert.doesNotMatch(checkpoint, /FREESTYLE_API_KEY|prepare-evidence-web/);
   assert.match(checkpoint, /--local --engine v1 --surface web --checkpoints/);
   assert.doesNotMatch(checkpoint, /infisical|OPENAI_API_KEY|ANTHROPIC_API_KEY|VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN/);
   // Records join the normal evidence report; the lane posts nothing itself.

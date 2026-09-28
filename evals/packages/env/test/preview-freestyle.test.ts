@@ -6,19 +6,18 @@ const SHA = "b".repeat(40);
 const sha = { desktop: { kind: "sha" as const, sha: SHA } };
 
 test("Freestyle desktop maps only the signed-out fresh scenario from a pushed commit", () => {
-  assert.deepEqual(freestyleDesktopPlan({ surface: "desktop", argv: [], sources: sha, seeds: [] }), { sha: SHA, lifetimeMinutes: 120 });
-  assert.deepEqual(freestyleDesktopPlan({ surface: "desktop", argv: ["--lifetime", "30"], sources: { "*": { kind: "sha", sha: SHA } }, seeds: [{ name: "fresh" }] }),
+  assert.deepEqual(freestyleDesktopPlan({ argv: [], sources: sha, seeds: [] }), { sha: SHA, lifetimeMinutes: 120 });
+  assert.deepEqual(freestyleDesktopPlan({ argv: ["--lifetime", "30"], sources: { "*": { kind: "sha", sha: SHA } }, seeds: [{ name: "fresh" }] }),
     { sha: SHA, lifetimeMinutes: 30 });
   const refused: [Parameters<typeof freestyleDesktopPlan>[0], RegExp][] = [
-    [{ surface: "den", argv: [], sources: sha, seeds: [] }, /preview-den cannot run on Freestyle/],
-    [{ surface: "desktop", argv: ["--scenario", "team"], sources: sha, seeds: [] }, /only the signed-out fresh/],
-    [{ surface: "desktop", argv: [], sources: sha, seeds: [{ name: "restricted" }] }, /only --seed fresh/],
-    [{ surface: "desktop", argv: [], sources: { ...sha, den: { kind: "sha", sha: SHA } }, seeds: [] }, /no den component/],
-    [{ surface: "desktop", argv: [], sources: { desktop: { kind: "release", version: "0.18.52", distribution: "public" } }, seeds: [] }, /needs --source desktop=sha/],
-    [{ surface: "desktop", argv: [], sources: { desktop: { kind: "local" } }, seeds: [] }, /needs --source desktop=sha/],
-    [{ surface: "desktop", argv: [], sources: {}, seeds: [] }, /needs --source desktop=sha/],
-    [{ surface: "desktop", argv: ["--release", "0.18.52", "--distribution", "public", "--scenario", "blank"], sources: sha, seeds: [] }, /not a published release/],
-    [{ surface: "desktop", argv: ["--lifetime", "0"], sources: sha, seeds: [] }, /10-1430 minutes/],
+    [{ argv: ["--scenario", "team"], sources: sha, seeds: [] }, /Use --scenario blank\|fresh/],
+    [{ argv: [], sources: sha, seeds: [{ name: "restricted" }] }, /only --seed fresh/],
+    [{ argv: [], sources: { ...sha, den: { kind: "sha", sha: SHA } }, seeds: [] }, /no den component/],
+    [{ argv: [], sources: { desktop: { kind: "release", version: "0.18.52", distribution: "public" } }, seeds: [] }, /needs --source desktop=sha/],
+    [{ argv: [], sources: { desktop: { kind: "local" } }, seeds: [] }, /needs --source desktop=sha/],
+    [{ argv: [], sources: {}, seeds: [] }, /needs --source desktop=sha/],
+    [{ argv: ["--release", "0.18.52", "--distribution", "public", "--scenario", "blank"], sources: sha, seeds: [] }, /not a published release/],
+    [{ argv: ["--lifetime", "0"], sources: sha, seeds: [] }, /10-1430 minutes/],
   ];
   for (const [input, error] of refused) assert.throws(() => freestyleDesktopPlan(input), error);
 });

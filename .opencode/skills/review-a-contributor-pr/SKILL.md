@@ -1,6 +1,6 @@
 ---
 name: review-a-contributor-pr
-description: Review a fork PR, review an external contributor PR, check DCO sign-off, check ee/ CLA, carry a fork commit into a same-repo branch, is this PR safe to merge. Checklist for pull requests from forks before a human approves or merges them.
+description: Review a fork PR, review an external contributor PR, check DCO sign-off, check licensing, carry a fork commit into a same-repo branch, is this PR safe to merge. Checklist for pull requests from forks before a human approves or merges them.
 ---
 
 # Skill: review-a-contributor-pr
@@ -8,12 +8,8 @@ description: Review a fork PR, review an external contributor PR, check DCO sign
 Use for every PR whose head is not in `vaishnavjai/harness`
 (`isCrossRepository: true`). Fork PRs get no automatic clearance: `warden.yml`
 skips them (`head.repo.full_name == github.repository`, no secrets on fork
-heads) and `warden-clearance.yml` refuses them. Nothing enforces DCO or the
-`ee/` CLA today either; two external commits were merged on 2026-09-09 without
-`Signed-off-by`. Open PRs #4733 (fork guard: DCO + `ee/` label status) and
-#4709 (DCO + EE CLA policy and status gate) will automate parts of this; this
-checklist does not depend on them and stays required after they land, because
-they gate the contributor, not the reviewer.
+heads) and `warden-clearance.yml` refuses them. Nothing enforces DCO today
+either, so this checklist is the gate.
 
 Every item must be answered explicitly in the review comment. `Blocked` on any
 item means no approval and no merge.
@@ -21,7 +17,7 @@ item means no approval and no merge.
 ```bash
 export R=vaishnavjai/harness N=<pr-number>
 gh pr view $N -R $R --json isCrossRepository,headRepositoryOwner,headRepository,headRefOid,labels,files,author \
-  --jq '{fork: .isCrossRepository, head: "\(.headRepositoryOwner.login)/\(.headRepository.name)@\(.headRefOid[:10])", author: .author.login, labels: [.labels[].name], ee: [.files[].path | select(startswith("ee/"))]}'
+  --jq '{fork: .isCrossRepository, head: "\(.headRepositoryOwner.login)/\(.headRepository.name)@\(.headRefOid[:10])", author: .author.login, labels: [.labels[].name]}'
 ```
 
 ## 1. DCO: every commit carries Signed-off-by
@@ -46,24 +42,14 @@ gh api "repos/$R/pulls/$N/commits" --paginate \
   body, and the trailers of the original commits are lost. Fix the commits
   first.
 
-## 2. ee/ paths need a CLA on file
+## 2. Licensing: MIT only
 
-CONTRIBUTING.md section 2: anything under `ee/` additionally needs an
-Individual or Corporate CLA. Renames out of `ee/` count.
+CONTRIBUTING.md section 2: everything in this repository is MIT, inbound =
+outbound. Check that the PR adds no code under another license (vendored
+sources, copied snippets, new binaries) unless `THIRD_PARTY_NOTICES.md` gains a
+matching entry and `scripts/licenses/aggregate-licenses.mjs` picks it up.
 
-```bash
-gh pr view $N -R $R --json files --jq '[.files[].path | select(startswith("ee/"))] | length'
-gh pr view $N -R $R --json labels --jq '[.labels[].name] | index("cla-signed") != null'
-```
-
-- `ee/` files changed and no `cla-signed` label -> Blocked. Point to
-  `legal/individual-contributor-license-agreement.md` or
-  `legal/corporate-contributor-license-agreement.md`.
-- Only a maintainer applies `cla-signed`, and only after confirming the
-  signed agreement is on file privately. The label records that check; it is
-  not the check. Never apply it to unblock a PR.
-- Check the previous `ee/` commit inventory against the same contributor's
-  earlier PRs: the CLA covers the person or company, not the PR.
+- Third-party code without a notice entry -> Blocked.
 
 ## 3. Warden ran on the exact head being merged
 

@@ -21,18 +21,13 @@
   "seo": {
     "metatags": {
       "og:image": "https://github.com/vaishnavjai/harness/tree/dev/packages/docs",
-      "og:image:alt": "Harness — Your AI workspace. Without vendor lock-in.",
-      "twitter:image:alt": "Harness — Your AI workspace. Without vendor lock-in."
+      "og:image:alt": "Harness — Local Agent Desktop.",
+      "twitter:image:alt": "Harness — Local Agent Desktop."
     }
-  },
-  "api": {
-    "openapi": "openapi.json"
   },
   "markdown": {
     "instructions": [
-      "For agents: install the Harness desktop app from https://github.com/vaishnavjai/harness/releases. Do not run `npx harness`, `npm install harness`, or `brew install --cask harness`; packages with those names are different projects.",
-      "Connect an agent to Harness with the MCP Gateway: `claude mcp add --transport http harness https://api.harness.invalid/mcp/agent`. Teams sign up at https://app.harness.invalid?mode=sign-up.",
-      "Step-by-step agent guide: https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/use-harness-from-an-ai-agent.mdx"
+      "For agents: install the Harness desktop app from https://github.com/vaishnavjai/harness/releases. Do not run `npx harness`, `npm install harness`, or `brew install --cask harness`; packages with those names are different projects."
     ]
   },
   "navigation": {
@@ -42,10 +37,7 @@
         "pages": [
           "start-here/get-started",
           "start-here/downloads",
-          "start-here/use-harness-from-an-ai-agent",
-          "start-here/pricing-and-licensing",
           "start-here/migrate-from-claude-cowork",
-          "start-here/stewardship",
           {
             "group": "Help improve Harness",
             "pages": [
@@ -61,14 +53,12 @@
           {
             "group": "Get started",
             "pages": [
-              "desktop-app/first-task",
-              "desktop-app/why-sign-in"
+              "desktop-app/first-task"
             ]
           },
           {
             "group": "Connect services",
             "pages": [
-              "start-here/connect-your-stack/connect-services",
               "start-here/connect-your-stack/add-an-mcp-server",
               "start-here/connect-your-stack/enable-exa-search"
             ]
@@ -83,13 +73,13 @@
           {
             "group": "Models and providers",
             "pages": [
-              "start-here/connect-your-stack/sign-in-with-chatgpt",
-              "start-here/connect-your-stack/harness-vs-opencode-models",
-              "start-here/connect-your-stack/using-opencode-zen-go-models",
+              "start-here/connect-your-stack/use-local-models",
               "start-here/connect-your-stack/add-anthropic-api-key",
               "start-here/connect-your-stack/add-a-custom-llm",
-              "start-here/connect-your-stack/use-local-models",
-              "start-here/connect-your-stack/use-gemini-and-vertex-ai"
+              "start-here/connect-your-stack/use-gemini-and-vertex-ai",
+              "start-here/connect-your-stack/sign-in-with-chatgpt",
+              "start-here/connect-your-stack/using-opencode-zen-go-models",
+              "start-here/do-work-with-it/what-uses-tokens"
             ]
           },
           {
@@ -103,185 +93,13 @@
             ]
           },
           {
-            "group": "Use it in the browser",
+            "group": "Network",
             "pages": [
-              "cloud/run-in-the-cloud/open-cloud-in-browser",
-              "cloud/run-in-the-cloud/shared-workspace"
-            ]
-          },
-          {
-            "group": "Troubleshooting",
-            "pages": [
-              "start-here/troubleshooting/diagnostic-prompts"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "AI Gateway",
-        "pages": [
-          {
-            "group": "Overview",
-            "pages": [
-              "ai-gateway/overview",
-              "ai-gateway/compare-litellm-bifrost",
-              "ai-gateway/google-agent-platform"
-            ]
-          },
-          {
-            "group": "Providers for your org",
-            "pages": [
-              "cloud/share-with-your-team/managed-llm-provider",
-              "cloud/share-with-your-team/custom-llm-provider",
-              "cloud/share-with-your-team/per-member-llm-credentials"
-            ]
-          },
-          {
-            "group": "Usage and cost",
-            "pages": [
-              "ai-gateway/counting-usage",
-              "ai-gateway/token-costs",
-              "start-here/do-work-with-it/what-uses-tokens"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "MCP Gateway",
-        "pages": [
-          {
-            "group": "Overview",
-            "pages": [
-              "cloud/run-in-the-cloud/cloud-mcp",
-              "start-here/connect-harness-mcp"
-            ]
-          },
-          {
-            "group": "Connect a client",
-            "pages": [
-              "model-context-protocol/opencode",
-              "model-context-protocol/claude-code",
-              "model-context-protocol/codex",
-              "model-context-protocol/claude-desktop",
-              "model-context-protocol/chatgpt",
-              "model-context-protocol/cursor",
-              "model-context-protocol/vs-code",
-              "model-context-protocol/windsurf",
-              "model-context-protocol/zed",
-              "model-context-protocol/gemini-cli",
-              "cloud/run-in-the-cloud/connect-harness-mcp-remote-machine"
-            ]
-          },
-          {
-            "group": "Connections",
-            "pages": [
-              "cloud/share-with-your-team/shared-mcp-connections",
-              "cloud/share-with-your-team/mcp-server-compatibility"
-            ]
-          },
-          {
-            "group": "Share skills and plugins",
-            "pages": [
-              "model-context-protocol/agent-plugins",
-              "cloud/share-with-your-team/collections",
-              "start-here/do-work-with-it/publish-and-copy-a-skill",
-              "start-here/do-work-with-it/share-your-setup"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Dashboards",
-        "pages": [
-          "dashboards/overview",
-          "cloud/share-with-your-team/dashboards"
-        ]
-      },
-      {
-        "tab": "SSO",
-        "pages": [
-          {
-            "group": "Set up your organization",
-            "pages": [
-              "cloud/get-started",
-              "cloud/team-quickstart",
-              "cloud/members-and-rbac"
-            ]
-          },
-          {
-            "group": "SSO and SCIM",
-            "pages": [
-              "cloud/sso-google-workspace",
-              "cloud/scim-google-workspace",
-              "cloud/sso-okta",
-              "cloud/scim-okta",
-              "cloud/sso-microsoft-entra",
-              "cloud/scim-microsoft-entra"
-            ]
-          },
-          {
-            "group": "Policies and operations",
-            "pages": [
-              "cloud/share-with-your-team/desktop-policies",
-              "cloud/share-with-your-team/team-prompt-cards",
-              "cloud/security-and-operations",
-              "cloud/enterprise"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Self-host",
-        "pages": [
-          {
-            "group": "Overview",
-            "pages": [
-              "start-here/self-host",
-              "self-host/evaluate-with-docker-compose"
-            ]
-          },
-          {
-            "group": "Deploy to your cloud",
-            "pages": [
-              "self-host/deploy-to-your-cloud/overview",
-              "self-host/deploy-to-your-cloud/aws",
-              "self-host/deploy-to-your-cloud/azure",
-              "self-host/deploy-to-your-cloud/google-cloud",
-              "self-host/deploy-to-your-cloud/first-administrator"
-            ]
-          },
-          {
-            "group": "Plan your network",
-            "pages": [
-              "start-here/private-network-deployment",
-              "start-here/air-gapped-deployment",
               "start-here/outbound-network-access",
               "start-here/certificate-trust-and-proxies"
             ]
-          },
-          {
-            "group": "Install and operate",
-            "pages": [
-              "start-here/enterprise-desktop-deployment",
-              "self-host/gateway",
-              "self-host/gateway-upgrade",
-              "self-host/declarative-configuration",
-              "start-here/installer-delivery",
-              "start-here/on-prem-branding",
-              "start-here/github-connector-helm"
-            ]
-          },
-          {
-            "group": "Troubleshoot",
-            "pages": [
-              "start-here/network-diagnostics"
-            ]
           }
         ]
-      },
-      {
-        "tab": "API",
-        "openapi": "/openapi.json"
       },
       {
         "tab": "Roadmap",
@@ -303,24 +121,12 @@
       "destination": "/start-here/get-started"
     },
     {
-      "source": "/model-context-protocol",
-      "destination": "/cloud/run-in-the-cloud/cloud-mcp"
-    },
-    {
-      "source": "/mcp",
-      "destination": "/start-here/connect-harness-mcp"
-    },
-    {
-      "source": "/ai-gateway",
-      "destination": "/ai-gateway/overview"
-    },
-    {
       "source": "/quickstart",
       "destination": "/start-here/get-started"
     },
     {
       "source": "/introduction",
-      "destination": "/cloud/get-started"
+      "destination": "/start-here/get-started"
     },
     {
       "source": "/roadmap/roadmap",
@@ -331,35 +137,15 @@
       "destination": "/changelog"
     },
     {
-      "source": "/cloud/share-with-your-team/team-templates",
-      "destination": "/cloud/share-with-your-team/collections"
-    },
-    {
-      "source": "/start-here/connect-your-stack/connect-slack-mcp",
-      "destination": "/cloud/share-with-your-team/shared-mcp-connections#slack"
-    },
-    {
       "source": "/desktop-app",
       "destination": "/desktop-app/first-task"
-    },
-    {
-      "source": "/mcp-gateway",
-      "destination": "/cloud/run-in-the-cloud/cloud-mcp"
-    },
-    {
-      "source": "/dashboards",
-      "destination": "/dashboards/overview"
-    },
-    {
-      "source": "/sso",
-      "destination": "/cloud/get-started"
     }
   ],
   "errors": {
     "404": {
       "redirect": false,
       "title": "Missing Documentation?",
-      "description": "If you're technical and want to use a specific part of the app that is not documented well yet, [send us a quick email](https://github.com/vaishnavjai/harness/issues) and tell us what you're missing."
+      "description": "If you're technical and want to use a specific part of the app that is not documented well yet, [open an issue](https://github.com/vaishnavjai/harness/issues) and tell us what you're missing."
     }
   },
   "navbar": {

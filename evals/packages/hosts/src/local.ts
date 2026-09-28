@@ -13,12 +13,9 @@ import {
   harnessServerConfigPath,
   harnessServerDataDir,
 } from "@harness/paths";
-import { ensureDenStack } from "./den-stack.ts";
 import { resolveEvalEngineValue } from "./eval-engine.ts";
 import type { ChildProcess } from "node:child_process";
-import type { DisposableHost, SurfaceHandle, ElectronSurfaceOptions, ChromeSurfaceOptions, DenServiceOptions, DenServiceHandle, ShareLinks } from "./types.ts";
-
-type OrgMode = "single_org" | "multi_org";
+import type { DisposableHost, SurfaceHandle, ElectronSurfaceOptions, ChromeSurfaceOptions, ShareLinks } from "./types.ts";
 
 export interface LocalHostOptions {
   repoRoot: string;
@@ -439,22 +436,6 @@ async function writeBootstrap(filePath: string, bootstrap: ElectronSurfaceOption
   );
 }
 
-function cleanUrl(value: string): string {
-  return value.trim().replace(/\/+$/, "");
-}
-
-function isOrgMode(value: unknown): value is OrgMode {
-  return value === "single_org" || value === "multi_org";
-}
-
-async function runtimeOrgMode(webUrl: string): Promise<OrgMode> {
-  const response = await fetch(`${cleanUrl(webUrl)}/api/runtime-config`, { signal: AbortSignal.timeout(8_000) });
-  if (!response.ok) throw new Error(`runtime-config returned HTTP ${response.status}`);
-  const body: unknown = await response.json();
-  if (isRecord(body) && isOrgMode(body.orgMode)) return body.orgMode;
-  throw new Error("runtime-config response did not include orgMode");
-}
-
 export function electronProfilePaths(root: string): ElectronProfilePaths {
   return {
     appDataDir: join(root, "appdata"),
@@ -777,18 +758,11 @@ export function createLocalHost(options: LocalHostOptions): DisposableHost {
     : join(options.repoRoot, "evals", "results", ".surfaces", String(process.pid)));
   const log = options.log;
   const spawnedSurfaces = new Set<SurfaceHandle>();
-  const denPorts = new Set<number>();
 
   async function disposeKnownPorts(handle: SurfaceHandle): Promise<void> {
     const ownerProcessGroup = handle.pid;
     for (const port of surfacePorts(handle)) await freePort(port, { log, ownerProcessGroup });
   }
-
-  async function disposeDenPorts(): Promise<void> {
-    for (const port of denPorts) await freePort(port, { log });
-    denPorts.clear();
-  }
-
 
 // Containers (Daytona sandboxes) cannot use Chromium's SUID sandbox: the helper
 // binary in a mounted pnpm store is not root-owned, and Electron aborts with
@@ -808,7 +782,6 @@ function containerLaunchArgs(existing: string | undefined): string | undefined {
   for (const arg of needed) if (!present.includes(arg)) present.push(arg);
   return present.join(" ");
 }
-
 
 /**
  * Spawning a desktop has environment preconditions that only this component can
@@ -980,31 +953,6 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
       return handle;
     },
 
-    async startDen(opts: DenServiceOptions = {}): Promise<DenServiceHandle> {
-      if (opts.seed === "none") {
-        log("seed:none requested; local Den stack currently keeps the Acme demo seed, so continuing with the default seed.");
-      }
-      await ensureDenStack({ log, cdpCandidates: [], skipApp: true, orgMode: opts.orgMode });
-      const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
-      const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
-      if (!apiUrl || !webUrl) throw new Error("Den stack did not export HARNESS_EVAL_DEN_API_URL / HARNESS_EVAL_DEN_WEB_URL.");
-      const orgMode = await runtimeOrgMode(webUrl);
-      const apiPort = explicitPort(apiUrl);
-      const webPort = explicitPort(webUrl);
-      if (apiPort !== null) denPorts.add(apiPort);
-      if (webPort !== null) denPorts.add(webPort);
-      return { webUrl, apiUrl, orgMode, hostKind: "local" };
-    },
-
-    async share(): Promise<ShareLinks> {
-      const links: ShareLinks = [];
-      const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
-      const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
-      if (webUrl) links.push({ label: "Den Web", url: webUrl });
-      if (apiUrl) links.push({ label: "Den API", url: apiUrl });
-      return links;
-    },
-
     async disposeSurface(handle: SurfaceHandle): Promise<void> {
       if (handle.pid !== undefined) {
         await killLocalPid(handle.pid, { log });
@@ -1017,7 +965,6 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
 
     async stop(): Promise<void> {
       for (const handle of [...spawnedSurfaces]) await this.disposeSurface(handle);
-      await disposeDenPorts();
     },
 
     async [Symbol.asyncDispose](): Promise<void> {
@@ -1025,8 +972,6 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
         await this.disposeSurface(handle)
           .catch((error: unknown) => log(`Local surface ${handle.name} cleanup failed: ${messageText(error)}`));
       }
-      await disposeDenPorts()
-        .catch((error: unknown) => log(`Local Den port cleanup failed: ${messageText(error)}`));
     },
   };
 }

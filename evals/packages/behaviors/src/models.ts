@@ -1,7 +1,5 @@
 import { browserScript } from "@harness/cdp";
 import type { Surface } from "@harness/cdp";
-import type { DenSession } from "./den.ts";
-import { denFetch } from "./den.ts";
 import { control, evalIn, fill, waitFor } from "./desktop.ts";
 
 const MODEL_DIALOG = '[data-slot="dialog-content"]';
@@ -33,22 +31,6 @@ export interface UnavailableModelSeed {
   availableModelId: string;
   availableModelName: string;
   availableProviderName: string;
-}
-
-export async function readCurrentOrganizationMemberId(session: DenSession): Promise<string> {
-  const result = await denFetch(session, "/v1/org", {
-    headers: { authorization: `Bearer ${session.token}` },
-  });
-  const currentMember = isRecord(result.body) && isRecord(result.body.currentMember)
-    ? result.body.currentMember
-    : null;
-  const memberId = currentMember && typeof currentMember.id === "string" ? currentMember.id : "";
-  if (!result.response.ok || !memberId) {
-    throw new Error(
-      `Could not find ${session.email}'s organization membership: GET /v1/org returned HTTP ${result.response.status} ${result.text.slice(0, 500)}`,
-    );
-  }
-  return memberId;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -300,18 +282,6 @@ export async function readModelRecoveryState(app: Surface): Promise<ModelRecover
     noticeHeight: typeof value.noticeHeight === "number" ? value.noticeHeight : null,
     noticeWhiteSpace: typeof value.noticeWhiteSpace === "string" ? value.noticeWhiteSpace : null,
   };
-}
-
-export async function retryOrganizationModels(app: Surface): Promise<void> {
-  await waitFor(app, () => {
-    const button = [...document.querySelectorAll("button")].find((entry) => {
-      const text = entry.textContent ?? "";
-      return text.includes("Your organization hasn't published any models for you yet.") && text.includes("Retry") && !entry.disabled;
-    });
-    if (!button) return false;
-    button.click();
-    return true;
-  }, { timeoutMs: 30_000, label: "organization model Retry" });
 }
 
 export async function seedUnavailableModel(app: Surface): Promise<UnavailableModelSeed> {

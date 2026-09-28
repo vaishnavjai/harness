@@ -26,8 +26,7 @@ function present(env: NodeJS.ProcessEnv, name: string): boolean {
 }
 
 function commandProbeArgs(command: string): string[] {
-  if (command === "kubectl") return ["version", "--client"];
-  if (command === "helm" || command === "kind" || command === "docker" || command === "openssl") return ["version"];
+  if (command === "docker" || command === "openssl") return ["version"];
   return ["--version"];
 }
 
@@ -56,11 +55,8 @@ export function unmetNeeds(requirements: TestNeeds, env: NodeJS.ProcessEnv): str
   if (requirements.placement === "daytona" && env.HARNESS_EVAL_DAYTONA?.trim() !== "1") {
     missing.push("set HARNESS_EVAL_DAYTONA=1");
   }
-  if (
-    requirements.placement === "local"
-    && (env.HARNESS_EVAL_DAYTONA?.trim() === "1" || present(env, "HARNESS_EVAL_DEN_API_URL"))
-  ) {
-    missing.push("use local placement without HARNESS_EVAL_DEN_API_URL");
+  if (requirements.placement === "local" && env.HARNESS_EVAL_DAYTONA?.trim() === "1") {
+    missing.push("use local placement");
   }
   return missing;
 }

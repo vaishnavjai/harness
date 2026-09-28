@@ -133,26 +133,26 @@ Anonymous report, JSON, and image requests must redirect to Vercel Authenticatio
 ## Interactive Freestyle previews
 
 When the evidence report for a PR push is published, the **Evidence review** workflow
-builds that commit's `app-web` and `acme-web` snapshots in the background, so
+builds that commit's `app-web` snapshot in the background, so
 **Launch in Freestyle** is usually ready at the first click. Otherwise the first
 launch of a commit and world builds its snapshot after the request returns (`202`),
 within the function's 800-second budget. The page polls `GET /r/<id>/launch?world=…`,
 which reports the build's current layer and finished service steps (read from the
 builder VM tagged with the commit), and shows them like `pnpm world up`: finished
 steps with their times, the running step, and what is left. It launches when the
-snapshot is ready. Typical first builds: about 2 minutes for Harness web and 6 for
-ACME with warm caches. The provider's builder lock deduplicates concurrent
+snapshot is ready. Typical first builds: about 2 minutes for Harness web and 3 for
+Desktop only with warm caches. The provider's builder lock deduplicates concurrent
 first launches. Only the guest VM fetches and executes PR code, without the
 provider credential. Clones resume the snapshot's processes; launch only assigns
-public access, renews expired demo sessions if needed, and checks readiness.
+public access and checks readiness.
 Fresh clones write their private access file and wait for the first authorized
 app HTML response before returning a link, so an early gateway response cannot
-hide a still-starting app. ACME snapshots older than five days renew their demo session
-before use so a new sandbox does not outlive the session it inherited.
+hide a still-starting app.
 
 Per-commit snapshots are deleted after two days, or after one day without a launch.
 The hourly **Freestyle cleanup** workflow (`scripts/cleanup-freestyle.ts`) reclaims
-old naming versions, superseded cache layers and expired checkpoints, and fails when
+old naming versions, superseded cache layers, layers of retired worlds and expired
+checkpoints, and fails when
 too many Harness snapshots remain. Run it with `--dry-run` to see the plan.
 
 Set `FREESTYLE_API_KEY` in the protected Vercel Preview environment. Every report
@@ -188,20 +188,19 @@ pnpm world down app-web
 ```
 
 World teardown deletes its owned VM, with a resource ledger for interrupted
-teardown. The access URL is a secret world output. The existing world CLI supports
-`app-web` and the co-located `acme-web` demo; other desktop recipes retain their
+teardown. The access URL is a secret world output. The world CLI supports
+`app-web` and `preview-desktop` on Freestyle; other desktop recipes retain their
 existing placements.
 
 In the review page, **Desktop only (signed out)** selects the distinct `desktop`
 Freestyle snapshot: Electron, its local engine and internal renderer, XFCE, and
-noVNC. It starts on a fresh profile without Den, MySQL, Redis, AI Gateway, demo
-accounts, or a separate web preview. Harness's normal empty local workspace and
+noVNC. It starts on a fresh profile without demo accounts or a separate web
+preview. Harness's normal empty local workspace and
 free starter model are retained, with no conversations or provisioned providers.
 Only the private desktop viewer is published; no demo sign-in details are returned. Its dedicated
 CI job verifies two signed-out clones, viewer access and cross-clone isolation,
 then deletes the test clones (`freestyle-desktop-launch-proof`).
 
-**ACME desktop (full stack)** retains the signed-in demo alongside ACME web.
 **Open desktop** streams the actual Electron app, never silently falls back to the
 web preview, and remains bound to the world that was launched. Switching choices
 clears the previous world's displayed links, not its VM. All choices keep the

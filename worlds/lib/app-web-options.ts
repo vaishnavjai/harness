@@ -24,35 +24,3 @@ export function parseAppWebOptions(argv: readonly string[], env: NodeJS.ProcessE
   if (place === "local" && ref) throw new Error("Local app-web uses this working tree; --ref is only supported on remote placements.");
   return { place, ref, lifetimeMinutes };
 }
-
-export function appWebEnvironment(source: NodeJS.ProcessEnv): Record<string, string> {
-  const allowed = ["HARNESS_DEV_HEADLESS_WEB_DEN_PROXY", "HARNESS_DEV_DEN_PROXY_TARGET"];
-  let selected: string[] = [];
-  if (source.HARNESS_WORLD_SELECTED_ENV_KEYS !== undefined) {
-    let keys: unknown;
-    try { keys = JSON.parse(source.HARNESS_WORLD_SELECTED_ENV_KEYS); } catch { throw new Error("Invalid world environment selection marker."); }
-    if (!Array.isArray(keys) || !keys.every((key): key is string => typeof key === "string" && allowed.includes(key))) {
-      throw new Error("app-web --env accepts only HARNESS_DEV_HEADLESS_WEB_DEN_PROXY and HARNESS_DEV_DEN_PROXY_TARGET.");
-    }
-    selected = keys;
-  }
-  const env: Record<string, string> = {};
-  const enabled = selected.includes("HARNESS_DEV_HEADLESS_WEB_DEN_PROXY") ? source.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY : undefined;
-  if (enabled !== undefined) {
-    if (!/^(0|1|true|false|yes|no|on|off)$/i.test(enabled.trim())) throw new Error("Invalid app-web Den proxy selection.");
-    env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY = enabled;
-    if (/^(1|true|yes|on)$/i.test(enabled.trim())) env.VITE_DISABLE_HARNESS_MODELS = "0";
-  }
-  const target = selected.includes("HARNESS_DEV_DEN_PROXY_TARGET") ? source.HARNESS_DEV_DEN_PROXY_TARGET : undefined;
-  const proxyEnabled = enabled !== undefined && /^(1|true|yes|on)$/i.test(enabled.trim());
-  if (proxyEnabled !== (target !== undefined)) throw new Error("app-web requires an enabled proxy and target selected together.");
-  if (target !== undefined) {
-    let url: URL;
-    try { url = new URL(target); } catch { throw new Error("Invalid app-web Den proxy target."); }
-    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
-      throw new Error("app-web Den proxy target must be a nonsecret HTTP(S) origin.");
-    }
-    env.HARNESS_DEV_DEN_PROXY_TARGET = url.origin;
-  }
-  return env;
-}

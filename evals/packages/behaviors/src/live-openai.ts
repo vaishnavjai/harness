@@ -1,5 +1,3 @@
-import { denFetch, type DenSession } from "./den.ts";
-
 export const liveOpenAiEnabled = () => process.env.HARNESS_EVAL_LIVE_OPENAI === "1";
 export const liveOpenAiModel = () => process.env.HARNESS_EVAL_OPENAI_MODEL?.trim() || "gpt-5.4";
 
@@ -8,51 +6,9 @@ export function assertNoLiveSecret(value: unknown): void {
   if (key && JSON.stringify(value)?.includes(key)) throw new Error("Live credential appeared in a public response (value suppressed)");
 }
 
-/** Provision via Den's authenticated API; never put the key in a CDP expression. */
-export async function provisionLiveOpenAi(admin: DenSession, organizationName: string) {
-  const empty = { id: "", async [Symbol.asyncDispose]() {} };
-  if (!liveOpenAiEnabled()) return empty;
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw new Error("Live OpenAI requires OPENAI_API_KEY");
-  const headers = { authorization: `Bearer ${admin.token}` };
-  const orgs = await denFetch(admin, "/v1/me/orgs", { headers });
-  const body = orgs.body;
-  const org = typeof body === "object" && body !== null && "orgs" in body && Array.isArray(body.orgs) ? body.orgs.find((entry) => record(entry) && entry.name === organizationName) : null;
-  if (!org || typeof org.id !== "string") throw new Error("Live provider needs an isolated organization");
-  const orgHeaders = { ...headers, "x-harness-org-id": org.id };
-  let result;
-  try {
-    result = await denFetch(admin, "/v1/llm-providers", { method: "POST", headers: orgHeaders,
-      body: JSON.stringify({ name: "Live OpenAI reload proof", source: "models_dev", providerId: "openai",
-        modelIds: [liveOpenAiModel()], apiKey: key, allMembers: true, memberIds: [], teamIds: [] }) });
-  } catch { throw new Error("Live provider provisioning failed (details suppressed)"); }
-  assertNoLiveSecret(result.body);
-  const provider = typeof result.body === "object" && result.body !== null && "llmProvider" in result.body ? result.body.llmProvider : null;
-  if (result.response.status !== 201 || typeof provider !== "object" || provider === null || !("id" in provider) || typeof provider.id !== "string") {
-    throw new Error(`Live provider provisioning returned HTTP ${result.response.status}`);
-  }
-  const id = provider.id;
-  return { id, async [Symbol.asyncDispose]() {
-    const deleted = await denFetch(admin, `/v1/llm-providers/${encodeURIComponent(id)}`, { method: "DELETE", headers: orgHeaders });
-    if (!deleted.response.ok) throw new Error(`Live provider cleanup returned HTTP ${deleted.response.status}`);
-  } };
-}
-
 type Request = (path: string, method?: string, body?: unknown) => Promise<{status: number; json: unknown}>;
 const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
-export async function liveProviderId(request: Request, cloudId: string): Promise<string> {
-  const deadline = Date.now() + 120_000;
-  do {
-    const result = await request("/cloud-provider-sync/status");
-    assertNoLiveSecret(result.json);
-    const entries = record(result.json) && Array.isArray(result.json.providers) ? result.json.providers : [];
-    const provider = entries.find((entry) => record(entry) && entry.cloudProviderId === cloudId);
-    if (record(provider) && typeof provider.providerId === "string") return provider.providerId;
-    await new Promise((resolve) => setTimeout(resolve, 500));
-  } while (Date.now() < deadline);
-  throw new Error("Managed live OpenAI provider did not reach the desktop");
-}
 
 /** Observe a fresh completed assistant response, never match historical text. */
 export async function liveV2Turn(request: Request, v2: string, sessionId: string, prompt: string) {

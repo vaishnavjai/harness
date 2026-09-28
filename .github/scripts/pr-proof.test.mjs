@@ -27,7 +27,7 @@ test("a PR without spec changes selects nothing instead of failing", () => {
 
 test("normal Git paths are accepted while traversal, controls, backslashes and duplicates fail closed", () => {
   assert.deepEqual(selectProof([
-    file("ee/apps/den-web/app/(den)/dashboard/a file.ts"),
+    file("apps/app/src/(routes)/dashboard/a file.ts"),
     file("packages/docs/café.mdx"),
     file("evals/specs/change.e2e.test.ts", "added"),
   ]).specs, ["evals/specs/change.e2e.test.ts"]);
@@ -434,7 +434,7 @@ function assertInternalEnvironmentGate(gate) {
 }
 
 test("internal approval output requires both event and current membership; all credentialed lanes get accurate summaries", async () => {
-  for (const spec of [liveSpec, windowsSpec, "evals/specs/web-checkpoint-fork.e2e.test.ts"]) {
+  for (const spec of [liveSpec, windowsSpec]) {
     for (const [eventAssociation, currentAssociation, internal] of [
       ["MEMBER", "MEMBER", true], ["OWNER", "OWNER", true],
       ["COLLABORATOR", "COLLABORATOR", false],

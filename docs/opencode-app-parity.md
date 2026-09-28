@@ -1,96 +1,50 @@
 # OpenCode app parity
 
-## Real-model native parity
-
-Run `HARNESS_LIVE_INSTALLED_GATEWAY=1 pnpm evals:parity:live --iterations=3` for the real-inference suite. This is separate from the deterministic integration suite below. It never falls back to scripted model answers. It requires an existing locally configured Harness Gateway provider with two assigned models and a matching API key; the fixture reads that configuration without changing it, copies only the endpoint and model definitions into an isolated app profile, and enters the key through the app's masked local-provider form. The key is sent only to its original Gateway destination and is never recorded in evidence. Infisical can supply credentials for individually selected live tests through `HARNESS_LIVE_PROVIDER`, `HARNESS_LIVE_KEY_ENV`, and `HARNESS_LIVE_MODEL`; the complete Gateway matrix requires the installed-provider opt-in.
-
-Changed parity specs in PR CI run both pinned engines explicitly, with separate CLI records for each engine. A failed or skipped run keeps the job red. The real-model native chat spec runs in the existing protected `pr-slow-specs` environment using its `OPENAI_API_KEY`, entered through the app's provider form, and two explicitly selected OpenAI models. Local runs can continue using the installed Gateway. `HARNESS_LIVE_PROVIDER=OpenAI`, `HARNESS_LIVE_KEY_ENV=OPENAI_API_KEY`, and `HARNESS_LIVE_MODELS=gpt-5.4,gpt-4.1-mini` select direct OpenAI for a named live-chat run; credentials alone never opt into inference. V1 free-starter tests remain credential-free and fail if the service refuses the pinned engine. V2 fresh-install tests require workspace creation and an editable composer; the existing free service is intentionally outside its migration gate. Real paid first sends remain required, and Harness's own free models need first-send coverage before GA.
-
-The live runner produces `evals/results/engine-live-parity/<timestamp>/report.md` with named steps, screenshots, real model completion metadata, independently witnessed connector calls, and three native launch samples per engine. Missing, skipped, failed or duplicate cases fail the command. The blank-installation test always uses a profile with no copied credentials, even when the Gateway opt-in is set. It calls the existing free starter only on v1.
-
-Native live profiles and default workspaces are created in the operating system's temporary directory, outside the checkout. Before any conversation action, the fixture verifies the resolved workspace path and enclosing Git project. This matters because a real engine Restore operation can reset the entire enclosing Git project. The fixture stops its app and removes its temporary profile, including copied credentials, during cleanup.
-
-| Real-model journey | Required outcome |
-| --- | --- |
-| Blank native installation | Both engines create the default workspace and open a signed-out composer. V1 additionally sends to the existing free starter; v2 first inference uses a connected paid provider in LIVE-ORG. |
-| Organization first send | Sign into a fresh organization, then send once; v2 create and prompt requests each survive an independently imposed 21-second delay without a false error or duplicated draft. |
-| Conversation controls | Revert and restore history, edit/resend, fork at a boundary, and open an independent side chat. |
-| Skills | Consume installed instructions through a witnessed native skill-tool call; v2 edits, removes and reinstalls them in the same conversation without engine reloads. |
-| Cloud skills | Discover shared metadata, retrieve instructions through Connect, use an edited body, and report removal honestly in the same task on both engines. |
-| Models | Enter a real key in the app, browse assigned Gateway aliases, remove/add a model, select it, and obtain real answers from both. |
-| Local MCP | Add a stdio process through Library and retrieve two changing results held outside the conversation and workspace. |
-| Connectors | A real model searches Den capabilities, executes the discovered capability, and truthfully reports a second service failure. Only the external report service is a controlled witness. |
-| Native launch | Fresh app profile to native bridge and editable composer, with shared build caches. Launch success is independent of inference success. |
-
-Native context menus are real OS popups without DOM targets. Those choices use the existing development bridge after opening and inspecting the actual enabled popup; they do not call conversation APIs directly. No-reload checks require logs that actually observed inference, as well as an unchanged renderer document and engine PID. Native launch measurements include development build/harness overhead and are not packaged cold-start figures. Existing prepared Electron resources may be reused with `HARNESS_EVAL_ELECTRON_RESOURCES_PREPARED=1`; this was needed on the current Mac because rebuilding the ComputerUse helper failed.
-
-The empty browser-host test, `engine-live-parity.e2e.test.ts`, separately verifies a server starting with zero workspaces. Because the browser has no native folder chooser, it creates the first workspace through the real host API and verifies the visible composer. V1 additionally sends to the existing free starter. The native blank-installation test covers the desktop's actual automatic workspace creation.
-
-The signed-in first-send regression is covered by `LIVE-ORG`. Native v2 create and prompt writes receive a bounded 60-second startup budget because cold organization and engine setup can exceed the ordinary 10-second read budget. The test delays the real HTTP requests on the wire; it does not substitute engine or model responses. Ordinary reads retain their original timeout, and the transport never automatically resends a write.
-
-Cloud skills now follow the same v1 path on both engines: the shared Connect metadata catalog has a 30-second in-memory cache, and the model retrieves the selected skill's current instructions through Connect on demand. V2 no longer downloads every organization skill or writes their bodies into a native skill directory before sending a message. Existing generated Cloud copies are removed when the v2 runtime starts. No Den deployment is required. This preserves v1 discovery refresh timing; instant metadata updates are future work. `LIVE-CLOUD` uses real Den and real inference to check discovery, use, edited instructions, and removal in one conversation on both engines.
-
-The existing free starter sometimes rejects the pinned v2 beta with HTTP 426. Compatibility with that service is outside the v2 migration gate. Harness will add and test its own free models before enabling v2 for GA. Paid OpenAI/Gateway success is separate evidence from signed-out free inference.
-
-## Verification recorded on 2026-09-23
-
-Complete local real-Gateway runs passed all nine native chat scenarios on each engine, with no skips. V1 passed after fixing initial provider setup; v2's clean nine-scenario run used commit `fb0949103`. The v2 run includes entering a real key through the app, signed-in first send, connectors, Cloud skills, edit/revert/restore, forks, side chats, local skills, model updates and local MCP. Each test records completed model messages and its own commit identity. These separate runs are not a claim that both engines passed on the latest PR head.
-
-An earlier protected CI run used a real OpenAI API key and completed five of nine scenarios per engine. The corrected whole OpenAI file must run again on the current head; GitHub's `pr-slow-specs` environment requires approval for each new run. A pending approval is not a pass.
-
-The v1 first-send regression exposed reloads racing prompt admission. Automatic reloads now wait for pending sends and active tasks, and sends wait for an already-running reload. Three focused regression tests cover both orderings. App core checks (383 tests), app and eval typechecks, and packaged-app build checks passed after the changes. Browser E2E startup also exposed aborted Vite module imports; fresh app-web instances now receive separate optimizer cache directories, with startup network and optimizer diagnostics retained on failure. Treat latest-head CI as authoritative while verifying that isolation.
-
-`engine-provider-filters.e2e.test.ts` checks the pinned native v2 catalog: remove/restore a model, apply deny-list precedence, allow no models, then remove restrictions, retaining the same engine PID. It uses a synthetic credential and makes no inference requests. Runtime model filtering applies to built-in models as well as configured aliases.
-
-Earlier development launch samples had ready-composer medians of 25,284 ms for v1 and 16,793 ms for v2 (three fresh native profiles per engine). These include development build/harness overhead and are not current packaged launch benchmarks. The latest v2 real-inference run separately measures normal-send admission and deliberately delayed first sends.
+Harness runs against two pinned OpenCode engines (v1 and v2). These checks show
+that the same user journeys work on both, against the local MIT core only: the
+real development web app, the Harness server and the native engine executables.
+No organization control plane, database server or AI gateway is involved.
 
 ## Deterministic integration parity
 
 Run `pnpm evals:parity` from the repository root. The command runs both pinned engines, then collects three fresh-profile app launch samples per engine. Use `pnpm evals:parity --iterations=5` for more timing samples.
 
-The runner downloads only native engine executables into the ignored results directory, checks archive integrity and reported versions against `constants.json`, and never runs package installation scripts. Explicit `HARNESS_OPENCODE_BIN` and `HARNESS_OPENCODE2_BIN` overrides must report the pinned versions. The normal local E2E prerequisites apply: installed workspace dependencies, Chrome, Bun, and the local MySQL/Redis services used by the disposable Den fixture. Run this suite serially; simultaneous Den builds share generated dependency output.
+The runner downloads only native engine executables into the ignored results directory, checks archive integrity and reported versions against `constants.json`, and never runs package installation scripts. Explicit `HARNESS_OPENCODE_BIN` and `HARNESS_OPENCODE2_BIN` overrides must report the pinned versions.
 
-The output is `evals/results/engine-parity/<timestamp>/report.md`. It links each journey to a human-readable page with named steps, screenshots and assertions. `results.json`, individual test JSON and logs sit beside it. A skipped, missing, duplicated, failed or wrong-engine case makes the command fail; a green subset cannot claim parity.
+The output is `evals/results/engine-parity/<timestamp>/report.md`. It links each journey to a human-readable page with named steps, screenshots and assertions. `results.json`, individual test JSON and logs sit beside it. A skipped, missing, duplicated, failed or wrong-engine case makes the command fail.
 
 ## What a person should be able to do
 
 | Journey | Visible proof | Independent proof |
 | --- | --- | --- |
-| First boot | Open a fresh signed-out app, see Big Pickle selected automatically, type a task, receive its answer once. | No model preference is seeded; the upstream records the selected model and exactly one final answer. |
-| Streaming | Read the first sentence while the rest of the answer is still unavailable. | The model fixture holds the second chunk until the screenshot and assertion complete. |
-| Gateway models | Select an assigned model, receive its answer, add another model while the app is open, use it, remove the first model and stop offering it. | Real Den assignments, model groups, Gateway routing and upstream model IDs; three actual chat turns. |
-| Skills | Install a skill and answer using its actual instructions. V2 also installs, edits, removes and reinstalls it across five turns in one conversation. | Random codes exist only in skill files. The real native skill tool reads them; prompts and canned replies never contain them. |
-| Connectors | Discover an assigned capability, execute it and display the report; report a subsequent connector failure truthfully. | Real Den `search_capabilities` and `execute_capability`, with an external witness recording exact invocations. |
+| First boot (`PARITY-BOOT`) | Open a fresh signed-out app, see a model selected automatically, type a task, receive its answer once. | No model preference is seeded; the upstream records the selected model and exactly one final answer. |
+| Streaming (`PARITY-STREAM`) | Read the first sentence while the rest of the answer is still unavailable. | The model fixture holds the second chunk until the screenshot and assertion complete. |
+| Skills (`PARITY-SKILLS`) | Install a skill and answer using its actual instructions. V2 also installs, edits, removes and reinstalls it across five turns in one conversation. | Random codes exist only in skill files. The real native skill tool reads them; prompts and canned replies never contain them. |
 
-V1 uses its explicit legacy engine reload and app refresh in the Gateway journey and installs the skill before its first task. V2 must retain the same browser document, conversation and engine PID throughout hot updates. The v2 assertions reject both HTTP reload requests and internal engine rollover/in-place reload activity.
-
-The stronger v1 skill experiment exposed an existing limitation: after an absent-skill turn, installing and reloading made the native catalog current, but the same conversation's skill tool still returned the old missing-skill result on 1.18.30 and 1.18.32. The v1 baseline covers working skill consumption; it does not claim this lifecycle works. V2 is held to the full lifecycle requirement.
+V2 must retain the same browser document, conversation and engine PID throughout skill updates. The v2 assertions reject both HTTP reload requests and internal engine rollover.
 
 ## What is real and what is controlled
 
-The renderer, Harness server, OpenCode executables, Den, MySQL and Gateway are real processes. Only the paid model responses and the external connector are local deterministic witnesses. Administrators change assignments and skill files through the real Den/Harness APIs; model selection, task submission, streaming and answers are exercised in the visible app. The model emits protocol-valid tool calls; engines and Den must perform the work and return the real result. This proves integration behavior, not the reasoning quality of a live model or the health of an external provider account.
-
-Every app has an isolated profile, engine database, home, configuration and environment store. Den uses a disposable `harness_eval_` database. Fixtures use synthetic identities and credentials. No production account is needed.
+The renderer, Harness server and OpenCode executables are real processes. Only the model responses are local deterministic witnesses. Every app has an isolated profile, engine database, home, configuration and environment store. Fixtures use synthetic identities and credentials. No account is needed.
 
 ## Reading launch measurements
 
-The launch clock starts immediately before starting the real app-web stack and ends at the interactive renderer or the ready composer. Model/Den fixture preparation and binary download are outside that boundary. First-answer timing starts when the user presses Run task. Each sample uses a fresh app profile; package/build caches remain shared. Engine order alternates between samples. The report shows median, range and sample count, and the evidence records engine version and source commit.
+The launch clock starts immediately before starting the real app-web stack and ends at the interactive renderer or the ready composer. Model fixture preparation and binary download are outside that boundary. First-answer timing starts when the user presses Run task. Each sample uses a fresh app profile.
 
 These are development app-web measurements, including browser and development-server startup. They are not packaged Electron startup numbers, cold filesystem-cache measurements or real-provider latency. App-web uses the same renderer and server paths and is the portable route for this comparison.
 
+## Other engine checks
+
+- `engine-live-parity.e2e.test.ts` verifies a browser-host server starting with zero workspaces. Because the browser has no native folder chooser, it creates the first workspace through the real host API and verifies the visible composer.
+- `engine-provider-filters.e2e.test.ts` checks the pinned native v2 catalog: remove/restore a model, apply deny-list precedence, allow no models, then remove restrictions, retaining the same engine PID. It uses a synthetic credential and makes no inference requests. Runtime model filtering applies to built-in models as well as configured aliases.
+- `engine-live-provider.test.ts` covers the opt-in real-provider selection (`HARNESS_LIVE_PROVIDER`): credentials alone never enable real inference, and missing credentials fail instead of falling back to a scripted model.
+
 ## Scope of a green result
 
-For the deterministic suite, PASS means the five journeys above passed on both pinned engines, including the stricter v2 hot-update checks, and all requested timing samples were captured. It does not mean the repository's entire historical E2E suite is green or that the real-model migration gate passed. Older recovery-draft checks must be evaluated separately. Native live tests subsequently ran with prepared Electron resources; rebuilding those resources on this machine remains blocked by the ComputerUse Swift build.
+For the deterministic suite, PASS means the three journeys above passed on both pinned engines, including the stricter v2 hot-update checks, and all requested timing samples were captured. It does not mean the repository's entire E2E suite is green.
 
-The changes preserve conversation continuity (DESIGN P11). Review the attached screenshots for the actual model choices, messages, skill answers and connector results (DESIGN P10).
-
-## Wider checks observed during this work
-
-These results are separate from the targeted parity command; none are silently treated as passing:
-
-- The earlier sessionless recovery check failed to restore the expected draft after recovery. First boot, first send and streaming in this parity suite are independently exercised.
-- The server proxy cancellation failure (HEAD returning 500 instead of 499) is fixed: read cancellation now reaches ownership checks and null abort reasons are classified correctly. All 165 server core tests passed with CI's Bun 1.3.14, and the GitHub core check passed on `c170b0a58`. Earlier Bun 1.3.8 combined runs ended with SIGTRAP and are not counted as passes.
-- The evals typecheck reported 17 errors in existing analytics, sessionless-world and MCP sandbox files. Layer lint reported 61 existing violations; the new parity files introduced no reported violations. Existing channel/boundary ratchets also reported debt outside these journeys.
-- Rebuilding desktop resources failed because the local ComputerUse Swift build could not parse a property list. The later native live suite used existing prepared resources successfully. Both app-web and native development launch timings were measured; neither is a packaged cold-start benchmark.
-
-App and server TypeScript checks and the focused adapter, skill synchronization, proxy boundary, model-picker, reload, witness and result-guard tests are checked separately from that wider debt.
+Earlier revisions of this document recorded real-model journeys that depended on
+the removed organization control plane (organization sign-in, organization
+skills, gateway model assignments and organization connectors). Those specs were
+removed with it; their historical results are not reproducible from this
+repository.

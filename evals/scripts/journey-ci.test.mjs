@@ -32,9 +32,7 @@ test('incident state survives more than 100 newer unrelated alert runs', async (
 test('critical PR selection includes existing critical journeys even when only product source changes', async () => {
   const entries = await catalog();
   const selected = selectJourneys(entries, { critical: true, changed: ['apps/app/src/view.tsx'] });
-  assert.equal(selected.length, 3);
-  assert(selected.some(value => value.placement === 'local'));
-  assert(selected.some(value => value.model === 'live'));
+  assert.deepEqual(selected.map(value => value.spec), ['app-smoke.e2e.test.ts']);
   assert(selected.every(value => value.critical));
 });
 
@@ -42,9 +40,9 @@ test('changed additional journey joins critical selection; manual filters work f
   const entries = await catalog();
   const extra = entries.find(value => !value.critical && value.placement === 'daytona');
   assert(selectJourneys(entries, { critical: true, changed: [extra.spec] }).includes(extra));
-  const handoff = selectJourneys(entries, { only: 'cross-server-handoff-atomic-commit' });
-  assert.equal(handoff.length, 1);
-  assert.equal(handoff[0].placement, 'local');
+  const edit = selectJourneys(entries, { only: 'edit-running-message' });
+  assert.equal(edit.length, 1);
+  assert.equal(edit[0].placement, 'local');
   const instantSend = selectJourneys(entries, { only: 'workspace-new-task-hit-target' });
   assert.equal(instantSend.length, 1);
   assert.equal(instantSend[0].name, 'Keep new tasks and sends instantly responsive');
@@ -52,8 +50,8 @@ test('changed additional journey joins critical selection; manual filters work f
   assert.equal(instantSend[0].model, 'mock');
   assert.equal(instantSend[0].critical, false);
   assert.equal(selectJourneys(entries, { only: 'does-not-exist' }).length, 0);
-  const several = selectJourneys(entries, { only: 'cross-server-handoff-atomic-commit, workspace-new-task-hit-target,' });
-  assert.deepEqual(several.map(value => value.spec).sort(), ['cross-server-handoff-atomic-commit.e2e.test.ts', 'workspace-new-task-hit-target.e2e.test.ts']);
+  const several = selectJourneys(entries, { only: 'edit-running-message, workspace-new-task-hit-target,' });
+  assert.deepEqual(several.map(value => value.spec).sort(), ['edit-running-message.e2e.test.ts', 'workspace-new-task-hit-target.e2e.test.ts']);
   // Delimiters alone are a typo, never "run everything"; blank input still is.
   for (const only of [', ,', ',', ' , ']) assert.throws(() => selectJourneys(entries, { only }), /names no journey/);
   assert.equal(selectJourneys(entries, { only: '  ' }).length, entries.length);
@@ -70,12 +68,10 @@ test('journeys needing a packaged binary, macOS, or paid live consent are skippe
     ['packaged-first-launch.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
     ['packaged-preactivation-egress.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
     ['packaged-preactivation-updater.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
-    ['released-enterprise-activated.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
   ]);
   assert(excluded.every(entry => entry.placement === 'local'));
   assert(excluded.every(entry => !entry.critical));
-  // A lane that packages the enterprise desktop would schedule the packaged journeys again; released-enterprise-activated's
-  // update case still skips itself there without HARNESS_EVAL_RELEASED_BASELINE_BINARY, which the verdict counts as not tested.
+  // A lane that packages the desktop schedules the packaged journeys again.
   const packagedLane = { ...ciLane, env: ['HARNESS_EVAL_ELECTRON_BINARY'] };
   assert.deepEqual(excluded.filter(entry => unmetLaneNeeds(entry, packagedLane).length > 0).map(entry => entry.spec), [
     'computer-use-window-scope.e2e.test.ts', 'live-stream-continuity.e2e.test.ts',
@@ -117,14 +113,12 @@ async function guardedPrerequisites(spec, root = new URL('../specs/', import.met
 test('catalog needs match the whole-file prerequisites each spec and its worlds guard, in both directions', async () => {
   const entries = await catalog();
   const declared = entries.filter(entry => entry.needs);
-  assert.equal(declared.length, 8);
+  assert.equal(declared.length, 7);
   for (const entry of declared) {
     assert.deepEqual({ env: [...(entry.needs.env ?? [])].sort(), platform: entry.needs.platform }, await guardedPrerequisites(entry.spec), `${entry.spec}: catalog needs drifted from the spec/world guards`);
   }
-  // The released spec's update case alone needs the baseline binary; that is not a whole-file blocker.
-  assert.deepEqual(await guardedPrerequisites('released-enterprise-activated.e2e.test.ts'), { env: ['HARNESS_EVAL_ELECTRON_BINARY'], platform: undefined });
   assert.deepEqual(await guardedPrerequisites('computer-use-window-scope.e2e.test.ts'), { env: [], platform: 'darwin' });
-  assert.deepEqual(await guardedPrerequisites('mcp-oauth-start-unreadable-response.e2e.test.ts'), { env: [], platform: undefined });
+  assert.deepEqual(await guardedPrerequisites('crash-recovery.e2e.test.ts'), { env: [], platform: undefined });
 });
 
 test('mixed-world specs: a prerequisite one case declares is never promoted to the whole file; world-body guards always are', () => {
@@ -149,11 +143,6 @@ test('registered case metadata names exact files, supported execution axes, and 
     { spec: 'opencode-v2-session-home.e2e.test.ts', id: 'HOME-02', engines: ['v2'] },
     { spec: 'opencode-v2-session-home.e2e.test.ts', id: 'HOME-03', engines: ['v2'] },
     {
-      spec: 'composer-model-picker-no-subscribe-promo.e2e.test.ts',
-      id: 'MODEL-01',
-      engines: ['v2'],
-    },
-    {
       spec: 'task-activity-shimmer.e2e.test.ts',
       id: 'ACT-01',
       engines: ['v1', 'v2'],
@@ -169,11 +158,6 @@ test('registered case metadata names exact files, supported execution axes, and 
       engines: ['v1', 'v2'],
     },
     {
-      spec: 'streamed-markdown-answer.e2e.test.ts',
-      id: 'CONT-01',
-      engines: ['v1', 'v2'],
-    },
-    {
       spec: 'live-stream-continuity.e2e.test.ts',
       id: 'CONT-01-live',
       engines: ['v1'],
@@ -182,33 +166,6 @@ test('registered case metadata names exact files, supported execution axes, and 
       spec: 'live-stream-continuity.e2e.test.ts',
       id: 'CONT-01-live-history',
       engines: ['v1'],
-    },
-    {
-      spec: 'live-tool-visible-after-session-switch.e2e.test.ts',
-      id: 'SWITCH-10',
-      engines: ['v1', 'v2'],
-    },
-    {
-      spec: 'unfinished-tool-lifecycle.e2e.test.ts',
-      id: 'STOP-01',
-      engines: ['v1', 'v2'],
-    },
-    {
-      spec: 'saved-app-creation.e2e.test.ts',
-      id: 'APP-ISOLATION',
-      engines: ['v1', 'v2'],
-    },
-    {
-      spec: 'saved-app-creation.e2e.test.ts',
-      id: 'APP-DRAFT-ROUTING',
-      engines: ['v1', 'v2'],
-    },
-    { spec: 'opencode-v2-skill-jit.e2e.test.ts', id: 'SKILL-ATTACH', engines: ['v1', 'v2'] },
-    { spec: 'opencode-v2-skill-jit.e2e.test.ts', id: 'SKILL-MISSING', engines: ['v2'] },
-    {
-      spec: 'opencode-v2-skill-jit.e2e.test.ts',
-      id: 'SKILL-NATIVE-01',
-      engines: ['v2'],
     },
     { spec: 'opencode-v2-reads-during-mcp-startup.e2e.test.ts', id: 'UPKEEP-01', engines: ['v2'] },
   ]);
@@ -232,10 +189,10 @@ test('live continuity is isolated, local, v1-only and never scheduled from a pro
     assert.deepEqual(registered.optIns, ['HARNESS_EVAL_E2E_TESTS', 'HARNESS_EVAL_LIVE_OPENAI']);
     assert.equal(registered.example.placement, '--local');
   }
-  const mock = entries.find(entry => entry.spec === 'streamed-markdown-answer.e2e.test.ts');
+  const mock = entries.find(entry => entry.spec === 'task-activity-shimmer.e2e.test.ts');
   assert.equal(mock.model, 'mock');
   assert.equal(mock.needs, undefined);
-  assert.deepEqual(mock.cases.map(entry => entry.id), ['CONT-01']);
+  assert.deepEqual(mock.cases.map(entry => entry.id), ['ACT-01']);
   const source = await readFile(new URL('../specs/live-stream-continuity.e2e.test.ts', import.meta.url), 'utf8');
   assert.match(source, /needs:\s*\{\s*placement:\s*"local",\s*optIn:\s*\["HARNESS_EVAL_LIVE_OPENAI"\]/);
 });

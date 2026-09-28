@@ -29,9 +29,9 @@ export function manifestFingerprints(value: unknown) {
 }
 
 function worldSource(path: string, world: PreviewWorld) {
-  // app-web runs the hosted Den proxy, never the local Den/Gateway or eval runtime.
-  if (world === "desktop") return !/^(ee\/apps\/(den-web|den-api|gateway)\/|worlds\/|packages\/world\/|evals\/(?!packages\/cdp\/))/.test(path);
-  return world !== "app-web" || !/^(ee\/apps\/(den-web|den-api|gateway)\/|evals\/|worlds\/acme-web\.)/.test(path);
+  // Neither world runs the eval runtime; desktop also never runs the world launcher.
+  if (world === "desktop") return !/^(worlds\/|packages\/world\/|evals\/(?!packages\/cdp\/))/.test(path);
+  return !/^evals\//.test(path);
 }
 
 export function dependencyInput(path: string): boolean {
@@ -155,8 +155,8 @@ export async function ensureLayer(input: {
   throw new Error(`${input.stage} cache build timed out`);
 }
 
-export function compiledFingerprint(entries: SourceEntry[], world: PreviewWorld = "acme-web"): string {
-  const runtimeSource = /^(apps\/app\/(src|public)\/|ee\/apps\/(den-web\/(src|app|public)|den-api\/src|gateway\/src)\/|packages\/freestyle\/|worlds\/|evals\/|\.github\/|docs\/)/;
+export function compiledFingerprint(entries: SourceEntry[], world: PreviewWorld = "app-web"): string {
+  const runtimeSource = /^(apps\/app\/(src|public)\/|packages\/freestyle\/|worlds\/|evals\/|\.github\/|docs\/)/;
   return digest(JSON.stringify(entries.filter((entry) => entry.type === "blob" && worldSource(entry.path, world) && !runtimeSource.test(entry.path))
     .sort((a, b) => a.path.localeCompare(b.path)).map(({ path, sha, runtimeSha }) => [path, runtimeSha ?? sha])));
 }
@@ -181,8 +181,8 @@ export async function startBuildUnit(vm: Vm, stage: string, diagnostic?: (stage:
 
 
 /** These files run in development servers that reload them after checkout. */
-export function runningFingerprint(entries: SourceEntry[], world: PreviewWorld = "acme-web"): string {
-  const refreshed = /^(apps\/app\/(src|public)\/|ee\/apps\/den-web\/(components|public|styles)\/|\.github\/|docs\/)/;
+export function runningFingerprint(entries: SourceEntry[], world: PreviewWorld = "app-web"): string {
+  const refreshed = /^(apps\/app\/(src|public)\/|\.github\/|docs\/)/;
   return digest(JSON.stringify(entries.filter((entry) => entry.type === "blob" && worldSource(entry.path, world) && !refreshed.test(entry.path))
     .sort((a, b) => a.path.localeCompare(b.path)).map(({ path, sha, runtimeSha }) => [path, runtimeSha ?? sha])));
 }

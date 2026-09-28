@@ -1,8 +1,10 @@
 # Harness tests and test evidence
 
 All executable coverage lives in [`specs/**/*.test.ts`](./specs) and imports
-`test` from `@harness/testkit`. Tests that drive Electron, Den, or another app
-surface use `.e2e.test.ts`.
+`test` from `@harness/testkit`. Tests that drive Electron, the web app, or another
+app surface use `.e2e.test.ts`. Every world runs against the local Harness
+core: the desktop, the Harness server and the pinned engines, with
+deterministic local witnesses in place of external services.
 
 ## Paved path
 
@@ -29,20 +31,18 @@ This opt-in compiler selects checked-in assertions; it is not an app-state judge
 | world | An executable TypeScript script that creates and holds concrete resources. |
 | receipt | PID ownership metadata for a detached script world. |
 | place | Where launched resources run: `local` or `daytona`. |
-| substrate | What runs the Den control plane: local processes or `kind`. |
 | witness | A deterministic provider stand-in that records what it saw. |
 | fault | Declared misbehavior used to reproduce a failure condition. |
-| surface | A drivable UI: `appWeb` (the app in headless Chrome), `desktop` (Electron), or `web` (Den UI in Chrome). |
+| surface | A drivable UI: `appWeb` (the app in headless Chrome) or `desktop` (Electron). |
 | origin | Whether a resource is launched or attached. See below. |
-| live | A spec attached to a live shared substrate; red is an incident signal about the service, not a verdict on the diff. |
+| live | A spec that uses a real model provider with explicit consent; red can mean the provider, not the diff. |
 
 ### Resource ownership
 
 The script's `AsyncDisposableStack` owns what the script creates and disposes it
 in reverse order. Attached or shared resources expose handles whose disposers
-release only script-owned additions, such as local port-forwards or an
-organization created for that run; they do not stop or delete the shared
-substrate. The rule is: **the stack owns what the script creates, not what it
+release only script-owned additions, such as local port-forwards; they do
+not stop or delete what they attach to. The rule is: **the stack owns what the script creates, not what it
 attaches to.**
 
 ## Skills map
@@ -74,7 +74,7 @@ pnpm evals:e2e app-smoke
 spec, world, driver, script, and package under `evals/` and must exit 0 (run it
 before pushing; the CI step lands separately). It compiles with the bundler resolution Vitest
 uses and reports only diagnostics that belong to `evals/` (or to files the
-config includes explicitly), because the `apps/` and `ee/` sources a spec pulls
+config includes explicitly), because the `apps/` and `packages/` sources a spec pulls
 in are compiled by their own projects with their own flags. Nothing inside
 `evals/` is filtered: a spec that no longer matches the testkit API is red here.
 
@@ -85,24 +85,24 @@ auto-satisfies the opt-in flags declared in its source, but value-bearing
 environment variables such as `HARNESS_EVAL_MODEL` are never auto-set. Vision
 judging is deferred by default; add `--with-llm-vision` to judge inline. Use
 `--local` to force isolated local resources, `--daytona` to require Daytona,
-`--den <url>` to reuse Den, or `--publish --pr <number>` to judge and publish
+or `--publish --pr <number>` to judge and publish
 existing evidence. Without a placement flag, the CLI probes Daytona auth and
 prints `placement: <daytona|local> (<reason>)` for the placement asserted in the
 runtime environment. `--local` and `--daytona` override inherited placement;
 transport, engine, and surface selectors are never inferred as source opt-ins.
 
 Registered cases select a concrete world and can select their engine without
-raw environment variables. `CONT-01` and `SWITCH-10` are fixed headless app-web
-worlds. Use `pnpm evals:e2e --list` to see the registered cases. The legacy
+raw environment variables. `ACT-01` and `MOBILE-CHAT-01` are fixed headless
+app-web worlds. Use `pnpm evals:e2e --list` to see the registered cases. The legacy
 `--surface` selector is migration validation only: it cannot change a declared
 world's implementation, and selecting Electron for either case is rejected.
 
 ```bash
-pnpm evals:e2e streamed-markdown-answer --local --engine v2 --case CONT-01
-pnpm evals:e2e live-tool-visible-after-session-switch --daytona --engine v1 --case SWITCH-10
+pnpm evals:e2e task-activity-shimmer --local --engine v1 --case ACT-01
+pnpm evals:e2e v2-sessionless-first-send --daytona --engine v1 --case MOBILE-CHAT-01
 ```
 
-A focused web case avoids legacy Den/Electron suite preparation, but still
+A focused web case avoids legacy Electron suite preparation, but still
 boots the real Vite app, server, engine, and Chrome; install dependencies first.
 This fast path is not a guarantee for the duration of a first cold install.
 Explicit `--local` placement cannot be overridden by source consent or inherited
@@ -162,23 +162,15 @@ spec from running, delete it; history keeps the removed test available.
 
 ### Live lane
 
-Surface and substrate are independent axes:
-
-| Surface | Launched substrate (world-owned, hermetic) | Attached live substrate |
-| --- | --- | --- |
-| App-less | `<slug>.test.ts` | `<slug>.live.test.ts` |
-| App-driving | `<slug>.e2e.test.ts` | Not yet paved |
-
-Run a live spec only by exact name and with explicit consent and endpoint values:
+Live specs use a real model provider. Run one only by exact name, with explicit
+consent and your own key, for example:
 
 ```bash
-HARNESS_EVAL_LIVE=1 HARNESS_EVAL_LIVE_DEN_API_URL=https://api.harness.invalid HARNESS_EVAL_SECRET_LIVE_MAILBOX_EMAIL=<mailbox> pnpm evals:pr specs/prod-den-signup-invites.live.test.ts
+HARNESS_EVAL_LIVE_OPENAI=1 OPENAI_API_KEY=<key> pnpm evals:e2e live-stream-continuity --local --engine v1 --case CONT-01-live
 ```
 
-The live Den is attached and never deleted. Timestamped plus-addressed identities,
-organizations, and invitations launched onto it are owned by the spec; cleanup is
-asserted even on failure, and any residue (including an account without a
-self-service deletion endpoint) must be documented with exact identities.
+Credentials alone never opt into inference, and they are never recorded as
+evidence.
 
 ## Authoring contract
 
@@ -207,7 +199,7 @@ channels. Import them only from `@harness/testkit`.
 
 | Channel | Purpose | Allowed effects |
 | --- | --- | --- |
-| `seed` | Arrange the world | Create Den, desktops, browsers, data, mocks, sessions, and faults; this is the only API/state write channel. |
+| `seed` | Arrange the world | Create desktops, the web app, data, mocks, sessions, and faults; this is the only API/state write channel. |
 | `user` | Act as a person | Trusted CDP mouse, keyboard, navigation, reload, visible assertions, screenshots, and vision checks. It cannot evaluate JS, fetch, or use app controls. |
 | `agent` | Use the product automation rail | Explicit `window.__harnessControl` actions, including agent sends and session actions. |
 | `probe` | Observe without changing state | Read text, composer/storage/hash/API/witness state, and poll with `eventually`. Probe API calls are GET-only. |
@@ -250,10 +242,9 @@ const nativeTest = spec.world(nativeFileDialog, {
 });
 ```
 
-Surfaces, services, and placement are separate: declare `den` and `mock` under
-`services` when the world creates them; choose local or Daytona with the runner's
-placement flags. `seed.web()` drives **Den UI**, not the app, and requires
-`surfaces: ["web"]` plus `services: ["den"]`. For declared worlds, the resource
+Surfaces, services, and placement are separate: declare `mock` under
+`services` when the world creates one; choose local or Daytona with the runner's
+placement flags. For declared worlds, the resource
 guard refuses an undeclared surface or service before launch, and a desktop
 declaration requires a non-empty `nativeReason`. Undeclared legacy worlds are
 temporarily allowed within the deferred migration scope; that compatibility is
@@ -320,8 +311,7 @@ order with text, focus and rectangles, plus viewport/document widths. It never
 returns input values or accepts executable callbacks. Use it for geometry and
 focus assertions after trusted `user.press("Tab")` actions, rather than raw eval.
 
-Worlds can arrange a shaped Den connection with `seed.denLink(den, options)`;
-the returned link is fixture-owned. `probe.connectState(app)` reads the
+`probe.connectState(app)` reads the
 testkit's normalized desktop Connect state without exposing the raw helper to a
 spec.
 
@@ -346,10 +336,10 @@ executable coverage is always assembled as a test under `specs/`.
 | Package | Owns |
 | --- | --- |
 | root `@harness/world` | script discovery, CLI lifecycle receipts, local state store, `hold()`, and headless-web surface |
-| `@harness/env` | places and concrete Den, desktop, mock, LiteLLM, and kind resources |
+| `@harness/env` | places and concrete desktop, app-web, and mock resources |
 | `@harness/testkit` | thin Vitest adapter: fixture, needs/skip mapping, evidence bridging, and spec-facing re-exports |
 | `@harness/cdp` | raw CDP client, targets, `Surface`, and `attachSurface` |
-| `@harness/labs` | egress, identity-provider, release-feed, and mock-MCP labs |
+| `@harness/labs` | egress, release-feed, and mock-MCP labs |
 | `@harness/hosts` | local and Daytona hosts and `resolveHost()` |
 | `@harness/behaviors` | framework-free actions and observations over narrow handles |
 | `@harness/matchers` | pure findings over facts, with no I/O |
@@ -367,17 +357,16 @@ endpoint without creating test evidence.
 A world is a plain executable TypeScript file under `worlds/`. Each script
 creates concrete async resources in dependency order, registers them with a
 native `AsyncDisposableStack`, and calls `hold()` after it is ready. Typical
-resources are `server`, `createAdmin`, `createOrg`, `inviteMember`, `app`,
-`mcpMock`, `liteLlm`, and `launchHeadlessWeb`.
+resources are `app`, `mcpMock`, and `launchHeadlessWeb`.
 
 Every checked-in script is guarded by `if (import.meta.main)`. Importing one is
 therefore side-effect-free until a caller invokes an exported builder. Specs,
 docs tooling, and the script entry point use those same builders; there is no
 second lifecycle layer.
 
-Useful ready-made scripts include `worlds/solo.ts`, `worlds/acme-demo.ts`,
-`worlds/acme-docs.ts`, and `worlds/desktop-prod-live.ts`. `support-org` no
-longer exists. See `pnpm world list` for the complete current set.
+Useful ready-made scripts include `worlds/app-web.ts`, `worlds/preview-desktop.ts`,
+and `worlds/desktop-prod-live.ts`. See `pnpm world list` for the complete current
+set.
 
 Detached scripts write PID ownership receipts to
 `evals/results/.worlds/scripts/<name>.json`. A receipt records the script path,
@@ -389,17 +378,16 @@ recipe for recreating resources.
 The root `pnpm world` command requires Node 24+. Its interactive lifecycle is:
 
 ```bash
-pnpm world up solo                 # foreground; Ctrl-C disposes its stack
-pnpm world up acme-demo --detach   # background; waits for its receipt
-pnpm world up acme-docs --detach --timeout 600000
-pnpm world down acme-demo          # signal it and wait for native disposal
+pnpm world up app-web              # foreground; Ctrl-C disposes its stack
+pnpm world up app-web --detach     # background; waits for its receipt
+pnpm world up preview-desktop --detach --timeout 600000
+pnpm world down app-web            # signal it and wait for native disposal
 pnpm world list
 pnpm world forget <name>
 pnpm world help
 
 # A path or the filename-derived name selects the same script.
 pnpm world up ./worlds/dev-headless.ts
-pnpm world up ./worlds/litellm-per-member.ts
 
 # Script-specific arguments must follow the separator.
 pnpm world up dev-headless --detach -- --replace --keep-tokens
@@ -418,8 +406,8 @@ metadata only; it does not stop the process. `help` and `list` discover
 source Electron through `pnpm dev` with isolated Electron userData, app
 identifier, Vite/CDP ports, and protocol registration, while resolving the
 installed production `HARNESS_DATA_DIR` and channel-aware `OPENCODE_DB` only at
-launch time. It never copies or symlinks those stores, does not boot or modify a
-Den, and does not seed a workspace, session, or sign-in. Production may remain
+launch time. It never copies or symlinks those stores and does not seed a
+workspace, session, or sign-in. Production may remain
 running, but concurrent writes from production and dev are unsupported and may
 corrupt state. Its parser requires exactly `--allow-shared-state`, after the
 `world up` argument separator. Disposal stops only the source dev process and
@@ -431,18 +419,6 @@ Harness data, and OpenCode database are resolved in place and never copied into
 the receipt. It requires the same exact script argument and refuses remote
 access, public hosts, and non-loopback host bindings.
 
-`worlds/den-split-origin-kind.ts` attaches to the shared
-`harness-kube-lab` kind substrate and owns only its local port-forwards. Run its
-opt-in proof on a machine with local Docker, kind, kubectl, and Helm:
-
-```bash
-HARNESS_EVAL_E2E_TESTS=1 HARNESS_EVAL_KIND_E2E=1 pnpm --dir evals exec vitest run --config vitest.config.ts --project e2e specs/world-kind-den.e2e.test.ts
-```
-
-Daytona cannot host this substrate: its sandbox has no Docker binary or daemon,
-reports `CapEff: 0000000000000000`, and blocks `unshare -Urm`, so no container
-runtime can start kind there.
-
 ## Recipes
 
 ### Drive the app
@@ -452,11 +428,10 @@ Compose journeys from `@harness/behaviors`; executable coverage belongs in
 `evals/specs`.
 
 ```ts
-import { bootAcmeDocs } from "../../worlds/acme-docs.ts";
+import { bootAppWebWorld } from "../../worlds/app-web.ts";
 
 await using stack = new AsyncDisposableStack();
-const world = await bootAcmeDocs(stack, place);
-const docs = world.app("docs");
+const outputs = await bootAppWebWorld(stack, { place: "local" });
 ```
 
 ### Provision a fresh setup
@@ -466,10 +441,7 @@ with `use()` and disposes it in reverse order.
 
 ```ts
 await using stack = new AsyncDisposableStack();
-const den = stack.use(await server({ place, provision: false, web: true }));
-await createAdmin(den, {});
-const org = stack.use(await createOrg(den, "Acme"));
-const desktop = stack.use(await app({ den, place, as: "admin" }));
+const desktop = stack.use(await app({ place, workspacePath: "/tmp/harness-demo" }));
 ```
 
 ### Reproduce a failure
@@ -477,12 +449,6 @@ const desktop = stack.use(await app({ den, place, as: "admin" }));
 Run the relevant script or exact spec again with the same explicit inputs.
 Receipts cannot recreate a run; use their PID, script path, outputs, and paired
 log only to inspect or stop the existing detached process.
-
-### Docs screenshots and demos
-
-Docs tooling imports `bootAcmeDocs`; demos use `bootAcmeDemo`. Their standalone
-scripts call the same builders, so importing, CLI use, and specs share one
-implementation.
 
 ## Ambient evidence and verdicts
 
@@ -501,21 +467,6 @@ CI publishes. `PR change proof` runs every changed spec on the PR head and
 publisher by hand. `evals:e2e --publish` remains for that trusted CI path
 only. Custom screenshots and recordings are supplementary and never determine
 the pass/fail verdict.
-
-## Standalone isolated Den
-
-For an isolated Den API without Electron or Den Web, use the development helper:
-
-```bash
-pnpm --dir evals dev:den -- up --port 8891 --database harness_den_my_eval --seed
-pnpm --dir evals dev:den -- down --port 8891 --drop-database
-```
-
-The port and database are generated when omitted. The helper starts MySQL,
-pushes the current schema, and prints the eval URL exports and teardown command.
-It also adds the printed `HARNESS_EVAL_DEN_WEB_URL` to the trusted origins;
-without that origin, Better Auth rejects eval sign-in with
-`403 INVALID_ORIGIN`.
 
 ## Daytona E2E tests
 
@@ -560,19 +511,10 @@ observable assertions and validated screenshots are recorded as test evidence.
 
 These names are designed but not built. Do not attempt to use them:
 
-- `attach.den({ url, tier })`
 - `attach.user({ secretRef })`
 - `attach.sandbox(...)`
-- `tier: "prod" | "staging" | "demo"`; the production tier will structurally
-  refuse organization provisioning, seeding, and database access.
 - `secretRef`; secrets will be named and resolved at start. Snapshots may carry
   secret references, never secret values.
-
-The low-level escape hatch available today is
-`HARNESS_EVAL_DEN_API_URL` with `HARNESS_EVAL_DEN_WEB_URL`. It attaches an
-existing Den at the `server()` level and is called `reuse` in current code.
-Attached mode has no `apiLog()` and does not support `seedProfile`. Locally
-launched mocks are loopback-only and therefore unreachable from a remote Den.
 
 ## Daytona reference
 
@@ -583,11 +525,7 @@ launched mocks are loopback-only and therefore unreachable from a remote Den.
 | noVNC | 6080 |
 | Vite HMR | 5173 |
 | Electron CDP | 9825 |
-| Den Web | 3005 |
-| Den API | 8788 |
-| Worker proxy | 8789 |
 | Artifacts | 8090 |
-| MySQL (internal) | 3306 |
 
 ### Electron UI selectors
 
@@ -614,16 +552,6 @@ editor.focus()
 document.execCommand("selectAll", false, null)
 document.execCommand("insertText", false, "YOUR PROMPT HERE")
 ```
-
-### Two-sandbox Den + Electron
-
-```bash
-bash .devcontainer/test-server-on-daytona.sh <ref>
-bash .devcontainer/test-on-daytona.sh <ref> \
-  --den-base-url <DEN_WEB_URL> \
-  --den-api-base-url <DEN_API_URL>
-```
-
 
 ### Type-checked browser code
 
@@ -657,4 +585,4 @@ It runs in the test-framework CI command. Unlike running a TypeScript test,
 this invokes the TypeScript checker, scoped to browser callback bodies and the
 CDP browser-script modules. `pnpm --dir evals typecheck` (see Install and run)
 checks everything else under `evals/`; neither claims that the unrelated `apps/`
-or `ee/` projects a spec imports compile under evals flags.
+or `packages/` projects a spec imports compile under evals flags.

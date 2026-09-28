@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -7,19 +6,15 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { checkedExec, defaultDaytonaExec } from "./daytona.ts";
-import { FAULT_PROXY_SCRIPT } from "./fault-proxy-script.ts";
 import type { DaytonaExec, DaytonaExecResult } from "./daytona.ts";
 import type { DesktopRelease, DesktopReleaseDistribution } from "./types.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 const DESKTOP_READY_TIMEOUT_MS = 300_000;
 const INSTALL_TIMEOUT_MS = 25 * 60 * 1_000;
-const SERVER_SCRIPT_TIMEOUT_MS = 20 * 60 * 1_000;
 const VITE_PREWARM_TIMEOUT_MS = 180_000;
 const READINESS_POLL_INTERVAL_MS = 5_000;
 const HTTPS_URL = /https:\/\/[^\s"'<>)]+/;
-const DEN_WEB_PORT = 3005;
-const DEN_API_PORT = 8788;
 const SANDBOX_SOURCE_RECEIPT_PATH = "/workspace/.harness-daytona/source-receipt.json";
 const SANDBOX_PREPARED_FINGERPRINT_PATH = "/workspace/.harness-daytona/source-prepared.sha256";
 const RELEASE_REPOSITORY = "vaishnavjai/harness";
@@ -170,33 +165,6 @@ export interface PrepareSandboxRepoOptions extends ProvisionExecOptions {
   log?: (line: string) => void;
 }
 
-export interface DenSandboxOptions {
-  ref: string;
-  reuse?: string;
-  /**
-   * The reused sandbox's baked public identity, as handed back by the runner
-   * that provisioned it. Den signs setup links and OAuth metadata with these
-   * exact hosts, so a reuse without them can only offer fresh aliases.
-   */
-  reuseUrls?: { webUrl: string; apiUrl: string };
-  repoRoot?: string;
-  bootstrapAdminEmail?: string;
-  /** Extra Den environment for a freshly provisioned sandbox; a reused Den is already running and cannot take it. */
-  env?: Record<string, string>;
-  /** Daytona idle shutdown in minutes; preview worlds pass 0 so their owner process controls expiry. */
-  autoStopMinutes?: number;
-  log?: (line: string) => void;
-}
-
-export interface DenSandbox {
-  sandbox: string;
-  apiUrl: string;
-  webUrl: string;
-  /** Desktop-reachable AI Gateway origin; present only when Den env set GATEWAY_ENABLED=true. */
-  gatewayUrl?: string;
-  created: boolean;
-}
-
 export interface MockOnSandboxOptions {
   sandbox: string;
   port?: number;
@@ -237,30 +205,6 @@ export interface ScriptOnSandbox {
   /** Tail of the script's log inside the sandbox. */
   logTail(): Promise<string>;
   stop(): Promise<void>;
-}
-
-export interface FaultProxyOnSandboxOptions {
-  sandbox: string;
-  port?: number;
-  upstreamPort?: number;
-  log?: (line: string) => void;
-  fetchImpl?: typeof fetch;
-}
-
-export interface FaultProxyOnSandbox {
-  url: string;
-  token: string;
-  stop(): Promise<void>;
-}
-
-export interface ConnectorE2eTestEnv {
-  denApiUrl: string;
-  denWebUrl: string;
-  sandboxA: string;
-  sandboxB: string;
-  mockUrl: string;
-  ref: string;
-  created: string[];
 }
 
 function messageText(error: unknown): string {
@@ -413,10 +357,6 @@ export function desktopSandboxName(name: string): string {
   // internal runs, so "a_-_b" yields "a-b" instead of "a---b".
   const safeName = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join("-") || "surface";
   return `harness-connector-${safeName}-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
-}
-
-export function serverSandboxName(): string {
-  return `harness-server-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
 }
 
 async function waitForExecReady(exec: DaytonaExec, sandbox: string, timeoutMs = DESKTOP_READY_TIMEOUT_MS): Promise<void> {
@@ -943,136 +883,6 @@ echo detached`;
   }
 }
 
-interface LocalProcessResult {
-  output: string;
-  code: number;
-}
-
-interface LineWriter {
-  push(text: string): void;
-  flush(): void;
-}
-
-function lineWriter(log: (line: string) => void): LineWriter {
-  let pending = "";
-  return {
-    push(text) {
-      pending += text;
-      const lines = pending.split(/\r?\n/);
-      pending = lines.pop() ?? "";
-      for (const line of lines) log(line);
-    },
-    flush() {
-      if (pending) log(pending);
-      pending = "";
-    },
-  };
-}
-
-/**
- * Extra Den env travels to the sandbox as base64 `KEY=VALUE` lines, so values
- * are never interpolated into the `daytona exec` command line. Keys must be
- * plain environment names; the start script exports each line verbatim.
- */
-export function encodeDenExtraEnv(env: Record<string, string>): string {
-  const lines = Object.entries(env).map(([key, value]) => {
-    if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) throw new Error(`Unsafe Den environment name ${JSON.stringify(key)}.`);
-    if (value.includes("\n")) throw new Error(`Den environment value for ${key} may not contain a newline.`);
-    return `${key}=${value}`;
-  });
-  return Buffer.from(lines.join("\n"), "utf8").toString("base64");
-}
-
-export function denProvisionScriptArgs(ref: string, name: string, requestedAutoStopMinutes?: number): string[] {
-  return [".devcontainer/test-server-on-daytona.sh", ref, "--seed", "--name", name, "--auto-stop", autoStopMinutes(requestedAutoStopMinutes)];
-}
-
-function runDenProvisionScript(ref: string, repoRoot: string, bootstrapAdminEmail: string | undefined, extraEnv: Record<string, string> | undefined, log: (line: string) => void, urlsFile: string, requestedAutoStopMinutes?: number): Promise<LocalProcessResult> {
-  return new Promise((resolve, reject) => {
-    const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_DEN_URLS_FILE: urlsFile };
-    if (bootstrapAdminEmail) env.DEN_BOOTSTRAP_ADMIN_EMAILS = bootstrapAdminEmail;
-    if (extraEnv && Object.keys(extraEnv).length > 0) env.HARNESS_DEN_EXTRA_ENV_B64 = encodeDenExtraEnv(extraEnv);
-    const child = spawn("bash", denProvisionScriptArgs(ref, serverSandboxName(), requestedAutoStopMinutes), {
-      cwd: repoRoot,
-      env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    const stdoutLines = lineWriter(log);
-    const stderrLines = lineWriter(log);
-    let output = "";
-    let timedOut = false;
-    let settled = false;
-    const timer = globalThis.setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-    }, SERVER_SCRIPT_TIMEOUT_MS);
-
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      const text = String(chunk);
-      output += text;
-      stdoutLines.push(text);
-    });
-    child.stderr.on("data", (chunk) => {
-      const text = String(chunk);
-      output += text;
-      stderrLines.push(text);
-    });
-    child.on("error", (error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.on("close", (code) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      stdoutLines.flush();
-      stderrLines.flush();
-      if (timedOut) output += `\nTimed out after ${SERVER_SCRIPT_TIMEOUT_MS}ms.`;
-      resolve({ output, code: timedOut ? 124 : code ?? 1 });
-    });
-  });
-}
-
-function sandboxFromServerOutput(output: string): string | null {
-  let fallback: string | null = null;
-  for (const line of output.split(/\r?\n/)) {
-    const ready = /Server sandbox ready:\s*(\S+)/.exec(line);
-    if (ready?.[1]) return ready[1];
-    const creating = /Creating server sandbox:\s*(\S+)/.exec(line);
-    if (creating?.[1]) fallback = creating[1];
-  }
-  return fallback;
-}
-
-function parsedPublicUrl(value: string | undefined): string | null {
-  if (!value) return null;
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash || !url.hostname) return null;
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
-
-export function parseDenUrlsFile(content: string): { webUrl: string; apiUrl: string; gatewayUrl?: string } | null {
-  const entries = new Map<string, string>();
-  for (const line of content.split(/\r?\n/)) {
-    const separator = line.indexOf("=");
-    if (separator <= 0) continue;
-    entries.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
-  }
-  const webUrl = parsedPublicUrl(entries.get("DEN_WEB_URL"));
-  const apiUrl = parsedPublicUrl(entries.get("DEN_API_URL"));
-  const gatewayUrl = parsedPublicUrl(entries.get("GATEWAY_URL"));
-  return webUrl && apiUrl ? { webUrl, apiUrl, ...(gatewayUrl ? { gatewayUrl } : {}) } : null;
-}
-
-
 async function previewUrl(exec: DaytonaExec, sandbox: string, port: number): Promise<string> {
   let lastError = "not attempted";
   for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -1092,113 +902,6 @@ async function previewUrl(exec: DaytonaExec, sandbox: string, port: number): Pro
     if (attempt < 4) await delay(attempt * 1_000);
   }
   throw new Error(`Preview URL gate failed for ${sandbox}:${port} after 4 attempts: ${lastError}`);
-}
-
-async function proveDenSeed(apiUrl: string, webUrl: string, sandbox: string, reused: boolean): Promise<void> {
-  const email = process.env.HARNESS_EVAL_DEMO_EMAIL?.trim() || "alex@acme.test";
-  const password = process.env.HARNESS_EVAL_DEMO_PASSWORD ?? "HarnessDemo123!";
-  const url = `${apiUrl.replace(/\/+$/, "")}/api/auth/sign-in/email`;
-  // A freshly-booted stack was observed answering public sign-in with bare
-  // 403s for its first ~minute, then recovering on its own — so the window is
-  // generous, and a failing status keeps its body so the failure names itself.
-  // (That body once read MISSING_OR_NULL_ORIGIN: early boot rejects
-  // origin-less POSTs, and every real client sends Origin — so must we.)
-  const deadline = Date.now() + 120_000;
-  let last = "not attempted";
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", origin: webUrl },
-        body: JSON.stringify({ email, password }),
-        signal: AbortSignal.timeout(5_000),
-      });
-      if (response.status === 200) return;
-      const body = await response.text().catch(() => "");
-      last = `HTTP ${response.status} ${body.slice(0, 300)}`.trim();
-    } catch (error) {
-      last = messageText(error);
-    }
-    await delay(2_000);
-  }
-  if (reused) {
-    throw new Error(`Den seed proof failed for reused sandbox ${sandbox}: the Den has no seeded org. Omit --reuse-den to provision a seeded Den sandbox. Last: ${last}`);
-  }
-  throw new Error(`Den seed proof failed for ${sandbox}: ${email} could not sign in at ${apiUrl}. Last: ${last}`);
-}
-
-export async function provisionDenSandbox(options: DenSandboxOptions & ProvisionExecOptions): Promise<DenSandbox> {
-  const exec = options.exec ?? defaultDaytonaExec;
-  const log = options.log ?? console.error;
-  const ref = assertSafeRef(options.ref);
-  const reused = options.reuse?.trim() || "";
-  let sandbox: string;
-  let webUrl: string;
-  let apiUrl: string;
-  let gatewayUrl: string | undefined;
-
-  if (reused && options.reuseUrls) {
-    // The runner that provisioned this sandbox kept its baked DEN_*_PUBLIC_URL
-    // identity. Den builds connector setup links and OAuth metadata from those
-    // hosts, and a desktop only opens a setup link on the Den it signed in to.
-    sandbox = reused;
-    webUrl = options.reuseUrls.webUrl;
-    apiUrl = options.reuseUrls.apiUrl;
-    log(`Den baked identity reused for ${sandbox}: ${webUrl}`);
-  } else if (reused) {
-    sandbox = reused;
-    // Reused sandboxes only get fresh signed aliases: their baked
-    // DEN_*_PUBLIC_URL identity is unknown here, so RFC 9728 validating MCP
-    // clients (opencode OAuth) cannot connect to a reused Den sandbox.
-    [webUrl, apiUrl] = await timedStep(log, "Den preview URL gate", () => Promise.all([
-      previewUrl(exec, sandbox, DEN_WEB_PORT),
-      previewUrl(exec, sandbox, DEN_API_PORT),
-    ]));
-  } else {
-    // URLs come from the trusted runner-side URLs file the provisioning
-    // script writes from daytona CLI output, never from the script's stdout:
-    // the ref being provisioned controls that stream, so a spoofed
-    // "DEN_API_URL=https://attacker" line would receive the demo credentials
-    // the sign-in proof posts moments later. Re-deriving fresh preview URLs
-    // here is not an option either — every `daytona preview-url` call signs a
-    // different hostname, while the sandbox's baked DEN_*_PUBLIC_URL is the
-    // Den's OAuth issuer and MCP resource identity. RFC 9728 validating MCP
-    // clients (opencode) refuse a Den reached through a mismatched host.
-    const urlsDir = await mkdtemp(path.join(os.tmpdir(), "harness-den-urls-"));
-    const urlsFile = path.join(urlsDir, "den-urls.env");
-    try {
-      const result = await timedStep(log, "Den provisioning script", () => runDenProvisionScript(
-        ref,
-        options.repoRoot ?? REPO_ROOT,
-        options.bootstrapAdminEmail,
-        options.env,
-        log,
-        urlsFile,
-        options.autoStopMinutes,
-      ));
-      if (result.code !== 0) {
-        throw new Error(`Den provisioning script gate failed with exit ${result.code}. Output tail:\n${textTail(result.output)}`);
-      }
-      const parsedSandbox = sandboxFromServerOutput(result.output);
-      if (!parsedSandbox) throw new Error(`Den provisioning script output is missing sandbox. Output tail:\n${textTail(result.output)}`);
-      sandbox = parsedSandbox;
-      const urls = parseDenUrlsFile(await readFile(urlsFile, "utf8").catch(() => ""));
-      if (!urls) {
-        throw new Error(
-          `Den provisioning script did not hand back the sandbox's public URLs through ${urlsFile}. `
-          + "The baked DEN_*_PUBLIC_URL identity must be reused verbatim; check .devcontainer/test-server-on-daytona.sh.",
-        );
-      }
-      webUrl = urls.webUrl;
-      apiUrl = urls.apiUrl;
-      gatewayUrl = urls.gatewayUrl;
-    } finally {
-      await rm(urlsDir, { recursive: true, force: true }).catch(() => undefined);
-    }
-  }
-
-  await timedStep(log, "Den seeded-org proof", () => proveDenSeed(apiUrl, webUrl, sandbox, Boolean(reused)));
-  return { sandbox, apiUrl, webUrl, ...(gatewayUrl ? { gatewayUrl } : {}), created: !reused };
 }
 
 export async function startMockOnSandbox(options: MockOnSandboxOptions & ProvisionExecOptions): Promise<MockOnSandbox> {
@@ -1405,88 +1108,6 @@ echo detached`;
   };
 }
 
-export async function startFaultProxyOnSandbox(options: FaultProxyOnSandboxOptions & ProvisionExecOptions): Promise<FaultProxyOnSandbox> {
-  const exec = options.exec ?? defaultDaytonaExec;
-  const log = options.log ?? console.error;
-  const fetchImpl = options.fetchImpl ?? fetch;
-  const port = options.port ?? 3985;
-  const upstreamPort = options.upstreamPort ?? DEN_WEB_PORT;
-  const token = randomBytes(16).toString("hex");
-  const url = await timedStep(log, "fault proxy preview URL gate", () => previewUrl(exec, options.sandbox, port));
-
-  await timedStep(log, "fault proxy process cleanup", async () => {
-    await execInSandbox(
-      exec,
-      options.sandbox,
-      "pkill -f harness-fault-proxy || true",
-      { timeoutMs: 30_000, context: `fault proxy process cleanup for ${options.sandbox}` },
-    ).catch(() => undefined);
-  });
-
-  await timedStep(log, "fault proxy script upload", async () => {
-    const encoded = Buffer.from(FAULT_PROXY_SCRIPT).toString("base64");
-    await execInSandbox(
-      exec,
-      options.sandbox,
-      `printf %s ${encoded} | base64 -d > /tmp/harness-fault-proxy.mjs`,
-      { timeoutMs: 30_000, context: `fault proxy script upload for ${options.sandbox}` },
-    );
-  });
-
-  await timedStep(log, "fault proxy process detach", async () => {
-    const detachScript = `python3 - <<PYEOF
-import subprocess
-log = open("/tmp/harness-fault-proxy.log", "ab", buffering=0)
-subprocess.Popen(["bash", "-lc", "env PORT=${port} UPSTREAM=http://127.0.0.1:${upstreamPort} ISSUER=${url} CONTROL_TOKEN=${token} node /tmp/harness-fault-proxy.mjs"], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
-PYEOF
-echo detached`;
-    await execInSandbox(exec, options.sandbox, detachScript, { timeoutMs: 30_000, context: `fault proxy process detach for ${options.sandbox}` });
-  });
-
-  await timedStep(log, "fault proxy health gate", async () => {
-    const deadline = Date.now() + 60_000;
-    let last = "not attempted";
-    while (Date.now() < deadline) {
-      let body: unknown = null;
-      let responseOk = false;
-      try {
-        const response = await fetchImpl(`${url}/__harness_faults/health`, { signal: AbortSignal.timeout(5_000) });
-        body = await response.json();
-        responseOk = response.ok;
-        if (!response.ok) last = `HTTP ${response.status}`;
-      } catch (error) {
-        last = messageText(error);
-      }
-      if (responseOk && isRecord(body) && body.ok === true) {
-        const reportedIssuer = typeof body.issuer === "string" ? body.issuer : JSON.stringify(body.issuer);
-        if (reportedIssuer !== url) throw new Error(`Fault proxy issuer gate failed: health reported ${reportedIssuer}, expected ${url}.`);
-        return;
-      }
-      await delay(2_000);
-    }
-    const proxyLog = await execInSandbox(
-      exec,
-      options.sandbox,
-      "tail -80 /tmp/harness-fault-proxy.log 2>&1 || true",
-      { timeoutMs: 30_000, context: `fault proxy health log for ${options.sandbox}` },
-    );
-    throw new Error(`Fault proxy health gate failed at ${url}. Last: ${last}. Log tail:\n${outputTail(proxyLog)}`);
-  });
-
-  return {
-    url,
-    token,
-    async stop(): Promise<void> {
-      await execInSandbox(
-        exec,
-        options.sandbox,
-        "pkill -f harness-fault-proxy.mjs || true",
-        { timeoutMs: 30_000, context: `fault proxy stop for ${options.sandbox}` },
-      ).catch(() => undefined);
-    },
-  };
-}
-
 function deletionOutput(result: DaytonaExecResult): string {
   return `${result.stderr}\n${result.stdout}`.trim();
 }
@@ -1514,83 +1135,4 @@ export async function deleteSandboxes(
     if (result.code !== 0) throw new Error(`Sandbox deletion gate failed for ${id} with exit ${result.code}. Output tail: ${textTail(output)}`);
     log(`==> deleted sandbox ${id}`);
   }
-}
-
-const ENV_HEADER_PREFIX = "# provisioned for org-connector-two-members";
-const ENV_REF_MARKER = "; ref=";
-const ENV_CREATED_PREFIX = "# provision-created=";
-
-/** First line starting with prefix, minus the prefix. Linear, no backtracking. */
-function commentLine(content: string, prefix: string): string | null {
-  for (const line of content.split(/\r?\n/)) {
-    if (line.startsWith(prefix)) return line.slice(prefix.length);
-  }
-  return null;
-}
-
-/** POSIX single-quoting: the generated file is `source`d, so an unquoted
- * value like `$(cmd)` would execute on the operator's machine. */
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", `'"'"'`)}'`;
-}
-
-function unquote(value: string): string {
-  if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
-    return value.slice(1, -1).replaceAll(`'"'"'`, "'");
-  }
-  return value;
-}
-
-export function renderConnectorE2eTestEnv(facts: ConnectorE2eTestEnv): string {
-  assertSafeRef(facts.ref);
-  return [
-    `${ENV_HEADER_PREFIX} — generated ${new Date().toISOString()}${ENV_REF_MARKER}${facts.ref}`,
-    `${ENV_CREATED_PREFIX}${facts.created.join(",")}`,
-    "HARNESS_EVAL_E2E_TESTS=1",
-    "HARNESS_EVAL_CONNECTOR_E2E_TEST=1",
-    `HARNESS_EVAL_DEN_API_URL=${shellQuote(facts.denApiUrl)}`,
-    `HARNESS_EVAL_DEN_WEB_URL=${shellQuote(facts.denWebUrl)}`,
-    `HARNESS_EVAL_DAYTONA_SANDBOX_A=${shellQuote(facts.sandboxA)}`,
-    `HARNESS_EVAL_DAYTONA_SANDBOX_B=${shellQuote(facts.sandboxB)}`,
-    `HARNESS_EVAL_CONNECTOR_MOCK_PUBLIC_URL=${shellQuote(facts.mockUrl)}`,
-    "HARNESS_EVAL_MODEL=big-pickle",
-    "",
-  ].join("\n");
-}
-
-export function parseConnectorE2eTestEnv(content: string): ConnectorE2eTestEnv {
-  const values = new Map<string, string>();
-  for (const line of content.split(/\r?\n/)) {
-    if (!line || line.startsWith("#")) continue;
-    const separator = line.indexOf("=");
-    if (separator > 0) values.set(line.slice(0, separator), unquote(line.slice(separator + 1)));
-  }
-  function required(name: string): string {
-    const value = values.get(name);
-    if (value === undefined || value.length === 0) throw new Error(`Missing ${name} in connector spec env.`);
-    return value;
-  }
-
-  required("HARNESS_EVAL_E2E_TESTS");
-  required("HARNESS_EVAL_CONNECTOR_E2E_TEST");
-  required("HARNESS_EVAL_MODEL");
-  // Header comments are read by line scan, not regex: `.*` before a literal
-  // backtracks polynomially on adversarial input (CodeQL js/polynomial-redos).
-  const header = commentLine(content, ENV_HEADER_PREFIX);
-  const refAt = header ? header.lastIndexOf(ENV_REF_MARKER) : -1;
-  if (refAt < 0) throw new Error("Missing ref in connector spec env header.");
-  const ref = header?.slice(refAt + ENV_REF_MARKER.length) ?? "";
-  if (!ref) throw new Error("Missing ref in connector spec env header.");
-  const createdText = commentLine(content, ENV_CREATED_PREFIX);
-  if (createdText === null) throw new Error("Missing provision-created in connector spec env header.");
-
-  return {
-    denApiUrl: required("HARNESS_EVAL_DEN_API_URL"),
-    denWebUrl: required("HARNESS_EVAL_DEN_WEB_URL"),
-    sandboxA: required("HARNESS_EVAL_DAYTONA_SANDBOX_A"),
-    sandboxB: required("HARNESS_EVAL_DAYTONA_SANDBOX_B"),
-    mockUrl: required("HARNESS_EVAL_CONNECTOR_MOCK_PUBLIC_URL"),
-    ref,
-    created: createdText.split(",").map((id) => id.trim()).filter(Boolean),
-  };
 }

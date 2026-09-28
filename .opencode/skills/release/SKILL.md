@@ -197,21 +197,14 @@ Once the assets are published, run the `validate-a-release` skill
 (`.opencode/skills/validate-a-release/SKILL.md`) against the released
 mac-arm64 zips before telling anyone the version is safe to roll out: it
 boots the released enterprise and cloud binaries through
-`packaged-first-launch` and `released-enterprise-activated` (fresh install,
-activated install, and a previous-release profile opened by the new build),
-checks the updater manifests' sha512, and verifies signing/notarization.
+`packaged-first-launch` (fresh install), checks the updater manifests' sha512,
+and verifies signing/notarization.
 
 ---
 
 ## Notes
 
-- Desktop installer fixes only reach users through a new release — the org
-  install door (`/v1/install/:platform`) 302s to versioned assets.
-- den-api discovers published versions from the GitHub Releases API at
-  runtime (`ee/apps/den-api/src/desktop-releases.ts`): the new version is
-  live for orgs as soon as the release is published — no den deploy needed.
-  The committed `generated/desktop-versions.ts` is only a cold-start/offline
-  fallback.
+- Desktop installer fixes only reach users through a new release.
 - AUR publishes by rendering the committed `packaging/aur` template
   (pkgver=0.0.0) in the CI workspace and pushing to aur.archlinux.org — the
   AUR-side commit is that channel's publish protocol; this repo stays

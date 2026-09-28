@@ -57,14 +57,12 @@ function fakeWorld(failure?: "launch" | "verify" | "source") {
       assert.match(name, /^app-web--test-stage-/);
       assert.equal(workspace, "/workspace");
       assert.equal(receipt.actualSha, ref);
-      const expectedEnv: NodeJS.ProcessEnv = { HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: "https://app.harness.invalid",
-        VITE_DISABLE_HARNESS_MODELS: "0", HARNESS_WEB_PORT: "5178", VITE_HOST: "0.0.0.0" };
+      const expectedEnv: NodeJS.ProcessEnv = { HARNESS_WEB_PORT: "5178", VITE_HOST: "0.0.0.0" };
       assert.deepEqual(options, {
         browserHostSuffix: ".example.test",
         env: expectedEnv,
       });
       assert.equal(options?.env?.HARNESS_TOKEN, undefined);
-      assert.equal(options?.env?.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY, "1");
       if (failure === "launch") throw new Error("launch failed");
       return { webUrl: "http://127.0.0.1:5178", harnessUrl: "http://127.0.0.1:8778", fixtureRoot: "/tmp/fixture", runtimeDirectory: "/workspace/tmp/runtime", source,
         stop: async () => { calls.push("stop"); },
@@ -74,9 +72,7 @@ function fakeWorld(failure?: "launch" | "verify" | "source") {
   return { deps, calls, ref };
 }
 
-const callerEnv = { HARNESS_WORLD_STAGE: "test-stage", HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_TOKEN: "never-transfer",
-  HARNESS_DEV_DEN_PROXY_TARGET: "https://app.harness.invalid",
-  HARNESS_WORLD_SELECTED_ENV_KEYS: '["HARNESS_DEV_HEADLESS_WEB_DEN_PROXY","HARNESS_DEV_DEN_PROXY_TARGET"]' };
+const callerEnv = { HARNESS_WORLD_STAGE: "test-stage", HARNESS_TOKEN: "never-transfer" };
 
 test("app-web world composes owned private provisioning, exact source, runtime and secret browser output", async () => {
   const { deps, calls, ref } = fakeWorld();
@@ -89,15 +85,6 @@ test("app-web world composes owned private provisioning, exact source, runtime a
   assert.equal(output.previewExpiresInSeconds, "7800");
   await stack.disposeAsync();
   assert.deepEqual(calls, ["track", "provision", "preview", "launch", "verify", "stop", "delete"]);
-});
-
-test("remote unsupported targets fail before provisioning", async () => {
-  for (const target of ["http://127.0.0.1:3000", "https://custom.example.test", "http://app.harness.invalid"]) {
-    const { deps, calls, ref } = fakeWorld();
-    await using stack = new AsyncDisposableStack();
-    await assert.rejects(bootAppWebWorld(stack, { place: "daytona", ref }, { ...callerEnv, HARNESS_DEV_DEN_PROXY_TARGET: target }, deps), /supports only/);
-    assert.deepEqual(calls, []);
-  }
 });
 
 test("app-web failure cleanup deletes its sandbox after launch, source, or security failure", async () => {
@@ -114,7 +101,7 @@ test("app-web failure cleanup deletes its sandbox after launch, source, or secur
   }
 });
 
-test("local app-web uses this working tree, selected env and owned runtime cleanup without provisioning", async () => {
+test("local app-web uses this working tree and owned runtime cleanup without provisioning, never forwarding caller secrets", async () => {
   const { deps, calls, ref } = fakeWorld();
   const fixtureRoot = await mkdtemp(join(tmpdir(), "app-web-world-unit-"));
   const runtimeDirectory = await mkdtemp(join(tmpdir(), "app-web-runtime-unit-"));
@@ -122,8 +109,7 @@ test("local app-web uses this working tree, selected env and owned runtime clean
     deps.local = async (name, workspace, options) => {
       assert.match(name, /^app-web--test-stage-/);
       assert.equal(workspace, fileURLToPath(new URL("../../../../", import.meta.url)));
-      assert.equal(options?.env?.HARNESS_TOKEN, undefined);
-      assert.equal(options?.env?.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY, "1");
+      assert.equal(options, undefined);
       return { webUrl: "http://127.0.0.1:5178", harnessUrl: "http://127.0.0.1:8778", fixtureRoot, runtimeDirectory, source: null,
         stop: async () => { calls.push("stop"); },
       };

@@ -22,17 +22,9 @@ const definitions = {
   'opencode-v2-session-home.e2e.test.ts': {
     cases: ['HOME-01', 'HOME-02', 'HOME-03'].map(id => ({ id, engines: ['v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } })),
   },
-  'gateway-usage-policy.e2e.test.ts': { name: 'Request and approve a Gateway usage extension', placement: 'local' },
-  'composer-model-picker-no-subscribe-promo.e2e.test.ts': {
-    cases: [{ id: 'MODEL-01', engines: ['v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } }],
-  },
-  // Its registered OAuth callback and synthetic client exchange run on owned loopback services.
-  'mcp-connection-consent.e2e.test.ts': { name: 'Authorize a connected client once', placement: 'local' },
   'task-activity-shimmer.e2e.test.ts': {
     cases: [{ id: 'ACT-01', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v1' } }],
   },
-  // Fixes a fault proxy in front of den-api before Den boots; only the local lane can do that.
-  'mcp-oauth-start-unreadable-response.e2e.test.ts': { name: 'Read why a connection sign-in could not start', placement: 'local' },
   'app-smoke.e2e.test.ts': { name: 'Open a working desktop', critical: true },
   // Boots the packaged cloud and enterprise artifacts; only packaged-smoke provides those binaries.
   'packaged-first-launch.e2e.test.ts': { name: 'Open a fresh cloud or enterprise install', placement: 'local', needs: PACKAGED_BINARY },
@@ -43,18 +35,10 @@ const definitions = {
   'packaged-activated-launch.e2e.test.ts': { name: 'Open an already-activated enterprise install', placement: 'local', needs: PACKAGED_BINARY },
   // Boots the packaged enterprise artifact and asks it to quit (SIGTERM and Browser.close); only packaged-smoke provides that binary.
   'desktop-quit-path.e2e.test.ts': { name: 'Quit an enterprise install cleanly', placement: 'local', needs: PACKAGED_BINARY },
-  // Boots a RELEASED enterprise binary already activated against a real Den. Only its update case also needs
-  // HARNESS_EVAL_RELEASED_BASELINE_BINARY (spec-level `needs`); that case skips on its own and the lane that runs
-  // this journey must provide both binaries for it to pass (#4848).
-  'released-enterprise-activated.e2e.test.ts': { name: 'Open and update an activated enterprise install against its Den', placement: 'local', needs: PACKAGED_BINARY },
   // Drives a real AppKit window through the native Computer Use helper; only a local macOS host can run it.
   'computer-use-window-scope.e2e.test.ts': { placement: 'local', needs: { platform: 'darwin' } },
-  'org-team-lifecycle-critical-path.e2e.test.ts': { name: 'Set up a working two-person team', critical: true, model: 'live' },
-  'cross-server-handoff-atomic-commit.e2e.test.ts': { name: 'Switch servers and recover enrollment', critical: true, placement: 'local' },
-  // Flips sso_connection directly in the testkit database; Daytona Den exposes no database.
-  'scim-okta-lifecycle.e2e.test.ts': { name: 'Provision members from an Okta-shaped SCIM client', placement: 'local' },
   'workspace-new-task-hit-target.e2e.test.ts': { name: 'Keep new tasks and sends instantly responsive', placement: 'local' },
-  // Drives the real error boundary and web error monitor in a standalone Chrome; needs no Den or Electron.
+  // Drives the real error boundary and web error monitor in a standalone Chrome; needs no Electron.
   'crash-recovery.e2e.test.ts': { name: 'Recover from a render crash without leaking secrets' },
   // Serves the model mock from the spec process's 127.0.0.1; only the local lane can reach it.
   'v2-sessionless-first-send.e2e.test.ts': {
@@ -64,37 +48,12 @@ const definitions = {
       { id: 'MOBILE-CHAT-01', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--daytona', engine: 'v1' } },
     ],
   },
-  'streamed-markdown-answer.e2e.test.ts': {
-    cases: [{ id: 'CONT-01', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } }],
-  },
   'live-stream-continuity.e2e.test.ts': {
     name: 'Keep a real OpenAI answer streaming across conversation switches', placement: 'local', model: 'live',
     needs: { env: ['OPENAI_API_KEY'], optIn: ['HARNESS_EVAL_LIVE_OPENAI'] },
     cases: [
       { id: 'CONT-01-live', engines: ['v1'], optIns: ['HARNESS_EVAL_E2E_TESTS', 'HARNESS_EVAL_LIVE_OPENAI'], example: { placement: '--local', engine: 'v1' } },
       { id: 'CONT-01-live-history', engines: ['v1'], optIns: ['HARNESS_EVAL_E2E_TESTS', 'HARNESS_EVAL_LIVE_OPENAI'], example: { placement: '--local', engine: 'v1' } },
-    ],
-  },
-  'live-tool-visible-after-session-switch.e2e.test.ts': {
-    cases: [{ id: 'SWITCH-10', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--daytona', engine: 'v1' } }],
-  },
-  'unfinished-tool-lifecycle.e2e.test.ts': {
-    cases: [{ id: 'STOP-01', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v1' } }],
-  },
-  'saved-app-creation.e2e.test.ts': {
-    cases: [
-      { id: 'APP-ISOLATION', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v1' } },
-      { id: 'APP-DRAFT-ROUTING', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v1' } },
-    ],
-  },
-  'engine-live-chat.e2e.test.ts': { name: 'Use real models for conversations, skills and connections', placement: 'local', model: 'live' },
-  // Native workspace skill tests use local watcher and loopback model fixtures.
-  'opencode-v2-skill-jit.e2e.test.ts': {
-    name: 'Use workspace skills just in time', placement: 'local',
-    cases: [
-      { id: 'SKILL-ATTACH', engines: ['v1', 'v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } },
-      { id: 'SKILL-MISSING', engines: ['v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } },
-      { id: 'SKILL-NATIVE-01', engines: ['v2'], optIns: ['HARNESS_EVAL_E2E_TESTS'], example: { placement: '--local', engine: 'v2' } },
     ],
   },
   'opencode-v2-reads-during-mcp-startup.e2e.test.ts': {

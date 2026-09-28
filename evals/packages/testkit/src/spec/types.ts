@@ -1,4 +1,4 @@
-import type { DenSession, DenFetchResult, FieldTypingOptions } from "@harness/behaviors";
+import type { FieldTypingOptions } from "@harness/behaviors";
 import type { BrowserEvaluation, Surface, Target } from "@harness/cdp";
 import type {
   MockHandle,
@@ -86,7 +86,6 @@ export interface Probe {
   eval<T>(expression: BrowserEvaluation<T>, options?: ProbeEvalOptions): Promise<Awaited<T>>;
   eval<T>(surface: Surface, expression: BrowserEvaluation<T>, options?: ProbeEvalOptions): Promise<Awaited<T>>;
   connectState(app: Surface): ReturnType<typeof import("../state.ts").readConnectState>;
-  api(session: DenSession, path: string, init?: RequestInit): Promise<DenFetchResult>;
   /** GET from the bound desktop's local server; authentication stays in the renderer. */
   desktopApi(path: string): Promise<{ status: number; body: unknown }>;
   toolCalls(mock: MockHandle, options?: Parameters<MockHandle["toolCalls"]>[0]): ReturnType<MockHandle["toolCalls"]>;
@@ -144,4 +143,4 @@ export interface SpecWorldOptions {
   adapters?: SpecAdapters;
 }
 
-export type { OrgConnectionInput, Seed, SeedAppWebOptions, SeedDesktopOptions, SeedWebOptions } from "@harness/env";
+export type { Seed, SeedAppWebOptions, SeedDesktopOptions } from "@harness/env";

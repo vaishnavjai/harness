@@ -6,24 +6,23 @@ description: Validate the release, check the released binaries, is 0.18.x safe t
 # Skill: validate-a-release
 
 Run after `release` reports the GitHub release published. Every check runs on
-the artifacts users download, never on a local build. macOS arm64 host, MySQL
-on `127.0.0.1:3306` (`pnpm dev:den:mysql`), `gh` authenticated. Work from a
+the artifacts users download, never on a local build. macOS arm64 host and
+`gh` authenticated. Work from a
 clean checkout (evidence is bound to its `git HEAD`): `origin/dev` today; from
 the first release that ships these specs, the tag's own checkout
 (`git worktree add /tmp/ow-vX.Y.Z vX.Y.Z`) so the gate matches the binary.
 
 ## 1. Download and unpack
 
-`V` is the release under test, `B` the previous release existing users update from.
+`V` is the release under test.
 
 ```bash
-export V=0.18.45 B=0.18.42
+export V=0.18.45
 export R=/tmp/ow-release-$V; mkdir -p $R && cd $R
 gh release download v$V -R vaishnavjai/harness -p "harness-enterprise-mac-arm64-$V.zip" -p "harness-cloud-mac-arm64-$V.zip" -p '*.yml' --clobber
-gh release download v$B -R vaishnavjai/harness -p "harness-enterprise-mac-arm64-$B.zip" --clobber
-for s in enterprise:$V cloud:$V enterprise:$B; do f=${s%%:*}; v=${s##*:}; rm -rf $f-$v; mkdir $f-$v
+for s in enterprise:$V cloud:$V; do f=${s%%:*}; v=${s##*:}; rm -rf $f-$v; mkdir $f-$v
   ditto -x -k harness-$f-mac-arm64-$v.zip $f-$v && xattr -dr com.apple.quarantine $f-$v; done
-export ENT="$R/enterprise-$V/Harness Enterprise.app" CLOUD="$R/cloud-$V/Harness Cloud.app" BASE="$R/enterprise-$B/Harness Enterprise.app"
+export ENT="$R/enterprise-$V/Harness Enterprise.app" CLOUD="$R/cloud-$V/Harness Cloud.app"
 ```
 
 ## 2. Signing and notarization
@@ -52,7 +51,7 @@ Any `MISSING`, `MISMATCH`, or wrong version means the updater will fail or refus
 The app installs any newer public release over itself when it quits (ShipIt
 swaps the `.app` in place; builds before #4726 do it even before activation),
 so never launch an extracted bundle directly: `clone` gives each journey a
-throwaway APFS copy, and journey 3+4 clones internally.
+throwaway APFS copy.
 
 ```bash
 export HARNESS_EVAL_ELECTRON_RESOURCES_PREPARED=1 HARNESS_EVAL_ENGINE=v1 HARNESS_EVAL_SURFACES_DIR=/tmp/ow-profiles-$V
@@ -63,22 +62,10 @@ clone() { rm -rf "$R/clone"; mkdir "$R/clone"; cp -Rc "$1" "$R/clone/"; }
 |---|---------|---------|
 | 1 | Fresh enterprise install shows the activation gate, 0 render crashes | `clone "$ENT"; HARNESS_EVAL_ELECTRON_BINARY="$R/clone/Harness Enterprise.app/Contents/MacOS/Harness Enterprise" pnpm evals:e2e packaged-first-launch --local` |
 | 2 | Fresh cloud install shows the welcome page, 0 render crashes | `clone "$CLOUD"; HARNESS_EVAL_ELECTRON_BINARY="$R/clone/Harness Cloud.app/Contents/MacOS/Harness Cloud" pnpm evals:e2e packaged-first-launch --local` |
-| 3+4 | Activated enterprise install boots to `/signin`; a `$B` signed-in profile opens in `$V` and again after restart | `HARNESS_EVAL_ELECTRON_BINARY="$ENT/Contents/MacOS/Harness Enterprise" HARNESS_EVAL_RELEASED_BASELINE_BINARY="$BASE/Contents/MacOS/Harness Enterprise" HARNESS_EVAL_RELEASED_VERSION=$V pnpm evals:e2e released-enterprise-activated --local` |
 
-Each command must end with `"verdict":"passed"` and `"skipped":0`. Journey 3+4
-without `HARNESS_EVAL_RELEASED_BASELINE_BINARY` skips the update test and the
-verdict is `incomplete`, never passed. Before each journey confirm the
+Each command must end with `"verdict":"passed"` and `"skipped":0`. Before each journey confirm the
 extracted bundle is still the release:
 `/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ENT/Contents/Info.plist"` must print `$V` (re-extract if not).
-
-Second lane for 3+4 against a Den built from the release tag (covers the Den
-the release ships with, not just the local one):
-
-```bash
-bash .devcontainer/test-server-on-daytona.sh v$V --seed --name release-$V-den --auto-stop 90   # prints DEN_WEB_URL / DEN_API_URL
-HARNESS_EVAL_DEN_WEB_URL=<DEN_WEB_URL> <same variables as journey 3+4> pnpm evals:e2e released-enterprise-activated --den <DEN_API_URL>
-daytona delete release-$V-den
-```
 
 Journeys 1 and 2 also fail on any unhandled rejection outside
 `KNOWN_LAUNCH_REJECTIONS` (evals/worlds/packaged-first-launch.ts). A release
@@ -104,15 +91,10 @@ infisical run --silent -- pnpm evals:e2e --publish --pr <n> --test-run <dir>
 
 Proves, on the released mac-arm64 binaries: Developer ID signature and
 notarization; fresh-profile first launch of both flavors mounts its gate with
-zero renderer exceptions and no recovery screen; an already-activated
-enterprise install pointed at a real Den boots past the gate to the interactive
-sign-in surface and reports version `$V`; a profile created and signed in by
-`$B` opens in `$V` straight into the same workspace route, and again after a
-restart, with zero renderer exceptions; all updater manifests name `$V`, point
-at existing assets, and the mac-arm64 sha512s match.
+zero renderer exceptions and no recovery screen; all updater manifests name
+`$V`, point at existing assets, and the mac-arm64 sha512s match.
 
 Does not prove: mac-x64, Windows, or Linux binaries boot (only their manifest
 entries are checked); the real electron-updater download/apply path (the update
-is simulated by opening the `$B` profile with `$V`); a customer's self-hosted Den
-version, branding, or policies; SSO/browser sign-in (sign-in uses the handoff
-grant); or any chat/model work after boot.
+is not exercised); that a previous release's profile opens in `$V`; or any chat/model work
+after boot.

@@ -1,6 +1,6 @@
 ---
 title: "Migrate from Claude Cowork"
-description: "Move your files, skills, plugins, MCP servers, and team setup to Harness."
+description: "Move your files, skills, plugins and MCP servers to Harness."
 ---
 
 You do not need to rebuild your setup to move from Claude Cowork to Harness. Start with one real task, bring over the capabilities it needs, and keep Cowork available until that task works end to end.
@@ -13,7 +13,7 @@ You do not need to rebuild your setup to move from Claude Cowork to Harness. Sta
 | `SKILL.md` skills | Skills | Copy the skill folder into your workspace or install it as a plugin. |
 | Claude-compatible plugins | Plugins | Import the plugin or marketplace manifest; Harness normalizes its skills, commands, and MCP dependencies. |
 | MCP servers | Connectors and custom apps | Reconnect the server through Harness Connect or add its URL as a custom app. |
-| Claude models | Anthropic provider | Add an Anthropic API key, or provision Anthropic centrally through Harness Cloud. |
+| Claude models | Anthropic provider | Add your Anthropic API key; Harness keeps it encrypted with your OS keychain. |
 | Scheduled tasks | Scheduled tasks | Recreate each schedule and verify its workspace, permissions, and output location. |
 
 <Note>
@@ -30,14 +30,13 @@ Your files stay where they already are. Harness does not require you to upload a
 
 ## 2. Choose your models
 
-Harness is model-agnostic. You can keep using Anthropic models, add another provider, or let your organization provision models centrally.
+Harness is model-agnostic and reaches only the model endpoints you configure. You can keep using Anthropic models, add another provider, or run a model on your own computer.
 
 - To keep using Claude, follow [Add an Anthropic API key](/start-here/connect-your-stack/add-anthropic-api-key).
 - To use ChatGPT, follow [Sign in with ChatGPT](/start-here/connect-your-stack/sign-in-with-chatgpt).
 - For another provider, your own API key, or an AI gateway such as OpenRouter or LiteLLM, follow [Add a custom LLM or AI gateway](/start-here/connect-your-stack/add-a-custom-llm).
 - To run a model on your own computer, follow [Use local models (Ollama, LM Studio)](/start-here/connect-your-stack/use-local-models).
 - For Gemini or Google Vertex AI, follow [Use Gemini and Google Vertex AI](/start-here/connect-your-stack/use-gemini-and-vertex-ai).
-- For a team-managed provider, follow [Managed LLM provider](/cloud/share-with-your-team/managed-llm-provider).
 
 Your Claude subscription and Anthropic API billing may be separate. Confirm API access before removing Cowork from your workflow.
 
@@ -51,16 +50,13 @@ After importing each skill:
 2. Run the smallest task that should trigger it.
 3. Confirm the output before importing the next skill.
 
-See [Connectors, skills, and plugins](/start-here/do-work-with-it/skills-plugins-and-mcp) for how Harness organizes these pieces. For team distribution, see [Publish and copy a skill](/start-here/do-work-with-it/publish-and-copy-a-skill).
+See [Connectors, skills, and plugins](/start-here/do-work-with-it/skills-plugins-and-mcp) for how Harness organizes these pieces.
 
 ## 4. Reconnect apps and MCP servers
 
 Credentials do not move between products. Reconnect each service so Harness receives its own authorized access.
 
-- For Gmail, Calendar, Drive, Slack, Notion, Linear, and other managed services, use [Connect your services](/start-here/connect-your-stack/connect-services).
-- For another remote or local MCP server, use [Add a custom MCP server](/start-here/connect-your-stack/add-an-mcp-server).
-- For an organization-wide setup, use [Shared MCP connections](/cloud/share-with-your-team/shared-mcp-connections).
-- To use the same skills and connections from Claude Code, Codex, or Cursor, [add Harness MCP in one command](/start-here/connect-harness-mcp).
+- For Gmail, Calendar, Drive, Slack, Notion, Linear, or any other remote or local MCP server, use [Add a custom MCP server](/start-here/connect-your-stack/add-an-mcp-server).
 
 Test read-only actions first. Then test actions that modify data, such as sending a message or updating a record, with a disposable example.
 
@@ -76,12 +72,6 @@ For every recurring task, record:
 
 Recreate one schedule at a time and run it manually before enabling recurrence. For browser-driven work, follow [Control the browser](/start-here/do-work-with-it/control-the-browser) and verify the target site while you are present.
 
-## 6. Move a team without configuration drift
-
-Do not ask every teammate to repeat your local setup by hand. In Harness Cloud, publish approved skills and connections once, assign them to the right teams, and apply desktop policies centrally.
-
-See [Share skills and MCP servers with your team](/start-here/do-work-with-it/share-your-setup), then start with the [team quickstart](/cloud/team-quickstart), then review [desktop policies](/cloud/share-with-your-team/desktop-policies) and [members and roles](/cloud/members-and-rbac).
-
 ## Cutover checklist
 
 - [ ] The same workspace opens and the agent can read the expected files.
@@ -89,7 +79,6 @@ See [Share skills and MCP servers with your team](/start-here/do-work-with-it/sh
 - [ ] Each required skill triggers on a representative task.
 - [ ] Each connector or MCP server is authorized and tested.
 - [ ] Scheduled and browser tasks have been run manually once.
-- [ ] Team capabilities are published centrally instead of copied machine by machine.
 - [ ] Important Cowork instructions are saved in files or skills.
 - [ ] Cowork remains available until the representative workflow passes in Harness.
 

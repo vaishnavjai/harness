@@ -1,91 +1,17 @@
 import { browserScript } from "@harness/cdp";
-import { dumpScreenState, readActiveWorkspaceId } from "@harness/cdp";
+import { readActiveWorkspaceId } from "@harness/cdp";
 import type { Surface } from "@harness/cdp";
-import type { DenRef, DenSession } from "./den.ts";
-import { createDesktopHandoffGrant } from "./den.ts";
 import { clickButton, control, currentHash, evalIn, go, waitFor, waitForText, waitUntilInteractive } from "./desktop.ts";
 import { createLocalWorkspaceViaUi } from "./onboarding.ts";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function messageText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function waitForDenState(
-  app: Surface,
-  den: DenRef,
-  expression: import("@harness/cdp").BrowserEvaluation,
-  options: { timeoutMs: number; label: string },
-): Promise<void> {
-  try {
-    await waitFor(app, expression, options);
-  } catch (error) {
-    const keys = await evalIn(
-      app,
-      () => (Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean).sort()),
-      { timeoutMs: 5_000 },
-    ).catch((keysError: unknown) => [`<unavailable: ${messageText(keysError)}>`]);
-    throw new Error(
-      `${messageText(error)} Resolved Den URLs: web=${den.webUrl}, api=${den.apiUrl}. Current localStorage keys: ${JSON.stringify(keys)}.`,
-    );
-  }
-}
 
 export interface SelectedWorkspaceFacts {
   workspaceId: string;
   route: string;
 }
 
-export async function signInDesktopAs(app: Surface, den: DenRef, member: DenSession): Promise<void> {
-  await waitFor(app, () => (Boolean(window.__harnessControl?.listActions?.().some((action) => action.id === 'auth.exchange-grant'))), {
-    timeoutMs: 60_000,
-    label: "auth.exchange-grant action registered",
-  });
-  const grant = await createDesktopHandoffGrant(member);
-  try {
-    await control(app, "auth.exchange-grant", { grant, baseUrl: den.webUrl, apiBaseUrl: den.apiUrl });
-  } catch (error) {
-    if (!messageText(error).includes("Already acting: auth.exchange-grant")) throw error;
-  }
-  await waitForDenState(app, den, () => (Boolean((localStorage.getItem('harness.den.authToken') ?? '').trim())), {
-    timeoutMs: 45_000,
-    label: "persisted den auth token",
-  });
-  await waitForDenState(app, den, () => (Boolean((localStorage.getItem('harness.den.activeOrgId') ?? '').trim())), {
-    timeoutMs: 60_000,
-    label: "active org resolved",
-  });
-  // A first-time member lands on organization onboarding; a member whose app
-  // already has a workspace can come straight back to it.
-  await waitFor(app, () => {
-    const route = window.location.hash || window.location.pathname;
-    return route.includes("/onboarding") || /\/(workspace|session)/.test(route);
-  }, {
-    timeoutMs: 60_000,
-    label: "organization onboarding or workspace route",
-  });
-}
 
-async function completeOrganizationOnboarding(app: Surface): Promise<void> {
-  const deadline = Date.now() + 120_000;
-  while (Date.now() < deadline && (await currentHash(app)).includes("/onboarding")) {
-    const label = await evalIn(app, () => {
-      const labels = [...document.querySelectorAll("button")]
-        .filter((button) => !button.disabled)
-        .map((button) => (button.textContent ?? "").trim());
-      return ["Continue with organization", "Continue to workspace", "Continue without Harness Models", "Continue"]
-        .find((candidate) => labels.includes(candidate)) ?? "";
-    });
-    if (typeof label === "string" && label) {
-      await clickButton(app, label);
-    }
-    await sleep(Math.min(750, Math.max(0, deadline - Date.now())));
-  }
-  if ((await currentHash(app)).includes("/onboarding")) {
-    throw new Error(`Organization onboarding did not reach the workspace route. On screen: ${await dumpScreenState(app)}.`);
-  }
-}
 
 function workspaceIdFromRoute(route: string): string {
   return /\/workspace\/([^/?#]+)/.exec(route)?.[1] ?? "";
@@ -149,7 +75,6 @@ export async function createAndSelectWorkspace(
       workspaceId = await resolveWorkspaceId(app);
     }
   } else {
-    if (route.includes("/onboarding")) await completeOrganizationOnboarding(app);
     workspaceId = await resolveWorkspaceId(app);
     // First launch selects a bootstrap "Harness Chat" workspace by itself, so a
     // selected workspace only satisfies the caller when it sits at the requested folder.

@@ -15,7 +15,8 @@ const BUILD_GIVE_UP_MS = 15 * 60_000;
 const BUILD_FAILED_GRACE_MS = 2 * 60_000;
 const BUILD_FAILED_IDLE_POLLS = 3;
 
-const WORLD_NAMES: Record<string, string> = { "app-web": "Harness web", "acme-web": "ACME", desktop: "Desktop only" };
+
+const WORLD_NAMES: Record<string, string> = { "app-web": "Harness web", desktop: "Desktop only" };
 
 interface BuildPoll { ready: boolean; building: boolean; layer?: string; steps: BuildStepView[] }
 
@@ -67,8 +68,8 @@ export function LaunchPreview({ id, connected }: { id: string; connected: boolea
     setBuild(null);
     let buildOutcome: "still-building" | "failed" | null = null;
     try {
-      const requestedWorld = world === "acme-desktop" ? "acme-web" : world;
-      const desktop = world === "desktop" || world === "acme-desktop";
+      const requestedWorld = world;
+      const desktop = world === "desktop";
       const request = () => fetch(`/r/${id}/launch`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ world: requestedWorld }) });
       let response = await request();
       if (response.status === 202) {
@@ -103,7 +104,7 @@ export function LaunchPreview({ id, connected }: { id: string; connected: boolea
         || Date.parse(data.expiresAt) <= Date.now()
         || !("world" in data) || data.world !== requestedWorld) throw new Error("The launch could not be verified. Try again.");
       const url = new URL(data.url);
-      const host = world === "desktop" ? /^desktop-[a-f0-9]{32}\.(?:style\.dev|preview\.harness\.software)$/ : /^ow-[a-f0-9]{32}\.(?:style\.dev|preview\.harness\.software)$/;
+      const host = world === "desktop" ? /^desktop-[a-f0-9]{32}\.(?:style\.dev|preview\.harness-legacy\.invalid)$/ : /^ow-[a-f0-9]{32}\.(?:style\.dev|preview\.harness-legacy\.invalid)$/;
       if (url.protocol !== "https:" || !host.test(url.hostname)) throw new Error("The launch could not be verified. Try again.");
       const outputs = parsePreviewOutputs("outputs" in data ? data.outputs : {});
       if (desktop && !outputs.desktopUrl) throw new Error("The desktop could not launch. Try again.");
@@ -119,7 +120,7 @@ export function LaunchPreview({ id, connected }: { id: string; connected: boolea
 
   const services: [string, { value: string }][] = session ? Object.entries(session.outputs).filter(([, entry]) => entry.group === "Services") : [];
   if (session && !services.length) services.push(["webUrl", { value: session.url }]);
-  const serviceNames: Record<string, string> = { webUrl: "Harness", denWeb: "Den dashboard", denApi: "Den API", harnessUrl: "Harness engine", gatewayUrl: "AI Gateway", desktopUrl: "Desktop app" };
+  const serviceNames: Record<string, string> = { webUrl: "Harness", desktopUrl: "Desktop app" };
   function field(key: string, label: string, value: string, secret = false) {
     return <div className="connection-field" key={key}>
       <div className="preview-launch-row"><strong>{label}</strong><CopyButton label={`Copy ${label}`} value={value} /></div>
@@ -134,8 +135,6 @@ export function LaunchPreview({ id, connected }: { id: string; connected: boolea
       <label>World <select aria-label="Preview world" value={world} disabled={busy} onChange={(event) => { setWorld(event.target.value); setError(null); }}>
         <option value="app-web">Harness web</option>
         <option value="desktop">Desktop only (signed out)</option>
-        <option value="acme-web">ACME web (full stack)</option>
-        <option value="acme-desktop">ACME desktop (full stack)</option>
       </select></label>
       <div className="preview-launch-actions">
         {session && !expired && <a className="preview-open" href={session.url} target="_blank" rel="noreferrer">{session.desktop ? "Open desktop" : "Open sandbox"}</a>}
@@ -175,7 +174,7 @@ export function LaunchPreview({ id, connected }: { id: string; connected: boolea
         </details>
       </section>}
       <details className="preview-details"><summary>Sandbox details</summary>
-        <p>Harness web runs the Harness web app and its local engine. Desktop only opens the real desktop app from this commit with a fresh, signed-out profile: no Den, databases, AI Gateway, demo accounts, or separate web preview. Its local engine and internal renderer belong to the desktop app. ACME web and ACME desktop keep the full stack with demo accounts and a simulated model upstream. Each launch restores this commit’s snapshot into a separate sandbox; the first launch of a commit builds that snapshot (usually about 2 minutes for Harness web and 6 for ACME) unless its evidence report already prepared it. Sandboxes expire after two hours; work is not saved.</p>
+        <p>Harness web runs the Harness web app and its local engine. Desktop only opens the real desktop app from this commit with a fresh, signed-out profile and no separate web preview. Its local engine and internal renderer belong to the desktop app. Each launch restores this commit’s snapshot into a separate sandbox; the first launch of a commit builds that snapshot (usually about 2 minutes for Harness web) unless its evidence report already prepared it. Sandboxes expire after two hours; work is not saved.</p>
       </details>
     </div>
   );

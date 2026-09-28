@@ -78,11 +78,11 @@ test("a failed preparation publishes no snapshot and deletes its builder", async
 
 
 test("compiled cache invalidates shared code, tools and config but not interpreted app source", () => {
-  const source = ["pnpm-lock.yaml", "constants.json", "apps/server/src/cli.ts", "packages/types/src/index.ts", "scripts/build.mjs", "apps/desktop/scripts/electron-dev.mjs", "ee/packages/den-db/src/schema.ts", "apps/app/src/main.tsx", "ee/apps/den-web/src/app/page.tsx", "ee/apps/den-api/src/main.ts"].map((path) => entry(path));
+  const source = ["pnpm-lock.yaml", "constants.json", "apps/server/src/cli.ts", "packages/types/src/index.ts", "scripts/build.mjs", "apps/desktop/scripts/electron-dev.mjs", "apps/app/src/main.tsx", "apps/app/public/logo.svg"].map((path) => entry(path));
   const original = compiledFingerprint(source);
   for (const item of source) {
     const changed = compiledFingerprint(source.map((value) => value === item ? { ...value, sha: "b".repeat(40) } : value));
-    if (["apps/app/", "ee/apps/den-web/", "ee/apps/den-api/"].some((prefix) => item.path.startsWith(prefix))) assert.equal(changed, original, item.path);
+    if (item.path.startsWith("apps/app/")) assert.equal(changed, original, item.path);
     else assert.notEqual(changed, original, item.path);
   }
 });
@@ -109,7 +109,7 @@ test("an interrupted build launch is retried through a guarded unit, and bounded
 
 
 test("running templates only survive frontend edits; backend, seed and controller changes invalidate", () => {
-  const source = ["apps/app/src/main.tsx", "ee/apps/den-web/components/nav.tsx", "ee/apps/den-web/app/api/den/route.ts", "apps/server/src/cli.ts", "ee/apps/den-api/src/auth.ts", "ee/packages/den-db/src/schema.ts", "worlds/acme-web.ts", "evals/packages/env/src/den.ts", "packages/freestyle/src/desktop.mjs", "pnpm-lock.yaml"].map((path) => entry(path));
+  const source = ["apps/app/src/main.tsx", "apps/app/public/logo.svg", "apps/server/src/cli.ts", "packages/types/src/index.ts", "worlds/app-web.ts", "packages/world/src/headless-web.ts", "packages/freestyle/src/runtime.mjs", "pnpm-lock.yaml"].map((path) => entry(path));
   const before = runningFingerprint(source);
   for (const [index, item] of source.entries()) {
     const changed = runningFingerprint(source.map((value) => value === item ? { ...value, sha: "b".repeat(40) } : value));
@@ -134,12 +134,11 @@ test("manifest test commands preserve every layer while install and runtime inpu
   assert.equal(runningFingerprint(tree), runningFingerprint(after));
 });
 
-test("Den changes preserve app-web code layers but invalidate ACME services", () => {
-  const tree = [entry("apps/server/src/main.ts"), entry("ee/apps/den-api/src/auth.ts")];
+test("eval-only changes preserve app-web code layers; shared service changes invalidate them", () => {
+  const tree = [entry("apps/server/src/main.ts"), entry("evals/packages/env/src/seed.ts")];
   const after = [tree[0], entry(tree[1].path, "b".repeat(40))];
   assert.equal(compiledFingerprint(tree, "app-web"), compiledFingerprint(after, "app-web"));
   assert.equal(runningFingerprint(tree, "app-web"), runningFingerprint(after, "app-web"));
-  assert.notEqual(runningFingerprint(tree, "acme-web"), runningFingerprint(after, "acme-web"));
   const shared = [entry(tree[0].path, "b".repeat(40)), tree[1]];
   assert.notEqual(runningFingerprint(tree, "app-web"), runningFingerprint(shared, "app-web"));
 });
@@ -166,7 +165,7 @@ test("desktop recipes contain only desktop dependencies and never install world 
   assert.match(tools, /corepack prepare pnpm@10\.27\.0/);
   const dependencies = dependencyRecipe("desktop");
   assert.match(dependencies, /--filter @harness\/desktop\.\.\./);
-  assert.match(dependencies, /--filter @harness/server\.\.\./);
+  assert.match(dependencies, /--filter @harness\/server\.\.\./);
   const compiled = compiledRecipe("desktop");
   assert.match(compiled, /@harness\/headless-threads build/);
   assert.match(compiled, /prepare-sidecar/);
@@ -179,16 +178,17 @@ test("desktop recipes contain only desktop dependencies and never install world 
     const syntax = spawnSync("bash", ["-n"], { input: recipe, encoding: "utf8", timeout: 5_000 });
     assert.equal(syntax.status, 0, syntax.stderr);
   }
-  assert.doesNotMatch([tools, dependencies, compiled].join("\n"), /mysql|redis|den-api|den-web|@harness-ee\/gateway|@harness\/world|--dir evals/);
-  assert.match(toolsRecipe("acme-web"), /mysql-server redis-server/);
-  assert.match(dependencyRecipe("acme-web"), /@harness-ee\/den-api/);
-  assert.doesNotMatch(toolsRecipe("app-web"), /xfce|mysql/);
+  assert.doesNotMatch([tools, dependencies, compiled].join("\n"), /mysql|redis|den-api|den-web|@harness\/world|--dir evals/);
+  assert.doesNotMatch(toolsRecipe("app-web"), /xfce/);
+  // Only the MIT core is built: no enterprise packages or removed SDK.
+  const web = [toolsRecipe("app-web"), dependencyRecipe("app-web"), compiledRecipe("app-web")].join("\n");
+  assert.doesNotMatch([web, tools, dependencies, compiled].join("\n"), /\bee\/|@harness-ee|@harness\/sdk|mysql|redis/);
 });
 
 test("desktop cache tracks launcher, profile and CDP while ignoring world services", () => {
   const tree = [entry("apps/desktop/electron/main.mjs"), entry("apps/desktop/electron/blank-slate-profile.mjs"),
     entry(".devcontainer/start-daytona-electron.sh"), entry("evals/packages/cdp/src/app-state.ts"),
-    entry("packages/freestyle/src/desktop-state.mjs"), entry("apps/app/src/main.tsx"), entry("worlds/acme-web.ts"), entry("ee/apps/den-api/src/auth.ts")];
+    entry("packages/freestyle/src/desktop-state.mjs"), entry("apps/app/src/main.tsx"), entry("worlds/app-web.ts"), entry("evals/packages/env/src/seed.ts")];
   const before = runningFingerprint(tree, "desktop");
   for (const [index, item] of tree.entries()) {
     const after = runningFingerprint(tree.map((value) => value === item ? { ...value, sha: "b".repeat(40) } : value), "desktop");

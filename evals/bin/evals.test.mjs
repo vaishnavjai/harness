@@ -27,7 +27,8 @@ import { unmetNeeds } from "../packages/env/src/needs.ts";
 
 const webSource = `import { spec } from "@harness/testkit";
 const test = spec.world(arrange, { resources: { surfaces: ["appWeb"], services: ["mock"] } });
-test("CONT-01 streams", async () => {}); test("SWITCH-10 switches", async () => {});`;
+test("CONT-01 streams", async () => {}); test("SWITCH-10 switches", async () => {});
+test("ACT-01 shimmers", async () => {}); test("MOBILE-CHAT-01 fits", async () => {});`;
 
 test("AST selection isolates aliased worlds from curried legacy registrations and static prefixes", () => {
   const source = `import { spec as journey, test as legacy } from "@harness/testkit";
@@ -108,7 +109,7 @@ test("consentVarsFromSource extracts, deduplicates, and sorts only opt-in variab
     needs({ optIn: ["HARNESS_EVAL_CHROME_HEADLESS"] });
     process.env.HARNESS_EVAL_TRIMMED?.trim() === "1";
     process.env.HARNESS_EVAL_MODEL?.trim() || "";
-    process.env.HARNESS_EVAL_DEN_API_URL?.trim();
+    process.env.HARNESS_EVAL_REF?.trim();
     process.env.UNRELATED === "1";
   `;
 
@@ -122,7 +123,7 @@ test("consentVarsFromSource extracts, deduplicates, and sorts only opt-in variab
 });
 
 test("parseArgs maps run and publish flags", () => {
-  assert.deepEqual(parseArgs(["app-smoke", "--with-llm-vision", "--daytona", "--den", "https://den.example"]), {
+  assert.deepEqual(parseArgs(["app-smoke", "--with-llm-vision", "--daytona"]), {
     testNames: ["app-smoke"],
     withLlmVision: true,
     local: false,
@@ -131,7 +132,6 @@ test("parseArgs maps run and publish flags", () => {
     dryRun: false,
     force: false,
     help: false,
-    den: "https://den.example",
   });
   assert.deepEqual(parseArgs(["--publish", "--pr", "42", "--test-run", "latest", "--dry-run", "--force"]), {
     testNames: [],
@@ -148,11 +148,10 @@ test("parseArgs maps run and publish flags", () => {
 });
 
 test("parseArgs validates values, exclusivity, and unknown flags", () => {
-  assert.throws(() => parseArgs(["--den"]), /--den requires a value/);
+  assert.throws(() => parseArgs(["--pr"]), /--pr requires a value/);
   assert.throws(() => parseArgs(["--publish", "--dry-run", "app-smoke"]), /mutually exclusive with test names/);
-  assert.throws(() => parseArgs(["--publish", "--pr", "1", "--den", "x"]), /mutually exclusive with --den/);
+  assert.throws(() => parseArgs(["--publish", "--pr", "1", "--daytona"]), /mutually exclusive with --daytona/);
   assert.throws(() => parseArgs(["app-smoke", "--local", "--daytona"]), /--local is mutually exclusive with --daytona/);
-  assert.throws(() => parseArgs(["app-smoke", "--local", "--den", "https:\/\/den.example"]), /--local is mutually exclusive with --den/);
   assert.throws(() => parseArgs(["--list", "--publish", "--pr", "42"]), /mutually exclusive/);
   assert.throws(() => parseArgs(["--unknown"]), /Unknown flag: --unknown/);
   assert.throws(() => parseArgs(["app-smoke", "--engine", "v3"]), /Invalid --engine/);
@@ -183,7 +182,6 @@ function fakeGit(remoteListing = "") {
 
 test("resolveRefAlignment only inspects Daytona placement and compares the runner HEAD with the sandbox ref", () => {
   assert.equal(resolveRefAlignment("local", {}, fakeGit().exec, "/repo"), null);
-  assert.equal(resolveRefAlignment("attached", {}, fakeGit().exec, "/repo"), null);
 
   const pinned = fakeGit();
   const aligned = resolveRefAlignment("daytona", { HARNESS_EVAL_REF: RUNNER_SHA.toUpperCase() }, pinned.exec, "/repo");
@@ -226,22 +224,22 @@ test("ref alignment renders a placement label and a warning only when the runner
 });
 
 test("registered cases validate file and effective engine/surface before placement", () => {
-  const markdown = "/repo/streamed-markdown-answer.e2e.test.ts";
-  const switched = "/repo/live-tool-visible-after-session-switch.e2e.test.ts";
+  const markdown = "/repo/task-activity-shimmer.e2e.test.ts";
+  const switched = "/repo/v2-sessionless-first-send.e2e.test.ts";
   assert.throws(
-    () => resolveExecutionSelection(parseArgs(["streamed-markdown-answer", "--case", "UNKNOWN"]), [markdown], {}),
+    () => resolveExecutionSelection(parseArgs(["task-activity-shimmer", "--case", "UNKNOWN"]), [markdown], {}),
     /Unknown --case/,
   );
   assert.throws(
-    () => resolveExecutionSelection(parseArgs(["streamed-markdown-answer", "--case", "SWITCH-10"]), [markdown], {}),
-    /belongs to live-tool-visible-after-session-switch/,
+    () => resolveExecutionSelection(parseArgs(["task-activity-shimmer", "--case", "MOBILE-CHAT-01"]), [markdown], {}),
+    /belongs to v2-sessionless-first-send/,
   );
   assert.throws(
-    () => resolveExecutionSelection(parseArgs(["live-tool-visible-after-session-switch", "--surface", "electron", "--case", "SWITCH-10"]), [switched], {}, [webSource]),
+    () => resolveExecutionSelection(parseArgs(["v2-sessionless-first-send", "--surface", "electron", "--case", "MOBILE-CHAT-01"]), [switched], {}, [webSource]),
     /conflicts with declared world surfaces/,
   );
   assert.throws(
-    () => resolveExecutionSelection(parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]), [markdown], { HARNESS_EVAL_ENGINE: "future" }),
+    () => resolveExecutionSelection(parseArgs(["task-activity-shimmer", "--case", "ACT-01"]), [markdown], { HARNESS_EVAL_ENGINE: "future" }),
     /Invalid effective engine/,
   );
 });
@@ -274,14 +272,14 @@ test("explicit live cases consent to paid OpenAI, validate v1/web and keep local
       parseArgs(["live-stream-continuity", "--surface", "electron", "--case", id]), [file], {}, [source],
     ), /conflicts with declared world surfaces/);
     assert.throws(() => resolveExecutionSelection(
-      parseArgs(["streamed-markdown-answer", "--case", id]), ["/repo/streamed-markdown-answer.e2e.test.ts"], {}, [webSource],
+      parseArgs(["task-activity-shimmer", "--case", id]), ["/repo/task-activity-shimmer.e2e.test.ts"], {}, [webSource],
     ), /belongs to live-stream-continuity/);
   }
 });
 
 test("whole-file and multi-file selection never infer paid consent from source or a CI provider key", async () => {
   const live = new URL("../specs/live-stream-continuity.e2e.test.ts", import.meta.url).pathname;
-  const mock = new URL("../specs/streamed-markdown-answer.e2e.test.ts", import.meta.url).pathname;
+  const mock = new URL("../specs/task-activity-shimmer.e2e.test.ts", import.meta.url).pathname;
   const [liveSource, mockSource] = await Promise.all([readFile(live, "utf8"), readFile(mock, "utf8")]);
   assert.doesNotMatch(mockSource, /HARNESS_EVAL_LIVE_OPENAI|CONT-01-live/);
   for (const engine of ["v1", "v2"]) {
@@ -294,7 +292,7 @@ test("whole-file and multi-file selection never infer paid consent from source o
       assert.equal(child.env.HARNESS_EVAL_LIVE_OPENAI, undefined);
       assert(!child.consented.includes("HARNESS_EVAL_LIVE_OPENAI"));
       assert.deepEqual(unmetNeeds({ placement: "local", optIn: ["HARNESS_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] }, child.env), [
-        "set HARNESS_EVAL_LIVE_OPENAI=1", "use local placement without HARNESS_EVAL_DEN_API_URL",
+        "set HARNESS_EVAL_LIVE_OPENAI=1", "use local placement",
       ]);
     }
   }
@@ -305,22 +303,22 @@ test("whole-file and multi-file selection never infer paid consent from source o
 });
 
 test("registered cases derive fixed web from source regardless of inherited surface", () => {
-  const markdown = "/repo/streamed-markdown-answer.e2e.test.ts";
-  const switched = "/repo/live-tool-visible-after-session-switch.e2e.test.ts";
+  const markdown = "/repo/task-activity-shimmer.e2e.test.ts";
+  const switched = "/repo/v2-sessionless-first-send.e2e.test.ts";
   const defaultMarkdown = resolveExecutionSelection(
-    parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]),
+    parseArgs(["task-activity-shimmer", "--case", "ACT-01"]),
     [markdown],
     {},
     [webSource],
   );
   const defaultSwitched = resolveExecutionSelection(
-    parseArgs(["live-tool-visible-after-session-switch", "--case", "SWITCH-10"]),
+    parseArgs(["v2-sessionless-first-send", "--case", "MOBILE-CHAT-01"]),
     [switched],
     {},
     [webSource],
   );
   const inheritedElectron = resolveExecutionSelection(
-    parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]),
+    parseArgs(["task-activity-shimmer", "--case", "ACT-01"]),
     [markdown],
     { HARNESS_EVAL_APP_SURFACE: "electron" },
     [webSource],
@@ -341,8 +339,8 @@ test("selection flags override inherited values without mutating the caller envi
   };
   const before = { ...env };
   const selected = resolveExecutionSelection(
-    parseArgs(["streamed-markdown-answer", "--engine", "v1", "--surface", "web", "--case", "CONT-01"]),
-    ["/repo/streamed-markdown-answer.e2e.test.ts"],
+    parseArgs(["task-activity-shimmer", "--engine", "v1", "--surface", "web", "--case", "ACT-01"]),
+    ["/repo/task-activity-shimmer.e2e.test.ts"],
     env,
     [webSource],
   );
@@ -353,10 +351,10 @@ test("selection flags override inherited values without mutating the caller envi
   assert.equal(selected.env.APP_SURFACE, undefined);
   assert.equal(selected.env.HARNESS_EVAL_CHROME_HEADLESS, undefined);
   assert.equal(selected.env.HARNESS_EVAL_E2E_TESTS, "1");
-  assert.equal(selected.testNamePattern, "^CONT-01(?:\\s|$)");
+  assert.equal(selected.testNamePattern, "^ACT-01(?:\\s|$)");
   const child = buildChildEnvironment(
-    parseArgs(["streamed-markdown-answer", "--local", "--surface", "web", "--case", "CONT-01"]),
-    ["/repo/streamed-markdown-answer.e2e.test.ts"], [webSource], env,
+    parseArgs(["task-activity-shimmer", "--local", "--surface", "web", "--case", "ACT-01"]),
+    ["/repo/task-activity-shimmer.e2e.test.ts"], [webSource], env,
     () => { throw new Error("local selection must not probe"); },
   );
   assert.equal(child.surface, "web");
@@ -380,13 +378,13 @@ test("--list prints exact registered cases and commands without selecting placem
     env: { PATH: process.env.PATH },
   });
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /CONT-01  streamed-markdown-answer\.e2e\.test\.ts/);
+  assert.match(result.stdout, /ACT-01  task-activity-shimmer\.e2e\.test\.ts/);
   assert.match(result.stdout, /engines: v1, v2/);
   assert.match(result.stdout, /resources=unknown; legacy; lazy provision only/);
-  assert.match(result.stdout, /pnpm evals:e2e streamed-markdown-answer --local --engine v2 --case CONT-01/);
+  assert.match(result.stdout, /pnpm evals:e2e task-activity-shimmer --local --engine v1 --case ACT-01/);
   assert.match(result.stdout, /pnpm evals:e2e live-stream-continuity --local --engine v1 --case CONT-01-live/);
   assert.match(result.stdout, /pnpm evals:e2e live-stream-continuity --local --engine v1 --case CONT-01-live-history/);
-  assert.match(result.stdout, /pnpm evals:e2e live-tool-visible-after-session-switch --daytona --engine v1 --case SWITCH-10/);
+  assert.match(result.stdout, /pnpm evals:e2e v2-sessionless-first-send --daytona --engine v1 --case MOBILE-CHAT-01/);
   assert.doesNotMatch(result.stdout, /--surface/);
   assert.doesNotMatch(result.stderr, /placement:/);
 });
@@ -398,36 +396,20 @@ test("explicit local placement removes inherited remote provisioning inputs", ()
     HARNESS_EVAL_DAYTONA: "1",
     HARNESS_EVAL_DAYTONA_SANDBOX: "desktop-sandbox",
     HARNESS_EVAL_DAYTONA_SANDBOX_ID: "legacy-sandbox",
-    HARNESS_EVAL_DAYTONA_DEN_SANDBOX: "den-sandbox",
-    HARNESS_EVAL_DAYTONA_DEN_WEB_URL: "https://3005-baked.example.test",
-    HARNESS_EVAL_DAYTONA_DEN_API_URL: "https://8788-baked.example.test",
     HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX: "prepared-desktop",
-    HARNESS_EVAL_DEN_API_URL: "https://den-api.example.test",
-    HARNESS_EVAL_DEN_WEB_URL: "https://den.example.test",
     HARNESS_EVAL_ENGINE: "v2",
   }, () => { throw new Error("probe called"); });
 
   assert.deepEqual(resolved, { env: { PATH: "/bin", HARNESS_EVAL_ENGINE: "v2", HARNESS_WORLD_PLACE: "local" }, placement: "local", reason: "--local" });
 });
 
-test("explicit attached Den placement does not probe Daytona", () => {
-  const attached = resolveRunEnvironment(parseArgs(["app-smoke", "--den", "https://den.example.test"]), {}, () => {
-    throw new Error("probe called");
-  });
-  assert.deepEqual(attached, {
-    env: { HARNESS_EVAL_DEN_API_URL: "https://den.example.test" },
-    placement: "attached",
-    reason: "--den",
-  });
-});
-
 test("explicit Daytona placement requires an authenticated CLI", () => {
   const daytona = resolveRunEnvironment(parseArgs(["app-smoke", "--daytona"]), {
-    HARNESS_EVAL_DEN_API_URL: "https://attached.example.test",
+    HARNESS_EVAL_MODEL: "fixture-model",
   }, () => true);
   assert.deepEqual(daytona, {
     env: {
-      HARNESS_EVAL_DEN_API_URL: "https://attached.example.test",
+      HARNESS_EVAL_MODEL: "fixture-model",
       HARNESS_EVAL_DAYTONA: "1",
       HARNESS_WORLD_PLACE: "daytona",
     },
@@ -444,7 +426,7 @@ test("explicit Daytona placement requires an authenticated CLI", () => {
 test("ambient Daytona placement preserves the caller environment without probing", () => {
   const ambient = {
     HARNESS_EVAL_DAYTONA: "1",
-    HARNESS_EVAL_DEN_API_URL: "https://den.example.test",
+    HARNESS_EVAL_MODEL: "fixture-model",
     HARNESS_EVAL_ENGINE: "v2",
   };
   assert.deepEqual(resolveRunEnvironment(parseArgs(["app-smoke"]), ambient, () => {
@@ -517,8 +499,8 @@ test("final child environment cannot consent into a different placement", () => 
   assert.equal(local.env.HARNESS_EVAL_LEGACY_LIVE, "1");
 
   const registered = buildChildEnvironment(
-    parseArgs(["live-tool-visible-after-session-switch", "--local", "--engine", "v1", "--surface", "web", "--case", "SWITCH-10"]),
-    ["/repo/live-tool-visible-after-session-switch.e2e.test.ts"],
+    parseArgs(["v2-sessionless-first-send", "--local", "--engine", "v1", "--surface", "web", "--case", "MOBILE-CHAT-01"]),
+    ["/repo/v2-sessionless-first-send.e2e.test.ts"],
     [webSource],
     {},
     () => { throw new Error("probe called"); },
@@ -632,14 +614,13 @@ test("worldSnapshotsSince returns only snapshots written during the run, newest 
   }
 });
 
-
 test("scenario names and explicit paths resolve alongside legacy specs", () => {
   const scenario = new URL("../../scenarios/onboarding/e2e.test.ts", import.meta.url).pathname;
-  const legacy = new URL("../specs/signup-workspace-intent.e2e.test.ts", import.meta.url).pathname;
+  const legacy = new URL("../specs/app-smoke.e2e.test.ts", import.meta.url).pathname;
   const files = [scenario, legacy];
   assert.deepEqual(resolveTestNames(["onboarding"], files), [scenario]);
   assert.deepEqual(resolveTestNames(["scenarios/onboarding/e2e.test.ts"], files), [scenario]);
-  assert.deepEqual(resolveTestNames(["signup-workspace-intent"], files), [legacy]);
+  assert.deepEqual(resolveTestNames(["app-smoke"], files), [legacy]);
   assert.deepEqual(resolveTestNames(["onboarding", "scenarios/onboarding/e2e.test.ts"], files), [scenario]);
   assert.throws(() => resolveTestNames(["missing"], files), /No test matches/);
 });

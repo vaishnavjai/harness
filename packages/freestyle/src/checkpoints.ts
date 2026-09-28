@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { FreestyleApiError } from "freestyle";
-import { ACCESS_FILE, client, execChecked, isMissing, waitForPublicAccess } from "./index.ts";
+import { ACCESS_FILE, client, isMissing, waitForPublicAccess } from "./index.ts";
 import { parseEvidenceCheckpoint, type EvidenceCheckpoint } from "./checkpoint-schema.ts";
 
 export const EVIDENCE_KIND = "harness-evidence-source-v1";
@@ -29,13 +29,13 @@ export async function readEvidenceSession(id: string, sourceSha: string, api = c
   if (!record(value) || value.vmId !== owner.id || value.sourceSha !== sourceSha || typeof value.token !== "string" || !/^[\w-]{43}$/.test(value.token)
     || typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt)) || Date.parse(value.expiresAt) <= Date.now() || !record(value.origins)
     || typeof value.origins.desktop !== "string" || typeof value.origins.cdp !== "string"
-    || !/^https:\/\/evidence-[a-f0-9]{32}\.preview\.harness\.software$/.test(value.origins.desktop)
-    || !/^https:\/\/cdp-[a-f0-9]{32}\.preview\.harness\.software$/.test(value.origins.cdp)) throw new Error("Invalid evidence access configuration");
+    || !/^https:\/\/evidence-[a-f0-9]{32}\.preview\.harness-legacy\.invalid$/.test(value.origins.desktop)
+    || !/^https:\/\/cdp-[a-f0-9]{32}\.preview\.harness-legacy\.invalid$/.test(value.origins.cdp)) throw new Error("Invalid evidence access configuration");
   return { id, sourceSha, url: `${value.origins.desktop}/__harness_launch?token=${value.token}`,
     cdpOrigin: value.origins.cdp, cookie: `__Host-harness-preview=${value.token}`, expiresAt: value.expiresAt };
 }
 
-async function allocate(input: { snapshotId: string; slug: string; kind: string; sourceSha: string; runtimeFingerprint?: string; metadata?: Record<string, string> }, api: ReturnType<typeof client>, probe: typeof fetch = fetch) {
+async function allocate(input: { snapshotId: string; slug: string; kind: string; sourceSha: string; metadata?: Record<string, string> }, api: ReturnType<typeof client>, probe: typeof fetch = fetch) {
   const nonce = randomUUID().replaceAll("-", "");
   const origins = { desktop: `https://evidence-${nonce}.preview.harness-legacy.invalid`, cdp: `https://cdp-${nonce}.preview.harness-legacy.invalid` };
   const created = await api.vms.create({
@@ -46,62 +46,14 @@ async function allocate(input: { snapshotId: string; slug: string; kind: string;
     tls: { rules: Object.values(origins).map((origin) => ({ action: "allow", domain: new URL(origin).hostname, source: { public: true }, destination: { port: 8080 } })) },
   });
   try {
-    // A template may be reused across commits whose VM-side files are identical.
-    // New worlds check that fingerprint; forks are bound by their checkpoint manifest.
-    if ((await created.vm.fs.readTextFile(`${root}/evidence-ready`)).trim() !== "web-v1"
-      || (input.runtimeFingerprint !== undefined
-        && (await created.vm.fs.readTextFile(`${root}/runtime-fingerprint`)).trim() !== input.runtimeFingerprint)) throw new Error("Evidence world source mismatch");
+    // Forks are bound by their checkpoint manifest, verified after allocation.
+    if ((await created.vm.fs.readTextFile(`${root}/evidence-ready`)).trim() !== "web-v1") throw new Error("Evidence world source mismatch");
     const expiresAt = new Date(Date.parse(created.data.createdAt) + 3600_000).toISOString();
     await created.vm.fs.writeTextFile(ACCESS_FILE, JSON.stringify({ vmId: created.vmId, sourceSha: input.sourceSha, token: randomBytes(32).toString("base64url"), expiresAt, origins }), { mode: 0o600 });
     const result = await readEvidenceSession(created.vmId, input.sourceSha, api);
     await waitForPublicAccess(result.url, probe, undefined, "desktop");
     return result;
   } catch (error) { await created.vm.delete().catch(() => undefined); throw error; }
-}
-
-export async function launchEvidenceWorld(template: { id: string; runtimeFingerprint: string }, sourceSha: string, api = client(), probe: typeof fetch = fetch) {
-  if (!/^[a-f0-9]{40}$/.test(sourceSha) || !/^[a-f0-9]{40}$/.test(template.runtimeFingerprint)) throw new Error("Full source SHA and runtime fingerprint required");
-  return allocate({ snapshotId: template.id, runtimeFingerprint: template.runtimeFingerprint, sourceSha, slug: `ow-evidence-source-${randomUUID().replaceAll("-", "")}`, kind: EVIDENCE_KIND }, api, probe);
-}
-
-export interface StartedCheckpoint {
-  checkpoint: EvidenceCheckpoint;
-  /** Resolves once the provider has fully saved the snapshot. Await it before deleting the VM. */
-  saved: Promise<void>;
-}
-
-/**
- * Starts a snapshot and returns without waiting for it to be saved. Measured on
- * the ACME template: the VM state is captured 0.2–4.1 s after the call starts and
- * the VM keeps running, but the call only returns once the snapshot is fully saved
- * (23–436 s). Callers hold input briefly, continue, and await `saved` before
- * deleting the VM.
- */
-export async function startEvidenceCheckpoint(input: { vmId: string; sourceSha: string; imageHash: string }, api = client()): Promise<StartedCheckpoint> {
-  const vm = await api.vms.get(input.vmId);
-  if (![EVIDENCE_KIND, FORK_KIND].includes(vm.metadata.kind) || vm.metadata.sourceSha !== input.sourceSha) throw new Error("Checkpoint source is not an owned evidence world");
-  const handle = api.vms.ref(vm.id);
-  if ((await handle.fs.readTextFile(`${root}/evidence-ready`)).trim() !== "web-v1") throw new Error("Checkpoint source is not a ready evidence world");
-  const countPath = `${root}/checkpoint-count`;
-  const count = await handle.fs.exists(countPath) ? Number(await handle.fs.readTextFile(countPath)) : 0;
-  if (!Number.isInteger(count) || count < 0 || count >= 10) throw new CheckpointCapacity("This proof has reached its ten-checkpoint limit");
-  const now = Date.now();
-  const checkpoint = parseEvidenceCheckpoint({ version: 1, provider: "freestyle", id: `ow-evidence-v1-${randomUUID().replaceAll("-", "")}`,
-    sourceSha: input.sourceSha, imageHash: input.imageHash, capturedAt: new Date(now).toISOString(), expiresAt: new Date(now + 86400_000).toISOString() });
-  await handle.fs.writeTextFile(countPath, String(count + 1));
-  await handle.fs.writeTextFile(manifest, JSON.stringify(checkpoint), { mode: 0o600 });
-  const saved = handle.snapshot({ slug: checkpoint.id, ttlSeconds: 86400, autoDeleteSeconds: 86400 }).then(async (result) => {
-    if (result.snapshot.public !== false) { await api.vms.snapshots.delete(result.snapshotId); throw new Error("Evidence snapshots must be private"); }
-  });
-  // Mark handled now; callers still observe a failure when they await it.
-  saved.catch(() => undefined);
-  return { checkpoint, saved };
-}
-
-export async function captureEvidenceCheckpoint(input: { vmId: string; sourceSha: string; imageHash: string }, api = client()): Promise<EvidenceCheckpoint> {
-  const { checkpoint, saved } = await startEvidenceCheckpoint(input, api);
-  await saved;
-  return checkpoint;
 }
 
 async function verifyRestoredCheckpoint(vmId: string, checkpoint: EvidenceCheckpoint, api: ReturnType<typeof client>) {
@@ -161,10 +113,4 @@ export async function deleteEvidenceVm(id: string, api = client()) {
   if (!vm) return;
   if (![EVIDENCE_KIND, FORK_KIND].includes(vm.metadata.kind)) throw new Error("Refusing to delete an unrelated VM");
   await api.vms.delete(id);
-}
-
-export async function continueEvidenceStream(id: string, api = client()) {
-  const vm = await api.vms.get(id);
-  if (![EVIDENCE_KIND, FORK_KIND].includes(vm.metadata.kind)) throw new Error("Not an evidence VM");
-  await execChecked(api.vms.ref(id), "node /opt/harness-preview/evidence-control.mjs continue", 15_000);
 }

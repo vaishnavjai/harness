@@ -2,8 +2,8 @@
 
 Shared UI primitives for Harness apps.
 
-This package ships one entrypoint: `@harness/ui/react`, used by `apps/app`
-and `ee/apps/den-web`. (A Solid flavor existed during the Solid-to-React
+This package ships one entrypoint: `@harness/ui/react`, used by `apps/app`.
+(A Solid flavor existed during the Solid-to-React
 migration and was removed once the last Solid consumer disappeared.)
 
 Exports resolve to `src/` directly, so consumers need no build step.

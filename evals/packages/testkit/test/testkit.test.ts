@@ -5,17 +5,13 @@ import { syncBuiltinESMExports } from "node:module";
 import {
   checkNeeds,
   deriveMockEnv,
-  ephemeralDatabaseName,
   needs,
   resolvePlace,
   SkipError,
-  trustedOrigins,
   validateWorldResources,
   validateWorldSurfaceSelection,
 } from "@harness/env";
-import type { Den, WorldResources } from "@harness/env";
-import type { DenRef, DenSession } from "@harness/behaviors";
-import type { MockMcpHandle } from "@harness/labs";
+import type { WorldResources } from "@harness/env";
 import { BufferedEvidenceSink, SeedChannel, SpecRuntime, copyWorldResources, registerWorldDisposable } from "../src/spec/runtime.ts";
 
 test("active step captions follow nesting and clear after success or failure", async () => {
@@ -47,9 +43,9 @@ test("active step captions follow nesting and clear after success or failure", a
 test("world resource validation rejects malformed and conflicting contracts", () => {
   for (const value of [null, [], {}, { surfaces: [], services: ["unknown"] },
     { surfaces: ["unknown"], services: [] }, { surfaces: ["appWeb", "appWeb"], services: [] },
-    { surfaces: [], services: ["den", "den"] }, { surfaces: ["desktop"], services: [] },
+    { surfaces: [], services: ["mock", "mock"] }, { surfaces: ["desktop"], services: [] },
     { surfaces: [], services: [], nativeReason: " " }, { surfaces: [], services: [], nativeReason: 1 },
-    { surfaces: ["web"], services: [] }]) {
+    { surfaces: ["web"], services: [] }, { surfaces: [], services: ["den"] }]) {
     assert.throws(() => validateWorldResources(value));
   }
   const resources: WorldResources = { surfaces: ["appWeb"], services: [] };
@@ -58,6 +54,7 @@ test("world resource validation rejects malformed and conflicting contracts", ()
   assert.throws(() => validateWorldSurfaceSelection(resources, "unknown"), /Unknown/);
 });
 
+
 test("arrangement and body enforce immutable resource snapshots before spawning", async (context) => {
   const spawn = context.mock.method(childProcess, "spawn", () => { throw new Error("Unexpected spawn"); });
   const exec = context.mock.method(childProcess, "execFile", () => { throw new Error("Unexpected execFile"); });
@@ -65,8 +62,8 @@ test("arrangement and body enforce immutable resource snapshots before spawning"
   try {
     const declaration: { surfaces: WorldResources["surfaces"][number][]; services: WorldResources["services"][number][] } = { surfaces: [], services: [] };
     const registered = copyWorldResources(declaration);
-    declaration.surfaces.push("appWeb", "desktop", "web");
-    declaration.services.push("den", "mock");
+    declaration.surfaces.push("appWeb", "desktop");
+    declaration.services.push("mock");
     const stack = new AsyncDisposableStack();
     const arrangement = new SpecRuntime(resolvePlace({}), stack, new BufferedEvidenceSink(), {}, registered);
     const body = new SpecRuntime(resolvePlace({}), stack, new BufferedEvidenceSink(), {}, arrangement.resources);
@@ -79,14 +76,13 @@ test("arrangement and body enforce immutable resource snapshots before spawning"
       assert(Object.isFrozen(runtime.resources?.services));
       assert(runtime.resources);
       assert.equal(Reflect.set(runtime.resources.surfaces, "0", "appWeb"), false);
-      assert.equal(Reflect.set(runtime.resources.services, "0", "den"), false);
+      assert.equal(Reflect.set(runtime.resources.services, "0", "mock"), false);
       assert.equal(Reflect.set(runtime, "resources", undefined), false);
       const seed = new SeedChannel(runtime);
       for (const [resource, launch] of [
-        ["den", () => seed.den()], ["desktop", () => seed.desktop()],
+        ["desktop", () => seed.desktop()],
         ["appWeb", () => seed.appWeb({ workspacePath: "/unused" })],
-        ["web", () => seed.web({ den: guardedDen })], ["mock", () => seed.mock()],
-        ["den", () => seed.faultProxy(guardedDen)], ["den", () => seed.denLink(guardedDen)],
+        ["mock", () => seed.mock()],
       ] satisfies [string, () => unknown][]) {
         await assert.rejects(async () => launch(), new RegExp(`Undeclared world resource ${resource}`));
       }
@@ -98,35 +94,6 @@ test("arrangement and body enforce immutable resource snapshots before spawning"
     spawn.mock.restore();
     exec.mock.restore();
     syncBuiltinESMExports();
-  }
-});
-
-// Access beyond the declaration gate would fail without touching infrastructure.
-const guardedDen: Den = {
-  get ref(): DenRef { throw new Error("Den ref accessed before guard"); },
-  get admin(): DenSession { throw new Error("Den admin accessed before guard"); },
-  members: {},
-  mocks: { get fixture(): MockMcpHandle { throw new Error("Mock accessed before guard"); } },
-  async apiLog() { return ""; },
-  async [Symbol.asyncDispose]() {},
-};
-
-test("both stages guard direct and nested Den mocks", async () => {
-  for (const stage of ["world", "body"] satisfies SpecRuntime["stage"][]) {
-    const stack = new AsyncDisposableStack();
-    const runtime = new SpecRuntime(resolvePlace({}), stack, new BufferedEvidenceSink(), {}, {
-      surfaces: ["appWeb", "desktop", "web"], services: ["den"], nativeReason: "Native diagnostic",
-    });
-    runtime.stage = stage;
-    runtime.acted = true;
-    const seed = new SeedChannel(runtime);
-    const mocks = { fixture: { async boot(): Promise<never> { throw new Error("Mock booted before guard"); } } };
-    for (const launch of [
-      () => seed.den({ mocks }), () => seed.appWeb({ workspacePath: "/unused", mocks }),
-      () => seed.desktop({ den: guardedDen }), () => seed.web({ den: guardedDen }),
-      () => seed.faultProxy(guardedDen), () => seed.denLink(guardedDen),
-    ]) await assert.rejects(async () => launch(), /Undeclared world resource mock/);
-    await stack.disposeAsync();
   }
 });
 
@@ -166,7 +133,7 @@ test("resolvePlace selects local unless HARNESS_EVAL_DAYTONA is exactly 1", () =
   assert.equal(local.kind, "local");
   assert.equal(falseyDaytona.kind, "local");
   assert.equal(daytona.kind, "daytona");
-  assert.deepEqual(daytona.denBase(), { kind: "daytona", ref: "feature-ref" });
+  assert.equal(daytona.sourceRef(), "feature-ref");
 });
 
 test("needs accepts a tool-capable model and provider key", () => {
@@ -209,13 +176,9 @@ test("needs reports an unavailable command", () => {
   );
 });
 
-test("needs rejects a local-only test on Daytona or an attached Den", () => {
+test("needs rejects a local-only test on Daytona", () => {
   assert.doesNotThrow(() => checkNeeds({ placement: "local" }, {}));
   assert.throws(() => checkNeeds({ placement: "local" }, { HARNESS_EVAL_DAYTONA: "1" }), SkipError);
-  assert.throws(
-    () => checkNeeds({ placement: "local" }, { HARNESS_EVAL_DEN_API_URL: "https://den.example.test" }),
-    SkipError,
-  );
 });
 
 test("needs reads process.env at the call site", () => {
@@ -241,22 +204,6 @@ test("mcp mock environment is derived from the resource name and public URLs", (
     },
   );
 });
-
-test("trusted origins contain both Den ports in localhost and loopback forms", () => {
-  assert.deepEqual(trustedOrigins(8788, 3005), [
-    "http://localhost:8788",
-    "http://127.0.0.1:8788",
-    "http://localhost:3005",
-    "http://127.0.0.1:3005",
-  ]);
-});
-
-test("ephemeral database names are valid and unique", () => {
-  const names = new Set(Array.from({ length: 100 }, () => ephemeralDatabaseName()));
-  assert.equal(names.size, 100);
-  for (const name of names) assert.match(name, /^[a-z][a-z0-9_]{0,62}$/);
-});
-
 
 test("needs recognizes OpenSSL implementations that reject --version", (context) => {
   const spawn = context.mock.method(childProcess, "spawnSync", (command: string, args: readonly string[]) => ({

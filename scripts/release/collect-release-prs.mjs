@@ -43,7 +43,7 @@ const INTERNAL_PATH_PATTERNS = [
 ];
 
 // Public website and documentation: visible, but not a product change.
-const WEBSITE_PATH_PATTERNS = [/^ee\/apps\/landing\//, /^packages\/landing\//, /^packages\/docs\//, /^README\.md$/];
+const WEBSITE_PATH_PATTERNS = [/^packages\/landing\//, /^packages\/docs\//, /^README\.md$/];
 
 const INTERNAL_TITLE_PATTERN = /^(chore|ci|test|build)(\(.+?\))?!?:/i;
 const SELF_TITLE_PATTERN = /^docs\(changelog\)/i;

@@ -1,49 +1,33 @@
 ---
-title: "Open-source Claude Cowork alternative"
+title: "Local agent desktop"
 sidebarTitle: "Get started"
-description: "Harness is the open-source Claude Cowork alternative: desktop app, web app, AI Gateway, and MCP Gateway to own your AI stack. Free, no sign-in."
+description: "Harness is a local-first, open-source agent desktop: your files, your models, long-term memory on your own machine. Free, MIT-licensed, no sign-in."
 ---
 
 <div className="docs-intro">
   <p className="docs-eyebrow">Harness docs</p>
-  <p className="docs-hero-title">The open-source alternative to Claude Cowork.</p>
-  <p className="docs-lead">Own your AI stack: your files, models, skills, and who uses them. Free locally, no sign-in needed.</p>
+  <p className="docs-hero-title">A local agent desktop you own.</p>
+  <p className="docs-lead">Agents work on your files, remember across chats with an embedded memory engine, and reach only the model endpoints you configure. No sign-in, no telemetry.</p>
   <div className="docs-actions">
-    <a href="#pick-your-path">Pick your path</a>
+    <a href="#get-started-in-four-steps">Get started</a>
     <a href="https://github.com/vaishnavjai/harness/releases">Download free</a>
   </div>
 </div>
 
-## The suite
+## What you get
 
 <CardGroup cols={2}>
-  <Card title="Desktop app" icon="laptop" href="#get-started-in-four-steps">
-    Free, MIT-licensed, 50+ model providers or local models.
+  <Card title="Your models" icon="microchip" href="/start-here/connect-your-stack/use-local-models">
+    Ollama, vLLM, llama.cpp or LM Studio on your machine, or a hosted provider with your own key.
   </Card>
-  <Card title="Web app" icon="globe" href="/cloud/run-in-the-cloud/open-cloud-in-browser">
-    The full Harness workspace in your browser. Nothing to install.
+  <Card title="Memory" icon="brain" href="/start-here/do-work-with-it/cross-chat-memory">
+    Long-term memory in an embedded, loopback-only Hindsight engine.
   </Card>
-  <Card title="AI Gateway" icon="route" href="/ai-gateway/overview">
-    Connect providers once. Control model access, limits, and spend.
+  <Card title="Skills and MCP" icon="plug" href="/start-here/do-work-with-it/skills-plugins-and-mcp">
+    `SKILL.md` skills, Claude-compatible plugins and any MCP server.
   </Card>
-  <Card title="MCP Gateway" icon="plug" href="/start-here/connect-harness-mcp">
-    Your org's skills and connections in Claude Code, Codex, Cursor.
-  </Card>
-</CardGroup>
-
-{/* AI Gateway tour video goes here */}
-
-## Pick your path
-
-<CardGroup cols={3}>
-  <Card title="Just me" icon="user" href="#get-started-in-four-steps">
-    Download the app and run a first task.
-  </Card>
-  <Card title="My team" icon="users" href="/cloud/team-quickstart">
-    Create an org, invite teammates, share a skill.
-  </Card>
-  <Card title="Claude Code or Codex" icon="terminal" href="/start-here/connect-harness-mcp">
-    Add the MCP Gateway with one command.
+  <Card title="Audit log" icon="list-check" href="/start-here/outbound-network-access">
+    Tool runs, terminal commands, file writes and network egress, hash-chained on disk.
   </Card>
 </CardGroup>
 
@@ -57,30 +41,13 @@ description: "Harness is the open-source Claude Cowork alternative: desktop app,
     Harness only works in folders you authorize.
   </Step>
   <Step title="Choose a model">
-    [Sign in with ChatGPT](/start-here/connect-your-stack/sign-in-with-chatgpt), [add an API key](/start-here/connect-your-stack/add-anthropic-api-key), or [run a local model](/start-here/connect-your-stack/use-local-models).
+    [Run a local model](/start-here/connect-your-stack/use-local-models), [add an API key](/start-here/connect-your-stack/add-anthropic-api-key), or [sign in with ChatGPT](/start-here/connect-your-stack/sign-in-with-chatgpt).
   </Step>
   <Step title="Run a task">
     Start with "Summarize this folder."
   </Step>
 </Steps>
 
-## Share it with your org
-
-<CardGroup cols={2}>
-  <Card title="Marketplaces" icon="store" href="/cloud/share-with-your-team/collections">
-    Publish skills, plugins, and MCPs once. Assign to anyone.
-  </Card>
-  <Card title="RBAC, SSO, SCIM" icon="shield" href="/cloud/members-and-rbac">
-    Roles, teams, Okta, Entra, and Google Workspace.
-  </Card>
-  <Card title="Desktop policies" icon="sliders" href="/cloud/share-with-your-team/desktop-policies">
-    Control what the app allows per org, team, or member.
-  </Card>
-  <Card title="Cloud or self-hosted" icon="server" href="/start-here/self-host">
-    Helm or Docker Compose. Same price either way.
-  </Card>
-</CardGroup>
-
 ---
 
-[GitHub](https://github.com/vaishnavjai/harness) · [Changelog](/changelog) · [Migrate from Claude Cowork](/start-here/migrate-from-claude-cowork) · [Pricing](/start-here/pricing-and-licensing) · [Enterprise](/cloud/enterprise) · [Missing docs](/start-here/missing-docs)
+[GitHub](https://github.com/vaishnavjai/harness) · [Changelog](/changelog) · [Migrate from Claude Cowork](/start-here/migrate-from-claude-cowork) · [Missing docs](/start-here/missing-docs)

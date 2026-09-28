@@ -6,7 +6,7 @@ description: "Run Harness with a local model such as Qwen, Llama, or Gemma throu
 Yes, Harness can run on a model that lives entirely on your computer. For Ollama, open `Settings > Ollama`, pick a model, and click `Add to workspace`. For LM Studio or any other local server with an OpenAI-compatible API, add it as a provider in your workspace's `opencode.jsonc`.
 
 <Note>
-**Free and local.** Local models need no API key, no Harness Cloud account, and no internet connection once the model is downloaded. Your prompts and files stay on your machine.
+**Free and local.** Local models need no API key, no account, and no internet connection once the model is downloaded. Your prompts and files stay on your machine.
 </Note>
 
 ## Use Ollama
@@ -72,11 +72,8 @@ Harness is an agent: it reads files, runs tools, and calls MCP servers. Small lo
   <Accordion title="The Ollama screen says Ollama is not reachable.">
     Make sure Ollama is running on the same machine and listening on port `11434`. Then click the refresh button on the `Ollama` settings screen.
   </Accordion>
-  <Accordion title="I can't add a local provider on my work computer.">
-    Your organization may block locally added providers or built-in extensions through [desktop policies](/cloud/share-with-your-team/desktop-policies). Ask your Harness admin.
-  </Accordion>
   <Accordion title="Can my whole team share one self-hosted model?">
-    Yes. Run the model behind an OpenAI-compatible endpoint your team can reach, then add it once in Harness Cloud as a [custom LLM provider](/cloud/share-with-your-team/custom-llm-provider).
+    Yes. Run the model behind an OpenAI-compatible endpoint your team can reach, then have each person add it as a custom provider; see [Add a custom LLM or AI gateway](/start-here/connect-your-stack/add-a-custom-llm).
   </Accordion>
 </AccordionGroup>
 

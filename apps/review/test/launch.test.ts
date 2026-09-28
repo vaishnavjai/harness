@@ -57,7 +57,7 @@ test("readiness polling reports ready, building, or neither without building or 
   ];
   for (const [ready, building, expected] of cases) {
     const { deps, calls } = fakes(ready, building);
-    const response = await launchHandlers(deps).GET(new Request("https://review.example/r/test/launch?world=acme-web"), params);
+    const response = await launchHandlers(deps).GET(new Request("https://review.example/r/test/launch?world=desktop"), params);
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), expected);
     assert.equal(calls.built + calls.launched + calls.scheduled.length, 0);

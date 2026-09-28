@@ -1,6 +1,6 @@
-/** Resources are independent of placement. `web` drives Den; `appWeb` drives the app. */
-export type WorldSurface = "appWeb" | "desktop" | "web";
-export type WorldService = "den" | "mock";
+/** Resources are independent of placement. `appWeb` drives the app in a browser. */
+export type WorldSurface = "appWeb" | "desktop";
+export type WorldService = "mock";
 export interface WorldResources {
   readonly surfaces: readonly WorldSurface[];
   readonly services: readonly WorldService[];
@@ -15,10 +15,10 @@ export function validateWorldResources(value: unknown): asserts value is WorldRe
     throw new Error("World resources must declare both surfaces and services arrays.");
   }
   for (const surface of value.surfaces) {
-    if (!["appWeb", "desktop", "web"].includes(surface)) throw new Error(`Unknown world surface: ${surface}`);
+    if (!["appWeb", "desktop"].includes(surface)) throw new Error(`Unknown world surface: ${surface}`);
   }
   for (const service of value.services) {
-    if (!["den", "mock"].includes(service)) throw new Error(`Unknown world service: ${service}`);
+    if (!["mock"].includes(service)) throw new Error(`Unknown world service: ${service}`);
   }
   if (new Set(value.surfaces).size !== value.surfaces.length || new Set(value.services).size !== value.services.length) {
     throw new Error("World resources must not contain duplicate declarations.");
@@ -30,9 +30,6 @@ export function validateWorldResources(value: unknown): asserts value is WorldRe
   if (value.surfaces.includes("desktop") && !nativeReason) {
     throw new Error("A desktop world must explain its nativeReason; ordinary app UI belongs in appWeb.");
   }
-  if (value.surfaces.includes("web") && !value.services.includes("den")) {
-    throw new Error("seed.web drives Den UI and requires the den service; use appWeb for the app.");
-  }
 }
 
 /** A migration selector may validate a world, never change its implementation. */
@@ -41,9 +38,8 @@ export function validateWorldSurfaceSelection(resources: WorldResources, request
   if (!requested?.trim()) return;
   const expected = requested.trim();
   if (expected !== "web" && expected !== "electron") throw new Error(`Unknown app surface selection: ${expected}`);
-  const appSurfaces = resources.surfaces.filter(surface => surface !== "web");
   const required = expected === "web" ? "appWeb" : "desktop";
-  if (appSurfaces.length === 0 || appSurfaces.some(surface => surface !== required)) {
+  if (resources.surfaces.length === 0 || resources.surfaces.some(surface => surface !== required)) {
     throw new Error(`Surface selection ${expected} conflicts with declared world surfaces [${resources.surfaces.join(", ")}]. Select a matching world instead.`);
   }
 }

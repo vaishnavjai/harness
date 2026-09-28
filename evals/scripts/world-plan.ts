@@ -44,12 +44,12 @@ function strings(node: ts.Expression | undefined): string[] {
 }
 
 function surface(value: string): WorldSurface {
-  if (value === "appWeb" || value === "desktop" || value === "web") return value;
+  if (value === "appWeb" || value === "desktop") return value;
   throw new Error(`Unknown world surface ${value}`);
 }
 
 function service(value: string): WorldService {
-  if (value === "den" || value === "mock") return value;
+  if (value === "mock") return value;
   throw new Error(`Unknown world service ${value}`);
 }
 

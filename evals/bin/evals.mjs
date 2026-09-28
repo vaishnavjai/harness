@@ -23,7 +23,6 @@ Run E2E tests:
   --with-llm-vision  Judge vision claims inline (default: defer judging)
   --local            Force isolated local resources and clear inherited remote placement
   --daytona          Require Daytona (fails if the CLI is not authenticated)
-  --den <url>        Set HARNESS_EVAL_DEN_API_URL=<url>
   --strict-ref       Fail when the runner HEAD differs from the ref the Daytona sandbox builds
   --checkpoints      Save checkpoints for tests tagged "checkpoints" and steps marked { checkpoint: true };
                      worlds that cannot capture print one warning and run normally (requires --local)
@@ -51,7 +50,7 @@ Other:
   --help, -h        Show this help
 
 Publish mode cannot be combined with test names, run-selection flags, --with-llm-vision,
---daytona, --local, or --den. Named tests auto-consent to opt-in flags declared in their source;
+--daytona, or --local. Named tests auto-consent to opt-in flags declared in their source;
 value-bearing environment variables are never auto-set. Paid HARNESS_EVAL_LIVE_OPENAI
 requires an explicit environment opt-in or a registered --case declaring that opt-in.
 
@@ -126,10 +125,9 @@ export function parseArgs(args) {
       (options.reviewArgs ??= []).push(arg, valueAfter(args, index, arg));
       index += 1;
     }
-    else if (arg === "--den" || arg === "--pr" || arg === "--test-run") {
+    else if (arg === "--pr" || arg === "--test-run") {
       const value = valueAfter(args, index, arg);
-      if (arg === "--den") options.den = value;
-      else if (arg === "--pr") options.pr = value;
+      if (arg === "--pr") options.pr = value;
       else if (options.testRun !== undefined) (options.reviewArgs ??= []).push("--test-run", value);
       else options.testRun = value;
       index += 1;
@@ -145,11 +143,8 @@ export function parseArgs(args) {
   if (options.checkpoints && (!options.local || options.publish)) {
     throw new Error("--checkpoints requires --local and cannot be combined with --publish. Ordinary runs are unchanged.");
   }
-  if (options.local && (options.daytona || options.den !== undefined)) {
-    const conflicts = [];
-    if (options.daytona) conflicts.push("--daytona");
-    if (options.den !== undefined) conflicts.push("--den");
-    throw new Error(`--local is mutually exclusive with ${conflicts.join(" and ")}.`);
+  if (options.local && options.daytona) {
+    throw new Error("--local is mutually exclusive with --daytona.");
   }
 
   if (options.engine !== undefined && !["v1", "v2"].includes(options.engine)) {
@@ -175,7 +170,6 @@ export function parseArgs(args) {
     if (options.withLlmVision) conflicts.push("--with-llm-vision");
     if (options.local) conflicts.push("--local");
     if (options.daytona) conflicts.push("--daytona");
-    if (options.den !== undefined) conflicts.push("--den");
     if (options.strictRef) conflicts.push("--strict-ref");
     if (options.engine !== undefined) conflicts.push("--engine");
     if (options.surface !== undefined) conflicts.push("--surface");
@@ -208,22 +202,14 @@ const REMOTE_PLACEMENT_ENV = [
   "HARNESS_EVAL_DAYTONA",
   "HARNESS_EVAL_DAYTONA_SANDBOX",
   "HARNESS_EVAL_DAYTONA_SANDBOX_ID",
-  "HARNESS_EVAL_DAYTONA_DEN_SANDBOX",
-  "HARNESS_EVAL_DAYTONA_DEN_WEB_URL",
-  "HARNESS_EVAL_DAYTONA_DEN_API_URL",
   "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX",
-  "HARNESS_EVAL_DEN_API_URL",
-  "HARNESS_EVAL_DEN_WEB_URL",
 ];
 
 const TRANSPORT_SELECTOR_ENV = new Set([
   "HARNESS_EVAL_DAYTONA",
   "HARNESS_EVAL_DAYTONA_SANDBOX",
   "HARNESS_EVAL_DAYTONA_SANDBOX_ID",
-  "HARNESS_EVAL_DAYTONA_DEN_SANDBOX",
   "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX",
-  "HARNESS_EVAL_DEN_API_URL",
-  "HARNESS_EVAL_DEN_WEB_URL",
   "HARNESS_EVAL_REF",
   "HARNESS_EVAL_ENGINE",
   "HARNESS_EVAL_APP_SURFACE",
@@ -247,10 +233,6 @@ export function resolveRunEnvironment(options, env = process.env, probe = dayton
     for (const name of REMOTE_PLACEMENT_ENV) delete childEnv[name];
     childEnv.HARNESS_WORLD_PLACE = "local";
     return { env: childEnv, placement: "local", reason: "--local" };
-  }
-  if (options.den !== undefined) {
-    childEnv.HARNESS_EVAL_DEN_API_URL = options.den;
-    return { env: childEnv, placement: "attached", reason: "--den" };
   }
   if (options.daytona) {
     if (!probe()) {

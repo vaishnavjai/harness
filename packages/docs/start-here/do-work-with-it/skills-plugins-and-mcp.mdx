@@ -13,13 +13,13 @@ Harness gives agents a small set of building blocks. The connector reaches the s
 | Connection | Your own signed-in instance of a connector, one per user. | You sign in so the agent acts as you in that system. |
 | Skill | Written instructions the agent loads when a task matches. | One repeatable way of doing work needs a playbook. |
 | Plugin | A bundle — skills, MCP servers, and other components packaged and distributed as one thing. | Several related pieces should travel together. |
-| Library | The list of active elements you have access to, in the desktop app and the Cloud dashboard. | You want to see or manage what is already available to you. |
+| Library | The list of active elements you have access to in the desktop app. | You want to see or manage what is already available to you. |
 
-MCP is the open standard underneath many connectors, and the [Harness MCP Gateway](/cloud/run-in-the-cloud/cloud-mcp) is how all of it reaches your agent — but day to day you can think in terms of connectors, skills, plugins, and your Library.
+MCP is the open standard underneath many connectors — but day to day you can think in terms of connectors, skills, plugins, and your Library.
 
 ## Connect the system first
 
-Use connectors for the apps themselves. In the desktop app, start in `Settings` > `Harness Connect`; for the click-by-click flow, see [Connect your services](/start-here/connect-your-stack/connect-services).
+Use connectors for the apps themselves. In the desktop app, start in `Settings` > `Harness Connect`; to add any server yourself, see [Add a custom MCP server](/start-here/connect-your-stack/add-an-mcp-server).
 
 Everything your agent can use is listed in `Settings` > `Library`, under `Available apps` and `Your apps`. Use `Add Custom App` to connect something we do not list yet.
 
@@ -39,7 +39,7 @@ These skills describe the system, not one person's style, so everyone who uses t
 
 Everything is a plugin under the hood. When you ask Harness to create a skill, Harness creates a small plugin containing that one skill, so “skill or plugin?” is not a decision most people need to make.
 
-The useful plugin case is a thin connector with several system skills. If half a dozen ticketing skills make one system usable, bundle them into one plugin — the ticketing unit — and share that single thing. For distribution options, see [Publish and copy a skill](/start-here/do-work-with-it/publish-and-copy-a-skill).
+The useful plugin case is a thin connector with several system skills. If half a dozen ticketing skills make one system usable, bundle them into one plugin — the ticketing unit — and share that single thing.
 
 ## Keep personal skills separate
 

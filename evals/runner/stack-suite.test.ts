@@ -18,7 +18,7 @@ function fixtures(t: test.TestContext) {
 }
 
 const app = `const test = spec.world("app", { resources: { surfaces: ["appWeb"], services: ["mock"] } }); test("WEB-01 browser", () => {});`;
-const native = `const native = spec.world("native", { resources: { surfaces: ["desktop"], services: ["den"], nativeReason: "OS integration" } }); native("NATIVE-01 native", () => {});`;
+const native = `const native = spec.world("native", { resources: { surfaces: ["desktop"], services: [], nativeReason: "OS integration" } }); native("NATIVE-01 native", () => {});`;
 
 test("global setup uses Vitest's project paths, effective name pattern and sequencer shard", t => {
   const file = fixtures(t);
@@ -97,7 +97,7 @@ test("mixed native plans remain lazy and print their native reason", t => {
   const file = fixtures(t);
   const plan = planSuite([file("mixed.e2e.test.ts", `${app}\n${native}`)]);
   assert.deepEqual(plan.surfaces, ["appWeb", "desktop"]);
-  assert.deepEqual(plan.services, ["mock", "den"]);
+  assert.deepEqual(plan.services, ["mock"]);
   assert.equal(plan.preparation, "none");
   assert.match(plan.diagnostic, /nativeReason=OS integration/);
 });

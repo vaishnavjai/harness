@@ -10,21 +10,14 @@ const specs = new Set([
   "evals/specs/anthropic-gateway-effort.e2e.test.ts",
   "evals/specs/session-archive-undo.e2e.test.ts",
   "evals/specs/engine-parity.e2e.test.ts",
-  "evals/specs/opencode-v2-skill-jit.e2e.test.ts",
   "evals/specs/opencode-v2-reads-during-mcp-startup.e2e.test.ts",
   "evals/specs/engine-provider-filters.e2e.test.ts",
-  "evals/specs/engine-gateway-parity.e2e.test.ts",
-  "evals/specs/engine-connectors-parity.e2e.test.ts",
-  "evals/specs/connector-tool-call-branding.e2e.test.ts",
-  "evals/specs/engine-live-chat.e2e.test.ts",
-  "evals/specs/engine-live-desktop.e2e.test.ts",
-  "evals/specs/engine-live-launch.e2e.test.ts",
   "evals/specs/engine-live-parity.e2e.test.ts",
 ]);
 
 export function parityProofPlan(spec) {
   if (!specs.has(spec)) throw new Error(`Unsupported parity proof: ${spec}`);
-  const engines = ["evals/specs/opencode-v2-context-activity.e2e.test.ts", "evals/specs/opencode-v2-session-home.e2e.test.ts", "evals/specs/opencode-v2-skill-jit.e2e.test.ts",
+  const engines = ["evals/specs/opencode-v2-context-activity.e2e.test.ts", "evals/specs/opencode-v2-session-home.e2e.test.ts",
     "evals/specs/engine-provider-filters.e2e.test.ts", "evals/specs/opencode-v2-reads-during-mcp-startup.e2e.test.ts"].includes(spec) ? ["v2"] : ["v1", "v2"];
   return engines.map(engine => ({ engine, args: ["evals/bin/evals.mjs", spec.slice("evals/".length), "--local", "--engine", engine] }));
 }
