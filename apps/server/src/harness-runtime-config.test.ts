@@ -99,6 +99,14 @@ describe("harness runtime config file", () => {
     expect(await readConfigFile(config)).toEqual(rendered);
   });
 
+  test("the engine never phones home and never routes to the hosted Zen provider", () => {
+    const rendered = buildHarnessRuntimeConfigObjectFromSnapshot({ disabled_providers: ["anthropic"] });
+    expect(rendered.autoupdate).toBe(false);
+    expect(rendered.share).toBe("disabled");
+    expect(rendered.disabled_providers).toEqual(["anthropic", "opencode"]);
+    expect(buildHarnessRuntimeConfigObjectFromSnapshot({}).disabled_providers).toEqual(["opencode"]);
+  });
+
   test("restrictive policy does not filter materialized or local providers", () => {
     const provider = { lpr_legacy: {}, ipr_gateway: {}, harness: {}, personal: {}, opencode: {} };
     const restricted = buildHarnessRuntimeConfigObjectFromSnapshot({

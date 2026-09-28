@@ -168,6 +168,12 @@ describe("Settings > Audit log", () => {
     await view.unmount();
   });
 
+  test("names every remote host Harness contacted or blocked", () => {
+    const base = { ...auditRecords[1]!, source: "desktop" as const, actor: "harness" as const };
+    expect(describeAuditRecord({ ...base, kind: "network.egress", subject: undefined, detail: { host: "api.openai.com", via: "main" } })).toBe("Contacted api.openai.com");
+    expect(describeAuditRecord({ ...base, kind: "network.blocked", subject: undefined, detail: { host: "cdn.example.com", resourceType: "image" } })).toBe("Blocked image from cdn.example.com");
+  });
+
   test("describes file writes by the agent", () => {
     expect(describeAuditRecord({ ...auditRecords[0]!, subject: "write", detail: { path: "/w/notes.md" } })).toBe("Agent used write on /w/notes.md");
   });

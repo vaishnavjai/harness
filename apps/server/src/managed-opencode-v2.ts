@@ -10,6 +10,7 @@ import { randomBytes } from "node:crypto";
 import { chmod, mkdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { appendEngineOutputTail, createEngineStartupLineReader } from "./engine-output.js";
+import { ENGINE_PRIVACY_ENV } from "./engine-privacy-env.js";
 
 export { installOpencodeV2Binary } from "./opencode-v2-binary.js";
 
@@ -236,6 +237,7 @@ export async function createManagedOpencodeV2Server(
   const child = spawn(options.bin, ["serve", "--hostname", hostname, "--port", String(port)], {
     env: {
       ...inherited,
+      ...ENGINE_PRIVACY_ENV,
       ...(options.env?.OPENCODE_DISABLE_MODELS_FETCH ? { OPENCODE_DISABLE_MODELS_FETCH: options.env.OPENCODE_DISABLE_MODELS_FETCH } : {}),
       OPENCODE_PASSWORD: password,
       OPENCODE_DB: join(options.rootDir, "opencode.db"),

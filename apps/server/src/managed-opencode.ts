@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import net from "node:net";
 import { randomUUID } from "node:crypto";
 import { appendEngineOutputTail, createEngineStartupLineReader } from "./engine-output.js";
+import { ENGINE_PRIVACY_ENV } from "./engine-privacy-env.js";
 
 export type ManagedChildProcess = {
   exitCode: number | null;
@@ -160,7 +161,7 @@ async function startManagedOpencodeServer(
   // That audit POST depends on npm's advisories endpoint, which has been observed
   // to hang for the full five-minute registry timeout, so first-run must not wait.
   // @npmcli/config reads npm_config_* settings from the environment.
-  const engineEnvDefaults = { npm_config_audit: "false" };
+  const engineEnvDefaults = { npm_config_audit: "false", ...ENGINE_PRIVACY_ENV };
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ...engineEnvDefaults,

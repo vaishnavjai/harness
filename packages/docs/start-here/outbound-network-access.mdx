@@ -1,95 +1,47 @@
 ---
 title: "Outbound network access"
-description: "Customer IT allowlist guidance for Harness desktop, Den, deployment artifacts, and opt-in providers."
+description: "Which hosts Harness contacts, when, and how to see every request it made."
 ---
 
-Harness works best when customer IT approves outbound access by component. The canonical machine-readable source is [`docs/enterprise/outbound-access.json`](https://github.com/vaishnavjai/harness/blob/dev/docs/enterprise/outbound-access.json). CI guards that file with `node scripts/check-outbound-access.mjs`; this page is the published human-readable summary.
+Harness is local-first. Out of the box it makes **no request to any host you did not configure**: no analytics, no crash reporting, no update checks, no remote model catalog, no favicon or icon CDNs. The machine-readable source for everything below is [`docs/enterprise/outbound-access.json`](https://github.com/vaishnavjai/harness/blob/main/docs/enterprise/outbound-access.json); CI checks it against the code with `node scripts/check-outbound-access.mjs`.
 
-## Minimum hosted desktop allowlist
+## What runs on your machine only
 
-For a practical Harness Cloud desktop install, allow TCP 443 to these hosts:
-
-```text
-app.harness.invalid
-api.app.harness.invalid
-github.com
-release-assets.githubusercontent.com
-objects.githubusercontent.com
-registry.npmjs.org
-models.harness.invalid
-```
-
-Common misses:
-
-- GitHub release downloads redirect away from `github.com`. Allow `release-assets.githubusercontent.com`, which is the current verified GitHub release-asset host, and `objects.githubusercontent.com`, which is kept for older clients and rollback paths.
-- `registry.npmjs.org` is used when packaged desktop builds start `npx -y harness-ui-mcp`. If it is blocked, the desktop can still open, but UI-control MCP is unavailable.
-- `models.harness.invalid` is the default OpenCode model catalog. Set `OPENCODE_MODELS_URL` to an approved internal mirror if the public catalog is blocked.
-
-## Desktop and local runtime destinations
-
-| Host | Requirement | Why it is reached | What breaks when blocked |
-| --- | --- | --- | --- |
-| `app.harness.invalid` | Required for Harness Cloud | Hosted Cloud web origin. The desktop uses one base URL and derives Den API/MCP calls through `/api/den/...`. | Cloud sign-in, org settings, Collections, and remote workspace flows cannot load. |
-| `api.app.harness.invalid` | Required for hosted install and Harness Connect | Hosted public API and Harness Connect MCP endpoint used by install and external-client flows. | Hosted install checks and public Harness Connect fail. |
-| `app.harness-legacy.invalid`, `api.harness-legacy.invalid` | Required only for legacy hosted configurations | Older desktop configurations may still derive Cloud and Harness Connect traffic from these legacy hosted origins. | Legacy configurations cannot reconcile Harness Connect or native MCP Apps until moved to the current hosted origins. |
-| Your self-hosted Den web origin | Required for self-hosted desktop | Replaces `app.harness.invalid` for signed-in desktop traffic. In the single-origin shape, API and MCP use `/api/den/...` on the same origin. | The desktop cannot sign in or reach Den. |
-| Your separate Den API origin, if configured | Required only for that topology | Used by one-time install-link exchange and external MCP clients when `DEN_API_PUBLIC_URL` points at a separate origin. | Install-link handoff or external MCP clients cannot complete. |
-| `github.com` | Required in practice unless mirrored | Installer/updater release URLs, GitHub issue links, and GitHub plugin source URLs. | Install/update downloads cannot start; GitHub links may not open. |
-| `release-assets.githubusercontent.com` | Required in practice unless mirrored | Current GitHub release-asset redirect target. | Downloads start from `github.com` and fail partway through. |
-| `objects.githubusercontent.com` | Required in practice for legacy/rollback | Legacy GitHub release-asset redirect target. | Older clients or rollback downloads can fail partway through. |
-| `registry.npmjs.org` | Required in practice unless npm is mirrored | `npx` package resolution for `harness-ui-mcp` and development-only helper commands. | Harness UI-control MCP is unavailable. |
-| `models.harness.invalid` | Required in practice unless mirrored | Default OpenCode model catalog passed as `OPENCODE_MODELS_URL`. | Model selection can be stale, incomplete, or unavailable. |
-| `cdn.simpleicons.org` | Optional | Provider icons when no local icon exists. | Some icons are missing. |
-| `www.google.com` | Optional | Favicon image service and embedded browser new-tab page. | Favicons or the browser panel new tab may not load. |
-| `accounts.google.com` | Opt-in, browser sign-in | Google authorization opened by the Cloud connection flow. | Google Workspace sign-in cannot complete. |
-| `us.i.posthog.com` | Optional | Product analytics when analytics are enabled. | Analytics are dropped silently. |
-| `harness.invalid`, `harness.invalid`, `discord.gg`, `ollama.com`, `opencode.ai`, `linear.app`, `mail.google.com` | Optional or link-only | Docs, feedback, community, provider help, local model links, sample links, and generated Gmail links. | Links do not open; core app behavior is unaffected. |
-
-`code.claude.com` and `schemas.agentskills.io` appear in source or schema metadata. They are findable in the manifest, but Harness does not fetch them for normal runtime behavior.
-
-### Before enterprise activation
-
-A Harness Enterprise install that has not yet been linked to your organization makes no request outside the machine. Until the person enters the workspace address, the desktop does not probe `app.harness.invalid` for runtime configuration, does not send analytics to `us.i.posthog.com`, does not check `github.com` for updates or downloads (the one exception is an install whose architecture does not match the machine, which looks up the correct download), does not fetch Harness Cloud inventory, and on Windows and Linux does not download the Chromium spellchecker dictionary from `redirector.gvt1.com`. The first outbound request goes to the workspace address that was entered. Analytics and update checks start only after activation completes and your desktop policy has been read once.
-
-## Den runtime destinations
-
-Approve Den separately from desktop clients. A self-hosted Den behind VPN or inside Kubernetes uses the server network, not the user's laptop network.
-
-| Destination | Requirement | Why it is reached | What breaks when blocked |
-| --- | --- | --- | --- |
-| Your MySQL-compatible database host | Required | Den control-plane state. | Den cannot start, migrate, sign users in, or store organization state. |
-| Your SMTP host or Resend | Optional | Transactional email when configured. | Invites, lifecycle, or notification email cannot send. |
-| `api.github.com`, `raw.githubusercontent.com` | Opt-in | GitHub-hosted plugin import and sync. | Plugin import cannot inspect repos or download manifests, skills, commands, agents, or MCP configs. |
-| Google Workspace hosts | Opt-in | Google OAuth and APIs. | Google sign-in or Workspace actions fail. |
-| Provider and MCP hosts | Opt-in | Calls to enabled model providers, OAuth/token endpoints, and MCP servers. | Only the enabled provider or MCP connection fails. |
-
-For Google Workspace, Den calls `oauth2.googleapis.com` for token exchange and
-refresh, `www.googleapis.com` for profile, Calendar, and Drive APIs, and
-`gmail.googleapis.com` for Gmail APIs. These are Cloud server destinations, not
-local Google Workspace API requirements on the desktop. The client manifest
-keeps only the browser destinations `accounts.google.com` and `mail.google.com`.
-Set up Google through [Connect your services](/start-here/connect-your-stack/connect-services#google-workspace),
-not local OAuth environment variables.
-
-## Deployment and image-pull destinations
-
-| Host | Requirement | Why it is reached | What breaks when blocked |
-| --- | --- | --- | --- |
-| `ghcr.io` | Required unless mirrored | Harness Helm chart and container images. | Kubernetes cannot pull the chart or `harness-den-api`, `harness-den-web`, and optional Gateway image `harness-inference` (retained repository name). |
-| Internal registry mirror | Required when public GHCR is blocked | Your mirrored chart and images. | Installs and upgrades fail until the mirror has the requested version. |
-
-For fully isolated deployments, also mirror installer artifacts, npm packages used by `npx`, and the model catalog. See [Air-gapped deployment](/start-here/air-gapped-deployment) and [Installer delivery](/start-here/installer-delivery).
-
-## Opt-in provider and connection hostnames
-
-These hosts are only needed when the corresponding feature, provider, connection, or import path is enabled:
-
-| Feature group | Hostnames | What breaks when blocked |
+| Component | Where it listens | Notes |
 | --- | --- | --- |
-| OpenAI direct features | `api.openai.com` | Direct OpenAI Realtime voice and image-generation features fail for users who configured OpenAI. |
-| Google Workspace through Cloud | Browser: `accounts.google.com`, `mail.google.com`. Den: `oauth2.googleapis.com`, `www.googleapis.com`, `gmail.googleapis.com`. | Browser sign-in and Gmail links, or Cloud token refresh and Workspace actions, fail on the component where access is blocked. |
-| Built-in MCP presets | `mcp.notion.com`, `mcp.linear.app`, `mcp.sentry.dev`, `mcp.stripe.com`, `mcp.context7.com`, `mcp.slack.com` | That specific MCP preset cannot connect. |
-| Example or custom MCP URLs | `api.githubcopilot.com` or the customer-configured MCP URL | Only the connection that points at that URL fails. |
-| GitHub plugin import | `api.github.com`, `raw.githubusercontent.com`, and optionally `github.com` links | GitHub plugin import cannot preview or download plugin contents. |
+| Harness server | `127.0.0.1`, random port | Local API for the app. |
+| Agent engine (OpenCode) | `127.0.0.1`, random port | Started with self-update, model-catalog fetch, default-plugin install and language-server downloads turned off. Public session sharing is disabled. |
+| Memory engine (Hindsight) | `127.0.0.1:8888` by default | Bearer token per launch. A Python-level egress guard lets it reach only loopback and the model endpoints you configure. Data lives in `~/.config/harness/data/`. |
 
-The JSON manifest remains the ownership point for exact host metadata, requirement level, override name, and blocked effect. Use this page for review conversations and the JSON file for automation.
+## Where your prompts and memories go
+
+Only to the model providers you set up yourself:
+
+- **Local models** (Ollama, vLLM, llama.cpp, LM Studio) at an address such as `http://127.0.0.1:11434/v1`: nothing leaves the machine.
+- **Hosted providers** you add with an API key (`api.openai.com`, `api.anthropic.com`, `openrouter.ai`, …): prompts go to that provider only. Keys are kept in your OS keychain.
+
+The hosted OpenCode Zen models are not offered, because nobody configured them.
+
+## Opt-in destinations
+
+These hosts are contacted only after you turn the matching feature on or act on it:
+
+| Host | When | Turned on by |
+| --- | --- | --- |
+| `github.com`, `release-assets.githubusercontent.com`, `objects.githubusercontent.com` | Desktop update checks and downloads | **Settings → Updates** (off by default) |
+| `registry.npmjs.org` | Self-hosted server update check | `HARNESS_UPDATE_CHECK=1` |
+| `opencode.ai` | Guided engine install when the bundled engine is missing | Clicking **Install** |
+| `api.github.com`, `raw.githubusercontent.com` | Importing a plugin or skill from GitHub | Starting the import |
+| `mcp.notion.com`, `mcp.linear.app`, `mcp.sentry.dev`, `mcp.stripe.com`, `mcp.context7.com`, `mcp.slack.com`, or any MCP URL you enter | MCP connections | Adding that connection |
+| `www.google.com` | New tab in the built-in browser panel | Opening a browser tab |
+
+Links such as documentation, `ollama.com` or `discord.gg` open in your own browser and are never fetched by Harness.
+
+## Enforcement and audit
+
+- The app window never loads remote images, fonts, scripts, stylesheets, frames or beacons. Remote images in agent output are blocked rather than fetched.
+- Every remote host Harness contacts is written once per launch to the audit log (`~/.config/harness/audit.log`) as `network.egress`, and every blocked load as `network.blocked`. Open **Settings → Audit log** to review them; the log is hash-chained, so **Verify now** detects removed or edited records.
+
+## Locked-down networks
+
+Because nothing is required by default, Harness runs fully offline with local models. If you want update checks behind a proxy, allow the three GitHub hosts above; everything else is per-feature.

@@ -14,7 +14,7 @@ import {
   type ManagedOpencodeV2Server,
   type OpencodeV2ProviderSpec,
 } from "./managed-opencode-v2.js";
-import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
 import { runtimeStorageDir } from "./runtime-db.js";
 import {
   isEngineGlobalRuntimeConfigId,
@@ -629,13 +629,13 @@ export function createEngineV2Preview(options: {
     // Remove copies left by the former v2-only Cloud materializer. Cloud
     // skills now use the same metadata/on-demand Connect path as v1.
     await rm(join(rootDir, "cloud-skills"), { recursive: true, force: true });
-    const opencodeModelsUrl = await resolveOpencodeModelsUrl();
+    const opencodeModelCatalogEnv = await resolveOpencodeModelCatalogEnv();
     contextBridge = options.hostReadRequest ? await createV2ContextBridge(options.hostReadRequest) : undefined;
     const managed = await createManagedOpencodeV2Server({
       contextTools: contextBridge,
       bin: resolved.bin,
       rootDir,
-      env: { OPENCODE_MODELS_URL: opencodeModelsUrl },
+      env: opencodeModelCatalogEnv,
       permissions: async () => {
         const runtime = await readGlobalRuntimeOpencodeConfig(config);
         return executionRules(runtime.managedPolicy?.execution);

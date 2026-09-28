@@ -20,6 +20,7 @@ import {
   SETTINGS_TAB_WITHOUT_CONTROL,
   checkDesktopAppRestriction,
   desktopRestrictionNotice,
+  isDesktopProviderBlocked,
   isSettingsTabAllowed,
   type DesktopAppRestrictionChecker,
 } from "../src/app/cloud/desktop-app-restrictions";
@@ -87,6 +88,15 @@ describe("restricted desktop policy mode", () => {
       assignedPolicies: [restrictedDesktopPolicyValue],
     });
     expect(restrictedTargetOnly.allowControlSettings).toBe(true);
+  });
+});
+
+describe("hosted Zen provider", () => {
+  test("is never offered, with or without an organization policy", () => {
+    expect(checkDesktopAppRestriction({ config: null, restriction: "allowZenModel" })).toBe(true);
+    expect(checkDesktopAppRestriction({ config: { allowZenModel: true }, restriction: "allowZenModel" })).toBe(true);
+    expect(isDesktopProviderBlocked({ providerId: "opencode", checkRestriction: ({ restriction }) => checkDesktopAppRestriction({ config: null, restriction }) })).toBe(true);
+    expect(isDesktopProviderBlocked({ providerId: "ollama", checkRestriction: ({ restriction }) => checkDesktopAppRestriction({ config: null, restriction }) })).toBe(false);
   });
 });
 

@@ -258,15 +258,20 @@ export function isReleaseVersion(version: string): boolean {
   return /^\d+\.\d+\.\d+$/.test(version.replace(/^v/, ""));
 }
 
-/** Best-effort: returns the newer published version, or null when current, unknown, or offline. */
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Best-effort: returns the newer published version, or null when current,
+ * unknown, offline, or not opted in. The check contacts the npm registry, so
+ * it runs only when HARNESS_UPDATE_CHECK=1.
+ */
 
 export async function checkForUpdate(input: {
   currentVersion: string;
   env: NodeJS.ProcessEnv;
   fetchImpl?: FetchLike;
 }): Promise<string | null> {
-  if (input.env.HARNESS_NO_UPDATE_CHECK === "1" || !isReleaseVersion(input.currentVersion)) return null;
+  if (input.env.HARNESS_UPDATE_CHECK !== "1" || !isReleaseVersion(input.currentVersion)) return null;
   try {
     const response = await (input.fetchImpl ?? fetch)(`https://registry.npmjs.org/${NPM_PACKAGE}/latest`, {
       signal: AbortSignal.timeout(UPDATE_CHECK_TIMEOUT_MS),
@@ -288,8 +293,10 @@ export function updateHint(latest: string): string {
 
 /** Open a URL in the default browser without blocking; failures are ignored. */
 export function openInBrowser(url: string): void {
-  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
-  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+  // Windows: hand the URL to the shell's protocol handler directly; routing
+  // it through `cmd /c start` would let cmd interpret `&` and `|` in it.
+  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "rundll32.exe" : "xdg-open";
+  const args = process.platform === "win32" ? ["url.dll,FileProtocolHandler", url] : [url];
   try {
     spawn(command, args, { stdio: "ignore", detached: true }).unref();
   } catch {

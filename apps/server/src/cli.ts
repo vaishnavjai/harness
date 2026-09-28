@@ -27,7 +27,7 @@ import { runtimeStorageDir } from "./runtime-db.js";
 import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
 import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
-import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
 import { startWorkerActivityHeartbeat } from "./worker-activity-heartbeat.js";
 import {
   checkForUpdate,
@@ -137,14 +137,14 @@ if (manageEngine) {
     fallbackDir: join(runtimeStorageDir(config), "managed-opencode-workdir"),
   });
   await mkdir(managedOpencodeCwd, { recursive: true });
-  const opencodeModelsUrl = await resolveOpencodeModelsUrl();
+  const opencodeModelCatalogEnv = await resolveOpencodeModelCatalogEnv();
   const engineEnv: Record<string, string | undefined> = {
     ...(process.env.HARNESS_DEV_MODE ? { HARNESS_DEV_MODE: process.env.HARNESS_DEV_MODE } : {}),
     ...(process.env.HARNESS_UI_CONTROL_DISCOVERY ? { HARNESS_UI_CONTROL_DISCOVERY: process.env.HARNESS_UI_CONTROL_DISCOVERY } : {}),
     HARNESS_SERVER_URL: serverUrl,
     HARNESS_SERVER_TOKEN: config.token,
     OPENCODE_CONFIG: runtimeConfigPath,
-    OPENCODE_MODELS_URL: opencodeModelsUrl,
+    ...opencodeModelCatalogEnv,
   };
   const engineSpawnTemplate: EngineSpawnTemplate = {
     bin: process.env.HARNESS_OPENCODE_BIN,

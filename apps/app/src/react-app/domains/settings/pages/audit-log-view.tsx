@@ -48,6 +48,10 @@ export function describeAuditRecord(record: HarnessAuditRecord): string {
       return `Opened a terminal (${record.subject ?? "shell"})`;
     case "terminal.session.exit":
       return "Closed a terminal";
+    case "network.egress":
+      return `Contacted ${typeof detail.host === "string" ? detail.host : "a remote host"}`;
+    case "network.blocked":
+      return `Blocked ${typeof detail.resourceType === "string" ? detail.resourceType : "content"} from ${typeof detail.host === "string" ? detail.host : "a remote host"}`;
     default:
       if (record.kind.startsWith("desktop.") || record.kind.startsWith("server.")) {
         const action = record.kind.split(".").slice(1).join(" ");

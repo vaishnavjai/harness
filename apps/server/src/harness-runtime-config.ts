@@ -47,6 +47,8 @@ import {
 import { CONNECT_MCP_SERVER_NAME_PREFIX } from "./connect-mcp-server-catalog.js";
 import { HARNESS_AGENT_PROMPT } from "./harness-agent-prompt.js";
 
+const HOSTED_ZEN_PROVIDER_ID = "opencode";
+
 export async function buildHarnessRuntimeConfigObject(
   config?: ServerConfig,
 ): Promise<Record<string, unknown>> {
@@ -66,7 +68,9 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
     const { managedPolicy: _cachedPolicy, ...localConfig } = runtimeConfig;
     runtimeConfig = localConfig;
   }
-  const disabledProviders = runtimeDisabledProviderList(runtimeConfig);
+  // OpenCode Zen is a hosted model service nobody configured; model traffic
+  // goes only to providers the person set up themselves.
+  const disabledProviders = [...new Set([...runtimeDisabledProviderList(runtimeConfig), HOSTED_ZEN_PROVIDER_ID])];
   const permissions = legacyExecutionPermissions(runtimeConfig.managedPolicy?.execution);
   const { managedPolicy: _managedPolicy, ...engineConfig } = runtimeConfig;
   const provider = materializeLegacyFastProviders(runtimeProviderMap(runtimeConfig));
@@ -74,8 +78,10 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
     ...engineConfig,
     ...(runtimeConfig.managedPolicy?.allowCustomProviders === false ? { enabled_providers: [
       ...Object.keys(provider).filter((id) => /^(?:lpr_|ipr_|harness$)/i.test(id)),
-      ...(runtimeConfig.managedPolicy.allowZenModel !== false ? ["opencode"] : []),
     ] } : {}),
+    // Never phone home: no self-update and no public session share links.
+    autoupdate: false,
+    share: "disabled",
     permission: { ...engineConfig.permission, ...permissions },
     default_agent: runtimeConfig.default_agent ?? "harness",
     agent: {
@@ -117,7 +123,7 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
       harnessGatewayQuotaPluginPath(),
       ...runtimePluginList(runtimeConfig).filter((plugin) => !isManagedPolicyPlugin(plugin)),
     ],
-    ...(disabledProviders.length ? { disabled_providers: disabledProviders } : {}),
+    disabled_providers: disabledProviders,
     mcp: Object.fromEntries(Object.entries(runtimeMcpMap(runtimeConfig))
       .filter(([name]) => !name.startsWith(CONNECT_MCP_SERVER_NAME_PREFIX))),
     ...(Object.keys(provider).length ? { provider } : {}),

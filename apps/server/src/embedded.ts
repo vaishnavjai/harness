@@ -38,7 +38,7 @@ import { runtimeStorageDir } from "./runtime-db.js";
 import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
 import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
-import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
 import type { LocalManagedMcpVaultKeyProvider, ServerConfig } from "./types.js";
 
 export type EmbeddedServerOptions = CliArgs & {
@@ -212,7 +212,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
       fallbackDir: join(runtimeStorageDir(config), "managed-opencode-workdir"),
     });
     await duringStartup(() => mkdir(cwd, { recursive: true }));
-    const opencodeModelsUrl = await duringStartup(() => resolveOpencodeModelsUrl());
+    const opencodeModelCatalogEnv = await duringStartup(() => resolveOpencodeModelCatalogEnv());
 
     const opencodeBin = options.opencodeBin || process.env.HARNESS_OPENCODE_BIN;
     // Shared by the first spawn and by any later rollover standby, so a
@@ -223,7 +223,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
       HARNESS_SERVER_URL: serverUrl,
       HARNESS_SERVER_TOKEN: config.token,
       OPENCODE_CONFIG: runtimeConfigPath,
-      OPENCODE_MODELS_URL: opencodeModelsUrl,
+      ...opencodeModelCatalogEnv,
     };
     engineSpawnTemplate = {
       bin: opencodeBin,

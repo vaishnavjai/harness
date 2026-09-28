@@ -12,12 +12,16 @@ import { useBrandAppName } from "../../cloud/brand-theme";
 import { notifyAlert } from "../../../shell/notifications";
 import { useElectronUpdaterState } from "./electron-updater-state";
 
+/**
+ * Update checks contact the release host, so they are opt-in: nothing is
+ * checked or downloaded until the person turns it on in Settings.
+ */
 function useUpdatePreference(key: string) {
   const [enabled, setEnabled] = useState(() => {
     try {
-      return localStorage.getItem(key) !== "0";
+      return localStorage.getItem(key) === "1";
     } catch {
-      return true;
+      return false;
     }
   });
   useEffect(() => {
@@ -35,10 +39,8 @@ function useUpdater() {
   // versions cannot be honoured, so no update check (and therefore no
   // download) may run yet.
   const allowedVersionsKnown = !useEnterpriseActivationRequired() && !desktopConfig.loading;
-  const [updateAutoCheck, setUpdateAutoCheck] = useUpdatePreference("harness.react.settings.update-auto-check");
-  // Older Settings wrote "0" even when the user never touched the old opt-in.
-  // Start the automatic-download default once, then retain future opt-outs.
-  const [updateAutoDownload, setUpdateAutoDownload] = useUpdatePreference("harness.react.settings.update-auto-download.v2");
+  const [updateAutoCheck, setUpdateAutoCheck] = useUpdatePreference("harness.settings.update-auto-check.opt-in");
+  const [updateAutoDownload, setUpdateAutoDownload] = useUpdatePreference("harness.settings.update-auto-download.opt-in");
   const onReleaseChannelChange = useCallback((next: "stable" | "alpha") => {
     local.setPrefs((previous) => ({ ...previous, releaseChannel: next }));
   }, [local.setPrefs]);

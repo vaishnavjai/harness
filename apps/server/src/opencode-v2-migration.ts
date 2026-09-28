@@ -27,7 +27,7 @@ export async function snapshotV1Database(source: string, destination: string): P
   if (typeof process.versions.bun === "string") {
     const { Database } = await import("bun:sqlite");
     const db = new Database(source, { readonly: true });
-    try { db.exec(`VACUUM INTO '${destination.replaceAll("'", "''")}'`); }
+    try { db.run("VACUUM INTO ?", [destination]); }
     finally { db.close(); }
   } else {
     // Electron runs the server in-process. Yield between backup batches so a

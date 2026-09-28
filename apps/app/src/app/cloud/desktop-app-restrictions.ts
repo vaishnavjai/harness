@@ -18,6 +18,9 @@ export function checkDesktopAppRestriction(input: {
   config: DenDesktopConfig | null | undefined;
   restriction: DesktopAppRestrictionKey;
 }) {
+  // Harness never offers OpenCode Zen: it is a hosted model service the person
+  // did not configure. The engine config disables the provider too.
+  if (input.restriction === "allowZenModel") return true;
   return DESKTOP_POLICY_ENFORCEMENT_ENABLED && input.config?.[input.restriction] === false;
 }
 

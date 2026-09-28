@@ -44,12 +44,16 @@ describe("harness-server web", () => {
 
   test("update check reports only newer releases and never throws", async () => {
     const fetchImpl: FetchLike = async () => new Response(JSON.stringify({ version: "0.19.0" }));
-    expect(await checkForUpdate({ currentVersion: "0.18.0", env: {}, fetchImpl })).toBe("0.19.0");
-    expect(await checkForUpdate({ currentVersion: "0.19.0", env: {}, fetchImpl })).toBeNull();
-    expect(await checkForUpdate({ currentVersion: "0.0.0-dev", env: {}, fetchImpl })).toBeNull();
-    expect(await checkForUpdate({ currentVersion: "0.18.0", env: { HARNESS_NO_UPDATE_CHECK: "1" }, fetchImpl })).toBeNull();
+    const optedIn = { HARNESS_UPDATE_CHECK: "1" };
+    expect(await checkForUpdate({ currentVersion: "0.18.0", env: optedIn, fetchImpl })).toBe("0.19.0");
+    expect(await checkForUpdate({ currentVersion: "0.19.0", env: optedIn, fetchImpl })).toBeNull();
+    expect(await checkForUpdate({ currentVersion: "0.0.0-dev", env: optedIn, fetchImpl })).toBeNull();
+    // Off unless opted in: the registry is never contacted by default.
+    let contacted = false;
+    expect(await checkForUpdate({ currentVersion: "0.18.0", env: {}, fetchImpl: async (url, init) => { contacted = true; return fetchImpl(url, init); } })).toBeNull();
+    expect(contacted).toBe(false);
     const failing: FetchLike = async () => { throw new Error("offline"); };
-    expect(await checkForUpdate({ currentVersion: "0.18.0", env: {}, fetchImpl: failing })).toBeNull();
+    expect(await checkForUpdate({ currentVersion: "0.18.0", env: optedIn, fetchImpl: failing })).toBeNull();
   });
 
   test("resolves the package root and web root from the launcher env or binary layout", async () => {

@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
+import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
 
 function restoreProcessEnv(name: string, value: string | undefined): void {
   if (value === undefined) {
@@ -20,7 +20,7 @@ async function writeFakeOpencodeBin(root: string): Promise<string> {
     "const portIndex = process.argv.indexOf(\"--port\");",
     "const port = portIndex >= 0 ? process.argv[portIndex + 1] : \"0\";",
     "const capturePath = process.env.HARNESS_CAPTURE_MODELS_URL_FILE;",
-    "if (capturePath) await Bun.write(capturePath, process.env.OPENCODE_MODELS_URL ?? \"\");",
+    "if (capturePath) await Bun.write(capturePath, JSON.stringify({ modelsUrl: process.env.OPENCODE_MODELS_URL ?? null, disableModelsFetch: process.env.OPENCODE_DISABLE_MODELS_FETCH ?? null, disableAutoupdate: process.env.OPENCODE_DISABLE_AUTOUPDATE ?? null, disableDefaultPlugins: process.env.OPENCODE_DISABLE_DEFAULT_PLUGINS ?? null }));",
     "console.log(`opencode server listening on http://127.0.0.1:${port}`);",
     "process.on(\"SIGTERM\", () => process.exit(0));",
     "setInterval(() => undefined, 1_000);",
@@ -29,32 +29,32 @@ async function writeFakeOpencodeBin(root: string): Promise<string> {
   return binPath;
 }
 
-describe("resolveOpencodeModelsUrl", () => {
+describe("resolveOpencodeModelCatalogEnv", () => {
   test("honors an explicit catalog URL", async () => {
-    expect(await resolveOpencodeModelsUrl({
+    expect(await resolveOpencodeModelCatalogEnv({
       env: {
         HARNESS_DEV_MODE: "1",
         OPENCODE_MODELS_URL: " https://catalog.example.test/models ",
       },
-    })).toBe("https://catalog.example.test/models");
+    })).toEqual({ OPENCODE_MODELS_URL: "https://catalog.example.test/models" });
   });
 
-  test("uses the production catalog outside development", async () => {
-    expect(await resolveOpencodeModelsUrl({ env: {} })).toBe("https://models.harness.invalid/");
+  test("uses the catalog built into the engine and fetches nothing by default", async () => {
+    expect(await resolveOpencodeModelCatalogEnv({ env: {} })).toEqual({ OPENCODE_DISABLE_MODELS_FETCH: "1" });
   });
 
   test("uses the local catalog when the development server is available", async () => {
-    expect(await resolveOpencodeModelsUrl({
+    expect(await resolveOpencodeModelCatalogEnv({
       env: { HARNESS_DEV_MODE: "1" },
       fetchModels: async () => new Response(null, { status: 200 }),
-    })).toBe("http://localhost:8791/models");
+    })).toEqual({ OPENCODE_MODELS_URL: "http://localhost:8791/models" });
   });
 
-  test("falls back to the production catalog when the development server is unavailable", async () => {
-    expect(await resolveOpencodeModelsUrl({
+  test("falls back to the built-in catalog when the development server is unavailable", async () => {
+    expect(await resolveOpencodeModelCatalogEnv({
       env: { HARNESS_DEV_MODE: "1" },
       fetchModels: async () => new Response(null, { status: 503 }),
-    })).toBe("https://models.harness.invalid/");
+    })).toEqual({ OPENCODE_DISABLE_MODELS_FETCH: "1" });
   });
 });
 
@@ -93,7 +93,12 @@ describe("startEmbeddedServer managed OpenCode models URL", () => {
       });
       await handle.stop();
 
-      expect(await readFile(capturePath, "utf8")).toBe("https://catalog.example.test/models");
+      expect(JSON.parse(await readFile(capturePath, "utf8"))).toEqual({
+        modelsUrl: "https://catalog.example.test/models",
+        disableModelsFetch: null,
+        disableAutoupdate: "1",
+        disableDefaultPlugins: "1",
+      });
     } finally {
       restoreProcessEnv("HARNESS_DEV_MODE", previousDevMode);
       restoreProcessEnv("OPENCODE_MODELS_URL", previousModelsUrl);

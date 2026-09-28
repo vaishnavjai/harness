@@ -91,6 +91,7 @@ import {
 } from "./process-resilience.mjs";
 import { createQuitSequencer } from "./quit-sequence.mjs";
 import { createDesktopAudit } from "./desktop-audit.mjs";
+import { createEgressRecorder, describeDestination, installAppWindowNetworkBoundary } from "./network-boundary.mjs";
 import { createMemoryService } from "./memory-service.mjs";
 import { createSecretStore } from "./secret-store.mjs";
 
@@ -1364,6 +1365,7 @@ const runtimeManager = createRuntimeManager({
 // Tamper-evident audit trail (~/.config/harness/audit.log), OS-keychain-backed
 // credentials, and the local-only Hindsight memory engine.
 const harnessAudit = createDesktopAudit({ filePath: harnessAuditLogPath() });
+const egressRecorder = createEgressRecorder(harnessAudit);
 const harnessSecretStore = createSecretStore({
   filePath: path.join(app.getPath("userData"), "harness-secrets.json"),
   getKey: createDesktopVaultKeyProvider({
@@ -2466,6 +2468,8 @@ const desktopCommandHandlers = {
       const url = String(args[0] ?? "").trim();
       const init = args[1] ?? {};
       if (!url) throw new Error("URL is required.");
+      const destination = describeDestination(url);
+      if (destination.network && !destination.loopback) egressRecorder.egress(destination.host, "main");
       /** @type {RequestInit} */
       const requestInit = {
         method: typeof init.method === "string" ? init.method : undefined,
@@ -3012,6 +3016,12 @@ or use: pnpm dev:worktree`);
     const systemCaCertificates = await runtimeManager.systemCaCertificates();
     session.defaultSession.setCertificateVerifyProc(createSystemCaCertificateVerifyProc(systemCaCertificates));
     installMediaPermissionHandlers(session, () => mainWindow);
+    installAppWindowNetworkBoundary({
+      session: session.defaultSession,
+      isAppWebContents: (webContentsId) =>
+        webContentsId !== undefined && Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.id === webContentsId),
+      recorder: egressRecorder,
+    });
     await runPendingNukeCleanup({
       env: process.env,
       homedir: os.homedir(),

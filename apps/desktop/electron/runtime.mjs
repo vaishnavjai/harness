@@ -1800,14 +1800,14 @@ export function createRuntimeManager({
     };
   }
 
-  async function pinnedOpencodeInstallCommand() {
+  async function pinnedOpencodeVersion() {
     const constantsPath = path.resolve(desktopRoot, "../../constants.json");
     const payload = JSON.parse(await readFile(constantsPath, "utf8"));
     const version = String(payload?.opencodeVersion ?? "").trim().replace(/^v/, "");
-    if (!version) {
-      throw new Error("constants.json is missing opencodeVersion");
+    if (!/^\d+\.\d+\.\d+$/.test(version)) {
+      throw new Error("constants.json is missing a valid opencodeVersion");
     }
-    return `curl -fsSL https://opencode.ai/install | bash -s -- --version ${version} --no-modify-path`;
+    return version;
   }
 
   function killProcessId(pid, signal = "SIGTERM") {
@@ -2310,8 +2310,11 @@ export function createRuntimeManager({
     }
 
     const installDir = path.join(app.getPath("home"), ".opencode", "bin");
-    const command = await pinnedOpencodeInstallCommand();
-    const result = await runShellCommand("bash", ["-lc", command], {
+    const version = await pinnedOpencodeVersion();
+    // The script text is constant; the URL and version reach it as positional
+    // parameters, never spliced into the command string.
+    const script = 'curl -fsSL "$1" | bash -s -- --version "$2" --no-modify-path';
+    const result = await runShellCommand("bash", ["-lc", script, "harness-engine-install", "https://opencode.ai/install", version], {
       env: { ...(await buildChildEnv()), OPENCODE_INSTALL_DIR: installDir },
       timeoutMs: 180_000,
     });
