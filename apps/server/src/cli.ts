@@ -28,6 +28,7 @@ import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from
 import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
 import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
+import { ENGINE_PROVIDER_KEYS_ENV, ENGINE_PROVIDER_KEYS_SECRET } from "./provider-key-vault.js";
 import { startWorkerActivityHeartbeat } from "./worker-activity-heartbeat.js";
 import {
   checkForUpdate,
@@ -145,6 +146,7 @@ if (manageEngine) {
     HARNESS_SERVER_TOKEN: config.token,
     OPENCODE_CONFIG: runtimeConfigPath,
     ...opencodeModelCatalogEnv,
+    [ENGINE_PROVIDER_KEYS_ENV]: ENGINE_PROVIDER_KEYS_SECRET,
   };
   const engineSpawnTemplate: EngineSpawnTemplate = {
     bin: process.env.HARNESS_OPENCODE_BIN,

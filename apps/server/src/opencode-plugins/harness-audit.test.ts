@@ -2,9 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { readAuditTail, verifyAuditLog } from "@harness/audit";
 import { harnessAuditLogPath } from "@harness/paths";
 
-import harnessAudit, { summarizeToolArgs } from "./harness-audit.js";
+import harnessAudit from "./harness-audit.js";
+import { summarizeToolArgs } from "./harness-audit-core.js";
 
 describe("harness audit plugin", () => {
+  test("the plugin module exports only its entry: OpenCode runs every exported function", async () => {
+    const plugin = await import("./harness-audit.js");
+    expect(Object.keys(plugin)).toEqual(["default"]);
+  });
+
   test("summarises commands and file writes without copying contents", () => {
     expect(summarizeToolArgs("bash", { command: "git status", workdir: "/w" })).toEqual({
       command: "git status",

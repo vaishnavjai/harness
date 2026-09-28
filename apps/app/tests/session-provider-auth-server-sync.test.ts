@@ -740,7 +740,7 @@ describe("session-route cloud provider sync wiring", () => {
           expect(store.getSnapshot().importedCloudProviders).toEqual({});
           expect(store.getProviderState()).toEqual({ all: [personal], connected: [personal.id], default: { [personal.id]: "fixture-model" } });
           expect(storage.getItem("harness.defaultModel")).toBe("anthropic/fixture-model");
-          expect(requests.filter((request) => request.method === "DELETE").map((request) => new URL(request.url).pathname)).toEqual(["/auth/harness"]);
+          expect(requests.filter((request) => request.method === "DELETE").map((request) => new URL(request.url).pathname)).toEqual(["/provider-keys/harness", "/auth/harness"]);
         } else {
           expect(auth.get(managed.id)).toBe("current-cloud-fixture-key");
           expect(runtimeProviders.get(managed.id)).toEqual(managed);

@@ -61,7 +61,15 @@ import { deleteSkill, listSkills, renderSkillContentForResponse, upsertSkill } f
 import { deleteCommand, listCommands, repairCommands, upsertCommand } from "./commands.js";
 import { ApiError, formatError } from "./errors.js";
 import { readJsoncFile, updateJsoncTopLevel, writeJsoncFile } from "./jsonc.js";
-import { recordAudit, readAuditEntries, readLastAudit } from "./audit.js";
+import { recordAudit, recordGlobalAudit, readAuditEntries, readLastAudit } from "./audit.js";
+import {
+  ENGINE_PROVIDER_KEYS_HEADER,
+  isEngineProviderKeysSecret,
+  isValidProviderId,
+  listProviderKeyIds,
+  readProviderKeys,
+  setProviderKey,
+} from "./provider-key-vault.js";
 import { ReloadEventStore } from "./events.js";
 import { computeReloadFingerprint } from "./reload-fingerprint.js";
 import { startReloadWatchers } from "./reload-watcher.js";
@@ -3174,6 +3182,45 @@ function createRoutes(
       ok: true,
       disabledProviders: runtimeDisabledProviderList(result.config),
     });
+  });
+
+  // Model-provider API keys live in the encrypted vault, never in the
+  // engine's plaintext auth.json. Clients write and list them (ids only);
+  // only the managed engine, holding the per-launch secret, reads them.
+  addRoute(routes, "GET", "/engine/provider-keys", "none", async (ctx) => {
+    if (!isEngineProviderKeysSecret(ctx.request.headers.get(ENGINE_PROVIDER_KEYS_HEADER))) {
+      throw new ApiError(401, "unauthorized", "Engine secret required");
+    }
+    const response = jsonResponse({ keys: await readProviderKeys(config) });
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  });
+
+  addRoute(routes, "GET", "/provider-keys", "client", async () => {
+    return jsonResponse({ providers: await listProviderKeyIds(config) });
+  });
+
+  addRoute(routes, "PUT", "/provider-keys/:providerId", "client", async (ctx) => {
+    ensureWritable(config);
+    requireClientScope(ctx, "collaborator");
+    const providerId = ctx.params.providerId ?? "";
+    if (!isValidProviderId(providerId)) throw new ApiError(400, "invalid_provider", "Invalid provider id");
+    const body = await readJsonBody(ctx.request);
+    const key = typeof body.key === "string" ? body.key.trim() : "";
+    if (!key) throw new ApiError(400, "invalid_payload", "key is required");
+    await setProviderKey(config, providerId, key);
+    recordGlobalAudit({ kind: "provider.key.set", actor: "user", subject: providerId, detail: { storage: "encrypted-vault" } });
+    return jsonResponse({ ok: true, providerId });
+  });
+
+  addRoute(routes, "DELETE", "/provider-keys/:providerId", "client", async (ctx) => {
+    ensureWritable(config);
+    requireClientScope(ctx, "collaborator");
+    const providerId = ctx.params.providerId ?? "";
+    if (!isValidProviderId(providerId)) throw new ApiError(400, "invalid_provider", "Invalid provider id");
+    await setProviderKey(config, providerId, null);
+    recordGlobalAudit({ kind: "provider.key.removed", actor: "user", subject: providerId });
+    return jsonResponse({ ok: true, providerId });
   });
 
   addRoute(routes, "GET", "/runtime-config/providers", "host-token", async () => {

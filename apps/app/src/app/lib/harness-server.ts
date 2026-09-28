@@ -2600,6 +2600,24 @@ export function createHarnessServerClient(options: { baseUrl: string; token?: st
         timeoutMs: timeouts.config,
       }),
 
+    /** Store a model-provider API key in the server's encrypted vault. */
+    setProviderKey: (providerId: string, key: string) =>
+      requestJson<{ ok: true; providerId: string }>(baseUrl, `/provider-keys/${encodeURIComponent(providerId)}`, {
+        token,
+        hostToken,
+        method: "PUT",
+        body: { key },
+        timeoutMs: timeouts.config,
+      }),
+
+    removeProviderKey: (providerId: string) =>
+      requestJson<{ ok: true; providerId: string }>(baseUrl, `/provider-keys/${encodeURIComponent(providerId)}`, {
+        token,
+        hostToken,
+        method: "DELETE",
+        timeoutMs: timeouts.config,
+      }),
+
   };
 }
 

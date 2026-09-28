@@ -37,6 +37,16 @@ function globalAuditLog(): AuditLogger {
   return globalAudit;
 }
 
+/** Record a machine-wide event that belongs to no workspace. */
+export function recordGlobalAudit(input: {
+  kind: string;
+  actor: "user" | "harness";
+  subject?: string;
+  detail?: Record<string, string | number | boolean | null>;
+}): void {
+  globalAuditLog().record({ kind: input.kind, actor: input.actor, subject: input.subject, detail: input.detail ?? {} });
+}
+
 export async function recordAudit(workspaceRoot: string, entry: AuditEntry): Promise<void> {
   globalAuditLog().record({
     kind: `server.${entry.action}`,

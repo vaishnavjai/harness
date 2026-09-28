@@ -1381,12 +1381,43 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     throw new Error(describeProviderError(maybe.error, t("providers.request_failed")));
   };
 
+  /**
+   * API keys go to the Harness server's encrypted vault; the engine only ever
+   * holds them in memory. Returns false for an older server without the vault
+   * routes, where the engine's own store is the only option.
+   */
+  const storeProviderKeyInVault = async (providerId: string, key: string | null): Promise<boolean> => {
+    const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+    if (!harnessClient) return false;
+    try {
+      if (key === null) await harnessClient.removeProviderKey(providerId);
+      else await harnessClient.setProviderKey(providerId, key);
+      return true;
+    } catch (error) {
+      if (error instanceof HarnessServerError && error.status === 404) return false;
+      throw error;
+    }
+  };
+
   const removeProviderAuthCredentials = async (providerId: string) => {
     const c = options.client();
     if (!c) {
       throw new Error(t("providers.not_connected"));
     }
+    await storeProviderKeyInVault(providerId, null);
+    await removeEngineAuth(c, providerId);
+  };
 
+  /** Best effort: there is usually nothing in the engine's store to remove. */
+  const removeEngineAuthEntry = async (c: Client, providerId: string) => {
+    try {
+      await removeEngineAuth(c, providerId);
+    } catch {
+      // Nothing stored there.
+    }
+  };
+
+  const removeEngineAuth = async (c: Client, providerId: string) => {
     const authClient = c.auth as unknown as {
       remove?: (options: { providerID: string }) => Promise<unknown>;
       set?: (options: { providerID: string; auth: unknown }) => Promise<unknown>;
@@ -1870,7 +1901,12 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       if (providerId.trim().toLowerCase() === DESKTOP_RESTRICTION_OPENCODE_PROVIDER_ID) {
         await ensureProjectProviderDisabledState(providerId, false);
       }
-      await c.auth.set({ providerID: providerId, auth: { type: "api", key: trimmed } });
+      if (await storeProviderKeyInVault(providerId, trimmed)) {
+        // Drop any copy an older build left in the engine's plaintext store.
+        await removeEngineAuthEntry(c, providerId);
+      } else {
+        await c.auth.set({ providerID: providerId, auth: { type: "api", key: trimmed } });
+      }
       await refreshProviders({ dispose: true });
       return `${t("status.connected")} ${providerId}`;
     } catch (error) {

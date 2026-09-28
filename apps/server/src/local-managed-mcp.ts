@@ -219,6 +219,15 @@ async function vaultKey(config: ServerConfig): Promise<Buffer> {
   }
 }
 
+/**
+ * The 32-byte key protecting this server's local secret vaults: provided by
+ * the desktop (OS keychain via Electron safeStorage) or derived from
+ * HARNESS_ENCRYPTION_KEY. Other vaults derive their own sub-key from it.
+ */
+export async function localSecretVaultKey(config: ServerConfig): Promise<Buffer> {
+  return vaultKey(config);
+}
+
 function isVaultEnvelope(value: unknown): value is VaultEnvelope {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
