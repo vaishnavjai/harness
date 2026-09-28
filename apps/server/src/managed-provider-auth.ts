@@ -6,6 +6,15 @@ import { readGlobalRuntimeOpencodeConfig, runtimeProviderMap } from "./runtime-o
 import type { ServerConfig } from "./types.js";
 import { readHarnessWorkspaceConfig, writeHarnessWorkspaceConfig } from "./harness-workspace-config-store.js";
 import { findManagedEngineWorkspace } from "./workspaces.js";
+import { setProviderKey } from "./provider-key-vault.js";
+
+/**
+ * What the engine's own credential store (plaintext auth.json) receives in
+ * place of a key. The real key goes to the encrypted vault; the
+ * harness-provider-keys plugin sets it as the provider's apiKey option, which
+ * the engine prefers over a stored credential.
+ */
+export const VAULT_KEY_PLACEHOLDER = "harness-vault";
 
 /**
  * Deliver server-managed provider credentials to the engine.
@@ -325,10 +334,13 @@ async function reconcileManagedProviderAuth(input: ManagedProviderAuthInput): Pr
     }
 
     try {
+      // Vault first: a store that cannot encrypt fails the delivery rather
+      // than handing the engine a key it would write to disk in plaintext.
+      await setProviderKey(input.config, providerId, credential);
       const response = await fetchImpl(`${target.baseUrl}/auth/${encodeURIComponent(providerId)}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify({ type: "api", key: credential }),
+        body: JSON.stringify({ type: "api", key: VAULT_KEY_PLACEHOLDER }),
         signal: AbortSignal.timeout(authRequestTimeoutMs()),
       });
       if (!isCurrent()) return result;
@@ -361,6 +373,7 @@ async function reconcileManagedProviderAuth(input: ManagedProviderAuthInput): Pr
     if (managedIds.has(providerId)) continue;
     if (!isCurrent()) return result;
     try {
+      await setProviderKey(input.config, providerId, null);
       const response = await fetchImpl(`${target.baseUrl}/auth/${encodeURIComponent(providerId)}`, {
         method: "DELETE",
         headers,

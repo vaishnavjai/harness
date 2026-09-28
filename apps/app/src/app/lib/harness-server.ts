@@ -93,6 +93,8 @@ function parseEngineV2Migration(value: unknown): EngineV2MigrationStatus | undef
 }
 
 export interface EngineV2PreviewStatus {
+  /** False when the server does not offer the v2 preview; older servers omit it. */
+  available: boolean;
   enabled: boolean;
   running: boolean;
   chatRouting: boolean;
@@ -120,6 +122,7 @@ function parseEngineV2PreviewStatus(value: unknown): EngineV2PreviewStatus {
   }
   return {
     migration: parseEngineV2Migration("migration" in value ? value.migration : undefined),
+    available: "available" in value && typeof value.available === "boolean" ? value.available : true,
     enabled: value.enabled,
     running: value.running,
     chatRouting: "chatRouting" in value && typeof value.chatRouting === "boolean" ? value.chatRouting : false,

@@ -1388,7 +1388,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
    */
   const storeProviderKeyInVault = async (providerId: string, key: string | null): Promise<boolean> => {
     const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
-    if (!harnessClient) return false;
+    if (!harnessClient || typeof harnessClient.setProviderKey !== "function") return false;
     try {
       if (key === null) await harnessClient.removeProviderKey(providerId);
       else await harnessClient.setProviderKey(providerId, key);
@@ -1968,10 +1968,14 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
         await harnessClient.upsertUserEnv(envEntries);
       }
       if (primaryApiKey) {
-        await c.auth.set({
-          providerID: localProviderId,
-          auth: { type: "api", key: primaryApiKey },
-        });
+        if (await storeProviderKeyInVault(localProviderId, primaryApiKey)) {
+          await removeEngineAuthEntry(c, localProviderId);
+        } else {
+          await c.auth.set({
+            providerID: localProviderId,
+            auth: { type: "api", key: primaryApiKey },
+          });
+        }
         await mirrorCloudProviderEnv(provider, primaryApiKey, envEntries);
       }
       if (existingImported?.providerId && existingImported.providerId !== localProviderId) {

@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { EnvService } from "./env-file.js";
+import { VAULT_KEY_PLACEHOLDER } from "./managed-provider-auth.js";
+import { readProviderKeys } from "./provider-key-vault.js";
 import { CloudProviderSync } from "./cloud-provider-sync.js";
 import { harnessRuntimeConfigFilePath } from "./harness-runtime-config.js";
 import { clearEnginePoolForConfig, setEnginePoolForConfig, type EnginePool, type RolloverOutcome } from "./engine-pool.js";
@@ -1515,7 +1517,9 @@ describe("cloud provider sync gateway", () => {
       expect(JSON.stringify(runtimeProvider)).not.toContain(localSecret);
       expect(JSON.stringify(sync.status())).not.toContain(localSecret);
       expect(JSON.stringify(denTraffic)).not.toContain(localSecret);
-      expect(engineAuth.get(provider.id)).toBe(localSecret);
+      // The engine's plaintext store holds a placeholder; the key is in the vault.
+      expect(engineAuth.get(provider.id)).toBe(VAULT_KEY_PLACEHOLDER);
+      expect((await readProviderKeys(config))[provider.id]).toBe(localSecret);
       expect((await env.list()).find((entry) => entry.key === credentialKey)?.value).toBe(localSecret);
       const ownership = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
       expect(ownership.providerIds).toEqual([provider.id]);
@@ -1603,7 +1607,8 @@ describe("cloud provider sync gateway", () => {
     const cloudOwnership = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
     const cloudHashes = expectRecord(cloudOwnership.envHashes, "Cloud credential hashes");
     expect(Object.keys(cloudHashes)).toEqual([credentialKey]);
-    expect(engineAuth.get(provider.id)).toBe(provider.apiKey);
+    expect(engineAuth.get(provider.id)).toBe(VAULT_KEY_PLACEHOLDER);
+    expect((await readProviderKeys(config))[provider.id]).toBe(provider.apiKey);
     provider.apiKey = "";
     expect((await sync.run("cloud-credential-withdrawn")).status).toBe("applied");
     expect(sync.status().providers).toEqual([]);

@@ -72,6 +72,22 @@ describe.skipIf(!opencodeBin)("provider keys with the real engine", () => {
         expect(failures).toEqual([]);
       }
 
+      // An agent's shell command cannot reach the keys: the engine secret is
+      // gone from the environment the engine hands its children.
+      const session = await (await engine("/session", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json() as { id: string };
+      const probe = [
+        'if [ -z "${HARNESS_ENGINE_SECRET:-}" ]; then echo ENGINE_SECRET=absent; else echo ENGINE_SECRET=present; fi',
+        "curl -sS --noproxy '*' -H x-harness-engine-secret:$HARNESS_ENGINE_SECRET $HARNESS_SERVER_URL/engine/provider-keys || true",
+      ].join("; ");
+      await engine(`/session/${session.id}/shell`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ agent: "harness", command: probe }),
+      });
+      const transcript = await (await engine(`/session/${session.id}/message`)).text();
+      expect(transcript).toContain("ENGINE_SECRET=absent");
+      expect(transcript).not.toContain(secretKey);
+
       const removed = await fetch(`${handle.url}/provider-keys/openai`, { method: "DELETE", headers: client });
       expect(removed.status).toBe(200);
       expect((await engine("/instance/dispose", { method: "POST" })).ok).toBe(true);

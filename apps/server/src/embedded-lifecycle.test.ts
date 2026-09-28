@@ -8,6 +8,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { startEmbeddedServer, type EmbeddedServerHandle, type EmbeddedServerOptions } from "./embedded.js";
 import { resolveServerConfig } from "./config.js";
 import { EnvService } from "./env-file.js";
+import { readProviderKeys } from "./provider-key-vault.js";
 import { readEngineRegistry } from "./engine-registry.js";
 import * as managedProviderAuthModule from "./managed-provider-auth.js";
 import * as managedOpencodeModule from "./managed-opencode.js";
@@ -288,7 +289,10 @@ describe("embedded server lifecycle", () => {
         if (!env) throw new Error("Expected startup environment service");
         expect(authSpy.mock.calls[0]?.[0].env).toBe(env);
         const lines = await logLines(fixture.logPath);
-        expect(lines).toContain('auth-body:{"type":"api","key":"synthetic-startup-key"}');
+        // The engine's plaintext store gets a placeholder; the key is in the vault.
+        expect(lines).toContain('auth-body:{"type":"api","key":"harness-vault"}');
+        expect(lines.join("\n")).not.toContain("synthetic-startup-key");
+        expect(await readProviderKeys(startupConfig)).toMatchObject({ [PROVIDER_ID]: "synthetic-startup-key" });
         expect(lines).toContain("auth-health:/health:503:false");
         expect(lines).toContain("auth-health:/w/startup/health:503:false");
         expect(lines.filter((line) => line === `/auth/${PROVIDER_ID}`)).toHaveLength(1);

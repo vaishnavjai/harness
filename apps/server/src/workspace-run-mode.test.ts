@@ -248,7 +248,14 @@ describe("runtime activity for the owning host", () => {
   });
 
   test("blocks unsupported configs and the live v2 chat-routing flag without touching the file", async () => {
+    // The v2 preview is developer-only; any value other than 1/chat/sidecar
+    // offers it without starting it.
+    const previousPreview = process.env.HARNESS_ENGINE_V2_PREVIEW;
+    try {
     const { root, origin, base, put, engineState } = await startModeServer();
+    const refused = await fetch(`${origin}/experimental/engine-v2-preview`, { method: "PUT", headers, body: JSON.stringify({ chatRouting: true }) });
+    expect(refused.status).toBe(403);
+    process.env.HARNESS_ENGINE_V2_PREVIEW = "opt-in";
     for (const content of ['{"permission":"deny"}', '{"permission":{"*":{}}}', '{"permission":']) {
       await writeFile(opencodeConfigPath(root), content);
       expect(await (await fetch(base, { headers })).json()).toMatchObject({ mode: null, supported: false, reason: expect.any(String) });
@@ -263,6 +270,10 @@ describe("runtime activity for the owning host", () => {
     expect((await put("run-everything")).status).toBe(409);
     expect(await readFile(opencodeConfigPath(root), "utf8")).toBe(valid);
     expect(engineState.disposals).toBe(0);
+    } finally {
+      if (previousPreview === undefined) delete process.env.HARNESS_ENGINE_V2_PREVIEW;
+      else process.env.HARNESS_ENGINE_V2_PREVIEW = previousPreview;
+    }
   });
 
   test("keeps the read-only and config.write approval gates", async () => {

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 import {
   clearEnginePoolForConfig,
@@ -9,7 +10,8 @@ import {
   type EnginePool,
   type EnginePoolConnection,
 } from "./engine-pool.js";
-import { resetManagedProviderAuthCache, syncManagedProviderAuth } from "./managed-provider-auth.js";
+import { VAULT_KEY_PLACEHOLDER, resetManagedProviderAuthCache, syncManagedProviderAuth } from "./managed-provider-auth.js";
+import { readProviderKeys } from "./provider-key-vault.js";
 import { ENGINE_GLOBAL_RUNTIME_CONFIG_ID, writeRuntimeOpencodeConfig } from "./runtime-opencode-config-store.js";
 import type { ServerConfig } from "./types.js";
 
@@ -46,6 +48,9 @@ function installManagedPool(config: ServerConfig, connection: () => EnginePoolCo
   setEnginePoolForConfig(config, pool);
 }
 
+// Stands in for the desktop's keychain-backed key: provider keys live in the vault.
+const vaultKey = randomBytes(32);
+
 async function makeConfig(dir: string): Promise<ServerConfig> {
   const config = {
     port: 0,
@@ -56,6 +61,7 @@ async function makeConfig(dir: string): Promise<ServerConfig> {
     opencodeBaseUrl: "http://127.0.0.1:39999",
     opencodeUsername: "engine-user",
     opencodePassword: "engine-pass",
+    localManagedMcpVaultKey: async () => vaultKey,
     workspaces: [
       {
         id: "ws_test",
@@ -97,7 +103,9 @@ describe("managed provider auth delivery", () => {
     expect(fetchStub.calls).toHaveLength(1);
     expect(fetchStub.calls[0]?.method).toBe("PUT");
     expect(fetchStub.calls[0]?.url).toBe(`http://127.0.0.1:39999/auth/${PROVIDER}`);
-    expect(fetchStub.calls[0]?.body).toEqual({ type: "api", key: "sk-ant-secret" });
+    // The engine's plaintext store gets a placeholder; the key goes to the vault.
+    expect(fetchStub.calls[0]?.body).toEqual({ type: "api", key: VAULT_KEY_PLACEHOLDER });
+    expect(await readProviderKeys(config)).toEqual({ [PROVIDER]: "sk-ant-secret" });
     expect(fetchStub.calls[0]?.authorization).toBe(
       `Basic ${Buffer.from("engine-user:engine-pass").toString("base64")}`,
     );
@@ -121,7 +129,8 @@ describe("managed provider auth delivery", () => {
     });
 
     expect(result.delivered).toEqual([PROVIDER]);
-    expect(fetchStub.calls[0]?.body).toEqual({ type: "api", key: "real-api-key" });
+    expect(fetchStub.calls[0]?.body).toEqual({ type: "api", key: VAULT_KEY_PLACEHOLDER });
+    expect(await readProviderKeys(config)).toEqual({ [PROVIDER]: "real-api-key" });
     await rm(dir, { recursive: true, force: true });
   });
 
@@ -185,7 +194,8 @@ describe("managed provider auth delivery", () => {
     expect(second.delivered).toEqual([PROVIDER]);
     const puts = fetchStub.calls.filter((call) => call.method === "PUT");
     expect(puts).toHaveLength(2);
-    expect(puts[1]?.body).toEqual({ type: "api", key: "sk-ant-rotated" });
+    expect(puts[1]?.body).toEqual({ type: "api", key: VAULT_KEY_PLACEHOLDER });
+    expect(await readProviderKeys(config)).toEqual({ [PROVIDER]: "sk-ant-rotated" });
     await rm(dir, { recursive: true, force: true });
   });
 

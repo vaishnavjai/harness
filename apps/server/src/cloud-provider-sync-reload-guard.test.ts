@@ -2,10 +2,13 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 import { clearEnginePoolForConfig, setEnginePoolForConfig, type EnginePool } from "./engine-pool.js";
 import { startServer } from "./server.js";
 import type { ServerConfig } from "./types.js";
+
+const vaultKey = randomBytes(32);
 
 /**
  * Regression tests for the "aborted messages / provider header-timeout storm"
@@ -73,6 +76,8 @@ function serverConfig(root: string, baseUrl?: string): ServerConfig {
     hostTokenSource: "cli",
     logFormat: "pretty",
     logRequests: false,
+    // Env store and provider keys are encrypted under the vault key.
+    localManagedMcpVaultKey: async () => vaultKey,
   } satisfies ServerConfig;
 }
 

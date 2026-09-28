@@ -3329,6 +3329,9 @@ function createRoutes(
     if (body.chatRouting !== undefined && typeof body.chatRouting !== "boolean") {
       throw new ApiError(400, "invalid_payload", "chatRouting must be a boolean");
     }
+    if ((body.enabled === true || body.chatRouting === true) && !engineV2Preview.status().available) {
+      throw new ApiError(403, "engine_v2_unavailable", "The OpenCode v2 preview is not available in Harness.");
+    }
     let status = engineV2Preview.status();
     // Stop routing before stopping the v2 process; enable the process before routing to it.
     if (body.chatRouting === false) status = await engineV2Preview.setChatRouting(false);

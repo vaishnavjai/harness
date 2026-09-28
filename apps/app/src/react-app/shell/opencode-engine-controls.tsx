@@ -46,14 +46,16 @@ export function useOpencodeEngineControls(client: OpencodeEngineClient | null | 
     window.dispatchEvent(new CustomEvent("harness-engine-changed"));
     return next;
   });
-  const items: PaletteItem[] = (["v1", "v2"] satisfies Array<"v1" | "v2">).map((engine) => ({
+  // A server that does not offer the v2 preview gets no engine commands.
+  const offered = status?.available !== false;
+  const items: PaletteItem[] = !offered ? [] : (["v1", "v2"] satisfies Array<"v1" | "v2">).map((engine) => ({
     id: `opencode.switch-${engine}`, title: `Switch to OpenCode ${engine}`,
     keywords: ["engine", "toggle", "enable", "opencode", engine], group: "actions",
     meta: selected === engine && status ? "Selected" : engine === "v2" ? "Preview" : undefined,
     detail: blockedReason ?? (migrating ? "Wait for history migration to finish." : undefined),
     disabled: disabled || (Boolean(status) && selected === engine), action: () => select(engine),
   }));
-  items.push({ id: "opencode.migrate-v2", title: "Migrate chats to OpenCode v2", keywords: ["migration", "history", "import", "v1", "v2"],
+  if (offered) items.push({ id: "opencode.migrate-v2", title: "Migrate chats to OpenCode v2", keywords: ["migration", "history", "import", "v1", "v2"],
     group: "actions", disabled: disabled || !status?.migration,
     detail: blockedReason ?? (!status?.migration ? "Update Harness to migrate chats." : undefined),
     action: () => setMigrationOpen(true) });

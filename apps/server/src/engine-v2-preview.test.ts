@@ -8,6 +8,7 @@ import {
   mapRuntimeProvidersToV2Specs,
   mapRuntimeMcpToV2,
   readEngineV2PreviewState,
+  engineV2PreviewAvailable,
   resolveInitialEngineV2PreviewState,
   writeEngineV2PreviewState,
 } from "./engine-v2-preview.js";
@@ -60,9 +61,12 @@ function testConfig(root: string): ServerConfig {
   };
 }
 
-test("keeps persisted engine v2 preview state when the override is unset", () => {
-  const persisted = { enabled: true, chatRouting: false };
-  expect(resolveInitialEngineV2PreviewState({}, persisted)).toEqual(persisted);
+test("ignores a saved v2 preview toggle unless a developer opts in", () => {
+  const persisted = { enabled: true, chatRouting: true };
+  expect(resolveInitialEngineV2PreviewState({}, persisted)).toEqual({ enabled: false, chatRouting: false });
+  expect(resolveInitialEngineV2PreviewState({ HARNESS_ENGINE_V2_PREVIEW: "0" }, persisted)).toEqual({ enabled: false, chatRouting: false });
+  expect(engineV2PreviewAvailable({})).toBe(false);
+  expect(engineV2PreviewAvailable({ HARNESS_ENGINE_V2_PREVIEW: "sidecar" })).toBe(true);
 });
 
 test("enables engine v2 preview and chat routing when the override is 1", () => {

@@ -7,9 +7,29 @@
 
 import { createProviderKeysPlugin } from "./harness-provider-keys-core.js";
 
+const SECRET_SLOT = Symbol.for("harness.engineSecret");
+
+/**
+ * Move the per-launch secret out of the environment on first load. The
+ * engine hands its environment to every shell command and MCP server it
+ * starts; with the secret gone from it, an agent's shell cannot ask the
+ * server for the keys. The process-wide slot survives plugin reloads.
+ */
+function takeEngineSecret(): string {
+  const fromEnv = process.env.HARNESS_ENGINE_SECRET;
+  if (fromEnv) {
+    Reflect.set(globalThis, SECRET_SLOT, fromEnv);
+    delete process.env.HARNESS_ENGINE_SECRET;
+  }
+  const held: unknown = Reflect.get(globalThis, SECRET_SLOT);
+  return typeof held === "string" ? held : "";
+}
+
+takeEngineSecret();
+
 export default async function harnessProviderKeys() {
   return createProviderKeysPlugin({
     serverUrl: String(process.env.HARNESS_SERVER_URL || ""),
-    secret: String(process.env.HARNESS_ENGINE_SECRET || ""),
+    secret: takeEngineSecret(),
   })();
 }

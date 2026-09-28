@@ -59,6 +59,8 @@ async function joinBounded(promise: Promise<unknown>, ms: number): Promise<void>
 }
 
 export interface EngineV2PreviewStatus {
+  /** Whether this install offers the preview at all (developer opt-in only). */
+  available: boolean;
   enabled: boolean;
   chatRouting: boolean;
   running: boolean;
@@ -107,10 +109,21 @@ export interface EngineV2PreviewState {
   chatRouting?: boolean;
 }
 
+/**
+ * The OpenCode v2 preview downloads its own engine and writes provider keys
+ * into its config file, so Harness offers it only to developers who set
+ * HARNESS_ENGINE_V2_PREVIEW. Without it, a saved toggle is ignored.
+ */
+export function engineV2PreviewAvailable(env: NodeJS.ProcessEnv): boolean {
+  const value = env.HARNESS_ENGINE_V2_PREVIEW?.trim().toLowerCase();
+  return Boolean(value) && value !== "0" && value !== "off" && value !== "false";
+}
+
 export function resolveInitialEngineV2PreviewState(
   env: NodeJS.ProcessEnv,
   persisted: EngineV2PreviewState,
 ): EngineV2PreviewState {
+  if (!engineV2PreviewAvailable(env)) return { enabled: false, chatRouting: false };
   const override = env.HARNESS_ENGINE_V2_PREVIEW;
   if (override === "1" || override === "chat") return { enabled: true, chatRouting: true };
   if (override === "sidecar") return { enabled: true, chatRouting: false };
@@ -503,6 +516,7 @@ export function createEngineV2Preview(options: {
 
   function status(): EngineV2PreviewStatus {
     return {
+      available: engineV2PreviewAvailable(process.env),
       enabled,
       migration: { ...migration },
       chatRouting,
