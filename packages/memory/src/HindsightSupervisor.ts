@@ -20,11 +20,12 @@ import { reapEmbeddedPostgres, signalProcessTree, type TreeSignal } from "./proc
  *   REST API with a random per-launch bearer token, so other local programs
  *   and web pages cannot read the memory store.
  * - The embedded Postgres uses a random per-install password (0600 file in
- *   the data directory) instead of pg0's well-known default, and its Unix
- *   socket lives in a 0700 folder there instead of /tmp, so another OS
- *   account cannot open the database directly. The password does appear on
- *   pg0's command line for the seconds `pg0 start` runs; on shared machines,
- *   mount /proc with hidepid=2 to hide other users' arguments.
+ *   the data directory) instead of pg0's well-known default. On macOS and
+ *   Linux the launcher runs that server itself: no TCP listener, only a Unix
+ *   socket in a 0700 folder in the data directory, and the password never on
+ *   any command line (other accounts can read those). Another OS account has
+ *   no way to reach the database, even with the password. On Windows pg0 still
+ *   serves on 127.0.0.1, where only the password guards it.
  * - The child leads its own process group (POSIX), so stop() and the exit
  *   hooks signal every descendant; the embedded Postgres, which pg_ctl
  *   daemonizes out of that group, is reaped from its postmaster.pid.

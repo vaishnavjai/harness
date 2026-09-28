@@ -6,10 +6,13 @@ Run with: python -m unittest discover -s packages/memory/python
 from __future__ import annotations
 
 import os
+import shlex
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -168,6 +171,126 @@ class BindingTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 2)
         self.assertIn("invalid HINDSIGHT_API_PORT", result.stderr)
+
+
+class PrivatePostgresOptionTests(unittest.TestCase):
+    def test_tcp_stays_off_even_when_the_url_asks_for_it(self) -> None:
+        options = launcher.pg_ctl_options("/data/run", {"listen_addresses": "*", "unix_socket_permissions": "0777"})
+        words = shlex.split(options)
+        self.assertIn("listen_addresses=", words)
+        self.assertNotIn("listen_addresses=*", words)
+        self.assertIn("unix_socket_permissions=0700", words)
+        self.assertNotIn("unix_socket_permissions=0777", words)
+
+    def test_socket_folders_with_spaces_or_quotes_survive_the_shell(self) -> None:
+        folder = "/Users/a b/Library/Application Support/Harness/it's/run"
+        words = shlex.split(launcher.pg_ctl_options(folder, {"unix_socket_directories": "/tmp"}))
+        self.assertIn(f"unix_socket_directories={folder}", words)
+        self.assertNotIn("unix_socket_directories=/tmp", words)
+
+    def test_environment_drops_ambient_libpq_settings_and_passes_the_password_privately(self) -> None:
+        previous = {name: os.environ.get(name) for name in ("PGHOST", "PGPASSWORD", "LD_LIBRARY_PATH")}
+        os.environ.update({"PGHOST": "attacker.example", "PGPASSWORD": "ambient", "LD_LIBRARY_PATH": "/opt/lib"})
+        try:
+            env = launcher.postgres_environment("/install", "secret")
+        finally:
+            for name, value in previous.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+        self.assertNotIn("PGHOST", env)
+        self.assertEqual(env["PGPASSWORD"], "secret")
+        self.assertEqual(env["LD_LIBRARY_PATH"], f"/install/lib{os.pathsep}/opt/lib")
+        self.assertNotIn("PGPASSWORD", launcher.postgres_environment("/install"))
+
+    def test_installation_needs_pgvector_and_matches_the_cluster_version(self) -> None:
+        with tempfile.TemporaryDirectory() as home:
+            root = Path(home, ".pg0", "installation")
+            for version, vector in (("17.2.0", True), ("18.1.0", False)):
+                Path(root, version, "bin").mkdir(parents=True)
+                Path(root, version, "bin", "pg_ctl").write_text("")
+                if vector:
+                    Path(root, version, "share", "extension").mkdir(parents=True)
+                    Path(root, version, "share", "extension", "vector.control").write_text("")
+            self.assertEqual(launcher.find_postgres_installation(home), str(Path(root, "17.2.0")))
+            self.assertIsNone(launcher.find_postgres_installation(home, "18"))
+            self.assertIsNone(launcher.find_postgres_installation(str(Path(home, "missing"))))
+
+
+def pg0_available() -> bool:
+    try:
+        import pg0  # noqa: F401
+    except ImportError:
+        return False
+    return sys.platform != "win32" and hasattr(os, "geteuid") and os.geteuid() != 0
+
+
+@unittest.skipUnless(pg0_available(), "needs pg0 and a non-root POSIX account (Postgres refuses root)")
+class PrivatePostgresTests(unittest.TestCase):
+    """Starts the real embedded Postgres through the launcher's pg0 override."""
+
+    def test_socket_only_server_whose_password_never_reaches_a_command_line(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            password = "Launcher-Test-" + os.urandom(12).hex()
+            home, data, run = (os.path.join(root, name) for name in ("home", "postgres", "run"))
+            os.makedirs(home, mode=0o700)
+            previous_home = os.environ.get("HOME")
+            os.environ["HOME"] = home
+            hits: list[str] = []
+            stop = threading.Event()
+
+            def watch() -> None:
+                me = str(os.getpid())
+                while not stop.is_set():
+                    for pid in os.listdir("/proc") if os.path.isdir("/proc") else []:
+                        if not pid.isdigit() or pid == me:
+                            continue
+                        try:
+                            with open(f"/proc/{pid}/cmdline", "rb") as handle:
+                                if password.encode() in handle.read():
+                                    hits.append(pid)
+                        except OSError:
+                            pass
+                    time.sleep(0.005)
+
+            watcher = threading.Thread(target=watch, daemon=True)
+            watcher.start()
+            import pg0
+
+            original = pg0.Pg0
+            try:
+                launcher.pin_pg0_data_dir(data)
+                engine = pg0.Pg0(name="harness-memory", username="hindsight", password=password, database="hindsight",
+                                 config={"unix_socket_directories": run, "unix_socket_permissions": "0700"})
+                self.assertFalse(engine.info().running)
+                info = engine.start()
+                try:
+                    self.assertTrue(info.running)
+                    self.assertTrue(info.uri.startswith("postgresql://hindsight:"))
+                    query = launcher.postgres_environment(launcher.find_postgres_installation(home), password)
+                    result = subprocess.run(
+                        [os.path.join(launcher.find_postgres_installation(home) or "", "bin", "psql"), "-X", "-At",
+                         "-h", run, "-U", "hindsight", "-d", "hindsight", "-c", "show listen_addresses"],
+                        env=query, capture_output=True, text=True, timeout=30, check=True,
+                    )
+                    self.assertEqual(result.stdout.strip(), "")
+                    self.assertEqual(os.stat(run).st_mode & 0o777, 0o700)
+                    # A second start on the running store is a no-op.
+                    self.assertTrue(pg0.Pg0(name="harness-memory", username="hindsight", password=password,
+                                            database="hindsight", config={"unix_socket_directories": run}).start().running)
+                finally:
+                    engine.stop()
+                self.assertFalse(engine.info().running)
+            finally:
+                stop.set()
+                watcher.join()
+                pg0.Pg0 = original
+                if previous_home is None:
+                    os.environ.pop("HOME", None)
+                else:
+                    os.environ["HOME"] = previous_home
+            self.assertEqual(hits, [], "the database password appeared in a process's arguments")
 
 
 if __name__ == "__main__":

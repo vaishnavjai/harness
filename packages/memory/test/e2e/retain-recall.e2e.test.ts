@@ -7,7 +7,9 @@
 // root, so when the suite runs as root the engine is started as `nobody`.
 import { afterAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
-import { chown, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import { readdirSync, readFileSync } from "node:fs";
+import { chown, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -169,10 +171,37 @@ async function startEngine(provider: MemoryLlmProvider, modelBaseUrl: string, po
 const OTHER_ACCOUNT = 1;
 
 /**
+ * Seeds the store's database password and polls every process's command line
+ * for it until the returned reader is called. Linux only (reads /proc).
+ */
+async function watchCommandLinesFor(dataDir: string): Promise<() => string[]> {
+  const password = `E2e_${randomBytes(24).toString("base64url")}`;
+  const file = join(dataDir, "database-password");
+  await writeFile(file, `${password}\n`, { mode: 0o600 });
+  if (asRoot) await chown(file, NOBODY, NOBODY);
+  const hits = new Set<string>();
+  const scan = () => {
+    let pids: string[] = [];
+    try { pids = readdirSync("/proc").filter((name) => /^\d+$/.test(name) && name !== String(process.pid)); } catch { return; }
+    for (const pid of pids) {
+      try {
+        const command = readFileSync(`/proc/${pid}/cmdline`, "utf8");
+        if (command.includes(password)) hits.add(command.replaceAll("\0", " ").replace(password, "<password>").slice(0, 160));
+      } catch { /* exited */ }
+    }
+  };
+  const timer = process.platform === "linux" ? setInterval(scan, 5) : undefined;
+  return () => {
+    if (timer) clearInterval(timer);
+    return [...hits];
+  };
+}
+
+/**
  * Tries to open the engine's database as a different OS account: with pg0's
  * well-known default login over TCP, through the engine's private socket, and
- * through /tmp. Also tries the real password, so a pass proves authentication
- * (not an unreachable server) is what keeps the other account out.
+ * through /tmp. Also tries the real password over TCP: the server has no TCP
+ * listener at all, so even a leaked password opens nothing.
  */
 async function probeDatabaseFromAnotherAccount(dataDir: string) {
   if (!runtime) throw new Error("no runtime");
@@ -221,8 +250,12 @@ describe.skipIf(!runtime)("embedded Hindsight engine (real)", () => {
       const models = startModelServer();
       cleanups.push(() => models.server.stop(true));
       const { supervisor, dataDir } = await startEngine(provider, models.baseUrl, provider === "ollama" ? 18_877 : 18_876);
+      // Every process's arguments are visible to other local accounts: the
+      // database password must never be among them, from launch to ready.
+      const passwordSeen = await watchCommandLinesFor(dataDir);
 
       const endpoint = await supervisor.start();
+      expect(passwordSeen()).toEqual([]);
       expect(endpoint.baseUrl.startsWith("http://127.0.0.1:")).toBe(true);
       const client = supervisor.client();
       await client.ensureBank("harness");
@@ -243,10 +276,10 @@ describe.skipIf(!runtime)("embedded Hindsight engine (real)", () => {
       if (asRoot && provider === "openai-compatible") {
         // Another OS account cannot open the memory database.
         const probe = await probeDatabaseFromAnotherAccount(dataDir);
-        expect(probe.results.defaultLoginTcp).toBe("InvalidPasswordError");
+        expect(probe.results.defaultLoginTcp).not.toBe("connected");
         expect(probe.results.privateSocket).toBe("PermissionError");
         expect(probe.results.tmpSocket).not.toBe("connected");
-        expect(probe.results.realPasswordTcp).toBe("connected");
+        expect(probe.results.realPasswordTcp).not.toBe("connected");
         await expect(stat(`/tmp/.s.PGSQL.${probe.port}`)).rejects.toThrow();
         expect((await stat(join(dataDir, "run", `.s.PGSQL.${probe.port}`))).isSocket()).toBe(true);
       }
