@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { paletteSessionActions } from "../worlds/chat.ts";
 
 const test = spec.world(paletteSessionActions);

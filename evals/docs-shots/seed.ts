@@ -1,7 +1,7 @@
-import { denFetch } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { resolvePlace } from "@openwork/testkit/stack";
-import type { Den, Place } from "@openwork/testkit/stack";
+import { denFetch } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { resolvePlace } from "@harness/testkit/stack";
+import type { Den, Place } from "@harness/testkit/stack";
 import {
   ACME_DOCS_APP,
   ACME_DOCS_MEMBER,
@@ -45,7 +45,7 @@ async function readOrganizationId(admin: DenSession): Promise<string> {
 async function mintMcpToken(admin: DenSession, orgId: string): Promise<string> {
   const { response, body, text } = await denFetch(admin, "/v1/mcp/token", {
     method: "POST",
-    headers: { authorization: `Bearer ${admin.token}`, "x-openwork-org-id": orgId },
+    headers: { authorization: `Bearer ${admin.token}`, "x-harness-org-id": orgId },
     body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   });
   const token = isRecord(body) && typeof body.token === "string" ? body.token : "";

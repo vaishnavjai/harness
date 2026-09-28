@@ -8,12 +8,12 @@ import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
 import type { DynamicToolUIPart } from "ai"
 
 import {
-  createOpenworkServerClient,
+  createHarnessServerClient,
   normalizeMcpAppHostOrigin,
-  OpenworkServerError,
-  type OpenworkMcpAppResource,
-  type OpenworkServerClient,
-} from "../src/app/lib/openwork-server"
+  HarnessServerError,
+  type HarnessMcpAppResource,
+  type HarnessServerClient,
+} from "../src/app/lib/harness-server"
 import { formatMcpAppDiagnostic, safeMcpAppDiagnosticMessage } from "../src/components/chat/mcp-app-diagnostics"
 import type { McpAppSandboxViewProps } from "../src/components/chat/mcp-app-frame"
 import * as mcpAppOrigin from "../src/components/chat/mcp-app-origin"
@@ -39,7 +39,7 @@ const {
   secureMcpAppHtml,
 } = await import("../src/components/chat/mcp-app-frame")
 
-function fixture(overrides: Partial<OpenworkMcpAppResource> = {}): OpenworkMcpAppResource {
+function fixture(overrides: Partial<HarnessMcpAppResource> = {}): HarnessMcpAppResource {
   return {
     launchId: "launch_fixture",
     serverName: "fixture",
@@ -108,8 +108,8 @@ async function startupFixture(options: Pick<McpAppSandboxViewProps, "presentatio
   const errorSpy = spyOn(console, "error").mockImplementation(() => {})
   const addListenerSpy = spyOn(window, "addEventListener")
   const removeListenerSpy = spyOn(window, "removeEventListener")
-  const client: OpenworkServerClient = {
-    ...createOpenworkServerClient({ baseUrl: "http://localhost:1" }),
+  const client: HarnessServerClient = {
+    ...createHarnessServerClient({ baseUrl: "http://localhost:1" }),
     mcpAppSandbox: app => ({ url: `about:blank#${app.toolName}`, expectedOrigin: "https://sandbox.example", sandbox: "allow-scripts allow-same-origin" }),
   }
   const sandboxSpy = spyOn(client, "mcpAppSandbox")
@@ -324,7 +324,7 @@ describe("MCP App retry ownership", () => {
       await host.notify(0, "ui/notifications/sandbox-proxy-ready")
       expect(host.bridges).toHaveLength(2)
       await expect(host.bridges[1].oncalltool?.({
-        name: "connection_action_intent", arguments: { action: "skip" }, _meta: { "openwork/userInteraction": true },
+        name: "connection_action_intent", arguments: { action: "skip" }, _meta: { "harness/userInteraction": true },
       }, context)).resolves.toEqual({ content: [] })
       expect(connectionController.callTool).toHaveBeenCalledWith(
         expect.anything(), expect.anything(), "connection_action_intent", { action: "skip" }, true,
@@ -379,10 +379,10 @@ describe("MCP App retry ownership", () => {
 
   test.each(["safe", "approval", "denied"])("dashboard child retry replaces the failed lease without restarting its healthy sibling (%s)", async policy => {
     const host = await startupFixture()
-    const pending = Promise.withResolvers<{ app: OpenworkMcpAppResource }>()
+    const pending = Promise.withResolvers<{ app: HarnessMcpAppResource }>()
     const resolutions = [0, 0]
     const released: string[] = []
-    const calls: Array<Parameters<OpenworkServerClient["callMcpAppTool"]>[1]> = []
+    const calls: Array<Parameters<HarnessServerClient["callMcpAppTool"]>[1]> = []
     const resolveSpy = spyOn(host.client, "resolveMcpApp").mockImplementation(async (_workspace, name) => {
       const index = name === "render-0" ? 0 : 1
       const attempt = ++resolutions[index]
@@ -397,8 +397,8 @@ describe("MCP App retry ownership", () => {
       calls.push(request)
       if (request.launchId && released.includes(request.launchId)) throw new Error("Released lease reused")
       if (request.launchId === "render-0-2" && request.name === "render-0") {
-        if (policy === "denied") throw new OpenworkServerError(403, "tool_denied", "Forbidden")
-        if (policy === "approval" && !request.approved) throw new OpenworkServerError(422, "tool_requires_approval", "Approval required")
+        if (policy === "denied") throw new HarnessServerError(403, "tool_denied", "Forbidden")
+        if (policy === "approval" && !request.approved) throw new HarnessServerError(422, "tool_requires_approval", "Approval required")
       }
       return { content: [] }
     })
@@ -417,7 +417,7 @@ describe("MCP App retry ownership", () => {
     }
     try {
       await host.renderElement(createElement(WorkspaceProvider, {
-        client: null, openworkServerClient: host.client, workspaceId: "fixture", selectedWorkspaceRoot: "/fixture",
+        client: null, harnessServerClient: host.client, workspaceId: "fixture", selectedWorkspaceRoot: "/fixture",
       }, tile(0), tile(1)))
       await host.notify(0, "ui/notifications/sandbox-proxy-ready")
       await host.notify(1, "ui/notifications/sandbox-proxy-ready")
@@ -705,7 +705,7 @@ describe("MCP App data continuity", () => {
     let finishAction: (() => void) | undefined
     let finishInput: (() => void) | undefined
     host.inputSpy.mockImplementationOnce(() => new Promise(resolve => { finishInput = resolve }))
-    const client: OpenworkServerClient = {
+    const client: HarnessServerClient = {
       ...host.client,
       callMcpAppTool: (...args) => {
         calls.push(args)
@@ -1047,7 +1047,7 @@ describe("MCP App resolution", () => {
       signal.addEventListener("abort", () => reject(signal.reason), { once: true })
     }))
     try {
-      const client = createOpenworkServerClient({ baseUrl: "https://server.example" })
+      const client = createHarnessServerClient({ baseUrl: "https://server.example" })
       let settled = false
       const resolution = client.resolveMcpApp("fixture", "fixture_render")
         .then(value => { settled = true; return value }, (cause: unknown) => { settled = true; return cause })
@@ -1084,7 +1084,7 @@ describe("MCP App resolution", () => {
     Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true)
     const container = document.body.appendChild(document.createElement("div"))
     const root = createRoot(container)
-    const client = createOpenworkServerClient({ baseUrl: "https://server.example" })
+    const client = createHarnessServerClient({ baseUrl: "https://server.example" })
     const resolveSpy = spyOn(client, "resolveMcpApp").mockResolvedValue({ app: null })
     const callSpy = spyOn(client, "callMcpAppTool").mockResolvedValue({ content: [] })
     const releaseSpy = spyOn(client, "releaseMcpApp").mockResolvedValue({ released: true })
@@ -1092,9 +1092,9 @@ describe("MCP App resolution", () => {
     const errorSpy = spyOn(console, "error").mockImplementation(() => {})
     const part: DynamicToolUIPart = {
       type: "dynamic-tool", toolName: "fixture_render", toolCallId: "launch", state: "output-available",
-      input: {}, output: "Provider fallback", callProviderMetadata: { openwork: { mcpResult: {
+      input: {}, output: "Provider fallback", callProviderMetadata: { harness: { mcpResult: {
         content: [{ type: "text", text: "Provider fallback" }],
-        ...(explicit ? { _meta: { "openwork/mcpApp": {
+        ...(explicit ? { _meta: { "harness/mcpApp": {
           connectionId: "emc_fixture", toolName: "render", resourceUri: "ui://fixture/view.html", arguments: {},
         } } } : {}),
       } } },
@@ -1123,11 +1123,11 @@ describe("MCP App resolution", () => {
 
   test("connection status without launch metadata stays ordinary text without a native card", async () => {
     const part: DynamicToolUIPart = {
-      type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "status-probe",
+      type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "status-probe",
       state: "output-available", input: { name: "mcp:emc_notes:*" },
       output: { schemaVersion: "1", connectionId: "emc_notes", connectionName: "Notes", state: "needs_connection",
         actor: "member", message: "Connect Notes to continue.",
-        action: { type: "connect", label: "Connect Notes", surface: "openwork_your_connections" } },
+        action: { type: "connect", label: "Connect Notes", surface: "harness_your_connections" } },
     }
     expect(hasPreservedMcpAppResult(part)).toBe(false)
     const host = resolutionFixture(false)
@@ -1143,7 +1143,7 @@ describe("MCP App resolution", () => {
   test.each(["mcp_auth_required", "mcp_access_denied"])("%s stays actionable without automatic retry or native connection fallback", async code => {
     const host = resolutionFixture(false)
     const timerSpy = spyOn(window, "setTimeout")
-    host.resolveSpy.mockRejectedValue(new OpenworkServerError(403, code, "Connection requires attention"))
+    host.resolveSpy.mockRejectedValue(new HarnessServerError(403, code, "Connection requires attention"))
     try {
       await host.render()
       await host.render()
@@ -1165,7 +1165,7 @@ describe("MCP App resolution", () => {
 
   test.each([
     new Error("Request timed out."),
-    new OpenworkServerError(500, "unexpected_failure", "Discovery failed: Bearer fixture-secret"),
+    new HarnessServerError(500, "unexpected_failure", "Discovery failed: Bearer fixture-secret"),
   ])("shows explicit launch failures with sanitized diagnostics and discovery-only Retry (%s)", async cause => {
     const host = resolutionFixture(true)
     host.resolveSpy.mockRejectedValueOnce(cause).mockResolvedValue({ app: fixture() })
@@ -1178,7 +1178,7 @@ describe("MCP App resolution", () => {
       expect(status?.textContent).toContain("Stage: resource-resolution")
       expect(status?.textContent).not.toContain("fixture-secret")
       expect(JSON.stringify(host.errorSpy.mock.calls)).not.toContain("fixture-secret")
-      if (cause instanceof OpenworkServerError) expect(status?.textContent).toContain(`Cause code: ${cause.code}`)
+      if (cause instanceof HarnessServerError) expect(status?.textContent).toContain(`Cause code: ${cause.code}`)
       expect(host.resolveSpy).toHaveBeenCalledTimes(1)
       expect(host.container.querySelector("iframe")).toBeNull()
       const retry = Array.from(host.container.querySelectorAll("button")).find(button => button.textContent === "Retry")
@@ -1194,7 +1194,7 @@ describe("MCP App resolution", () => {
 
   test.each([
     new Error("Request timed out."),
-    new OpenworkServerError(500, "unexpected_failure", "Discovery failed"),
+    new HarnessServerError(500, "unexpected_failure", "Discovery failed"),
     null,
   ])("keeps ordinary results silent for unknown errors and null resolution (%s)", async cause => {
     const host = resolutionFixture(false)
@@ -1214,8 +1214,8 @@ describe("MCP App resolution", () => {
     if (advertised) host.resolveSpy.mockResolvedValue({ app: fixture() })
     try {
       const part: DynamicToolUIPart = {
-        ...host.part, toolName: "openwork-cloud_search_capabilities", input: { type: "connectors", query: "Slack" },
-        callProviderMetadata: { openwork: { mcpResult: {
+        ...host.part, toolName: "harness-cloud_search_capabilities", input: { type: "connectors", query: "Slack" },
+        callProviderMetadata: { harness: { mcpResult: {
           content: [{ type: "text", text: "Catalog history" }],
           structuredContent: { connectorCatalog: { version: 1, selectedIds: ["slack"], entries: [{ id: "slack", name: "Slack", description: "Work chat", setup: "oauth_client", serviceUrl: "https://slack.com", setupUrl: "https://example.com/dashboard/mcp-connections?quickAdd=slack" }] } },
         } } },
@@ -1234,18 +1234,18 @@ describe("MCP App resolution", () => {
 
   test.each(["draft", "snapshot", "preview", "both"].flatMap(mode => [false, true].map(active => ({ mode, active }))))("opens $mode in the existing preview only after a click (active: $active)", async ({ mode, active }) => {
     const host = resolutionFixture(true)
-    const resourceUri = "ui://openwork/artifacts/arv_fixture/views/avr_fixture/index.html"
-    const toolName = mode === "snapshot" ? "openwork-cloud_render_artifact_fixture"
-      : mode === "preview" ? "openwork-cloud_preview_artifact_fixture" : "openwork-cloud_save_artifact_view"
+    const resourceUri = "ui://harness/artifacts/arv_fixture/views/avr_fixture/index.html"
+    const toolName = mode === "snapshot" ? "harness-cloud_render_artifact_fixture"
+      : mode === "preview" ? "harness-cloud_preview_artifact_fixture" : "harness-cloud_save_artifact_view"
     const launch = { toolName, resourceUri, arguments: {} }
     const part: DynamicToolUIPart = {
       ...host.part, toolName,
-      callProviderMetadata: { openwork: { mcpResult: {
+      callProviderMetadata: { harness: { mcpResult: {
         content: [{ type: "text", text: "App result retained" }],
         structuredContent: { artifact: { title: "Fixture preview", receiptId: "receipt_fixture" } },
         _meta: {
-          "openwork/mcpApp": launch,
-          ...(mode === "draft" || mode === "both" ? { "openwork/appDraft": { appId: "arv_fixture", revisionId: "avr_fixture", title: "Fixture preview", receiptId: "receipt_fixture" } } : {}),
+          "harness/mcpApp": launch,
+          ...(mode === "draft" || mode === "both" ? { "harness/appDraft": { appId: "arv_fixture", revisionId: "avr_fixture", title: "Fixture preview", receiptId: "receipt_fixture" } } : {}),
           ...(mode !== "draft" ? { artifactViewId: "arv_fixture", viewRevisionId: "avr_fixture", appTitle: "Fixture preview" } : {}),
         },
       } } },
@@ -1288,10 +1288,10 @@ describe("MCP App resolution", () => {
     const openPanel = spyOn(useUiStateStore.getState(), "setSidePanelState").mockImplementation(() => {})
     try {
       await host.render({
-        ...host.part, toolName: `openwork-cloud_${toolName}`,
-        callProviderMetadata: { openwork: { [alias]: {
+        ...host.part, toolName: `harness-cloud_${toolName}`,
+        callProviderMetadata: { harness: { [alias]: {
           content: [], structuredContent: { artifact: { receiptId: "live-receipt" } },
-          _meta: { "openwork/appDraft": { appId: "arv_fixture", revisionId: "avr_fixture", title: "Draft" } },
+          _meta: { "harness/appDraft": { appId: "arv_fixture", revisionId: "avr_fixture", title: "Draft" } },
         } } },
       })
       expect(host.resolveSpy).not.toHaveBeenCalled()
@@ -1312,7 +1312,7 @@ describe("MCP App resolution", () => {
   })
 
   test.each(["skill-created", "plugin-flow"].flatMap(resource =>
-    ["openwork_", "openwork-cloud_"].flatMap(prefix =>
+    ["harness_", "harness-cloud_"].flatMap(prefix =>
       ["mcpResult", "mcpApp"].map(alias => ({ resource, prefix, alias })))
   ))("suppresses retained historical $resource for $prefix through $alias before resolution", async ({ resource, prefix, alias }) => {
     const host = resolutionFixture(true)
@@ -1320,9 +1320,9 @@ describe("MCP App resolution", () => {
     try {
       await host.render({
         ...host.part, toolName: `${prefix}execute_capability`,
-        callProviderMetadata: { openwork: { [alias]: {
+        callProviderMetadata: { harness: { [alias]: {
           content: [{ type: "text", text: "Historical result" }],
-          _meta: { "openwork/mcpApp": { toolName: "historical", resourceUri: `ui://openwork/${resource}/v1/view.html`, arguments: {} } },
+          _meta: { "harness/mcpApp": { toolName: "historical", resourceUri: `ui://harness/${resource}/v1/view.html`, arguments: {} } },
         } } },
       })
       expect(host.resolveSpy).not.toHaveBeenCalled()
@@ -1334,20 +1334,20 @@ describe("MCP App resolution", () => {
   })
 
   test.each([
-    { toolName: "provider_render", connectionId: undefined, resourceUri: "ui://openwork/skill-created/v1/view.html", code: "tool_not_found" },
-    { toolName: "openwork-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://openwork/plugin-flow/v1/view.html", code: "tool_not_found" },
-    { toolName: "openwork-cloud_execute_capability", connectionId: undefined, resourceUri: "ui://provider/view.html", code: "tool_not_found" },
-    { toolName: "openwork-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://openwork/skill-created/v1/view.html", code: "invalid_resource_csp" },
-    { toolName: "provider_create_skill", connectionId: undefined, resourceUri: "ui://openwork/skill-created/v1/view.html", code: "resource_read_failed" },
-    { toolName: "openwork-cloud_unknown", connectionId: undefined, resourceUri: "ui://openwork/skill-created/v1/view.html", code: "tool_not_found" },
+    { toolName: "provider_render", connectionId: undefined, resourceUri: "ui://harness/skill-created/v1/view.html", code: "tool_not_found" },
+    { toolName: "harness-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://harness/plugin-flow/v1/view.html", code: "tool_not_found" },
+    { toolName: "harness-cloud_execute_capability", connectionId: undefined, resourceUri: "ui://provider/view.html", code: "tool_not_found" },
+    { toolName: "harness-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://harness/skill-created/v1/view.html", code: "invalid_resource_csp" },
+    { toolName: "provider_create_skill", connectionId: undefined, resourceUri: "ui://harness/skill-created/v1/view.html", code: "resource_read_failed" },
+    { toolName: "harness-cloud_unknown", connectionId: undefined, resourceUri: "ui://harness/skill-created/v1/view.html", code: "tool_not_found" },
   ])("preserves provider and security diagnostics for $toolName $resourceUri $code", async ({ toolName, connectionId, resourceUri, code }) => {
     const host = resolutionFixture(true)
-    host.resolveSpy.mockRejectedValue(new OpenworkServerError(404, code, "Resolution failed"))
+    host.resolveSpy.mockRejectedValue(new HarnessServerError(404, code, "Resolution failed"))
     try {
       await host.render({
         ...host.part, toolName,
-        callProviderMetadata: { openwork: { mcpResult: {
-          content: [], _meta: { "openwork/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId ? { connectionId } : {}) } },
+        callProviderMetadata: { harness: { mcpResult: {
+          content: [], _meta: { "harness/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId ? { connectionId } : {}) } },
         } } },
       })
       expect(host.container.textContent).toContain("MCP_APP_RESOURCE_RESOLUTION_FAILED")
@@ -1357,22 +1357,22 @@ describe("MCP App resolution", () => {
   })
 
   test.each(["skill-created", "plugin-flow"].flatMap(resource => [
-    { resource, toolName: "openwork-cloud_execute_capability", connectionId: "emc_fixture" },
-    { resource, toolName: "openwork_create_skill", connectionId: "emc_fixture" },
+    { resource, toolName: "harness-cloud_execute_capability", connectionId: "emc_fixture" },
+    { resource, toolName: "harness_create_skill", connectionId: "emc_fixture" },
     { resource, toolName: "provider_create_skill", connectionId: undefined },
-    { resource, toolName: "openwork-other_execute_capability", connectionId: undefined },
-    { resource, toolName: "openwork-cloud_execute_capability", connectionId: "" },
-    { resource, toolName: "openwork-cloud_render_artifact_fixture", connectionId: undefined },
-    { resource, toolName: "openwork-cloud_preview_artifact_fixture", connectionId: undefined },
+    { resource, toolName: "harness-other_execute_capability", connectionId: undefined },
+    { resource, toolName: "harness-cloud_execute_capability", connectionId: "" },
+    { resource, toolName: "harness-cloud_render_artifact_fixture", connectionId: undefined },
+    { resource, toolName: "harness-cloud_preview_artifact_fixture", connectionId: undefined },
   ]))("still renders external $toolName $resource through the standard sandbox", async ({ resource, toolName, connectionId }) => {
     const host = resolutionFixture(true)
-    const resourceUri = `ui://openwork/${resource}/v1/view.html`
+    const resourceUri = `ui://harness/${resource}/v1/view.html`
     host.resolveSpy.mockResolvedValue({ app: fixture({ resourceUri }) })
     try {
       await host.render({
         ...host.part, toolName,
-        callProviderMetadata: { openwork: { mcpResult: {
-          content: [], _meta: { "openwork/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId !== undefined ? { connectionId } : {}) } },
+        callProviderMetadata: { harness: { mcpResult: {
+          content: [], _meta: { "harness/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId !== undefined ? { connectionId } : {}) } },
         } } },
       })
       expect(host.container.querySelector("iframe")).not.toBeNull()
@@ -1380,18 +1380,18 @@ describe("MCP App resolution", () => {
     } finally { await host.dispose() }
   })
 
-  test.each(["openwork_", "openwork-cloud_"].flatMap(prefix =>
+  test.each(["harness_", "harness-cloud_"].flatMap(prefix =>
     ["create_skill", "update_skill", "plugin_flow"].flatMap(name =>
       ["mcpResult", "mcpApp"].flatMap(alias => [false, true].map(launch => ({ prefix, name, alias, launch }))))
   ))("suppresses backend binding $prefix$name ($alias, launch: $launch) without embedding or resolving", async ({ prefix, name, alias, launch }) => {
     const host = resolutionFixture(false)
-    const resourceUri = `ui://openwork/${name === "plugin_flow" ? "plugin-flow" : "skill-created"}/v1/view.html`
+    const resourceUri = `ui://harness/${name === "plugin_flow" ? "plugin-flow" : "skill-created"}/v1/view.html`
     host.resolveSpy.mockResolvedValue({ app: fixture({ resourceUri }) })
     const part: DynamicToolUIPart = {
       ...host.part, toolName: `${prefix}${name}`,
-      callProviderMetadata: { openwork: { [alias]: {
+      callProviderMetadata: { harness: { [alias]: {
         content: [{ type: "text", text: "Created successfully" }],
-        _meta: { ui: { resourceUri }, ...(launch ? { "openwork/mcpApp": { toolName: name, resourceUri, arguments: {} } } : {}) },
+        _meta: { ui: { resourceUri }, ...(launch ? { "harness/mcpApp": { toolName: name, resourceUri, arguments: {} } } : {}) },
       } } },
     }
     try {
@@ -1406,18 +1406,18 @@ describe("MCP App resolution", () => {
   })
 
   test.each([
-    { toolName: "openwork-cloud_execute_capability", arguments: null, connectionId: undefined },
-    { toolName: "openwork_execute_capability", arguments: {}, connectionId: null },
-    { toolName: "openwork-cloud_unknown", arguments: {}, connectionId: undefined },
+    { toolName: "harness-cloud_execute_capability", arguments: null, connectionId: undefined },
+    { toolName: "harness_execute_capability", arguments: {}, connectionId: null },
+    { toolName: "harness-cloud_unknown", arguments: {}, connectionId: undefined },
   ])("keeps malformed or unknown $toolName launches on the diagnostic path", async ({ toolName, arguments: args, connectionId }) => {
     const host = resolutionFixture(false)
-    host.resolveSpy.mockRejectedValue(new OpenworkServerError(400, "invalid_launch_reference", "Invalid launch"))
+    host.resolveSpy.mockRejectedValue(new HarnessServerError(400, "invalid_launch_reference", "Invalid launch"))
     try {
       await host.render({
         ...host.part, toolName,
-        callProviderMetadata: { openwork: { mcpResult: {
-          content: [], _meta: { "openwork/mcpApp": {
-            toolName: "render", resourceUri: "ui://openwork/skill-created/v1/view.html", arguments: args,
+        callProviderMetadata: { harness: { mcpResult: {
+          content: [], _meta: { "harness/mcpApp": {
+            toolName: "render", resourceUri: "ui://harness/skill-created/v1/view.html", arguments: args,
             ...(connectionId !== undefined ? { connectionId } : {}),
           } },
         } } },
@@ -1430,7 +1430,7 @@ describe("MCP App resolution", () => {
 
   test("releases a launch that resolves after its frame unmounts", async () => {
     const host = resolutionFixture(true)
-    let finish: ((value: { app: OpenworkMcpAppResource }) => void) | undefined
+    let finish: ((value: { app: HarnessMcpAppResource }) => void) | undefined
     host.resolveSpy.mockImplementation(() => new Promise(resolve => { finish = resolve }))
     try {
       await host.render()
@@ -1447,14 +1447,14 @@ describe("MCP App resolution", () => {
 
   test.each(["execute_capability", "run_artifact_fixture", "preview_artifact_fixture", "save_artifact_view"])("%s connection-action v2 launch is presented natively, never as an iframe", async toolName => {
     const connection = { schemaVersion: "1", connectionId: "connection", connectionName: "Fixture", state: "needs_connection",
-      actor: "member", message: "Connect Fixture", action: { type: "connect", label: "Authenticate", surface: "openwork_your_connections" } }
-    const launch = { toolName: "connection_action", resourceUri: "ui://openwork/connection-action/v2/view.html", arguments: { connectionId: "connection" } }
-    const part: DynamicToolUIPart = { type: "dynamic-tool", toolName: `openwork-cloud_${toolName}`, toolCallId: `connection-native-${toolName}`,
+      actor: "member", message: "Connect Fixture", action: { type: "connect", label: "Authenticate", surface: "harness_your_connections" } }
+    const launch = { toolName: "connection_action", resourceUri: "ui://harness/connection-action/v2/view.html", arguments: { connectionId: "connection" } }
+    const part: DynamicToolUIPart = { type: "dynamic-tool", toolName: `harness-cloud_${toolName}`, toolCallId: `connection-native-${toolName}`,
       state: "output-available", input: {}, output: connection,
-      callProviderMetadata: { openwork: { mcpResult: { content: [], isError: true, structuredContent: connection, _meta: { "openwork/mcpApp": launch } } } } }
+      callProviderMetadata: { harness: { mcpResult: { content: [], isError: true, structuredContent: connection, _meta: { "harness/mcpApp": launch } } } } }
     expect(hasPreservedMcpAppResult(part)).toBe(true)
     expect(isNativeConnectionAppLaunch(part)).toBe(true)
-    expect(isNativeConnectionAppLaunch({ ...part, toolName: `openwork_${toolName}` })).toBe(true)
+    expect(isNativeConnectionAppLaunch({ ...part, toolName: `harness_${toolName}` })).toBe(true)
     expect(McpAppFrame({ part })).toBeNull()
     const host = resolutionFixture(false)
     host.resolveSpy.mockResolvedValue({ app: { ...fixture({ toolName: "connection_action", resourceUri: launch.resourceUri }), hostConnectionActions: true } })
@@ -1470,27 +1470,27 @@ describe("MCP App resolution", () => {
   })
 
   test("bare connection_action results are native even without launch metadata", () => {
-    for (const toolName of ["openwork_connection_action", "openwork-cloud_connection_action"]) {
+    for (const toolName of ["harness_connection_action", "harness-cloud_connection_action"]) {
       const part: DynamicToolUIPart = { type: "dynamic-tool", toolName, toolCallId: "bare", state: "output-available", input: {}, output: {} }
       expect(isNativeConnectionAppLaunch(part)).toBe(true)
       expect(McpAppFrame({ part })).toBeNull()
     }
-    const other: DynamicToolUIPart = { type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "bare-other", state: "output-available", input: {}, output: {} }
+    const other: DynamicToolUIPart = { type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "bare-other", state: "output-available", input: {}, output: {} }
     expect(isNativeConnectionAppLaunch(other)).toBe(false)
   })
 
   test.each([
-    { label: "an external connection's v2 launch", toolName: "openwork-cloud_execute_capability", connectionId: "emc_external", resourceUri: "ui://openwork/connection-action/v2/view.html" },
-    { label: "a foreign server's v2 launch", toolName: "provider_execute_capability", connectionId: undefined, resourceUri: "ui://openwork/connection-action/v2/view.html" },
-    { label: "an artifact view", toolName: "openwork-cloud_execute_capability", connectionId: undefined, resourceUri: "ui://openwork/artifacts/arv_fixture/views/avr_fixture/index.html" },
-    { label: "a provider App", toolName: "openwork-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://fixture/view.html" },
+    { label: "an external connection's v2 launch", toolName: "harness-cloud_execute_capability", connectionId: "emc_external", resourceUri: "ui://harness/connection-action/v2/view.html" },
+    { label: "a foreign server's v2 launch", toolName: "provider_execute_capability", connectionId: undefined, resourceUri: "ui://harness/connection-action/v2/view.html" },
+    { label: "an artifact view", toolName: "harness-cloud_execute_capability", connectionId: undefined, resourceUri: "ui://harness/artifacts/arv_fixture/views/avr_fixture/index.html" },
+    { label: "a provider App", toolName: "harness-cloud_execute_capability", connectionId: "emc_fixture", resourceUri: "ui://fixture/view.html" },
   ])("$label still embeds through the standard sandbox", async ({ toolName, connectionId, resourceUri }) => {
     const host = resolutionFixture(true)
     host.resolveSpy.mockResolvedValue({ app: fixture({ resourceUri }) })
     const part: DynamicToolUIPart = {
       ...host.part, toolName,
-      callProviderMetadata: { openwork: { mcpResult: {
-        content: [], _meta: { "openwork/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId ? { connectionId } : {}) } },
+      callProviderMetadata: { harness: { mcpResult: {
+        content: [], _meta: { "harness/mcpApp": { toolName: "render", resourceUri, arguments: {}, ...(connectionId ? { connectionId } : {}) } },
       } } },
     }
     expect(isNativeConnectionAppLaunch(part)).toBe(false)
@@ -1509,11 +1509,11 @@ describe("MCP App iframe policy", () => {
     const host = await startupFixture()
     const resolutions: unknown[] = []
     const releases: unknown[] = []
-    const resolve = async (...args: Parameters<OpenworkServerClient["resolveMcpApp"]>) => {
+    const resolve = async (...args: Parameters<HarnessServerClient["resolveMcpApp"]>) => {
       resolutions.push(args)
       return { app: fixture({ toolName: "render-0", launchId: `launch-${resolutions.length}` }) }
     }
-    const release = async (...args: Parameters<OpenworkServerClient["releaseMcpApp"]>) => {
+    const release = async (...args: Parameters<HarnessServerClient["releaseMcpApp"]>) => {
       releases.push(args)
       return { released: true }
     }
@@ -1523,7 +1523,7 @@ describe("MCP App iframe policy", () => {
     const result = { content: [{ type: "text", text: "initial result" }], isError: false }
     const part: DynamicToolUIPart = {
       type: "dynamic-tool", toolName: "render-0", toolCallId: "launch", state: "output-available",
-      input, output: "initial result", callProviderMetadata: { openwork: { mcpResult: result } },
+      input, output: "initial result", callProviderMetadata: { harness: { mcpResult: result } },
     }
     const nextInput = change === "input" ? { query: "updated input" } : input
     const nextResult = change === "result" ? { ...result, content: [{ type: "text", text: "updated result" }], isError: true } : result
@@ -1542,7 +1542,7 @@ describe("MCP App iframe policy", () => {
       onMcpReopenAuthorization: async () => {},
       children: createElement(McpAppFrame, { part: updated ? {
         ...part, toolCallId: change === "tool-call" ? "updated-call" : part.toolCallId,
-        input: structuredClone(nextInput), callProviderMetadata: { openwork: { mcpResult: structuredClone(nextResult) } },
+        input: structuredClone(nextInput), callProviderMetadata: { harness: { mcpResult: structuredClone(nextResult) } },
       } : part }),
     }))
     try {
@@ -1622,10 +1622,10 @@ describe("MCP App iframe policy", () => {
     const toolCalls: unknown[] = []
     const releases: unknown[] = []
     const opened: string[] = []
-    Reflect.set(window, "__OPENWORK_ELECTRON__", { shell: { openExternal: async (url: string) => { opened.push(url); return { ok: true } } } })
+    Reflect.set(window, "__HARNESS_ELECTRON__", { shell: { openExternal: async (url: string) => { opened.push(url); return { ok: true } } } })
     const app = fixture({ launchId: readOnly ? undefined : "launch_fixture" })
-    const sandboxClient = createOpenworkServerClient({ baseUrl: sameOrigin ? window.location.origin : "https://sandbox.example" })
-    const client: OpenworkServerClient = {
+    const sandboxClient = createHarnessServerClient({ baseUrl: sameOrigin ? window.location.origin : "https://sandbox.example" })
+    const client: HarnessServerClient = {
       ...sandboxClient,
       // Exercise real policy selection without asking Happy DOM to fetch a page.
       mcpAppSandbox: (...args) => ({ ...sandboxClient.mcpAppSandbox(...args), url: "about:blank" }),
@@ -1635,13 +1635,13 @@ describe("MCP App iframe policy", () => {
       },
       callMcpAppTool: async (workspaceId, payload) => {
         toolCalls.push({ workspaceId, payload })
-        if (payload.name === "forbidden_detail") throw new OpenworkServerError(403, "tool_denied", "Forbidden")
-        if (challenge && !payload.approved) throw new OpenworkServerError(422, "tool_requires_approval", "Approval required")
+        if (payload.name === "forbidden_detail") throw new HarnessServerError(403, "tool_denied", "Forbidden")
+        if (challenge && !payload.approved) throw new HarnessServerError(422, "tool_requires_approval", "Approval required")
         return result
       },
       releaseMcpApp: async (workspaceId, launchId) => { releases.push({ workspaceId, launchId }); return { released: true } },
     }
-    const primaryClient: OpenworkServerClient = {
+    const primaryClient: HarnessServerClient = {
       ...client,
       resolveMcpApp: async () => { throw new Error("Must not resolve through the selected workspace") },
       callMcpAppTool: async () => { throw new Error("Must not call through the selected workspace") },
@@ -1649,12 +1649,12 @@ describe("MCP App iframe policy", () => {
     }
     const part: DynamicToolUIPart = {
       type: "dynamic-tool", toolName: "fixture_render", toolCallId: "launch", state: "output-available",
-      input, output: "Provider fallback", callProviderMetadata: { openwork: { mcpResult: result } },
+      input, output: "Provider fallback", callProviderMetadata: { harness: { mcpResult: result } },
     }
     const previewOrigin = { client, workspaceId: "fixture", sessionId: null, readOnly: true }
     const render = async (nextPart = part) => {
       await act(async () => root.render(createElement(WorkspaceProvider, {
-        client: null, openworkServerClient: primaryClient, workspaceId: "primary", selectedWorkspaceRoot: "/primary",
+        client: null, harnessServerClient: primaryClient, workspaceId: "primary", selectedWorkspaceRoot: "/primary",
         children: preview
           ? createElement(McpAppSandboxView, {
               origin: previewOrigin,
@@ -1672,7 +1672,7 @@ describe("MCP App iframe policy", () => {
             }),
       })))
     }
-    const refresh = () => render({ ...part, input: structuredClone(input), callProviderMetadata: { openwork: { mcpResult: structuredClone(result) } } })
+    const refresh = () => render({ ...part, input: structuredClone(input), callProviderMetadata: { harness: { mcpResult: structuredClone(result) } } })
     try {
       await viewTransport.start()
       await render()
@@ -1724,7 +1724,7 @@ describe("MCP App iframe policy", () => {
         expect(await request(method, params)).toMatchObject({ error: { code: -32601 } })
       }
       let pendingCall: Promise<JSONRPCMessage> | undefined
-      await act(async () => { pendingCall = request("tools/call", { name: "read_detail", arguments: {}, _meta: { "openwork/userInteraction": true } }) })
+      await act(async () => { pendingCall = request("tools/call", { name: "read_detail", arguments: {}, _meta: { "harness/userInteraction": true } }) })
       expect(document.querySelector('[role="alertdialog"]')).toBeNull()
       expect(await pendingCall).toMatchObject(readOnly ? { error: { code: -32601 } } : { result })
       expect(await request("ui/open-link", { url: "https://example.com/" })).toMatchObject(
@@ -1797,10 +1797,10 @@ describe("MCP App iframe policy", () => {
 
   test("an unsupported first-party connection launch cannot fall back to the legacy iframe", () => {
     const part: DynamicToolUIPart = {
-      type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "old-status-probe",
+      type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "old-status-probe",
       state: "output-available", input: {}, output: {},
-      callProviderMetadata: { openwork: { mcpResult: { content: [], _meta: { "openwork/mcpApp": {
-        toolName: "connection_action", resourceUri: "ui://openwork/connection-action/v1/view.html", arguments: { connectionId: "emc_notes" },
+      callProviderMetadata: { harness: { mcpResult: { content: [], _meta: { "harness/mcpApp": {
+        toolName: "connection_action", resourceUri: "ui://harness/connection-action/v1/view.html", arguments: { connectionId: "emc_notes" },
       } } } } },
     }
     expect(isNativeConnectionAppLaunch(part)).toBe(true)
@@ -1812,7 +1812,7 @@ describe("MCP App iframe policy", () => {
   test("accepts a namespaced gateway launch reference without exposing credentials", () => {
     expect(gatewayMcpAppLaunch({
       source: "provider",
-      "openwork/mcpApp": {
+      "harness/mcpApp": {
         connectionId: "emc_01atlas",
         toolName: "open_project_atlas",
         resourceUri: "ui://atlas/1/index.html",
@@ -1825,7 +1825,7 @@ describe("MCP App iframe policy", () => {
       arguments: { query: "migration" },
     })
     expect(gatewayMcpAppLaunch({
-      "openwork/mcpApp": {
+      "harness/mcpApp": {
         connectionId: "emc_01atlas",
         toolName: "open_project_atlas",
         resourceUri: "ui://atlas/1/index.html",
@@ -1835,27 +1835,27 @@ describe("MCP App iframe policy", () => {
 
   test("accepts a same-server generated App launch without a connection reference", () => {
     expect(gatewayMcpAppLaunch({
-      "openwork/mcpApp": {
+      "harness/mcpApp": {
         toolName: "render_artifact_view",
-        resourceUri: "ui://openwork/artifacts/atlas/views/1/index.html",
+        resourceUri: "ui://harness/artifacts/atlas/views/1/index.html",
         arguments: { input: { query: "migration" } },
       },
     })).toEqual({
       toolName: "render_artifact_view",
-      resourceUri: "ui://openwork/artifacts/atlas/views/1/index.html",
+      resourceUri: "ui://harness/artifacts/atlas/views/1/index.html",
       arguments: { input: { query: "migration" } },
     })
   })
 
   test.each([
     ["https://web.example", "https://web.example", "https://web.example", "null", "allow-scripts"],
-    ["https://web.example/api/openwork", "https://web.example", "https://web.example", "null", "allow-scripts"],
+    ["https://web.example/api/harness", "https://web.example", "https://web.example", "null", "allow-scripts"],
     ["https://worker.example", "https://web.example", "https://worker.example", "https://worker.example", "allow-scripts allow-same-origin"],
     ["http://localhost:4321", "http://localhost:4321", "http://127.0.0.1:4321", "http://127.0.0.1:4321", "allow-scripts allow-same-origin"],
     ["http://127.0.0.1:4321", "http://127.0.0.1:4321", "http://localhost:4321", "http://localhost:4321", "allow-scripts allow-same-origin"],
     ["http://localhost:4321", "file://", "http://localhost:4321", "http://localhost:4321", "allow-scripts allow-same-origin"],
   ])("isolates sandbox delivery for %s hosted at %s", (baseUrl, hostOrigin, urlOrigin, expectedOrigin, sandboxFlags) => {
-    const client = createOpenworkServerClient({ baseUrl, token: "private-client-token", hostToken: "private-host-token" })
+    const client = createHarnessServerClient({ baseUrl, token: "private-client-token", hostToken: "private-host-token" })
     const sandbox = client.mcpAppSandbox(fixture(), hostOrigin)
     expect(new URL(sandbox.url).origin).toBe(urlOrigin)
     expect(sandbox.expectedOrigin).toBe(expectedOrigin)
@@ -1869,14 +1869,14 @@ describe("MCP App iframe policy", () => {
     expect(normalizeMcpAppHostOrigin("null")).toBe("null")
     expect(normalizeMcpAppHostOrigin("https://desktop.example")).toBe("https://desktop.example")
 
-    const client = createOpenworkServerClient({ baseUrl: "http://localhost:61856" })
+    const client = createHarnessServerClient({ baseUrl: "http://localhost:61856" })
     const sandbox = client.mcpAppSandbox(fixture(), "file://")
     expect(new URL(sandbox.url).searchParams.get("hostOrigin")).toBe("null")
   })
 
   test("keeps ordinary tools silent while surfacing advertised resource failures", () => {
-    expect(isActionableMcpAppResolutionError(new OpenworkServerError(503, "mcp_unreachable", "offline"))).toBe(true)
-    expect(isActionableMcpAppResolutionError(new OpenworkServerError(404, "resource_read_failed", "missing"))).toBe(true)
+    expect(isActionableMcpAppResolutionError(new HarnessServerError(503, "mcp_unreachable", "offline"))).toBe(true)
+    expect(isActionableMcpAppResolutionError(new HarnessServerError(404, "resource_read_failed", "missing"))).toBe(true)
     expect(isActionableMcpAppResolutionError(new Error("generic failure"))).toBe(false)
   })
 
@@ -1887,7 +1887,7 @@ describe("MCP App iframe policy", () => {
       stage: "app-initialization",
       message: "The HTML document loaded, but initialization did not complete.",
       toolName: "artifact_render_card",
-      resourceUri: "ui://openwork/artifacts/arv_1/views/avr_2/index.html",
+      resourceUri: "ui://harness/artifacts/arv_1/views/avr_2/index.html",
       sandboxOrigin: "http://127.0.0.1:4321",
       elapsedMs: 10_025,
       checkpoints: ["resource-resolved+0ms", "resource-document-loaded+24ms"],
@@ -1896,7 +1896,7 @@ describe("MCP App iframe policy", () => {
     expect(details).toContain("Code: MCP_APP_INITIALIZE_TIMEOUT")
     expect(details).toContain("Cause code: mcp_unreachable")
     expect(details).toContain("Stage: app-initialization")
-    expect(details).toContain("Resource: ui://openwork/artifacts/arv_1/views/avr_2/index.html")
+    expect(details).toContain("Resource: ui://harness/artifacts/arv_1/views/avr_2/index.html")
     expect(details).toContain("Document: readyState=complete, htmlRoot=true, scripts=1")
     expect(details).toContain("resource-document-loaded+24ms")
   })
@@ -1967,7 +1967,7 @@ test.each([
 ])("catalog output alone never qualifies as an MCP App (%j)", input => {
   const catalog = { version: 1, selectedIds: ["slack"], entries: [{ id: "slack", name: "Slack", description: "Work chat", setup: "oauth_client", setupUrl: "https://example.com/dashboard/mcp-connections?quickAdd=slack" }] };
   for (const output of [{ connectorCatalog: catalog }, JSON.stringify({ connectorCatalog: catalog }), "invalid json"]) {
-    const part: DynamicToolUIPart = { type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId: "catalog", state: "output-available", input, output };
+    const part: DynamicToolUIPart = { type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId: "catalog", state: "output-available", input, output };
     expect(hasPreservedMcpAppResult(part)).toBe(false);
     expect(hasPreservedMcpAppResult({ ...part, toolName: "other_search_capabilities" })).toBe(false);
   }
@@ -1976,8 +1976,8 @@ test.each([
 test.each(["mcpResult", "mcpApp"])("preserves the generic %s metadata alias without interpreting its payload", alias => {
   const part: DynamicToolUIPart = {
     type: "dynamic-tool", toolName: "provider_render", toolCallId: "alias", state: "output-available", input: {}, output: "fallback",
-    callProviderMetadata: { openwork: { [alias]: { content: [{ type: "text", text: "fallback" }], structuredContent: { provider: true } } } },
+    callProviderMetadata: { harness: { [alias]: { content: [{ type: "text", text: "fallback" }], structuredContent: { provider: true } } } },
   };
   expect(hasPreservedMcpAppResult(part)).toBe(true);
-  expect(hasPreservedMcpAppResult({ ...part, callProviderMetadata: { openwork: { [alias]: { content: [null] } } } })).toBe(false);
+  expect(hasPreservedMcpAppResult({ ...part, callProviderMetadata: { harness: { [alias]: { content: [null] } } } })).toBe(false);
 });

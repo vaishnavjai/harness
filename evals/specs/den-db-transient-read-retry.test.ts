@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { localMysqlIsRunning, localRedisIsRunning, needs, server, SkipError, test } from "@openwork/testkit";
-import { mockPlanetScale } from "@openwork/labs";
+import { localMysqlIsRunning, localRedisIsRunning, needs, server, SkipError, test } from "@harness/testkit";
+import { mockPlanetScale } from "@harness/labs";
 
 test("MCP database read recovery preserves authentication and surfaces persistent failures", { timeout: 300_000 }, async ({ place, evidence }) => {
   needs({ placement: "local", commands: ["openssl"] });

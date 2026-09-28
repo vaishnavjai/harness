@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 // Exercise the real desktop launcher and wait for JavaScript in the browser,
 // not merely a successful launcher exit. No account or external site is needed.
 export async function verifyBrowserHandoff({ env = process.env, launcher = "xdg-open", args = [], openUrl, timeoutMs = 30_000 } = {}) {
-  const profile = await mkdtemp(join(tmpdir(), "openwork-browser-proof-"));
+  const profile = await mkdtemp(join(tmpdir(), "harness-browser-proof-"));
   const nonce = randomUUID();
   const server = createServer((req, res) => {
     res.setHeader("content-type", "text/html");
@@ -17,7 +17,7 @@ export async function verifyBrowserHandoff({ env = process.env, launcher = "xdg-
       res.end("ok");
       server.emit("rendered");
     } else if (req.url === `/${nonce}`) {
-      res.end(`<!doctype html><title>Browser handoff verified</title><p>OpenWork browser handoff verified.</p><script>fetch('/${nonce}/rendered')</script>`);
+      res.end(`<!doctype html><title>Browser handoff verified</title><p>Harness browser handoff verified.</p><script>fetch('/${nonce}/rendered')</script>`);
     } else { res.writeHead(404); res.end(); }
   });
   let child;
@@ -34,7 +34,7 @@ export async function verifyBrowserHandoff({ env = process.env, launcher = "xdg-
         return;
       }
       child = spawn(launcher, [...args, url], {
-        env: { ...env, DISPLAY: ":99", OPENWORK_PREVIEW_BROWSER_PROFILE: profile },
+        env: { ...env, DISPLAY: ":99", HARNESS_PREVIEW_BROWSER_PROFILE: profile },
         detached: true, stdio: "ignore",
       });
       child.once("error", reject);

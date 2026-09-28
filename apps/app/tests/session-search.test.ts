@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { OpenworkSessionMessage } from "../src/app/lib/openwork-server";
+import type { HarnessSessionMessage } from "../src/app/lib/harness-server";
 import {
   createSessionSearcher,
   type SearchableSession,
@@ -32,7 +32,7 @@ function textMessage(id: string, role: "user" | "assistant", text: string) {
         messageID: id,
       },
     ],
-  } satisfies OpenworkSessionMessage;
+  } satisfies HarnessSessionMessage;
 }
 
 describe("session search", () => {

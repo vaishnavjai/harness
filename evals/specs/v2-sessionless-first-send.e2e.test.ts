@@ -1,21 +1,21 @@
 import { expect } from "vitest";
-import { browserScript, resolveEvalEngine, spec } from "@openwork/testkit";
+import { browserScript, resolveEvalEngine, spec } from "@harness/testkit";
 import { sessionlessFirstSendWorld } from "../worlds/first-run.ts";
 import { mobileChatInteractionWorld } from "../worlds/first-run.ts";
 import { mobileChatGeometry, simulateKeyboardViewport } from "../worlds/mobile-chat-viewport.ts";
-import { setViewport } from "@openwork/cdp";
+import { setViewport } from "@harness/cdp";
 import { localSendDenOutageWorld } from "../worlds/local-send-den-outage.ts";
 
 const test = spec.world(sessionlessFirstSendWorld, {
   timeout: 420_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 const mobileTest = spec.world(mobileChatInteractionWorld, {
   timeout: 600_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 mobileTest("MOBILE-CHAT-01 keyboard geometry and new turns keep a stable chat layout", async ({ world, user, probe, step, evidence }) => {
@@ -248,7 +248,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 const outageTest = spec.world(localSendDenOutageWorld, {
   timeout: 420_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 outageTest("DEN-LOCAL-SEND configured v1 identity sends to inference while Den is unavailable", async ({ world, user, probe, evidence }) => {

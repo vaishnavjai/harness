@@ -1,4 +1,4 @@
-import { gatewayUsageStatusSchema, type GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import { gatewayUsageStatusSchema, type GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 import { readGatewayUsageScope, subscribeGatewayUsageScope } from "@/app/lib/gateway-usage-scope";
 import { getReactQueryClient } from "@/react-app/infra/query-client";
 import { gatewayUsageQueryPrefix } from "./gateway-usage-state";

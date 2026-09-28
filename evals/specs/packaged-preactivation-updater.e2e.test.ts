@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import type { Probe } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
+import type { Probe } from "@harness/testkit";
 import {
   packagedActivatedUpdaterWorld,
   packagedPreactivationUpdaterWorld,
@@ -33,7 +33,7 @@ async function requireEnterpriseFlavor(world: { flavor: () => Promise<string | n
     until: (value) => value !== null,
   });
   if (flavor !== "enterprise") {
-    throw new Error(`Activation gates only the enterprise flavor; OPENWORK_EVAL_ELECTRON_BINARY points at a ${flavor ?? "unknown"} build`);
+    throw new Error(`Activation gates only the enterprise flavor; HARNESS_EVAL_ELECTRON_BINARY points at a ${flavor ?? "unknown"} build`);
   }
 }
 

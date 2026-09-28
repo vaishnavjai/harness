@@ -3,11 +3,11 @@ import { useEffect } from "react"
 import {
   AUTOMATION_MODEL_ATTENTION_CAPABILITY,
   REMOTE_SESSION_DESKTOP_RUNNER_CAPABILITY,
-} from "@openwork/types/automations"
+} from "@harness/types/automations"
 import type {
   AutomationDesktopRunnerCapability,
   AutomationDesktopRunnerRegistration,
-} from "@openwork/types/automations"
+} from "@harness/types/automations"
 
 import { createDenClient, DenApiError, readDenSettings } from "@/app/lib/den"
 import { denSettingsChangedEvent } from "@/app/lib/den-session-events"
@@ -18,7 +18,7 @@ import { useAutomationDeploymentEnabled } from "./automation-availability"
 import { createAutomationRunnerConnectCoordinator } from "./automation-runner-connect-coordinator"
 
 const RUNNER_TOKEN_REFRESH_MS = 30 * 60_000
-const RUNNER_ID_KEY = "openwork.automations.desktop-runner-id"
+const RUNNER_ID_KEY = "harness.automations.desktop-runner-id"
 
 function desktopRunnerId() {
   const existing = localStorage.getItem(RUNNER_ID_KEY)?.trim()
@@ -44,9 +44,9 @@ function ActivatedAutomationRunnerBridge() {
   const deploymentEnabled = useAutomationDeploymentEnabled()
 
   useEffect(() => {
-    if (!isDesktopRuntime() || !window.__OPENWORK_ELECTRON__?.invokeDesktop) return
+    if (!isDesktopRuntime() || !window.__HARNESS_ELECTRON__?.invokeDesktop) return
 
-    const disconnect = () => window.__OPENWORK_ELECTRON__?.invokeDesktop?.("automationRunnerConfigure", null)
+    const disconnect = () => window.__HARNESS_ELECTRON__?.invokeDesktop?.("automationRunnerConfigure", null)
       .catch(() => undefined)
     const coordinator = createAutomationRunnerConnectCoordinator({
       refreshMs: RUNNER_TOKEN_REFRESH_MS,
@@ -65,7 +65,7 @@ function ActivatedAutomationRunnerBridge() {
         try {
           const client = createDenClient({ baseUrl: settings.baseUrl, token: authToken })
           let runnerId = desktopRunnerId()
-          const build = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("appBuildInfo")
+          const build = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("appBuildInfo")
           if (!isCurrent()) return
           const agent = navigator.userAgent
           const platform = /Mac/i.test(agent) ? "darwin" : /Win/i.test(agent) ? "win32" : "linux"
@@ -109,7 +109,7 @@ function ActivatedAutomationRunnerBridge() {
             runner = await mintRunner(runnerId)
           }
           if (!isCurrent()) return
-          await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("automationRunnerConfigure", {
+          await window.__HARNESS_ELECTRON__?.invokeDesktop?.("automationRunnerConfigure", {
             baseUrl: client.baseUrls.apiBaseUrl,
             token: runner.token,
             runnerId,
@@ -128,7 +128,7 @@ function ActivatedAutomationRunnerBridge() {
     // leaving this desktop unreachable until the next refresh, which is long
     // enough for a scheduled occurrence to come due and be missed.
     window.addEventListener("online", handleSettingsChanged)
-    const unsubscribeCredentialRejected = window.__OPENWORK_ELECTRON__.automationRunner
+    const unsubscribeCredentialRejected = window.__HARNESS_ELECTRON__.automationRunner
       ?.onCredentialRejected?.(() => coordinator.credentialRejected())
     requestConnect()
     return () => {

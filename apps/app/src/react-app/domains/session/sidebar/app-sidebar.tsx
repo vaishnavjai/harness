@@ -37,7 +37,7 @@ import { LazyMotion, MotionContext, Reorder, domMax, m, useDragControls } from "
 
 import { getDisplaySessionTitle } from "../../../../app/lib/session-title";
 import type { WorkspaceInfo } from "../../../../app/lib/desktop";
-import { OpenWorkDenHelpLink } from "../../workspace/openwork-den-help-link";
+import { HarnessDenHelpLink } from "../../workspace/harness-den-help-link";
 import { SidebarActions, SidebarTitlebar, type ConversationHistoryControls } from "./sidebar-chrome";
 import { useUiStateStore } from "../../../shell/ui-state-store";
 import type {
@@ -647,7 +647,7 @@ function RemoteConnectionIssueCard(props: {
           <div className="min-w-0 flex-1">
             <TaskRecovery compact title={t("workspace_list.remote_worker_unavailable")}
               description={t("workspace_list.remote_worker_unavailable_hint")} technicalDetails={props.message} />
-            <OpenWorkDenHelpLink />
+            <HarnessDenHelpLink />
             <div className="mt-2 flex flex-wrap gap-1.5">
               {props.canRecover ? (
                 <Button
@@ -931,7 +931,7 @@ export function AppSidebar(props: AppSidebarProps) {
           </div>
         ) : (
           <div data-sidebar-brand className="flex h-11 min-w-0 flex-1 items-center gap-1.5 pl-4 pr-1">
-            <img src={resolveExtensionIconSrc("/openwork-sidebar-mark.svg")} alt="" className="size-5 shrink-0 object-contain dark:invert" />
+            <img src={resolveExtensionIconSrc("/harness-sidebar-mark.svg")} alt="" className="size-5 shrink-0 object-contain dark:invert" />
             <span className="truncate text-[15px] font-medium tracking-[-0.4px]" title={brandAppName}>{brandAppName}</span>
           </div>
         )}
@@ -1569,7 +1569,7 @@ function DraftSessionRow({ workspaceId, groupId, title, pending }: { workspaceId
   </SidebarMenuSubItem>;
 }
 const EMPTY_PINNED_IDS = new Set<string>();
-const UNGROUPED_GROUP_ID = "__openwork_ungrouped";
+const UNGROUPED_GROUP_ID = "__harness_ungrouped";
 
 function SessionGroupActions({ group, groups, workspaceId, count }: {
   group: SessionGroupDefinition;

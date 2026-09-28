@@ -5,9 +5,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
 import { createRequire } from "node:module";
-import { needs, SkipError } from "@openwork/env";
-import type { Place, Seed } from "@openwork/env";
-import { desktop } from "@openwork/hosts";
+import { needs, SkipError } from "@harness/env";
+import type { Place, Seed } from "@harness/env";
+import { desktop } from "@harness/hosts";
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -80,10 +80,10 @@ export async function computerUseWorld(_seed: Seed, { place }: { place: Place })
   const checked = spawnSync(executable, ["--check"], { encoding: "utf8", timeout: 5000 });
   const permissions: unknown = JSON.parse(checked.stdout);
   if (!record(permissions) || permissions.ok !== true) throw new SkipError("macOS Accessibility and Screen Recording granted to the native helper by a person");
-  const directory = await mkdtemp(join(tmpdir(), "openwork-computer-use-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-computer-use-"));
   const contents = join(directory, "Computer Use Fixture.app/Contents");
   await mkdir(join(contents, "MacOS"), { recursive: true });
-  await writeFile(join(contents, "Info.plist"), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>org.example.openwork.computer-use-fixture</string><key>CFBundleName</key><string>Computer Use Fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>LSMinimumSystemVersion</key><string>14.0</string></dict></plist>`);
+  await writeFile(join(contents, "Info.plist"), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>org.example.harness.computer-use-fixture</string><key>CFBundleName</key><string>Computer Use Fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>LSMinimumSystemVersion</key><string>14.0</string></dict></plist>`);
   const fixtureExecutable = join(contents, "MacOS/Fixture");
   const compiled = spawnSync("swiftc", ["-target", `${process.arch === "arm64" ? "arm64" : "x86_64"}-apple-macosx14.0`, "-parse-as-library", join(root, "evals/packages/labs/fixtures/computer-use-app.swift"), "-o", fixtureExecutable], { encoding: "utf8", timeout: 90_000 });
   if (compiled.status !== 0) { await rm(directory, { recursive: true }); throw new Error(compiled.stderr); }
@@ -99,13 +99,13 @@ export async function computerUseWorld(_seed: Seed, { place }: { place: Place })
     await peer.request("initialize", { protocolVersion: "2025-11-25", clientInfo: { name: "peer-journey", version: "1" }, capabilities: {} });
     return {
       async launchableFixture() {
-        const appId = "org.example.openwork.launch-fixture." + directory.split("-").at(-1);
+        const appId = "org.example.harness.launch-fixture." + directory.split("-").at(-1);
         // Launch Services deliberately excludes apps in the OS temporary directory.
         const appPath = join(root, "evals/results/.native-apps", `${appId}.app`);
         const launchContents = join(appPath, "Contents");
         await mkdir(join(launchContents, "MacOS"), { recursive: true });
         await copyFile(fixtureExecutable, join(launchContents, "MacOS/Fixture"));
-        await writeFile(join(launchContents, "Info.plist"), (await readFile(join(contents, "Info.plist"), "utf8")).replace("org.example.openwork.computer-use-fixture", appId));
+        await writeFile(join(launchContents, "Info.plist"), (await readFile(join(contents, "Info.plist"), "utf8")).replace("org.example.harness.computer-use-fixture", appId));
         const register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
         const result = spawnSync(register, ["-f", appPath], { encoding: "utf8", timeout: 10_000 });
         if (result.status !== 0) throw new Error(`Could not register disposable launch fixture: ${result.stderr}`);
@@ -161,11 +161,11 @@ export async function computerUseWorld(_seed: Seed, { place }: { place: Place })
         } catch (error) { await client.close(); throw error; }
       },
       desktop: () => desktop({ name: "computer-use-setup", host: place.host(), env: {
-        OPENWORK_COMPUTER_USE_BINARY: executable,
+        HARNESS_COMPUTER_USE_BINARY: executable,
         OPENCODE_DB: join(directory, "opencode.db"),
       } }),
       workspacePath: join(directory, "workspace"),
-      appId: "org.example.openwork.computer-use-fixture",
+      appId: "org.example.harness.computer-use-fixture",
       appPid: fixture.pid,
       call: (name: string, args: Record<string, unknown> = {}) => helper.request("tools/call", { name, arguments: args }),
       peerCall: (name: string, args: Record<string, unknown> = {}) => peer.request("tools/call", { name, arguments: args }),

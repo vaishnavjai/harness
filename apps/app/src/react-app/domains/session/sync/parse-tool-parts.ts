@@ -3,7 +3,7 @@ import type { ToolPart } from "@opencode-ai/sdk/v2/client";
 import {
   connectionActionAppSchemaVersion,
   connectionActionPayloadSchema,
-} from "@openwork/types/connection-action-app";
+} from "@harness/types/connection-action-app";
 
 import { safeStringify } from "@/app/utils";
 import { normalizeErrorText } from "@/lib/error-text";
@@ -59,10 +59,10 @@ function connectionActionMcpResultFromError(error: string): JSONValue | null {
 
 function toolCallProviderMetadata(part: ToolPart): ProviderMetadata {
   const stateMetadata = "metadata" in part.state && isRecord(part.state.metadata) ? part.state.metadata : {};
-  const persistedMcpResult = isJsonValue(stateMetadata.openworkMcpResult)
-    ? stateMetadata.openworkMcpResult
-    : isJsonValue(stateMetadata.openworkMcpApp)
-      ? stateMetadata.openworkMcpApp
+  const persistedMcpResult = isJsonValue(stateMetadata.harnessMcpResult)
+    ? stateMetadata.harnessMcpResult
+    : isJsonValue(stateMetadata.harnessMcpApp)
+      ? stateMetadata.harnessMcpApp
       : null;
   const mcpResult = persistedMcpResult
     ?? (part.state.status === "error" ? connectionActionMcpResultFromError(part.state.error) : null);
@@ -71,16 +71,16 @@ function toolCallProviderMetadata(part: ToolPart): ProviderMetadata {
   const childSessionId = part.tool === "task" && typeof stateMetadata.sessionId === "string" && stateMetadata.sessionId.trim()
     ? stateMetadata.sessionId.trim()
     : null;
-  const toolStartedAt = (part.tool === "task" || part.metadata?.openworkV2CodeMode === true) && "time" in part.state && typeof part.state.time?.start === "number"
+  const toolStartedAt = (part.tool === "task" || part.metadata?.harnessV2CodeMode === true) && "time" in part.state && typeof part.state.time?.start === "number"
     && Number.isFinite(part.state.time.start)
     ? part.state.time.start
     : null;
-  const openwork = {
+  const harness = {
     ...(part.id !== part.callID ? { sourcePartId: part.id } : {}),
     ...(mcpResult ? { mcpResult } : {}),
     ...(childSessionId ? { childSessionId } : {}),
     ...(toolStartedAt === null ? {} : { toolStartedAt }),
-    ...(part.metadata?.openworkV2CodeMode === true ? {
+    ...(part.metadata?.harnessV2CodeMode === true ? {
       codeMode: {
         calls: Array.isArray(stateMetadata.toolCalls) && isJsonValue(stateMetadata.toolCalls) ? stateMetadata.toolCalls : [],
       },
@@ -88,7 +88,7 @@ function toolCallProviderMetadata(part: ToolPart): ProviderMetadata {
   };
   return {
     opencode: { partId: part.id },
-    ...(Object.keys(openwork).length > 0 ? { openwork } : {}),
+    ...(Object.keys(harness).length > 0 ? { harness } : {}),
   };
 }
 
@@ -137,7 +137,7 @@ export function parseDynamicToolUIPart(part: ToolPart): DynamicToolUIPart | null
   }
 
   if (part.state.status === "completed") {
-    if (part.metadata?.openworkV2CodeMode === true && part.state.metadata.error === true) {
+    if (part.metadata?.harnessV2CodeMode === true && part.state.metadata.error === true) {
       return {
         type: "dynamic-tool", toolName: part.tool, toolCallId: part.callID,
         state: "output-error", input: part.state.input,

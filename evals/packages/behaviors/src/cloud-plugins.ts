@@ -1,4 +1,4 @@
-import { timed } from "@openwork/timeline";
+import { timed } from "@harness/timeline";
 import { denFetch } from "./den.ts";
 import type { DenSession } from "./den.ts";
 

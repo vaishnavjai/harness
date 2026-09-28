@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { denFetch } from "@openwork/behaviors";
-import type { Seed } from "@openwork/env";
+import { denFetch } from "@harness/behaviors";
+import type { Seed } from "@harness/env";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
-const cliPath = join(repoRoot, "packages/openwork-bootstrap/bin/openwork.mjs");
+const cliPath = join(repoRoot, "packages/harness-bootstrap/bin/harness.mjs");
 
 export type CliRun = { status: number | null; stdout: string; stderr: string };
 
@@ -33,17 +33,17 @@ function readDeviceEvent(line: string): { url: string; code: string } | null {
 }
 
 /**
- * A person with an OpenWork account signed in on Den web, and the
- * `openwork-bootstrap` CLI on their machine with no saved credentials.
+ * A person with a Harness account signed in on Den web, and the
+ * `harness-bootstrap` CLI on their machine with no saved credentials.
  * The CLI is the shipped Node script, run as a separate process.
  */
 export async function cliDeviceLogin(seed: Seed) {
   const den = await seed.den({ org: { name: "Device Login Org", members: {} } });
   const web = await seed.web({ den, signedInAs: "admin", headless: true, viewport: { width: 1280, height: 900 } });
   const home = seed.tmpPath("cli-device-login");
-  const credentialsPath = join(home, ".openwork", "credentials.json");
+  const credentialsPath = join(home, ".harness", "credentials.json");
   const children = new Set<ReturnType<typeof spawn>>();
-  const env = { ...process.env, HOME: home, OPENWORK_API_TOKEN: "", OPENWORK_CREDENTIALS_PATH: credentialsPath };
+  const env = { ...process.env, HOME: home, HARNESS_API_TOKEN: "", HARNESS_CREDENTIALS_PATH: credentialsPath };
 
   function run(args: string[]): Promise<CliRun> {
     return new Promise((done) => {
@@ -57,7 +57,7 @@ export async function cliDeviceLogin(seed: Seed) {
     });
   }
 
-  /** Start `openwork-bootstrap login` and resolve once it has printed the link and code. */
+  /** Start `harness-bootstrap login` and resolve once it has printed the link and code. */
   function startLogin(extraArgs: string[] = []): Promise<CliLogin> {
     return new Promise((ready, fail) => {
       const child = spawn(process.execPath, [cliPath, "login", "--base-url", den.ref.apiUrl, "--json", ...extraArgs], { env });

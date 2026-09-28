@@ -5,7 +5,7 @@ import {
   resolveDesktopPolicyDocumentWrite,
   selectEffectiveOnboardingPromptConfig,
   selectEffectiveOnboardingPrompts,
-} from "@openwork/types/den/desktop-policies";
+} from "@harness/types/den/desktop-policies";
 import { createDenClient, normalizeDenDesktopConfig } from "../src/app/lib/den";
 import { resolveConnectStateToPush } from "../src/react-app/domains/cloud/desktop-config-provider";
 
@@ -42,7 +42,7 @@ describe("Den desktop config client", () => {
 
     await createDenClient({ baseUrl: "https://den.test", token: "tok_test" }).getDesktopConfig("org_test");
 
-    expect(headers[0]?.get("x-openwork-legacy-org-id")).toBe("org_test");
+    expect(headers[0]?.get("x-harness-legacy-org-id")).toBe("org_test");
   });
 
   test("falls back to latestAppVersion for older Den version metadata", async () => {

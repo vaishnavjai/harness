@@ -116,7 +116,7 @@ export async function captureBrowserFilm(surface: Surface, directory: string) {
   try {
     await sendOn(browser, "Browser.setDownloadBehavior", {
       behavior: "allow",
-      downloadPath: `/tmp/openwork-film-downloads-${randomUUID()}`,
+      downloadPath: `/tmp/harness-film-downloads-${randomUUID()}`,
       eventsEnabled: true,
     });
     await send("Page.startScreencast", {

@@ -135,7 +135,7 @@ function waitForSignal(): Promise<void> {
 }
 
 const action = process.argv[2];
-const manifestPath = option("--manifest", "/tmp/openwork-enterprise-tls-edge.json");
+const manifestPath = option("--manifest", "/tmp/harness-enterprise-tls-edge.json");
 
 if (action === "serve") await serve(manifestPath);
 else if (action === "install" || action === "remove") await changeTrust(action, manifestPath);

@@ -26,7 +26,7 @@ Final-head runs and immutable receipts are published on the PR separately; the r
 Paths below are repo-relative. Unless marked baseline, line references describe the fixed production tree.
 
 1. `apps/app/src/react-app/domains/session/control/session-control-actions.ts:292–326`: `session.archive` descriptor and executor call the same archive hook used by the sidebar. `helpers.bridged` enables refusal of working/self targets rather than opening a dialog. New verification/unknown-write codes are preserved at line 314.
-2. `apps/server/src/opencode-plugins/openwork-extensions-preview.ts:1303–1308`: archive falls through to `uiControlRequest`; this is not a native engine archive handler. Requester origin accompanies the command (`447–504`). The HTTP transport to the server has a seven-second budget (`324–332`).
+2. `apps/server/src/opencode-plugins/harness-extensions-preview.ts:1303–1308`: archive falls through to `uiControlRequest`; this is not a native engine archive handler. Requester origin accompanies the command (`447–504`). The HTTP transport to the server has a seven-second budget (`324–332`).
 3. `apps/server/src/routes/ui-control.ts:22–47` authenticates and submits the command to `UiControlMailbox`. `apps/server/src/ui-control.ts:4–6,37–43` imposes a five-second receipt deadline. Expiration deletes the pending receipt; **it does not cancel renderer execution**. A later reply is rejected as missing/404.
 4. `apps/app/src/react-app/shell/control/use-ui-control-mailbox.ts:36–67` polls, awaits each command and reply serially, then polls again. `control-provider.tsx:529–564` invokes bridged execution; `413–470` awaits the action. Choreography adds roughly 80 ms before execution and 280 ms after success (`147–154`).
 5. `apps/app/src/react-app/shell/session-route.tsx:2592–2632` supplies the shared `useSessionArchive` instance. The target's owning workspace/endpoint is resolved, not assumed from the focused page.
@@ -43,7 +43,7 @@ The baseline mailbox error is reproduced with a held transcript **body**, delibe
 
 ### Where pinned sessions diverge (and where they do not)
 
-- `apps/app/src/react-app/domains/session/sidebar/session-management-store.ts:190–207,399–402`: `pinnedIds` are local persisted state under `openwork.react.sessionManagement`. No awaited pin-store RPC is part of archive.
+- `apps/app/src/react-app/domains/session/sidebar/session-management-store.ts:190–207,399–402`: `pinnedIds` are local persisted state under `harness.react.sessionManagement`. No awaited pin-store RPC is part of archive.
 - `app-sidebar.tsx:933–946,1237–1256` selects active pinned roots and renders the same session menu item with its owning workspace. Menu/hover archive routes use the common callback (`414–419,487–498`).
 - There is **no “archive pinned?” confirmation**, no unpin-before-PATCH, and no promise waiting for `pinned=false`. Archiving hides the inactive entry; its retained pin preference can reappear on restore. The fix preserves this behavior.
 - Working-session confirmation is independent of pinning. `use-session-archive.tsx:148–151` returns `target_working` before mounting a dialog for bridged requests; requester/self-tree refusal remains intact. The generic mailbox text mentioning a possible confirmation is not evidence of an actual dialog.
@@ -68,7 +68,7 @@ The original direct UI archive does not itself occupy the mailbox loop, so it is
 - Track PATCH dispatch (`286–288`). Return `verification_failed` when no archive PATCH was sent, versus `archive_outcome_unknown` after dispatch without a confirmed result. Do not claim “not archived” after an uncertain write, and never automatically retry it.
 - Resolve cancellation on unmount, guard late continuations, release holds and busy state in `finally`. Reconcile a known successful PATCH locally even if cache refresh stalls.
 - Preserve effective caller signals and Request init overrides in `opencode.ts:205–209,234–238,305–309`; pass the archive signal through `opencode-session.ts`.
-- Declare the two codes in `packages/types/src/openwork-affordance.ts:118–142`, so the renderer bridge cannot silently normalize them away.
+- Declare the two codes in `packages/types/src/harness-affordance.ts:118–142`, so the renderer bridge cannot silently normalize them away.
 
 ## Why tests missed it: negative space
 
@@ -88,32 +88,32 @@ Use the supplied mise pnpm 11.4.0, Bun 1.4.0 and Node 24.20.0 in PATH. Run one a
 
 ```sh
 # Local isolated dev Electron, both healthy pin matrix and held-read recovery.
-env -u OPENWORK_EVAL_ELECTRON_BINARY -u OPENWORK_EVAL_SURFACES_DIR \
-  -u OPENWORK_SERVER_CONFIG -u OPENWORK_SERVER_STATE_PATH \
-  -u OPENWORK_SERVER_TOKEN_STORE_PATH -u OPENWORK_DESKTOP_WORKSPACE_STATE_PATH \
-  -u OPENCODE_DB OPENWORK_DEV_SHARED_STATE=0 \
+env -u HARNESS_EVAL_ELECTRON_BINARY -u HARNESS_EVAL_SURFACES_DIR \
+  -u HARNESS_SERVER_CONFIG -u HARNESS_SERVER_STATE_PATH \
+  -u HARNESS_SERVER_TOKEN_STORE_PATH -u HARNESS_DESKTOP_WORKSPACE_STATE_PATH \
+  -u OPENCODE_DB HARNESS_DEV_SHARED_STATE=0 \
   pnpm evals:e2e session-archive-pinned --local --engine v1
 
 # Testkit receipt wrapping four native unit suites (110 assertions-based tests).
 pnpm evals:pr specs/session-archive-deadline.test.ts
-pnpm --filter @openwork/app typecheck
+pnpm --filter @harness/app typecheck
 pnpm evals:typecheck
 pnpm evals:check-browser
 ```
 
 Development results: E2E 1 passed / 0 failed / 0 skipped, exit 0; deadline wrapper 1 passed / 0 failed / 0 skipped with 110 unit tests and 828 expectations, exit 0. Typechecks and browser checks passed. A broad layers lint attempted during setup reported 54 violations outside the changed entries; no clean control was run, so its provenance is unresolved. Targeted changed-entry dependency checks passed.
 
-Revert-fails command: the identical E2E command after `git restore --source=76b166802a6360878257ad0c43b98668de306920 --` the five changed production files, retaining the new spec and fault witness. Exit 1, 0 passed / 1 failed / 0 skipped: expected `verification_failed`, received “The OpenWork window did not answer within 5 seconds…”. Healthy UI/mailbox/unpin steps passed before the held-read failure. Receipt: `evals/results/test-runs/2026-09-15T03-43-01-863Z-pinned-idle-sessions-archive-from-the-sidebar-and-mailbox-without-a-focused-sess/test-run.json`. Its recorded HEAD is `4a02ce9cc`, but production files were deliberately reverted in the working tree: **not a fixed-head receipt**.
+Revert-fails command: the identical E2E command after `git restore --source=76b166802a6360878257ad0c43b98668de306920 --` the five changed production files, retaining the new spec and fault witness. Exit 1, 0 passed / 1 failed / 0 skipped: expected `verification_failed`, received “The Harness window did not answer within 5 seconds…”. Healthy UI/mailbox/unpin steps passed before the held-read failure. Receipt: `evals/results/test-runs/2026-09-15T03-43-01-863Z-pinned-idle-sessions-archive-from-the-sidebar-and-mailbox-without-a-focused-sess/test-run.json`. Its recorded HEAD is `4a02ce9cc`, but production files were deliberately reverted in the working tree: **not a fixed-head receipt**.
 
 Focused native revert-fails, from `apps/app`: `pnpm --config.verify-deps-before-run=false exec bun test --isolate tests/session-archive-agent-contract.test.tsx --test-name-pattern "bounds a stalled preflight response body"`. Exit 1, 0 passed / 1 failed / 25 filtered: expected `verification_failed`, received undefined after 3,500 ms. All production files were restored from the signed fix immediately afterward.
 
 ## CI follow-up: preserve explicit null overrides across runtime versions
 
-PR #5014's initial `openwork-tests-core` run failed at the **new ordinary-request test** `opencode-stream-timeout.test.ts:185`: explicit `RequestInit.signal=null` must disconnect the input Request signal. This is not a streaming test and its expectation remains unchanged. No oracle change, no archive-only narrowing, and no swallowing caller cancellation are justified.
+PR #5014's initial `harness-tests-core` run failed at the **new ordinary-request test** `opencode-stream-timeout.test.ts:185`: explicit `RequestInit.signal=null` must disconnect the input Request signal. This is not a streaming test and its expectation remains unchanged. No oracle change, no archive-only narrowing, and no swallowing caller cancellation are justified.
 
 CI used Bun 1.3.14; the supplied local toolchain used Bun 1.4.0. A focused local run with Bun 1.3.14 reproduced the same failure (1 passed / 1 failed / 27 filtered). That runtime's `new Request(input, {signal:null})` retained the input signal. The desktop wrapper now forwards the explicit init signal into `fetchWithTimeout` as well as cloning the request, preserving null versus undefined through deadline composition. The non-streaming timeout branch is unchanged; event streams remain untimed.
 
-With that transport correction, `pnpm --filter @openwork/app test:core` on Bun 1.3.14 passed **292 tests / 0 failed**, 3,189 expectations, exit 0. The deadline testkit wrapper passed with all 110 native tests; app typecheck passed. The user-requested command `pnpm --filter @openwork/app test -- opencode-stream-timeout` does **not** scope this repo's test script: it expands to `bun test --isolate tests/ -- opencode-stream-timeout`, running 254 files. It returned 2,282 passed / 8 failed, exit 1, with failures in mention instructions, v2 provider options, composer continuity, palette settings and tool-error rendering, not the transport test. No clean control was run for these broader failures; their provenance remains unresolved rather than being labeled pre-existing. They are outside the workflow's 18-file core suite. Final-head core CI and regenerated testkit receipts are linked on the PR.
+With that transport correction, `pnpm --filter @harness/app test:core` on Bun 1.3.14 passed **292 tests / 0 failed**, 3,189 expectations, exit 0. The deadline testkit wrapper passed with all 110 native tests; app typecheck passed. The user-requested command `pnpm --filter @harness/app test -- opencode-stream-timeout` does **not** scope this repo's test script: it expands to `bun test --isolate tests/ -- opencode-stream-timeout`, running 254 files. It returned 2,282 passed / 8 failed, exit 1, with failures in mention instructions, v2 provider options, composer continuity, palette settings and tool-error rendering, not the transport test. No clean control was run for these broader failures; their provenance remains unresolved rather than being labeled pre-existing. They are outside the workflow's 18-file core suite. Final-head core CI and regenerated testkit receipts are linked on the PR.
 
 ## User impact and tonight's guidance
 

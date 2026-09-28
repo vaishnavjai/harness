@@ -100,12 +100,12 @@ async function enableDocsCapabilities(admin: DenSession, organizationId: string)
     throw new Error(`PUT ${route} failed: HTTP ${result.response.status} ${result.text.slice(0, 500)}`);
   }
 
-  // Cloud is entitled by OpenWork Web access, not a per-organization flag.
-  const webRoute = `/v1/admin/organizations/${organizationId}/openwork-web-access`;
+  // Cloud is entitled by Harness Web access, not a per-organization flag.
+  const webRoute = `/v1/admin/organizations/${organizationId}/harness-web-access`;
   const webResult = await denFetch(admin, webRoute, {
     method: "PUT",
     headers: auth(admin),
-    body: JSON.stringify({ enabled: true, reason: "acme-docs world: complimentary OpenWork Web access for Cloud" }),
+    body: JSON.stringify({ enabled: true, reason: "acme-docs world: complimentary Harness Web access for Cloud" }),
   });
   if (!webResult.response.ok) {
     throw new Error(`PUT ${webRoute} failed: HTTP ${webResult.response.status} ${webResult.text.slice(0, 500)}`);
@@ -121,7 +121,7 @@ async function createProductOperationsPolicy(
   const teamRoute = "/v1/teams";
   const team = await denFetch(den.admin, teamRoute, {
     method: "POST",
-    headers: { ...auth(den.admin), "x-openwork-org-id": organizationId },
+    headers: { ...auth(den.admin), "x-harness-org-id": organizationId },
     body: JSON.stringify({ name: "Product Operations", memberIds: [jordanId] }),
   });
   const teamRecord = isRecord(team.body) && isRecord(team.body.team) ? team.body.team : null;
@@ -133,7 +133,7 @@ async function createProductOperationsPolicy(
   const policyRoute = "/v1/desktop-policies";
   const policy = await denFetch(den.admin, policyRoute, {
     method: "POST",
-    headers: { ...auth(den.admin), "x-openwork-org-id": organizationId },
+    headers: { ...auth(den.admin), "x-harness-org-id": organizationId },
     body: JSON.stringify({
       policyName: "Product operations prompts",
       priority: 100,

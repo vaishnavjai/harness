@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { composerPromptHistory } from "../worlds/composer-prompt-history.ts";
 import { longHistoryLast, longHistoryOtherTitle, longHistoryTitle } from "../worlds/chat.ts";
 

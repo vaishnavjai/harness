@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import type { Target } from "@openwork/testkit";
-import { spec } from "@openwork/testkit";
+import type { Target } from "@harness/testkit";
+import { spec } from "@harness/testkit";
 import { browserGeometryWorld, browserViewportWorld, CAPTURE_VIEWPORT, INPUT_PROBE_PAGE } from "../worlds/browser-panel.ts";
 
 const test = spec.world(browserViewportWorld, {

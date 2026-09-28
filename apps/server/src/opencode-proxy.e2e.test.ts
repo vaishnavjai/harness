@@ -31,7 +31,7 @@ afterEach(async () => {
 });
 
 async function createWorkspaceRoot(folderName?: string) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-opencode-proxy-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-opencode-proxy-"));
   const workspaceRoot = folderName ? join(root, folderName) : root;
   await mkdir(join(workspaceRoot, ".opencode"), { recursive: true });
   roots.push(root);
@@ -90,7 +90,7 @@ function startMockOpencode(input?: MockReadOptions & { holdCommand?: Promise<voi
           { id: "ses_unscoped" },
         ] });
         if (["/api/mcp", "/api/skill"].includes(url.pathname)) return Response.json({ data: [] });
-        if (url.pathname === "/api/session/ses_1/instructions/entries/openwork.context"
+        if (url.pathname === "/api/session/ses_1/instructions/entries/harness.context"
           || url.pathname === "/api/session/ses_1/prompt") return Response.json({ data: { accepted: true } });
         return Response.json({ code: "not_found" }, { status: 404 });
       }
@@ -216,7 +216,7 @@ function startMockOpencode(input?: MockReadOptions & { holdCommand?: Promise<voi
   return { server, requests };
 }
 
-async function startOpenworkServer(input: {
+async function startHarnessServer(input: {
   workspaceRoot: string;
   secondWorkspaceRoot?: string;
   opencodeBaseUrl?: string;
@@ -313,14 +313,14 @@ async function startV2Proxy(options?: MockReadOptions) {
     stop: async () => {},
   });
   try {
-    const openwork = await startOpenworkServer({ workspaceRoot, secondWorkspaceRoot, readOnly: false });
+    const harness = await startHarnessServer({ workspaceRoot, secondWorkspaceRoot, readOnly: false });
     stops.push(() => { provider.release(); mcp.release(); });
-    const base = `http://127.0.0.1:${openwork.server.port}`;
+    const base = `http://127.0.0.1:${harness.server.port}`;
     const request = (path: string, init: RequestInit = {}, workspaceId = "ws_1") => fetch(
       `${base}/workspace/${workspaceId}/opencode2${path}`,
-      { signal: AbortSignal.timeout(2_000), headers: auth(openwork.token), ...init },
+      { signal: AbortSignal.timeout(2_000), headers: auth(harness.token), ...init },
     );
-    return { ...openwork, base, request, engine, provider, mcp, workspaceRoot, secondWorkspaceRoot };
+    return { ...harness, base, request, engine, provider, mcp, workspaceRoot, secondWorkspaceRoot };
   } finally {
     preview.mockRestore();
   }
@@ -342,7 +342,7 @@ describe("workspace OpenCode proxy", () => {
       method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     expect((await post(auth(fixture.token), { confirm: true })).status).toBe(401);
-    const host = { "x-openwork-host-token": fixture.config.hostToken };
+    const host = { "x-harness-host-token": fixture.config.hostToken };
     expect((await post(host, {})).status).toBe(400);
     expect((await post(host, { confirm: false })).status).toBe(400);
     expect((await post(host, { confirm: true })).status).toBe(200);
@@ -351,13 +351,13 @@ describe("workspace OpenCode proxy", () => {
   test.serial("prompt admission bypasses held same-directory maintenance", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const engine = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}`, readOnly: false,
     });
     const entered = deferred();
     const release = deferred();
     let maintenanceFinished = false;
-    const maintenance = withEngineDirectoryFence(openwork.config, openwork.config.workspaces[0]!, async () => {
+    const maintenance = withEngineDirectoryFence(harness.config, harness.config.workspaces[0]!, async () => {
       entered.resolve();
       await release.promise;
       maintenanceFinished = true;
@@ -366,8 +366,8 @@ describe("workspace OpenCode proxy", () => {
     const deadline = setTimeout(() => caller.abort(), 1_000);
     try {
       await entered.promise;
-      const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session/ses_created/prompt_async`, {
-        method: "POST", headers: { ...auth(openwork.token), "Content-Type": "application/json" },
+      const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session/ses_created/prompt_async`, {
+        method: "POST", headers: { ...auth(harness.token), "Content-Type": "application/json" },
         body: JSON.stringify({ parts: [] }), signal: caller.signal,
       });
       expect(response.status).toBe(204);
@@ -403,12 +403,12 @@ describe("workspace OpenCode proxy", () => {
       },
     });
     stops.push(() => den.stop(true));
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}`, readOnly: false,
     });
-    const base = `http://127.0.0.1:${openwork.server.port}`;
+    const base = `http://127.0.0.1:${harness.server.port}`;
     const identity = await fetch(`${base}/den-session/identity`, {
-      method: "PUT", headers: { "x-openwork-host-token": openwork.config.hostToken, "Content-Type": "application/json" },
+      method: "PUT", headers: { "x-harness-host-token": harness.config.hostToken, "Content-Type": "application/json" },
       body: JSON.stringify({ baseUrl: `http://127.0.0.1:${den.port}`, token: "den-fixture-token", orgId: "org_test" }),
       signal: AbortSignal.timeout(1_000),
     });
@@ -416,7 +416,7 @@ describe("workspace OpenCode proxy", () => {
     expect(denRequests).toEqual([]);
     outage = true;
     const denCount = denRequests.length;
-    const prompt = (providerID: string, token = openwork.token) => fetch(`${base}/workspace/ws_1/opencode/session/ses_created/prompt_async`, {
+    const prompt = (providerID: string, token = harness.token) => fetch(`${base}/workspace/ws_1/opencode/session/ses_created/prompt_async`, {
       method: "POST", headers: { ...auth(token), "Content-Type": "application/json" },
       body: JSON.stringify({ model: { providerID, modelID: "fixture" }, parts: [] }),
       signal: AbortSignal.timeout(1_000),
@@ -486,10 +486,10 @@ describe("workspace OpenCode proxy", () => {
         } });
       },
     });
-    const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
+    const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
     const request = (sessionId: string, before?: string) => fetch(
-      `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session/${sessionId}/message?${new URLSearchParams({ limit: "1", ...(before ? { before } : {}) })}`,
-      { headers: { ...auth(openwork.token), Origin: "https://app.example" }, signal: AbortSignal.timeout(2_000) },
+      `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session/${sessionId}/message?${new URLSearchParams({ limit: "1", ...(before ? { before } : {}) })}`,
+      { headers: { ...auth(harness.token), Origin: "https://app.example" }, signal: AbortSignal.timeout(2_000) },
     );
     const newest = await request("ses_1");
     expect(newest.status).toBe(200);
@@ -522,10 +522,10 @@ describe("workspace OpenCode proxy", () => {
         if (new URL(request.url).pathname === "/session/ses_foreign") await release.promise;
       },
     });
-    const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
+    const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
     const request = (path: string) => fetch(
-      `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode${path}`,
-      { headers: auth(openwork.token), signal: AbortSignal.timeout(2_000) },
+      `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode${path}`,
+      { headers: auth(harness.token), signal: AbortSignal.timeout(2_000) },
     );
     const foreign = request("/session/ses_foreign/message");
     try {
@@ -561,8 +561,8 @@ describe("workspace OpenCode proxy", () => {
           },
         });
         const engineUrl = `http://127.0.0.1:${engine.server.port}`;
-        const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: engineUrl });
-        const base = `http://127.0.0.1:${openwork.server.port}`;
+        const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: engineUrl });
+        const base = `http://127.0.0.1:${harness.server.port}`;
         const originalFetch = globalThis.fetch;
         const unhandled: unknown[] = [];
         const onUnhandled = (error: unknown) => { unhandled.push(error); };
@@ -580,7 +580,7 @@ describe("workspace OpenCode proxy", () => {
         );
         process.on("unhandledRejection", onUnhandled);
         const result = originalFetch(`${base}${mount}${historyPath}`, {
-          headers: auth(openwork.token), signal: AbortSignal.timeout(2_000),
+          headers: auth(harness.token), signal: AbortSignal.timeout(2_000),
         });
         void result.catch(() => undefined);
         try {
@@ -627,10 +627,10 @@ describe("workspace OpenCode proxy", () => {
         const fixture = version === "v2" ? await startV2Proxy({ onRead }) : await (async () => {
           const workspaceRoot = await createWorkspaceRoot();
           const engine = startMockOpencode({ onRead });
-          const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
+          const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
           return { engine, request: (path: string, init: RequestInit) => fetch(
-            `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode${path}`,
-            { headers: auth(openwork.token), ...init },
+            `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode${path}`,
+            { headers: auth(harness.token), ...init },
           ) };
         })();
         const caller = new AbortController();
@@ -673,14 +673,14 @@ describe("workspace OpenCode proxy", () => {
           transport.handle = options.fetch;
           return originalServe(options);
         });
-        const previousTelemetry = globalThis.__openworkDesktopTelemetry;
+        const previousTelemetry = globalThis.__harnessUnhandledErrorObserver;
         const captured: unknown[] = [];
-        globalThis.__openworkDesktopTelemetry = { captureException: (error) => { captured.push(error); return true; } };
+        globalThis.__harnessUnhandledErrorObserver = { captureException: (error) => { captured.push(error); return true; } };
         let restorePath = () => {};
         const caller = new AbortController();
         let result: Promise<Response> | undefined;
         try {
-          const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
+          const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}` });
           const handle = transport.handle;
           if (!handle) throw new Error("Missing server request handler");
           const originalRealpath = fs.realpath;
@@ -697,9 +697,9 @@ describe("workspace OpenCode proxy", () => {
           }
           const pathSpy = spyOn(fs, "realpath").mockImplementation(delayedRealpath);
           restorePath = () => pathSpy.mockRestore();
-          const base = `http://127.0.0.1:${openwork.server.port}`;
+          const base = `http://127.0.0.1:${harness.server.port}`;
           result = Promise.resolve(handle(new Request(`${base}${mount}/session/ses_1/message`, {
-            method, headers: auth(openwork.token), signal: caller.signal,
+            method, headers: auth(harness.token), signal: caller.signal,
           })));
           void result.catch(() => undefined);
           expect(await waitUntil(() => canonicalizationPending, 2_000)).toBe(true);
@@ -713,10 +713,10 @@ describe("workspace OpenCode proxy", () => {
           expect(captured).toEqual([]);
           restorePath();
           restorePath = () => {};
-          const control = await handle(new Request(`${base}${mount}/session/ses_1/todo`, { headers: auth(openwork.token) }));
+          const control = await handle(new Request(`${base}${mount}/session/ses_1/todo`, { headers: auth(harness.token) }));
           expect(control.status).toBe(200);
           expect(await control.json()).toEqual([{ content: "Validate session reads", status: "completed", priority: "high" }]);
-          const foreign = await handle(new Request(`${base}${mount}/session/ses_foreign/message`, { headers: auth(openwork.token) }));
+          const foreign = await handle(new Request(`${base}${mount}/session/ses_foreign/message`, { headers: auth(harness.token) }));
           expect(foreign.status).toBe(404);
           expect(await foreign.text()).not.toContain("msg_foreign");
         } finally {
@@ -724,7 +724,7 @@ describe("workspace OpenCode proxy", () => {
           await result?.catch(() => undefined);
           restorePath();
           serveSpy.mockRestore();
-          globalThis.__openworkDesktopTelemetry = previousTelemetry;
+          globalThis.__harnessUnhandledErrorObserver = previousTelemetry;
         }
       });
     }
@@ -750,8 +750,8 @@ describe("workspace OpenCode proxy", () => {
       const second = await fixture.request("/api/session?cursor=next-page&limit=50");
       expect(second.status).toBe(200);
       await expect(second.json()).resolves.toEqual({ data: { ...sessions, items: [
-        { ...sessions.items[0], openworkHomeDirectory: await fs.realpath(fixture.workspaceRoot) },
-        { info: { id: "ses_b", location: { directory: alias }, openworkHomeDirectory: await fs.realpath(fixture.workspaceRoot) } },
+        { ...sessions.items[0], harnessHomeDirectory: await fs.realpath(fixture.workspaceRoot) },
+        { info: { id: "ses_b", location: { directory: alias }, harnessHomeDirectory: await fs.realpath(fixture.workspaceRoot) } },
       ] } });
       expect(resolvePath.mock.calls.filter(([directory]) => directory === alias)).toHaveLength(2);
       expect(fixture.provider.calls).toEqual([]);
@@ -809,7 +809,7 @@ describe("workspace OpenCode proxy", () => {
     expect(fixture.mcp.calls).toEqual([["ws_1", fixture.workspaceRoot]]);
     // Ownership is verified before the prompt joins its folder's upkeep.
     expect(fixture.engine.requests.slice(-3).map((item) => `${item.method} ${item.pathname}`)).toEqual([
-      "GET /api/mcp", "PUT /api/session/ses_1/instructions/entries/openwork.context", "POST /api/session/ses_1/prompt",
+      "GET /api/mcp", "PUT /api/session/ses_1/instructions/entries/harness.context", "POST /api/session/ses_1/prompt",
     ]);
   });
 
@@ -885,7 +885,7 @@ describe("workspace OpenCode proxy", () => {
     expect(fixture.engine.requests).toEqual([]);
 
     const issued = await fetch(`${fixture.base}/tokens`, {
-      method: "POST", headers: { "x-openwork-host-token": fixture.config.hostToken }, body: JSON.stringify({ scope: "viewer" }),
+      method: "POST", headers: { "x-harness-host-token": fixture.config.hostToken }, body: JSON.stringify({ scope: "viewer" }),
     });
     expect(issued.status).toBe(201);
     const viewer = await issued.json();
@@ -896,7 +896,7 @@ describe("workspace OpenCode proxy", () => {
     fixture.engine.requests.length = 0;
     expect((await fixture.request("/api/session/ses_1/message", { method: "POST", headers: auth(viewer.token) })).status).toBe(403);
     const revoked = await fetch(`${fixture.base}/tokens/${viewer.id}`, {
-      method: "DELETE", headers: { "x-openwork-host-token": fixture.config.hostToken },
+      method: "DELETE", headers: { "x-harness-host-token": fixture.config.hostToken },
     });
     expect(revoked.status).toBe(200);
     for (const path of browsePaths) {
@@ -936,14 +936,14 @@ describe("workspace OpenCode proxy", () => {
     const workspaceRoot = await createWorkspaceRoot();
     const recovery = { active: false, turn: 0 };
     const mock = startMockOpencode({ recovery });
-    const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`, readOnly: false, resumeInterruptedTasks: true });
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session/ses_1/prompt_async`, {
-      method: "POST", headers: { ...auth(openwork.token), "content-type": "application/json" }, body: JSON.stringify({ parts: [{ type: "text", text: "Finish the task" }] }),
+    const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`, readOnly: false, resumeInterruptedTasks: true });
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session/ses_1/prompt_async`, {
+      method: "POST", headers: { ...auth(harness.token), "content-type": "application/json" }, body: JSON.stringify({ parts: [{ type: "text", text: "Finish the task" }] }),
     });
     expect(response.status).toBe(204);
-    await openwork.server.stop();
+    await harness.server.stop();
     recovery.active = false;
-    const restarted = await startServer({ ...openwork.config, port: 0 });
+    const restarted = await startServer({ ...harness.config, port: 0 });
     stops.push(() => restarted.stop());
     const resumed = () => mock.requests.filter((request) => request.method === "POST" && JSON.stringify(request.body).includes("Continue the interrupted task"));
     const deadline = Date.now() + 5_000;
@@ -958,16 +958,16 @@ describe("workspace OpenCode proxy", () => {
   test.each(["/workspace/ws_1/opencode", "/w/ws_1/opencode", "/opencode"])("%s accepts empty engine request bodies and rejects malformed JSON before forwarding", async (mount) => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`, readOnly: false });
-    const url = `http://127.0.0.1:${openwork.server.port}${mount}/session`;
+    const harness = await startHarnessServer({ workspaceRoot, opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`, readOnly: false });
+    const url = `http://127.0.0.1:${harness.server.port}${mount}/session`;
     for (const body of [undefined, ""]) {
-      const response = await fetch(url, { method: "POST", headers: auth(openwork.token), body });
+      const response = await fetch(url, { method: "POST", headers: auth(harness.token), body });
       expect(response.status).toBe(200);
       expect((await response.json()).id).toBe("ses_created");
     }
     const sessionPosts = () => mock.requests.filter((request) => request.method === "POST" && request.pathname === "/session");
     expect(sessionPosts()).toHaveLength(2);
-    const malformed = await fetch(url, { method: "POST", headers: auth(openwork.token), body: "{" });
+    const malformed = await fetch(url, { method: "POST", headers: auth(harness.token), body: "{" });
     expect(malformed.status).toBe(400);
     await expect(malformed.json()).resolves.toMatchObject({ code: "invalid_request" });
     expect(sessionPosts()).toHaveLength(2);
@@ -986,13 +986,13 @@ describe("workspace OpenCode proxy", () => {
   test("accepts guest-side rem_ workspace aliases", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
 
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/rem_ws_1/opencode/session`, {
-      headers: auth(openwork.token),
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/rem_ws_1/opencode/session`, {
+      headers: auth(harness.token),
     });
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -1004,13 +1004,13 @@ describe("workspace OpenCode proxy", () => {
   test("encodes non-ASCII workspace directory headers for opencode proxy requests", async () => {
     const workspaceRoot = await createWorkspaceRoot("项目");
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
 
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session`, {
-      headers: auth(openwork.token),
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session`, {
+      headers: auth(harness.token),
     });
 
     expect(response.status).toBe(200);
@@ -1022,17 +1022,17 @@ describe("workspace OpenCode proxy", () => {
   test("prevents opencode proxy callers from escaping the mounted workspace directory", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
 
     const foreignDirectory = "/tmp/foreign-workspace";
     const response = await fetch(
-      `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session?directory=${encodeURIComponent(foreignDirectory)}&roots=true`,
+      `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session?directory=${encodeURIComponent(foreignDirectory)}&roots=true`,
       {
         headers: {
-          ...auth(openwork.token),
+          ...auth(harness.token),
           "x-opencode-directory": foreignDirectory,
         },
       },
@@ -1048,7 +1048,7 @@ describe("workspace OpenCode proxy", () => {
   test("pins the workspace directory against repeated, encoded, and traversal spoof variants", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
@@ -1065,11 +1065,11 @@ describe("workspace OpenCode proxy", () => {
     for (const [index, query] of hostileQueries.entries()) {
       mock.requests.length = 0;
       const response = await fetch(
-        `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session?${query}`,
+        `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session?${query}`,
         {
           method: "GET",
           headers: {
-            ...auth(openwork.token),
+            ...auth(harness.token),
             "x-opencode-directory": "/tmp/foreign-header",
           },
         },
@@ -1091,25 +1091,25 @@ describe("workspace OpenCode proxy", () => {
     const workspaceRoot = await createWorkspaceRoot();
     const secondWorkspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode({ foreignSessionDirectory: secondWorkspaceRoot });
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       secondWorkspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
-    const base = `http://127.0.0.1:${openwork.server.port}`;
+    const base = `http://127.0.0.1:${harness.server.port}`;
 
     for (const path of [
       "/session/ses_foreign",
       "/session/ses_foreign/message?limit=50",
       "/session/ses_foreign/todo",
     ]) {
-      const response = await fetch(`${base}/workspace/ws_1/opencode${path}`, { headers: auth(openwork.token) });
+      const response = await fetch(`${base}/workspace/ws_1/opencode${path}`, { headers: auth(harness.token) });
       expect({ path, status: response.status }).toEqual({ path, status: 404 });
       await expect(response.json()).resolves.toMatchObject({ code: "session_not_found" });
     }
 
     const ownerResponse = await fetch(`${base}/workspace/ws_2/opencode/session/ses_foreign/message`, {
-      headers: auth(openwork.token),
+      headers: auth(harness.token),
     });
     expect(ownerResponse.status).toBe(200);
     await expect(ownerResponse.json()).resolves.toEqual([
@@ -1120,7 +1120,7 @@ describe("workspace OpenCode proxy", () => {
   test("scopes spoofed directories on POST proxy requests without touching the body", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
       readOnly: false,
@@ -1128,11 +1128,11 @@ describe("workspace OpenCode proxy", () => {
 
     const body = { title: "Spoofed create", directory: "/tmp/foreign-body" };
     const response = await fetch(
-      `http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session?directory=${encodeURIComponent("/tmp/foreign-query")}`,
+      `http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session?directory=${encodeURIComponent("/tmp/foreign-query")}`,
       {
         method: "POST",
         headers: {
-          ...auth(openwork.token),
+          ...auth(harness.token),
           "Content-Type": "application/json",
           "x-opencode-directory": "/tmp/foreign-header",
         },
@@ -1152,7 +1152,7 @@ describe("workspace OpenCode proxy", () => {
   test("keeps opencode proxy requests off the workspace bootstrap path", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
       readOnly: false,
@@ -1163,8 +1163,8 @@ describe("workspace OpenCode proxy", () => {
     await mkdir(commandsDir, { recursive: true });
     await writeFile(commandPath, legacyCommand, "utf8");
 
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session`, {
-      headers: auth(openwork.token),
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session`, {
+      headers: auth(harness.token),
     });
 
     expect(response.status).toBe(200);
@@ -1216,7 +1216,7 @@ describe("workspace OpenCode proxy", () => {
       body: string,
     ) => {
       const proxyPath = `/session/${sessionId}/command`;
-      const url = new URL(`http://openwork.invalid/opencode${proxyPath}`);
+      const url = new URL(`http://harness.invalid/opencode${proxyPath}`);
       return proxyOpencodeRequest({
         config,
         workspace: targetWorkspace,
@@ -1274,13 +1274,13 @@ describe("workspace OpenCode proxy", () => {
   test("keeps legacy /w workspace opencode proxy alias", async () => {
     const workspaceRoot = await createWorkspaceRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenworkServer({
+    const harness = await startHarnessServer({
       workspaceRoot,
       opencodeBaseUrl: `http://127.0.0.1:${mock.server.port}`,
     });
 
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/w/ws_1/opencode/session`, {
-      headers: auth(openwork.token),
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/w/ws_1/opencode/session`, {
+      headers: auth(harness.token),
     });
 
     expect(response.status).toBe(200);
@@ -1291,10 +1291,10 @@ describe("workspace OpenCode proxy", () => {
 
   test("returns a configured error instead of constructing an SDK request with a relative URL", async () => {
     const workspaceRoot = await createWorkspaceRoot();
-    const openwork = await startOpenworkServer({ workspaceRoot });
+    const harness = await startHarnessServer({ workspaceRoot });
 
-    const response = await fetch(`http://127.0.0.1:${openwork.server.port}/workspace/ws_1/opencode/session?limit=200`, {
-      headers: auth(openwork.token),
+    const response = await fetch(`http://127.0.0.1:${harness.server.port}/workspace/ws_1/opencode/session?limit=200`, {
+      headers: auth(harness.token),
     });
 
     expect(response.status).toBe(400);

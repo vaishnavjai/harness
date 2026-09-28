@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: openwork-tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: harness-tests-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -70,7 +70,7 @@ jobs:
             core.setOutput("den_contract", denContract ? "true" : "false")
             core.info(`Den API contract check: ${denContract ? "required" : "not affected"}`)
 
-  openwork-tests-core:
+  harness-tests-core:
     needs: classify-changes
     if: needs.classify-changes.outputs.lane == 'full'
     runs-on: blacksmith-16vcpu-ubuntu-2204
@@ -101,15 +101,15 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-tests
       - name: Build MCP App resources required by the server
-        run: pnpm --filter @openwork/mcp-apps build
+        run: pnpm --filter @harness/mcp-apps build
       - name: Verify immutable runtime and authoring contracts
-        run: node --test scripts/ci/workflow-authoring-gate.test.mjs && pnpm --filter @openwork/codemode test && pnpm --filter @openwork-ee/den-api test:authoring
+        run: node --test scripts/ci/workflow-authoring-gate.test.mjs && pnpm --filter @harness/codemode test && pnpm --filter @harness-ee/den-api test:authoring
       - name: Verify shared encrypted receipt retention against Redis
         env:
           WORKFLOW_AUTHORING_TEST_REDIS_URL: redis://127.0.0.1:6379
-        run: pnpm --filter @openwork-ee/den-api exec bun test --conditions development test/workflow-authoring-retention.redis.test.ts
+        run: pnpm --filter @harness-ee/den-api exec bun test --conditions development test/workflow-authoring-retention.redis.test.ts
 
-  openwork-tests-build:
+  harness-tests-build:
     needs: classify-changes
     if: needs.classify-changes.outputs.lane == 'full'
     runs-on: blacksmith-16vcpu-ubuntu-2204
@@ -136,7 +136,7 @@ jobs:
           fi
 
           umask 077
-          apt_dir=$(mktemp -d /tmp/openwork-apt.XXXXXXXX)
+          apt_dir=$(mktemp -d /tmp/harness-apt.XXXXXXXX)
           trap 'rm -rf -- "$apt_dir"' EXIT
           trap 'exit 130' INT
           trap 'exit 143' TERM
@@ -234,17 +234,17 @@ jobs:
       - name: Bundle the server plugins the way packaged builds do
         run: |
           rm -rf packages/types/dist
-          pnpm --filter openwork-server build
+          pnpm --filter @harness/server build
       - name: Check packaged Fast module consumption
         run: node --test packages/types/tests/packaged-cloud-model-fast.test.mjs
       - name: Typecheck Electron main against the IPC contract
-        run: pnpm --filter @openwork/desktop typecheck:electron
+        run: pnpm --filter @harness/desktop typecheck:electron
       - name: Check virtual display bootstrap contract
         run: node --test scripts/ci/ubuntu-apt-https.test.mjs apps/desktop/scripts/packaged-smoke-runner.test.mjs
       - name: Package and smoke-test the installed desktop
         timeout-minutes: 7
         env:
-          OPENWORK_PACKAGED_SMOKE_DIR: ${{ runner.temp }}/openwork-packaged-smoke
+          HARNESS_PACKAGED_SMOKE_DIR: ${{ runner.temp }}/harness-packaged-smoke
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: node apps/desktop/scripts/packaged-smoke.mjs --server-built
       - name: Upload packaged smoke evidence and timings
@@ -253,15 +253,15 @@ jobs:
         with:
           name: packaged-desktop-smoke-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/openwork-packaged-smoke/timing.json
-            ${{ runner.temp }}/openwork-packaged-smoke/profiles/**/electron.log
+            ${{ runner.temp }}/harness-packaged-smoke/timing.json
+            ${{ runner.temp }}/harness-packaged-smoke/profiles/**/electron.log
             evals/results/test-runs/**
           include-hidden-files: true
           retention-days: 7
 
   # Broad tests, source-layout guards, and test-framework checks remain visible
   # here without blocking unrelated PRs. No retries or ignored failures.
-  openwork-tests-extended:
+  harness-tests-extended:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -277,16 +277,16 @@ jobs:
         uses: ./.github/actions/setup-tests
       - name: Run all app tests
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter @openwork/app test
+        run: pnpm --filter @harness/app test
       - name: Run all server tests
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter openwork-server test
+        run: pnpm --filter @harness/server test
       - name: Run Den API tests
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter @openwork-ee/den-api test
+        run: pnpm --filter @harness-ee/den-api test
       - name: Run all desktop tests
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter @openwork/desktop test
+        run: pnpm --filter @harness/desktop test
       - name: Run release script tests
         if: (success() || failure()) && steps.setup.outcome == 'success'
         run: node --test scripts/release/*.test.mjs
@@ -301,10 +301,10 @@ jobs:
         run: pnpm test:e2e
       - name: Build server plugins
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter openwork-server build
+        run: pnpm --filter @harness/server build
       - name: Typecheck Electron
         if: (success() || failure()) && steps.setup.outcome == 'success'
-        run: pnpm --filter @openwork/desktop typecheck:electron
+        run: pnpm --filter @harness/desktop typecheck:electron
 
   validate-models-snapshot:
     needs: classify-changes
@@ -406,7 +406,7 @@ jobs:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: openwork_den_contract_ci
+          MYSQL_DATABASE: harness_den_contract_ci
         ports:
           - 3306:3306
         options: >-
@@ -415,7 +415,7 @@ jobs:
           --health-timeout=5s
           --health-retries=20
     env:
-      DATABASE_URL: mysql://root:password@127.0.0.1:3306/openwork_den_contract_ci
+      DATABASE_URL: mysql://root:password@127.0.0.1:3306/harness_den_contract_ci
       DEN_DB_ENCRYPTION_KEY: local-dev-db-encryption-key-please-change-1234567890
     steps:
       - name: Checkout
@@ -433,9 +433,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build den-api workspace dependencies
-        run: pnpm --filter @openwork-ee/den-api build:workspace-dependencies
+        run: pnpm --filter @harness-ee/den-api build:workspace-dependencies
       - name: Prepare the throwaway schema-export database
-        run: pnpm --filter @openwork-ee/den-db exec node --import tsx ./node_modules/drizzle-kit/bin.cjs push --force
+        run: pnpm --filter @harness-ee/den-db exec node --import tsx ./node_modules/drizzle-kit/bin.cjs push --force
         env:
           NODE_OPTIONS: --conditions=development
       - name: Regenerate the OpenAPI snapshot and SDK
@@ -449,12 +449,12 @@ jobs:
           fi
           echo "OpenAPI snapshot and generated SDK match the route source."
       - name: Lint the contract and typecheck the SDK
-        run: pnpm api:lint && pnpm --filter @openwork/sdk typecheck
+        run: pnpm api:lint && pnpm --filter @harness/sdk typecheck
 
   # Single stable context for branch rulesets to require. Green only when
   # the lane selected by classification succeeds; always reports.
-  openwork-tests-required:
-    needs: [classify-changes, openwork-tests-core, openwork-tests-build, workflow-authoring, validate-models-snapshot, validate-docs, den-contract]
+  harness-tests-required:
+    needs: [classify-changes, harness-tests-core, harness-tests-build, workflow-authoring, validate-models-snapshot, validate-docs, den-contract]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -462,8 +462,8 @@ jobs:
         env:
           CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
           LANE: ${{ needs.classify-changes.outputs.lane }}
-          CORE_RESULT: ${{ needs.openwork-tests-core.result }}
-          BUILD_RESULT: ${{ needs.openwork-tests-build.result }}
+          CORE_RESULT: ${{ needs.harness-tests-core.result }}
+          BUILD_RESULT: ${{ needs.harness-tests-build.result }}
           AUTHORING_RESULT: ${{ needs.workflow-authoring.result }}
           SNAPSHOT_RESULT: ${{ needs.validate-models-snapshot.result }}
           DOCS_RESULT: ${{ needs.validate-docs.result }}

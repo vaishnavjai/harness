@@ -1,9 +1,9 @@
 import { mkdir, realpath, readFile, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { resolveEvalEngine, type Seed, type Place } from "@openwork/env";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
-import { readAvailableModels, selectModel } from "@openwork/behaviors";
+import { resolveEvalEngine, type Seed, type Place } from "@harness/env";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
+import { readAvailableModels, selectModel } from "@harness/behaviors";
 
 export function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -20,16 +20,16 @@ export async function engineLiveParity(seed: Seed, { place }: { place: Place }) 
   await writeFile(proofPath, randomUUID());
   await writeFile(witnessPath, "");
   const app = await seed.appWeb({ name: "engine-live-parity", workspacePath, emptyWorkspace: true, env: {
-    OPENWORK_LOG_FORMAT: "json",
-    ...(process.env.OPENWORK_OPENCODE_BIN ? { OPENWORK_OPENCODE_BIN: process.env.OPENWORK_OPENCODE_BIN } : {}),
-    ...(process.env.OPENWORK_OPENCODE2_BIN ? { OPENWORK_OPENCODE2_BIN: process.env.OPENWORK_OPENCODE2_BIN } : {}),
+    HARNESS_LOG_FORMAT: "json",
+    ...(process.env.HARNESS_OPENCODE_BIN ? { HARNESS_OPENCODE_BIN: process.env.HARNESS_OPENCODE_BIN } : {}),
+    ...(process.env.HARNESS_OPENCODE2_BIN ? { HARNESS_OPENCODE2_BIN: process.env.HARNESS_OPENCODE2_BIN } : {}),
   } });
   const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), app.handle.name);
   const manifest = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
   if (!manifest) throw new Error("Missing owned runtime");
   const request = async (path: string, method = "GET", body?: unknown) => {
-    const response = await fetch(`${app.openworkUrl}${path}`, { method,
-      headers: { Authorization: `Bearer ${manifest.token}`, "X-OpenWork-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
+    const response = await fetch(`${app.harnessUrl}${path}`, { method,
+      headers: { Authorization: `Bearer ${manifest.token}`, "X-Harness-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(60_000) });
     const value: unknown = await response.json();
     return { status: response.status, body: value };

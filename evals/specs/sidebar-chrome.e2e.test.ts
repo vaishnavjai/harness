@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import type { Target } from "@openwork/cdp";
-import { spec } from "@openwork/testkit";
+import type { Target } from "@harness/cdp";
+import { spec } from "@harness/testkit";
 import { sidebarChrome } from "../worlds/sidebar-chrome.ts";
 
 const test = spec.world(sidebarChrome, {

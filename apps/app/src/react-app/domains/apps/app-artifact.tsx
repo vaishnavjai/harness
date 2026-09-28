@@ -45,7 +45,7 @@ export function AppArtifact({ appId, revisionId, receiptId, onClose, onAsk, fall
     },
   });
   const app = query.isError ? undefined : query.data;
-  const toolName = `openwork-cloud_run_artifact_${appId}`;
+  const toolName = `harness-cloud_run_artifact_${appId}`;
   const connectionOutput = app?.runError?.connectionCard;
   const connection = connectionCardPayloadFromChatToolResult(toolName, connectionOutput);
   const updatePrompt = canManage ? getAppUpdatePrompt(app) : undefined;

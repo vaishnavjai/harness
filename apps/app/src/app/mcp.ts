@@ -82,7 +82,7 @@ function stringList(value: unknown): string[] {
  * `command: ["python3", "server.py"]` and the Claude Desktop / Cursor style
  * `command: "python3", args: ["server.py"]`. Every reader downstream sees one
  * array, so a string command no longer blanks the Settings page. The
- * OpenWork server relays config entries verbatim, so its listing goes
+ * Harness server relays config entries verbatim, so its listing goes
  * through the same fold before any reader touches `command`.
  */
 export function normalizeMcpServerCommand(config: McpServerConfig): McpServerConfig {

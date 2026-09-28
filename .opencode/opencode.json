@@ -3,10 +3,10 @@
   "permission": "allow",
   "plugin": ["opencode-chrome-devtools@1.0.4"],
   "mcp": {
-    "openwork": {
+    "harness": {
       "type": "remote",
       "enabled": true,
-      "url": "https://api.openworklabs.com/mcp/agent",
+      "url": "https://api.harness.invalid/mcp/agent",
       "oauth": {}
     }
   }

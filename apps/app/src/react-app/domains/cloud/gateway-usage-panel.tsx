@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { CheckCircle2, ChevronRight, Clock, Gauge, LockKeyhole } from "lucide-react";
 import { useNavigate } from "react-router";
-import type { GatewayUsageBucket, GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import type { GatewayUsageBucket, GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
@@ -270,7 +270,7 @@ export function GatewayUsageSettingsView({ onOpenAccount }: { onOpenAccount: () 
   const status = usage.data;
   const content = !usage.authorized ? (
     <div className="flex flex-col items-start gap-3">
-      <p className="text-[13px] text-muted-foreground">Sign in to OpenWork Cloud to see your usage limits.</p>
+      <p className="text-[13px] text-muted-foreground">Sign in to Harness Cloud to see your usage limits.</p>
       <Button size="sm" variant="outline" onClick={onOpenAccount}>Open Account</Button>
     </div>
   ) : usage.query.isPending ? (

@@ -4,8 +4,8 @@ import { Readable } from "node:stream";
 import { originTransform, originReplacements, replaceOrigins, templateOrigins } from "../src/origins.mjs";
 
 test("a live snapshot's origins map to independent clones, including encoded handoffs and split UTF-8", async () => {
-  const first = { den: "https://den-11111111111111111111111111111111.preview.openwork.software" };
-  const second = { den: "https://den-22222222222222222222222222222222.preview.openwork.software" };
+  const first = { den: "https://den-11111111111111111111111111111111.preview.harness-legacy.invalid" };
+  const second = { den: "https://den-22222222222222222222222222222222.preview.harness-legacy.invalid" };
   const payload = JSON.stringify({ url: templateOrigins.den, handoff: encodeURIComponent(`${templateOrigins.den}/api/den`), unicode: "🌍 café" });
   const bytes = Buffer.from(payload);
   const chunks = [];
@@ -17,6 +17,6 @@ test("a live snapshot's origins map to independent clones, including encoded han
 });
 
 test("the desktop viewer has its own template origin, distinct from every other service", () => {
-  assert.equal(new URL(templateOrigins.desktop).hostname, `desktop-${"0".repeat(32)}.preview.openwork.software`);
+  assert.equal(new URL(templateOrigins.desktop).hostname, `desktop-${"0".repeat(32)}.preview.harness-legacy.invalid`);
   assert.equal(new Set(Object.values(templateOrigins)).size, Object.keys(templateOrigins).length);
 });

@@ -306,15 +306,15 @@ export function gatewayWinningPolicies(policies: GatewayUsageLimitPolicy[]) {
     return candidates.slice(0, 1)
   })
 }
-export const GATEWAY_USAGE_LIMIT_ERROR_CODE = "openwork_gateway_usage_limit_exceeded"
-export const GATEWAY_USAGE_ACCOUNTING_ERROR_CODE = "openwork_gateway_accounting_unavailable"
+export const GATEWAY_USAGE_LIMIT_ERROR_CODE = "harness_gateway_usage_limit_exceeded"
+export const GATEWAY_USAGE_ACCOUNTING_ERROR_CODE = "harness_gateway_accounting_unavailable"
 export function hasGatewayUsageLimitHttpMarker(
   response: Pick<Response, "status" | "headers">,
 ): boolean {
   return (
     response.status === 429 &&
-    response.headers.get("X-OpenWork-Error-Code") === GATEWAY_USAGE_LIMIT_ERROR_CODE &&
-    response.headers.get("X-OpenWork-Usage-State") === "blocked"
+    response.headers.get("X-Harness-Error-Code") === GATEWAY_USAGE_LIMIT_ERROR_CODE &&
+    response.headers.get("X-Harness-Usage-State") === "blocked"
   )
 }
 
@@ -339,7 +339,7 @@ export function gatewayUsageLimitResponse(status: GatewayUsageStatus): Response 
       error: {
         type: "usage_limit_error",
         code: GATEWAY_USAGE_LIMIT_ERROR_CODE,
-        source: "openwork_gateway",
+        source: "harness_gateway",
         message: "You have reached your AI Gateway usage limit.",
         details: { exhaustedBuckets, retryAt },
       },
@@ -347,8 +347,8 @@ export function gatewayUsageLimitResponse(status: GatewayUsageStatus): Response 
     {
       status: 429,
       headers: {
-        "X-OpenWork-Error-Code": GATEWAY_USAGE_LIMIT_ERROR_CODE,
-        "X-OpenWork-Usage-State": "blocked",
+        "X-Harness-Error-Code": GATEWAY_USAGE_LIMIT_ERROR_CODE,
+        "X-Harness-Usage-State": "blocked",
         "Retry-After": String(
           Math.max(1, Math.ceil((Date.parse(retryAt) - Date.parse(status.serverTime)) / 1000)),
         ),
@@ -362,10 +362,10 @@ export function gatewayAccountingUnavailableResponse(): Response {
       error: {
         type: "accounting_unavailable_error",
         code: GATEWAY_USAGE_ACCOUNTING_ERROR_CODE,
-        source: "openwork_gateway",
+        source: "harness_gateway",
         message: "Gateway estimated-cost accounting is unavailable for this request.",
       },
     },
-    { status: 503, headers: { "X-OpenWork-Error-Code": GATEWAY_USAGE_ACCOUNTING_ERROR_CODE } },
+    { status: 503, headers: { "X-Harness-Error-Code": GATEWAY_USAGE_ACCOUNTING_ERROR_CODE } },
   )
 }

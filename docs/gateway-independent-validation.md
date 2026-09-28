@@ -76,7 +76,7 @@ The probe exited 0 and opened no database connection. Origin resolution follows
 `ee/apps/den-api/src/env.ts:819-825`. The disabled parser omits
 `modelsPublicBaseUrl`, so Den falls back to the canonical private proxy instead
 of the explicit legacy Models public origin. Missing enablement takes the same
-branch. `buildOpenWorkProviderConfig` (`src/inference.ts:135-146`) publishes that
+branch. `buildHarnessProviderConfig` (`src/inference.ts:135-146`) publishes that
 value when provisioning/repairing a Models provider (`:253-305`). Thus the
 documented management-only disable operation can give newly provisioned or
 repaired clients an unreachable internal URL, even while existing keys remain
@@ -116,7 +116,7 @@ review. This concern is handed off, not silently fixed or dismissed as pre-exist
   Loading and organization errors are separate; a Gateway upstream outage is an
   error in the enabled feature, not a capability change.
 - Sidebar/search/recent filtering use the shared navigation builder. Both effective
-  flags hide hosted OpenWork Models and its direct route; non-opted hosted orgs
+  flags hide hosted Harness Models and its direct route; non-opted hosted orgs
   retain Models. Existing single-org Models restrictions remain. BYOK stays
   available, with migration controls gated on effective Gateway access.
 - All production Gateway data-hook callers are within the protected list/detail/
@@ -143,9 +143,9 @@ All listed final test runs had **0 failed, 0 skipped**.
 | Directory | Command | Exit | Passed / assertions |
 | --- | --- | --- | --- |
 | root | `pnpm --dir ee/apps/den-web test` | 0 | 374 (270 + 104); 1792 assertions |
-| root | `DATABASE_URL=<inert-port-1-url> DB_MODE=mysql GATEWAY_ENABLED=false OPENWORK_DEV_MODE=1 pnpm --dir ee/apps/den-api test` | 0 | 75 (24 + 21 + 28 + 2); 461 assertions |
+| root | `DATABASE_URL=<inert-port-1-url> DB_MODE=mysql GATEWAY_ENABLED=false HARNESS_DEV_MODE=1 pnpm --dir ee/apps/den-api test` | 0 | 75 (24 + 21 + 28 + 2); 461 assertions |
 | root | `pnpm --dir ee/apps/den-api exec bun test --conditions development test/inference-provider-config.test.ts` | 0 | 13; 111 assertions |
-| root | `DEN_TEST_DATABASE_URL=<scratch-url> DB_MODE=mysql GATEWAY_ENABLED=false OPENWORK_DEV_MODE=1 pnpm --dir ee/apps/den-api run test:gateway-dashboard:db` | 0 | 4; 82 assertions, no early-return coverage warning |
+| root | `DEN_TEST_DATABASE_URL=<scratch-url> DB_MODE=mysql GATEWAY_ENABLED=false HARNESS_DEV_MODE=1 pnpm --dir ee/apps/den-api run test:gateway-dashboard:db` | 0 | 4; 82 assertions, no early-return coverage warning |
 | root | `LOG_LEVEL=error DEN_TEST_DATABASE_URL=<scratch-url> pnpm --dir ee/apps/den-api exec bun test --conditions development test/inference-providers.test.ts` | 0 | 16; 735 assertions |
 | root | `DEN_TEST_DATABASE_URL=<scratch-url> pnpm --dir ee/apps/den-api exec bun test --conditions development test/inference-provider-oauth.test.ts` | 0 | 9; 181 assertions |
 | `ee/apps/gateway` | `NODE_OPTIONS=--conditions=development pnpm exec tsx --test test/deployment-capabilities.test.ts` | 0 | 6 |
@@ -168,7 +168,7 @@ database was `ow_gateway_review_iv1`, with disposable test-only credentials.
 No default/user database was used. Prepared only this empty schema with:
 
 ```sh
-DATABASE_URL=<scratch-url> DB_MODE=mysql DEN_DB_ENCRYPTION_KEY=<test-only-key> OPENWORK_DEN_DB_ENV_PATH=/dev/null pnpm --dir ee/packages/den-db run db:push
+DATABASE_URL=<scratch-url> DB_MODE=mysql DEN_DB_ENCRYPTION_KEY=<test-only-key> HARNESS_DEN_DB_ENV_PATH=/dev/null pnpm --dir ee/packages/den-db run db:push
 ```
 
 Preparation/build exited 0. This is a fresh-schema test, not upgrade/migration
@@ -203,7 +203,7 @@ removed that exact container and its anonymous volumes; both commands exited 0.
    enablement variable. Helm: explicitly set `gateway.enabled: true`; legacy
    `inference.enabled` alone is not opt-in.
 2. Set `GATEWAY_PROXY_BASE_URL` to the exact internal origin, for example
-   `http://openwork-ee-inference:8791`, and `GATEWAY_PUBLIC_BASE_URL` to the
+   `http://harness-ee-inference:8791`, and `GATEWAY_PUBLIC_BASE_URL` to the
    desktop-reachable TLS origin, for example `https://gateway.example.com`.
    Preserve a valid existing Models public origin in `INFERENCE_PROXY_BASE_URL`,
    for example `https://models.example.com`. Do not append `/api/v1`, credentials,
@@ -275,9 +275,9 @@ Final follow-up commands all exited **0**, with zero failed/skipped tests:
 | `ee/apps/den-api` | `pnpm run test:gateway-deployment` | 29 + 2 passed |
 | `ee/apps/den-api` | `pnpm exec bun test --conditions development test/inference-provider-config.test.ts` | 13 passed |
 | Both runtime directories | `pnpm exec tsc -p tsconfig.json --noEmit --pretty false` | Both passed |
-| root | `pnpm --filter @openwork-ee/utils build` | ESM/declarations passed |
-| root, temporary Helm 3.19.0 on PATH | `helm lint packaging/helm/openwork-ee` | Passed |
-| root, same PATH | `for suite in packaging/helm/openwork-ee/tests/*.sh; do bash "$suite" || exit $?; done` | All 9 suites; includes 74 Gateway + 22 upgrade/bootstrap cases |
+| root | `pnpm --filter @harness-ee/utils build` | ESM/declarations passed |
+| root, temporary Helm 3.19.0 on PATH | `helm lint packaging/helm/harness-ee` | Passed |
+| root, same PATH | `for suite in packaging/helm/harness-ee/tests/*.sh; do bash "$suite" || exit $?; done` | All 9 suites; includes 74 Gateway + 22 upgrade/bootstrap cases |
 | isolated scratch validation | Strict Kubernetes 1.31 schemas and rebuilt parser in network-disabled containers | 8 cases, 72 valid resources, 14 parser containers |
 | `packages/docs`, cached Mint 4.2.868 | `mint validate` and `mint broken-links` | Passed; no broken links |
 

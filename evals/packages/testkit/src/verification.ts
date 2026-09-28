@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { types } from "node:util";
-import type { Target as ChannelTarget } from "@openwork/cdp";
+import type { Target as ChannelTarget } from "@harness/cdp";
 import type { Probe, SeeOptions as ChannelSeeOptions, Step, User } from "./spec/types.ts";
 
 // Only the JSON subset of channel assertions is eligible for persistent plans.

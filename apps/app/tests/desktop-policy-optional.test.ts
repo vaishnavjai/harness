@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { desktopCapabilityConfig, desktopPolicyKeys, normalizeDesktopConfig, restrictedDesktopPolicyValue } from "@openwork/types/den/desktop-policies";
+import { desktopCapabilityConfig, desktopPolicyKeys, normalizeDesktopConfig, restrictedDesktopPolicyValue } from "@harness/types/den/desktop-policies";
 import { checkDesktopAppRestriction } from "../src/app/cloud/desktop-app-restrictions";
 import { outboundEgressAllowed } from "../src/app/lib/enterprise-activation";
 import type { DesktopDistributionInfo } from "../src/app/lib/desktop";
@@ -29,7 +29,7 @@ test("runtime projection removes desktop restrictions but preserves Cloud entitl
 test("policy readiness never delays activated desktop egress; activation remains required", () => {
   const distribution: DesktopDistributionInfo = {
     flavor: "enterprise", requireActivation: true, requireSignin: true,
-    appName: "OpenWork Enterprise", appIdentifier: "com.example.openwork", protocolScheme: "openwork",
+    appName: "Harness Enterprise", appIdentifier: "com.example.harness", protocolScheme: "harness",
   };
   expect(outboundEgressAllowed(distribution, { requireActivation: true }, { desktopConfigLoading: true })).toBe(false);
   expect(outboundEgressAllowed(distribution, { requireActivation: true, enterpriseActivation: {

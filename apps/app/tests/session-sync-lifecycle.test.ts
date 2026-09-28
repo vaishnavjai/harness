@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, jest, setSystemTime, test } fr
 type SyncInput = {
   workspaceId: string;
   baseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
 };
 
 type Subscription = {
@@ -27,8 +27,8 @@ const {
 const inputs: SyncInput[] = [];
 const originalSetInterval = globalThis.setInterval;
 
-function input(baseUrl: string, openworkToken: string): SyncInput {
-  const value = { workspaceId: "ws_shared", baseUrl, openworkToken };
+function input(baseUrl: string, harnessToken: string): SyncInput {
+  const value = { workspaceId: "ws_shared", baseUrl, harnessToken };
   inputs.push(value);
   return value;
 }

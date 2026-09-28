@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { libraryMcpServersFromConfig } from "../worlds/desktop.ts";
 
 const test = spec.world(libraryMcpServersFromConfig, {
@@ -11,7 +11,7 @@ const test = spec.world(libraryMcpServersFromConfig, {
 });
 
 // People paste MCP servers into opencode.json from Claude Desktop or Cursor,
-// where the shape is `command: "python3", args: [...]`. OpenWork must list that
+// where the shape is `command: "python3", args: [...]`. Harness must list that
 // server beside its own `command: [...]` shape instead of blanking Settings.
 test("the Library lists MCP servers written by hand into opencode.json, whichever command shape they use", async ({ world, user, agent, probe, step, evidence }) => {
   await step("opencode.json contains the enabled mock before the workspace is opened", async () => {

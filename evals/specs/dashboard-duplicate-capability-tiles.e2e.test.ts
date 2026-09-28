@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { dashboardAppTool, emptyDashboardWithOneApp } from "../worlds/dashboards.ts";
 
 // Customer report (2026-09-02): a dashboard cannot hold two tiles that call the

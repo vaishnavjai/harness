@@ -7,7 +7,7 @@ import { ADVANCED_SETTINGS_SECTIONS } from "../advanced-sections";
 import { Separator } from "@/components/ui/separator";
 
 import type { OpencodeConnectStatus } from "@/app/types";
-import type { OpenworkServerClient, OpenworkCloudMcpHealth, OpenworkRuntimeConfigStatus, OpenworkServerStatus } from "@/app/lib/openwork-server";
+import type { HarnessServerClient, HarnessCloudMcpHealth, HarnessRuntimeConfigStatus, HarnessServerStatus } from "@/app/lib/harness-server";
 import { t } from "@/i18n";
 import { LayoutStack } from "../settings-layout";
 import type { useDenSession } from "../cloud/use-den-session";
@@ -42,18 +42,18 @@ export type AdvancedViewProps = {
   busy: boolean;
   clientConnected: boolean;
   opencodeConnectStatus: OpencodeConnectStatus | null;
-  openworkServerStatus: OpenworkServerStatus;
+  harnessServerStatus: HarnessServerStatus;
   developerMode: boolean;
   toggleDeveloperMode: () => void;
   opencodeDevModeEnabled: boolean;
   openDebugDeepLink: (rawUrl: string) => Promise<{ ok: boolean; message: string }>;
   canInspectRuntimeConfig: boolean;
-  getRuntimeConfigStatus: () => Promise<OpenworkRuntimeConfigStatus>;
+  getRuntimeConfigStatus: () => Promise<HarnessRuntimeConfigStatus>;
   organizationServer: AdvancedOrganizationServerSession;
   cloudMcpUrl: string | null;
-  cloudMcpHealth: OpenworkCloudMcpHealth | null;
-  refreshCloudMcpHealth: () => Promise<OpenworkCloudMcpHealth | null>;
-  engineClient: OpenworkServerClient | null;
+  cloudMcpHealth: HarnessCloudMcpHealth | null;
+  refreshCloudMcpHealth: () => Promise<HarnessCloudMcpHealth | null>;
+  engineClient: HarnessServerClient | null;
 };
 
 type AdvancedStatusTone = "ready" | "warning" | "error" | "neutral";
@@ -75,7 +75,7 @@ export function AdvancedView(props: AdvancedViewProps) {
     advancedLocalReducer,
     initialAdvancedLocalState,
   );
-  const [configStatus, setConfigStatus] = useState<OpenworkRuntimeConfigStatus | null>(null);
+  const [configStatus, setConfigStatus] = useState<HarnessRuntimeConfigStatus | null>(null);
   const [configStatusBusy, setConfigStatusBusy] = useState(false);
   const [configStatusError, setConfigStatusError] = useState<string | null>(null);
   const {
@@ -99,8 +99,8 @@ export function AdvancedView(props: AdvancedViewProps) {
     return props.clientConnected ? "ready" : "neutral";
   })();
 
-  const openworkStatusLabel = (() => {
-    switch (props.openworkServerStatus) {
+  const harnessStatusLabel = (() => {
+    switch (props.harnessServerStatus) {
       case "connected":
         return t("config.status_connected");
       case "limited":
@@ -110,8 +110,8 @@ export function AdvancedView(props: AdvancedViewProps) {
     }
   })();
 
-  const openworkTone: AdvancedStatusTone = (() => {
-    switch (props.openworkServerStatus) {
+  const harnessTone: AdvancedStatusTone = (() => {
+    switch (props.harnessServerStatus) {
       case "connected":
         return "ready";
       case "limited":
@@ -125,12 +125,12 @@ export function AdvancedView(props: AdvancedViewProps) {
     ? ["Chat and task creation can use the OpenCode engine for this workspace."]
     : [
         "Chat and task creation may fail until OpenCode restarts.",
-        "OpenWork server config sources below can still be inspected.",
+        "Harness server config sources below can still be inspected.",
       ];
 
-  const openworkDetailLines = props.openworkServerStatus === "connected"
+  const harnessDetailLines = props.harnessServerStatus === "connected"
     ? ["Runtime DB, workspace config, and migration diagnostics are available."]
-    : ["Runtime config diagnostics need the OpenWork server connection."];
+    : ["Runtime config diagnostics need the Harness server connection."];
 
   const submitDebugDeepLink = async () => {
     const rawUrl = debugDeepLinkInput.trim();
@@ -194,9 +194,9 @@ export function AdvancedView(props: AdvancedViewProps) {
           clientStatusLabel={clientStatusLabel}
           clientTone={clientTone}
           clientDetailLines={clientDetailLines}
-          openworkStatusLabel={openworkStatusLabel}
-          openworkTone={openworkTone}
-          openworkDetailLines={openworkDetailLines}
+          harnessStatusLabel={harnessStatusLabel}
+          harnessTone={harnessTone}
+          harnessDetailLines={harnessDetailLines}
         />
 
         <AdvancedCloudMcpDiagnosticsSection

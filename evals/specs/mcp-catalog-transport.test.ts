@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 import { startCatalogTransportWitness, type CatalogTransportMode } from "../packages/labs/src/mock-mcp-catalog-transport.ts";
-import { bootServer, isRecord, stopChild } from "../worlds/openwork-server-cli.ts";
+import { bootServer, isRecord, stopChild } from "../worlds/harness-server-cli.ts";
 
 // New interoperability journey: a real server's catalog API reads a remote MCP
 // resource. No product imports, provider credentials, or test-runner subprocesses.
@@ -17,17 +17,17 @@ const modes: CatalogTransportMode[] = [
 for (const mode of modes) {
   test(`catalog transport: ${mode}`, { timeout: 90_000 }, async ({ evidence }) => {
     needs({ commands: ["bun"] });
-    const root = await mkdtemp(join(tmpdir(), "openwork-catalog-transport-"));
+    const root = await mkdtemp(join(tmpdir(), "harness-catalog-transport-"));
     const workspace = join(root, "workspace");
     await mkdir(workspace);
     const witness = await startCatalogTransportWitness(mode);
     const token = "synthetic-catalog-client";
-    const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENWORK_") && !key.startsWith("OPENCODE")));
+    const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("HARNESS_") && !key.startsWith("OPENCODE")));
     const server = bootServer({
       ...inherited, HOME: root, XDG_CONFIG_HOME: join(root, "config"), XDG_DATA_HOME: join(root, "data"),
       XDG_STATE_HOME: join(root, "state"), XDG_CACHE_HOME: join(root, "cache"),
-      OPENWORK_RUNTIME_DB: join(root, "runtime.sqlite"), OPENWORK_ENCRYPTION_KEY: "synthetic-catalog-vault-key",
-      OPENWORK_ALLOW_PRIVATE_MCP_URLS: "1",
+      HARNESS_RUNTIME_DB: join(root, "runtime.sqlite"), HARNESS_ENCRYPTION_KEY: "synthetic-catalog-vault-key",
+      HARNESS_ALLOW_PRIVATE_MCP_URLS: "1",
     }, token, workspace, () => {});
     try {
       const base = await server.listening;
@@ -38,7 +38,7 @@ for (const mode of modes) {
       const workspaces: unknown = await (await request("/workspaces")).json();
       if (!isRecord(workspaces) || !Array.isArray(workspaces.items) || !isRecord(workspaces.items[0]) || typeof workspaces.items[0].id !== "string") throw new Error("Workspace missing");
       const configured = await request(`/workspace/${workspaces.items[0].id}/config`, "PATCH", {
-        opencode: { mcp: { "openwork-cloud": {
+        opencode: { mcp: { "harness-cloud": {
           type: "remote", url: witness.url, enabled: true, oauth: false,
           headers: { Authorization: "Bearer synthetic-catalog-token", "MCP-Protocol-Version": "invalid-configured-version" },
         } } },

@@ -1,18 +1,18 @@
 extends: ./electron-builder.base.yml
-appId: com.differentai.openwork
-productName: OpenWork Enterprise
+appId: com.vaishnavjai.harness
+productName: Harness Enterprise
 extraMetadata:
-  openworkDistribution: enterprise
+  harnessDistribution: enterprise
 protocols:
-  - name: OpenWork Enterprise
+  - name: Harness Enterprise
     schemes:
-      - openwork
+      - harness
 publish:
   - provider: github
     owner: different-ai
-    repo: openwork
+    repo: harness
     releaseType: release
     channel: enterprise
 linux:
-  executableName: openwork-enterprise
-artifactName: openwork-enterprise-${os}-${arch}-${version}.${ext}
+  executableName: harness-enterprise
+artifactName: harness-enterprise-${os}-${arch}-${version}.${ext}

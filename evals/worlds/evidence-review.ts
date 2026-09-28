@@ -5,12 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import { assembleReview } from "@openwork/test-artifacts/review";
-import { uploadReview } from "@openwork/review/storage";
-import type { TestRunRecord } from "@openwork/test-artifacts";
-import { setViewport } from "@openwork/cdp";
-import type { Place, Seed } from "@openwork/env";
-import { chrome, localHost } from "@openwork/hosts";
+import { assembleReview } from "@harness/test-artifacts/review";
+import { uploadReview } from "@harness/review/storage";
+import type { TestRunRecord } from "@harness/test-artifacts";
+import { setViewport } from "@harness/cdp";
+import type { Place, Seed } from "@harness/env";
+import { chrome, localHost } from "@harness/hosts";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -20,7 +20,7 @@ export async function reviewWorld(
   sandboxFixture = false,
   checkpointFixture = false,
 ) {
-  const directory = await mkdtemp(join(tmpdir(), "openwork-review-world-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-review-world-"));
   const storage = join(directory, "reports");
   await mkdir(storage);
   const git = spawnSync("git", ["rev-parse", "HEAD"], {
@@ -217,7 +217,7 @@ export async function reviewWorld(
         ...process.env,
         // This isolated HTTP fixture must never inherit live sandbox access.
         FREESTYLE_API_KEY: sandboxFixture ? "synthetic-ui-fixture-not-a-provider-key" : "",
-        OPENWORK_REVIEW_LOCAL_DIR: storage,
+        HARNESS_REVIEW_LOCAL_DIR: storage,
         VERCEL: "1",
         VERCEL_ENV: environment,
       },

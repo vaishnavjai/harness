@@ -12,15 +12,15 @@ import { readWorkspaceRunMode, runModeFromPermissionBlock, setWorkspaceRunMode, 
 const roots: string[] = [];
 const stops: Array<() => void | Promise<void>> = [];
 const savedEnv = {
-  OPENWORK_DATA_DIR: process.env.OPENWORK_DATA_DIR,
-  OPENWORK_TOKEN_STORE: process.env.OPENWORK_TOKEN_STORE,
-  OPENWORK_ENGINE_V2_PREVIEW: process.env.OPENWORK_ENGINE_V2_PREVIEW,
+  HARNESS_DATA_DIR: process.env.HARNESS_DATA_DIR,
+  HARNESS_TOKEN_STORE: process.env.HARNESS_TOKEN_STORE,
+  HARNESS_ENGINE_V2_PREVIEW: process.env.HARNESS_ENGINE_V2_PREVIEW,
 };
 const headers = { authorization: "Bearer owt_run_mode", "content-type": "application/json" };
-const hostHeaders = { "x-openwork-host-token": "owt_run_mode_host", "content-type": "application/json" };
+const hostHeaders = { "x-harness-host-token": "owt_run_mode_host", "content-type": "application/json" };
 
 async function workspaceRoot(content?: string) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-run-mode-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-run-mode-"));
   roots.push(root);
   if (content !== undefined) await writeFile(join(root, "opencode.json"), content);
   return root;
@@ -112,9 +112,9 @@ describe("workspace run mode file", () => {
 
 async function startModeServer(options: { readOnly?: boolean; approval?: ServerConfig["approval"]; engine?: boolean } = {}) {
   const root = await workspaceRoot('{"permission":{"edit":"deny"},"model":"local/model"}');
-  process.env.OPENWORK_DATA_DIR = join(root, "data");
-  process.env.OPENWORK_TOKEN_STORE = join(root, "tokens.json");
-  delete process.env.OPENWORK_ENGINE_V2_PREVIEW;
+  process.env.HARNESS_DATA_DIR = join(root, "data");
+  process.env.HARNESS_TOKEN_STORE = join(root, "tokens.json");
+  delete process.env.HARNESS_ENGINE_V2_PREVIEW;
   const engineState: { statuses: unknown; permissions: unknown[]; questions: unknown[]; statusCode: number; disposeCode: number; agentCode: number; disposals: number; probes: string[] } = {
     statuses: {}, permissions: [], questions: [], statusCode: 200, disposeCode: 200, agentCode: 200, disposals: 0, probes: [],
   };

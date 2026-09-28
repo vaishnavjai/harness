@@ -12,12 +12,12 @@ export function mentionPromptParts(part: InstructionMention): [TextPartInput, Te
   return [{
     type: "text",
     text: label,
-    ...(part.type === "connect-skill" ? { metadata: { openworkComposerToken: encodeConnectSkillToken(part) } } : {}),
+    ...(part.type === "connect-skill" ? { metadata: { harnessComposerToken: encodeConnectSkillToken(part) } } : {}),
   }, {
     type: "text", text: instruction, synthetic: true,
     // Preserve selection identity through every send path. v1 still receives
     // the instruction; the v2 adapter replaces it with a native attachment.
-    ...(part.type === "skill" ? { metadata: { openworkSelectedSkill: { name: part.name } } } : {}),
+    ...(part.type === "skill" ? { metadata: { harnessSelectedSkill: { name: part.name } } } : {}),
   }];
 }
 

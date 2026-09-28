@@ -6,14 +6,14 @@ import { createRequire } from "node:module";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 
 const workspaceId = "workspace-composer-identity-recheck";
 const sessionId = "session-composer-identity-recheck";
 const aliceScope = "cloud:usr_alice:org_ops";
 const bobScope = "cloud:usr_bob:org_ops";
 
-function createSnapshot(): OpenworkSessionSnapshot {
+function createSnapshot(): HarnessSessionSnapshot {
   const messageId = `${sessionId}-user-message`;
   return {
     session: {
@@ -75,7 +75,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
     mock.module(moduleId, () => moduleExports);
   }
   const [
-    { createOpenworkServerClient },
+    { createHarnessServerClient },
     { IDLE_CLOUD_MCP_SUBMISSION_GATE_STATE },
     { useComposerStateStore },
     { getReactQueryClient },
@@ -86,7 +86,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
     { DesktopConfigProvider },
     { getSessionDraft, SESSION_DRAFT_STORAGE_KEY },
   ] = await Promise.all([
-    import("../src/app/lib/openwork-server"),
+    import("../src/app/lib/harness-server"),
     import("../src/react-app/domains/connections/cloud-mcp-submit-readiness"),
     import("../src/react-app/domains/session/surface/composer-state-store"),
     import("../src/react-app/infra/query-client"),
@@ -110,7 +110,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
   const fetchStub = async () => new Response("{}", { headers: { "content-type": "application/json" } });
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchStub });
   Object.defineProperty(window, "fetch", { configurable: true, value: fetchStub });
-  window.localStorage.setItem("openwork.shell-config", JSON.stringify({ starterCards: false }));
+  window.localStorage.setItem("harness.shell-config", JSON.stringify({ starterCards: false }));
   window.localStorage.removeItem(SESSION_DRAFT_STORAGE_KEY);
   const snapshot = createSnapshot();
   mock.module("@/components/model-select", () => ({ ModelSelect: () => null }));
@@ -123,7 +123,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
   const queryClient = getReactQueryClient();
   queryClient.clear();
   queryClient.setQueryData(snapshotKey(workspaceId, sessionId), snapshot);
-  const client = createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
+  const client = createHarnessServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -143,7 +143,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
             draftScope={draftScope}
             isControlTarget={false}
             opencodeBaseUrl="http://127.0.0.1:1/opencode"
-            openworkToken="test-token"
+            harnessToken="test-token"
             developerMode
             modelLabel="Test model"
             onModelClick={() => {}}
@@ -160,7 +160,7 @@ test("composer text survives a Cloud identity re-check and still clears across a
             modelVariantLabel="Default"
             modelVariant={null}
             onModelVariantChange={() => {}}
-            agentLabel="OpenWork"
+            agentLabel="Harness"
             selectedAgent={null}
             listAgents={async () => []}
             onSelectAgent={() => {}}

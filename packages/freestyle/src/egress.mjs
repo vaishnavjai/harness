@@ -6,7 +6,7 @@ import { originReplacements, replaceOrigins, templateOrigins } from "./origins.m
 // get the template callback in client registration and token requests while the
 // browser returns to this clone's. Preloaded into Den (`--import`), this applies
 // the gateway's translation to requests leaving the VM too.
-const accessFile = process.env.OPENWORK_PREVIEW_ACCESS_FILE ?? "/opt/openwork-preview/access.json";
+const accessFile = process.env.HARNESS_PREVIEW_ACCESS_FILE ?? "/opt/harness-preview/access.json";
 const templateHosts = Object.values(templateOrigins).map((origin) => new URL(origin).hostname);
 const mentionsTemplate = (text) => templateHosts.some((host) => text.includes(host));
 
@@ -44,7 +44,7 @@ export function previewEgress(send, readPairs = clonePairs) {
   };
 }
 
-const installed = Symbol.for("openwork.preview.egress");
+const installed = Symbol.for("harness.preview.egress");
 if (typeof globalThis.fetch === "function" && !globalThis.fetch[installed]) {
   const fetch = previewEgress(globalThis.fetch);
   fetch[installed] = true;

@@ -1,15 +1,15 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { oauthStartUnreadableWeb } from "../worlds/mcp-oauth-start-unreadable.ts";
 
-// A member clicks Connect and gets a real OpenWork tab in the same browser
+// A member clicks Connect and gets a real Harness tab in the same browser
 // window. Readable handshake failures, unreadable cross-origin answers, and a
-// provider refusing OpenWork's redirect URI each receive actionable language
+// provider refusing Harness's redirect URI each receive actionable language
 // there while the dashboard keeps its inline error. Once the provider accepts
 // the redirect URI, the same button starts provider sign-in.
-const test = spec.world(oauthStartUnreadableWeb, { timeout: 600_000, needs: { optIn: ["OPENWORK_EVAL_E2E_TESTS"], placement: "local" } });
+const test = spec.world(oauthStartUnreadableWeb, { timeout: 600_000, needs: { optIn: ["HARNESS_EVAL_E2E_TESTS"], placement: "local" } });
 
-const unreadableMessage = /OpenWork could not read the answer from its API when starting the sign-in/;
+const unreadableMessage = /Harness could not read the answer from its API when starting the sign-in/;
 const connectButton = { role: "button", label: "Connect" } as const;
 
 test("the connections page explains an OAuth-start answer the browser could not read, then connects once it can", async ({ world, user, probe, evidence, step }) => {
@@ -31,7 +31,7 @@ test("the connections page explains an OAuth-start answer the browser could not 
     await user.notSee({ text: /Failed to fetch/ });
     const tab = await world.signInTab();
     expect(tab).not.toBeNull();
-    if (!tab) throw new Error("Expected the OpenWork sign-in tab.");
+    if (!tab) throw new Error("Expected the Harness sign-in tab.");
     const tabUser = user.on(tab);
     await tabUser.see({ text: /Couldn't start the Synthetic calendar provider sign-in/ });
     const targetUrls = await world.pageTargetUrls();
@@ -64,9 +64,9 @@ test("the connections page explains an OAuth-start answer the browser could not 
     await user.notSee({ text: /Reference: / });
     const tab = await world.signInTab();
     expect(tab).not.toBeNull();
-    if (!tab) throw new Error("Expected the OpenWork sign-in tab.");
+    if (!tab) throw new Error("Expected the Harness sign-in tab.");
     const tabUser = user.on(tab);
-    await tabUser.see({ text: /OpenWork couldn't read its own API's answer/ });
+    await tabUser.see({ text: /Harness couldn't read its own API's answer/ });
     await tabUser.see({ text: unreadableMessage });
     const targetUrls = await world.pageTargetUrls();
     const tabUrl = targetUrls.find((url) => url.startsWith(`${new URL(world.den.ref.webUrl).origin}/connect/oauth`));
@@ -87,15 +87,15 @@ test("the connections page explains an OAuth-start answer the browser could not 
     );
   });
 
-  await step("the provider refuses OpenWork's redirect URI", async () => {
+  await step("the provider refuses Harness's redirect URI", async () => {
     await world.restartProvider({ rejectDynamicRedirectUris: "invalid_redirect_uri" });
     const before = (await proxied()).length;
     await user.click(connectButton);
     const tab = await world.signInTab();
     expect(tab).not.toBeNull();
-    if (!tab) throw new Error("Expected the OpenWork sign-in tab.");
+    if (!tab) throw new Error("Expected the Harness sign-in tab.");
     const tabUser = user.on(tab);
-    await tabUser.see({ text: /Synthetic calendar provider hasn't approved OpenWork yet/ }, { timeoutMs: 30_000 });
+    await tabUser.see({ text: /Synthetic calendar provider hasn't approved Harness yet/ }, { timeoutMs: 30_000 });
     await tabUser.see({ text: /\/v1\/mcp-connections\/oauth\/callback/ });
     await tabUser.see({ text: /Reference/ });
     await tabUser.notSee({ text: /[Tt]ry again/ });
@@ -114,7 +114,7 @@ test("the connections page explains an OAuth-start answer the browser could not 
     await world.closeTab(tab);
     evidence.recordAssertionEvidence(
       "A rejected redirect URI identifies the provider action",
-      "The non-faulted OAuth-start GET returned HTTP 424, no provider authorization request followed, and the same-window OpenWork tab named the redirect URI and diagnostic reference without retry or unreadable-response advice.",
+      "The non-faulted OAuth-start GET returned HTTP 424, no provider authorization request followed, and the same-window Harness tab named the redirect URI and diagnostic reference without retry or unreadable-response advice.",
       true,
     );
   });

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { emptySession } from "../worlds/desktop.ts";
 
 const test = spec.world(emptySession);
@@ -12,7 +12,7 @@ test("workspace run mode is opt-in, confirms Keep going, and preserves policy wh
   const mount = `/workspace/${encodeURIComponent(world.workspace.workspaceId)}`;
   const trigger = { testId: "workspace-run-mode-trigger" };
   const flag = { testId: "workspace-run-mode-flag", label: "Show workspace run mode" };
-  const confirmation = { text: "Let OpenWork keep going?" };
+  const confirmation = { text: "Let Harness keep going?" };
   const footer = { text: "Applies to every chat in this workspace. Specific workspace rules still apply." };
 
   const read = async (path: string) => {
@@ -24,10 +24,10 @@ test("workspace run mode is opt-in, confirms Keep going, and preserves policy wh
   // updatedAt includes runtime reattachment on reload, not just permission
   // edits. Compare configuration values rather than that unrelated clock.
   const readConfig = async () => {
-    const { opencode, openwork } = await read("config");
-    return { opencode, openwork };
+    const { opencode, harness } = await read("config");
+    return { opencode, harness };
   };
-  const flagEnabled = () => probe.storage("openwork.preferences", (value) => (
+  const flagEnabled = () => probe.storage("harness.preferences", (value) => (
     isRecord(value) && isRecord(value.featureFlags) && value.featureFlags.workspaceRunMode === true
   ));
   const modeIs = async (mode: "default" | "approve" | "run-everything", catchAll: "ask" | "allow" | null) => {

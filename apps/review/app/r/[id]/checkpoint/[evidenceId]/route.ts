@@ -1,5 +1,5 @@
-import { readReview } from "@openwork/review/storage";
-import { CheckpointCapacity, CheckpointUnavailable, forkEvidenceCheckpoint } from "@openwork/freestyle/checkpoints";
+import { readReview } from "@harness/review/storage";
+import { CheckpointCapacity, CheckpointUnavailable, forkEvidenceCheckpoint } from "@harness/freestyle/checkpoints";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;

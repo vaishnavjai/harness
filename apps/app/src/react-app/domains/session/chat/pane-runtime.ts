@@ -49,7 +49,7 @@ export function resolveWorkbenchPaneEndpoint<TWorkspace extends PaneWorkspace>(i
       status: "unavailable",
       workspaceId: input.workspace.id,
       workspaceTitle: input.workspaceTitle,
-      message: "OpenWork could not connect to this workspace runtime.",
+      message: "Harness could not connect to this workspace runtime.",
     };
   }
 

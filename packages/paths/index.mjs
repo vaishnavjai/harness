@@ -87,7 +87,7 @@ function optionHomeDir(opts) {
   return fromEnv || homedir();
 }
 
-function defaultOpenworkConfigDir(opts) {
+function defaultHarnessConfigDir(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
@@ -95,38 +95,72 @@ function defaultOpenworkConfigDir(opts) {
   if (platform === "win32") {
     const appData = envValue(env, "APPDATA");
     const root = appData || paths.join(homeDir, "AppData", "Roaming");
-    return paths.join(root, "openwork");
+    return paths.join(root, "harness");
   }
   const xdgConfigHome = envValue(env, "XDG_CONFIG_HOME");
   const root = xdgConfigHome || paths.join(homeDir, ".config");
-  return paths.join(root, "openwork");
+  return paths.join(root, "harness");
 }
 
-export function openworkConfigDir(opts) {
+export function harnessConfigDir(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
-  const override = envValue(env, "OPENWORK_SERVER_CONFIG");
+  const override = envValue(env, "HARNESS_SERVER_CONFIG");
   if (override) return paths.dirname(paths.resolve(override));
-  return defaultOpenworkConfigDir(opts);
+  return defaultHarnessConfigDir(opts);
 }
 
-export function openworkServerConfigPath(opts) {
+/**
+ * Harness-owned local data under the user config root:
+ * ~/.config/harness/data (or %APPDATA%\harness\data on Windows). Holds the
+ * embedded Hindsight memory store and its database. HARNESS_LOCAL_DATA_DIR
+ * overrides it (tests, portable installs).
+ */
+export function harnessLocalDataDir(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
-  const override = envValue(env, "OPENWORK_SERVER_CONFIG");
-  if (override) return paths.resolve(override);
-  return paths.join(defaultOpenworkConfigDir(opts), "server.json");
+  const override = envValue(env, "HARNESS_LOCAL_DATA_DIR");
+  if (override) return paths.resolve(expandHomePath(override, opts));
+  return paths.join(defaultHarnessConfigDir(opts), "data");
 }
 
-export function openworkEnvStorePath(opts) {
+/** Root of the embedded Hindsight memory engine's state. */
+export function harnessMemoryDataDir(opts) {
+  const paths = pathApi(optionPlatform(opts));
+  return paths.join(harnessLocalDataDir(opts), "hindsight");
+}
+
+/**
+ * Append-only JSON-lines audit log: ~/.config/harness/audit.log. HARNESS_AUDIT_LOG
+ * overrides it.
+ */
+export function harnessAuditLogPath(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
-  const override = envValue(env, "OPENWORK_ENV_STORE");
+  const override = envValue(env, "HARNESS_AUDIT_LOG");
+  if (override) return paths.resolve(expandHomePath(override, opts));
+  return paths.join(defaultHarnessConfigDir(opts), "audit.log");
+}
+
+export function harnessServerConfigPath(opts) {
+  const env = optionEnv(opts);
+  const platform = optionPlatform(opts);
+  const paths = pathApi(platform);
+  const override = envValue(env, "HARNESS_SERVER_CONFIG");
   if (override) return paths.resolve(override);
-  return paths.join(defaultOpenworkConfigDir(opts), "env.json");
+  return paths.join(defaultHarnessConfigDir(opts), "server.json");
+}
+
+export function harnessEnvStorePath(opts) {
+  const env = optionEnv(opts);
+  const platform = optionPlatform(opts);
+  const paths = pathApi(platform);
+  const override = envValue(env, "HARNESS_ENV_STORE");
+  if (override) return paths.resolve(override);
+  return paths.join(defaultHarnessConfigDir(opts), "env.json");
 }
 
 function safeConfigRoot(value, paths) {
@@ -195,12 +229,12 @@ export function desktopBootstrapPath(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
-  const override = envValue(env, "OPENWORK_DESKTOP_BOOTSTRAP_PATH");
+  const override = envValue(env, "HARNESS_DESKTOP_BOOTSTRAP_PATH");
   if (override) return override;
-  if (envValue(env, "OPENWORK_DEV_MODE") === "1" && opts?.userDataDir) {
-    return paths.join(opts.userDataDir, "openwork-dev-data", "home", ".config", "openwork", "desktop-bootstrap.json");
+  if (envValue(env, "HARNESS_DEV_MODE") === "1" && opts?.userDataDir) {
+    return paths.join(opts.userDataDir, "harness-dev-data", "home", ".config", "harness", "desktop-bootstrap.json");
   }
-  return paths.join(desktopConfigDir(opts), "openwork", "desktop-bootstrap.json");
+  return paths.join(desktopConfigDir(opts), "harness", "desktop-bootstrap.json");
 }
 
 export function legacyDesktopBootstrapPath(opts) {
@@ -210,7 +244,7 @@ export function legacyDesktopBootstrapPath(opts) {
   // Electron used os.homedir(). optionHomeDir accepts an explicit homeDir but
   // otherwise checks the same env variables before os.homedir(), so both legacy
   // locations continue to resolve for normal installs.
-  return paths.join(optionHomeDir(opts), ".config", "openwork", "desktop-bootstrap.json");
+  return paths.join(optionHomeDir(opts), ".config", "harness", "desktop-bootstrap.json");
 }
 
 export function expandHomePath(value, opts) {
@@ -221,13 +255,13 @@ export function expandHomePath(value, opts) {
   return value;
 }
 
-export function openworkServerDataDir(opts) {
+export function harnessServerDataDir(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);
   const paths = pathApi(platform);
-  const override = envValue(env, "OPENWORK_DATA_DIR");
+  const override = envValue(env, "HARNESS_DATA_DIR");
   if (override) return expandHomePath(override, opts);
-  return paths.join(optionHomeDir(opts), ".openwork", "openwork-server");
+  return paths.join(optionHomeDir(opts), ".harness", "harness-server");
 }
 
 export function opencodeDataDirs(opts) {
@@ -252,7 +286,7 @@ function truthy(value) {
   return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
-/** Candidate OpenCode databases in the same override/channel order used by OpenWork. */
+/** Candidate OpenCode databases in the same override/channel order used by Harness. */
 export function opencodeDbCandidates(opts) {
   const env = optionEnv(opts);
   const platform = optionPlatform(opts);

@@ -7,7 +7,7 @@ Den, databases, Chromium and mocked inference together in one private Freestyle
 VM. It does not move the normal test suite or use real model credentials.
 
 ```sh
-pnpm --filter @openwork/review-app build
+pnpm --filter @harness/review-app build
 pnpm evals:e2e web-checkpoint-fork --local --engine v1 --surface web --checkpoints
 # Any spec: tag its test { tags: ["checkpoints"] } and run it with --local --checkpoints.
 # Or open a standalone world, using the merged world/source API:
@@ -24,7 +24,7 @@ Checkpoints are explicit and never part of the proof:
 - A spec saves one with `user.checkpoint(caption?)` or `step(name, fn, { checkpoint: true })`.
   Tests tagged `checkpoints` also keep their end state. `user.screenshot()` never saves one.
 - They run only with `--checkpoints`, on a world that advertises the capability
-  (`checkpointCapability` from `@openwork/env`). Only Freestyle-backed worlds do;
+  (`checkpointCapability` from `@harness/env`). Only Freestyle-backed worlds do;
   anywhere else the run prints one warning and continues unchanged.
 - Capture rule: take image A, start the snapshot without waiting for it to be
   saved, send no input for 5 s (the VM state was captured 0.19–4.1 s after the
@@ -37,7 +37,7 @@ Checkpoints are explicit and never part of the proof:
 The complete co-located web world is saved: Chromium memory, the engine, Den,
 databases, workspace files and the mock stream.
 
-Checkpoint images appear in the PR's normal **OpenWork Evidence** report.
+Checkpoint images appear in the PR's normal **Harness Evidence** report.
 Checkpoint pictures offer **Open from here** directly below the image and inside
 the image viewer, followed by **Enter saved browser**. Both controls share the
 same copy. **New copy** deliberately restores that same checkpoint again without
@@ -105,7 +105,7 @@ final snapshot on every commit. Reviewer isolation is unchanged.
 
 Template origins are placeholders that only the authenticated edge rewrites for
 browsers. ACME VMs refuse them locally (`/etc/hosts` to loopback): Den still advertises
-them to in-VM clients, and the signed-in desktop's OpenWork Cloud MCP otherwise hung
+them to in-VM clients, and the signed-in desktop's Harness Cloud MCP otherwise hung
 at the public edge on every sync, starving the VM until desktop setup reached the
 snapshot deadline. The desktop itself reaches Den through a loopback front
 (`http://127.0.0.1:5190`) that serves Den's API paths like the gateway and translates

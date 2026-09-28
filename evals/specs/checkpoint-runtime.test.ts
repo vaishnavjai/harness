@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, expect, vi } from "vitest";
-import { checkpointCapability, spec } from "@openwork/testkit";
-import type { CheckpointCapability, Surface } from "@openwork/testkit";
+import { checkpointCapability, spec } from "@harness/testkit";
+import type { CheckpointCapability, Surface } from "@harness/testkit";
 
 // Exercises the testkit wiring with a synthetic world: which calls save a
 // checkpoint, the end state of tagged tests, and the warning when a world
@@ -42,13 +42,13 @@ const plain = spec.world(async () => ({ app: surface("plain-app") }));
 
 let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
-  process.env.OPENWORK_EVIDENCE_CHECKPOINTS = "1";
-  process.env.OPENWORK_EVIDENCE_CHECKPOINT_HOLD_MS = "1";
+  process.env.HARNESS_EVIDENCE_CHECKPOINTS = "1";
+  process.env.HARNESS_EVIDENCE_CHECKPOINT_HOLD_MS = "1";
   warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 });
 afterEach(() => {
-  delete process.env.OPENWORK_EVIDENCE_CHECKPOINTS;
-  delete process.env.OPENWORK_EVIDENCE_CHECKPOINT_HOLD_MS;
+  delete process.env.HARNESS_EVIDENCE_CHECKPOINTS;
+  delete process.env.HARNESS_EVIDENCE_CHECKPOINT_HOLD_MS;
   warn.mockRestore();
 });
 
@@ -84,7 +84,7 @@ capable("end states were saved after the tagged tests above passed", async () =>
 });
 
 capable("nothing is saved unless the run asked for checkpoints", async ({ world, user, step }) => {
-  delete process.env.OPENWORK_EVIDENCE_CHECKPOINTS;
+  delete process.env.HARNESS_EVIDENCE_CHECKPOINTS;
   await step("Marked but not requested", async () => { await user.screenshot(); }, { checkpoint: true });
   expect(await user.checkpoint()).toBeUndefined();
   expect(world.captures()).toBe(0);

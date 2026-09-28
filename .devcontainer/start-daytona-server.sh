@@ -4,8 +4,8 @@ set -euo pipefail
 # Start the Den server stack inside a Daytona sandbox.
 # Services: MySQL, Den API, and Den Web.
 
-if [ -n "${OPENWORK_WORKSPACE_DIR:-}" ]; then
-  REPO_DIR="$OPENWORK_WORKSPACE_DIR"
+if [ -n "${HARNESS_WORKSPACE_DIR:-}" ]; then
+  REPO_DIR="$HARNESS_WORKSPACE_DIR"
 elif [ -f /workspace/package.json ]; then
   REPO_DIR="/workspace"
 else
@@ -16,21 +16,21 @@ cd "$REPO_DIR"
 
 # Per-test Den env from the eval harness (base64 KEY=VALUE lines, one per
 # line). Exported first so a caller's value wins over the defaults below.
-if [ -n "${OPENWORK_DEN_EXTRA_ENV_B64:-}" ]; then
+if [ -n "${HARNESS_DEN_EXTRA_ENV_B64:-}" ]; then
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     case "$line" in
       [A-Z_]*=*) export "$line" ;;
-      *) echo "ERROR: invalid Den env line from OPENWORK_DEN_EXTRA_ENV_B64." >&2; exit 1 ;;
+      *) echo "ERROR: invalid Den env line from HARNESS_DEN_EXTRA_ENV_B64." >&2; exit 1 ;;
     esac
   done <<EOF_EXTRA_ENV
-$(printf %s "$OPENWORK_DEN_EXTRA_ENV_B64" | base64 -d)
+$(printf %s "$HARNESS_DEN_EXTRA_ENV_B64" | base64 -d)
 EOF_EXTRA_ENV
 fi
 
 DEN_API_PORT="${DEN_API_PORT:-8788}"
 DEN_WEB_PORT="${DEN_WEB_PORT:-3005}"
-PNPM_STORE="${PNPM_STORE:-$REPO_DIR/.openwork-daytona/pnpm-store}"
+PNPM_STORE="${PNPM_STORE:-$REPO_DIR/.harness-daytona/pnpm-store}"
 
 DEN_API_PUBLIC_URL="${DEN_API_PUBLIC_URL:-http://localhost:$DEN_API_PORT}"
 DEN_WEB_PUBLIC_URL="${DEN_WEB_PUBLIC_URL:-http://localhost:$DEN_WEB_PORT}"
@@ -38,12 +38,12 @@ DEN_WEB_PUBLIC_HOST="${DEN_WEB_PUBLIC_URL#http://}"
 DEN_WEB_PUBLIC_HOST="${DEN_WEB_PUBLIC_HOST#https://}"
 DEN_WEB_PUBLIC_HOST="${DEN_WEB_PUBLIC_HOST%%/*}"
 
-export OPENWORK_DEV_MODE="${OPENWORK_DEV_MODE:-1}"
+export HARNESS_DEV_MODE="${HARNESS_DEV_MODE:-1}"
 export DEN_ORG_MODE="${DEN_ORG_MODE:-multi_org}"
 # Eval sign-ups must not depend on the HIBP API.
 export DEN_PASSWORD_BREACH_SCREENING_ENABLED="${DEN_PASSWORD_BREACH_SCREENING_ENABLED:-false}"
 export DEN_GENERATED_ARTIFACT_VIEWS_ENABLED="${DEN_GENERATED_ARTIFACT_VIEWS_ENABLED:-false}"
-export DATABASE_URL="${DATABASE_URL:-mysql://root:password@127.0.0.1:3306/openwork_den}"
+export DATABASE_URL="${DATABASE_URL:-mysql://root:password@127.0.0.1:3306/harness_den}"
 export DEN_DB_ENCRYPTION_KEY="${DEN_DB_ENCRYPTION_KEY:-daytona-den-db-encryption-key-please-change-1234567890}"
 export BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET:-daytona-den-auth-secret-please-change-1234567890}"
 export BETTER_AUTH_URL="${BETTER_AUTH_URL:-$DEN_WEB_PUBLIC_URL}"
@@ -58,7 +58,7 @@ export DEN_MCP_RESOURCE_URL="${DEN_MCP_RESOURCE_URL:-$DEN_API_PUBLIC_URL/mcp}"
 export DEN_API_BASE="${DEN_API_BASE:-${DEN_API_PUBLIC_URL:-http://127.0.0.1:$DEN_API_PORT}}"
 export DEN_AUTH_ORIGIN="${DEN_AUTH_ORIGIN:-$DEN_WEB_PUBLIC_URL}"
 export DEN_AUTH_FALLBACK_BASE="${DEN_AUTH_FALLBACK_BASE:-http://127.0.0.1:$DEN_API_PORT}"
-export NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL="${NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL:-$DEN_WEB_PUBLIC_URL}"
+export NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL="${NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL:-$DEN_WEB_PUBLIC_URL}"
 export DEN_PROVISIONER_MODE="${DEN_PROVISIONER_MODE:-${PROVISIONER_MODE:-stub}}"
 export DEN_WORKER_URL_TEMPLATE="${DEN_WORKER_URL_TEMPLATE:-https://workers.local/{workerId}}"
 export DEN_WEB_ALLOWED_DEV_ORIGINS="${DEN_WEB_ALLOWED_DEV_ORIGINS:-$DEN_WEB_PUBLIC_HOST}"
@@ -134,7 +134,7 @@ wait_for_http() {
 }
 
 echo "==> Starting MySQL..."
-run_root service mysql start >/tmp/openwork-mysql-service.log 2>&1 || run_root service mariadb start >/tmp/openwork-mysql-service.log 2>&1
+run_root service mysql start >/tmp/harness-mysql-service.log 2>&1 || run_root service mariadb start >/tmp/harness-mysql-service.log 2>&1
 
 for _ in $(seq 1 60); do
   if mysql -uroot -ppassword -e "SELECT 1" >/dev/null 2>&1; then
@@ -149,7 +149,7 @@ for _ in $(seq 1 60); do
 done
 
 "${MYSQL_ROOT_CMD[@]}" <<'SQL'
-CREATE DATABASE IF NOT EXISTS openwork_den;
+CREATE DATABASE IF NOT EXISTS harness_den;
 ALTER USER 'root'@'localhost' IDENTIFIED BY 'password';
 CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
@@ -158,8 +158,8 @@ FLUSH PRIVILEGES;
 SQL
 
 echo "==> Installing dependencies if needed..."
-mkdir -p "$PNPM_STORE" .openwork-daytona
-baseline=.openwork-daytona/pnpm-lock.sha256
+mkdir -p "$PNPM_STORE" .harness-daytona
+baseline=.harness-daytona/pnpm-lock.sha256
 current="$(sha256sum pnpm-lock.yaml | cut -d " " -f 1)"
 # The server stack never runs Electron or browser automation; skip their
 # binary downloads on reinstalls too.
@@ -186,16 +186,16 @@ build_key() {
 }
 
 echo "==> Pushing Den DB schema..."
-pnpm --filter @openwork-ee/den-db db:push > /tmp/den-db-push.log 2>&1
+pnpm --filter @harness-ee/den-db db:push > /tmp/den-db-push.log 2>&1
 
-den_api_assets_marker=.openwork-daytona/den-api-assets.tree
+den_api_assets_marker=.harness-daytona/den-api-assets.tree
 den_api_assets_key="$(build_key HEAD:packages/mcp-apps)"
 if [ -n "$den_api_assets_key" ] && [ -d packages/mcp-apps/dist ] && [ -f "$den_api_assets_marker" ] \
   && [ "$(cat "$den_api_assets_marker")" = "$den_api_assets_key" ]; then
   echo "==> Skipping Den API runtime asset build (baked assets match this ref)."
 else
   echo "==> Building Den API runtime assets..."
-  pnpm --filter @openwork-ee/den-api run build:mcp-apps
+  pnpm --filter @harness-ee/den-api run build:mcp-apps
   if [ -n "$den_api_assets_key" ]; then
     printf "%s" "$den_api_assets_key" > "$den_api_assets_marker"
   else
@@ -225,9 +225,9 @@ nohup env \
   DEN_ORG_MODE="$DEN_ORG_MODE" \
   DEN_PASSWORD_BREACH_SCREENING_ENABLED="$DEN_PASSWORD_BREACH_SCREENING_ENABLED" \
   DEN_GENERATED_ARTIFACT_VIEWS_ENABLED="$DEN_GENERATED_ARTIFACT_VIEWS_ENABLED" \
-  OPENWORK_DEV_MODE="$OPENWORK_DEV_MODE" \
+  HARNESS_DEV_MODE="$HARNESS_DEV_MODE" \
   NODE_OPTIONS="--conditions=development" \
-  pnpm --filter @openwork-ee/den-api exec tsx watch src/main.ts > /tmp/den-api.log 2>&1 &
+  pnpm --filter @harness-ee/den-api exec tsx watch src/main.ts > /tmp/den-api.log 2>&1 &
 
 wait_for_http "http://127.0.0.1:$DEN_API_PORT/health" "Den API" 180
 
@@ -243,13 +243,13 @@ if [ "$GATEWAY_ENABLED" = "true" ]; then
     SENTRY_DSN= \
     SENTRY_LOG_LEVEL=off \
     NODE_OPTIONS="--conditions=development" \
-    pnpm --filter @openwork-ee/gateway exec tsx src/server.ts > /tmp/gateway.log 2>&1 &
+    pnpm --filter @harness-ee/gateway exec tsx src/server.ts > /tmp/gateway.log 2>&1 &
   wait_for_http "http://127.0.0.1:$GATEWAY_PORT/ready" "AI Gateway" 180
 fi
 
 if [ "${RUN_SEED:-0}" = "1" ]; then
   demo_email="${DEN_DEMO_OWNER_EMAIL:-alex@acme.test}"
-  demo_password="${DEN_DEMO_OWNER_PASSWORD:-OpenWorkDemo123!}"
+  demo_password="${DEN_DEMO_OWNER_PASSWORD:-HarnessDemo123!}"
   signin_ok() {
     curl -sf -o /dev/null -X POST "http://127.0.0.1:$DEN_API_PORT/api/auth/sign-in/email" \
       -H 'content-type: application/json' \
@@ -266,7 +266,7 @@ if [ "${RUN_SEED:-0}" = "1" ]; then
       BETTER_AUTH_URL="$BETTER_AUTH_URL" \
       DEN_API_PUBLIC_URL="$DEN_API_PUBLIC_URL" \
       DEN_ORG_MODE="$DEN_ORG_MODE" \
-      OPENWORK_DEV_MODE=1 \
+      HARNESS_DEV_MODE=1 \
       DEN_DEMO_SEED_FETCH_GITHUB="${DEN_DEMO_SEED_FETCH_GITHUB:-0}" \
       node --conditions=development --import tsx scripts/seed-demo-org.ts) > /tmp/den-seed.log 2>&1
     if signin_ok; then
@@ -280,7 +280,7 @@ if [ "${RUN_SEED:-0}" = "1" ]; then
   echo "DEMO_OWNER_READY=$demo_email"
 fi
 
-den_web_marker=.openwork-daytona/den-web-build.tree
+den_web_marker=.harness-daytona/den-web-build.tree
 den_web_key="$(build_key HEAD:packages/ui HEAD:ee/packages/utils HEAD:ee/apps/den-web)"
 if [ -n "$den_web_key" ] && [ -d ee/apps/den-web/.next ] && [ -f "$den_web_marker" ] \
   && [ "$(cat "$den_web_marker")" = "$den_web_key" ]; then
@@ -296,14 +296,14 @@ else
     DEN_API_BASE="$DEN_API_BASE" \
     DEN_AUTH_ORIGIN="$DEN_AUTH_ORIGIN" \
     DEN_AUTH_FALLBACK_BASE="$DEN_AUTH_FALLBACK_BASE" \
-    NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL="$NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL" \
+    NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL="$NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL" \
     NEXT_PUBLIC_POSTHOG_KEY= \
     NEXT_PUBLIC_POSTHOG_API_KEY= \
     DEN_ORG_MODE="$DEN_ORG_MODE" \
-    OPENWORK_DEV_MODE="$OPENWORK_DEV_MODE" \
+    HARNESS_DEV_MODE="$HARNESS_DEV_MODE" \
     DEN_WEB_ALLOWED_DEV_ORIGINS="$DEN_WEB_ALLOWED_DEV_ORIGINS" \
     DEN_WEB_BUILD_CPUS="${DEN_WEB_BUILD_CPUS:-4}" \
-    bash -c 'pnpm --filter @openwork/ui build && pnpm --filter @openwork-ee/utils build && pnpm --filter @openwork-ee/den-web build' > /tmp/den-web-build.log 2>&1; then
+    bash -c 'pnpm --filter @harness/ui build && pnpm --filter @harness-ee/utils build && pnpm --filter @harness-ee/den-web build' > /tmp/den-web-build.log 2>&1; then
     echo "ERROR: Den Web build failed. Last 80 lines:" >&2
     tail -n 80 /tmp/den-web-build.log >&2
     exit 1
@@ -323,17 +323,17 @@ nohup env \
   DEN_API_BASE="$DEN_API_BASE" \
   DEN_AUTH_ORIGIN="$DEN_AUTH_ORIGIN" \
   DEN_AUTH_FALLBACK_BASE="$DEN_AUTH_FALLBACK_BASE" \
-  NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL="$NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL" \
+  NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL="$NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL" \
   NEXT_PUBLIC_POSTHOG_KEY= \
   NEXT_PUBLIC_POSTHOG_API_KEY= \
   DEN_ORG_MODE="$DEN_ORG_MODE" \
-  OPENWORK_DEV_MODE="$OPENWORK_DEV_MODE" \
+  HARNESS_DEV_MODE="$HARNESS_DEV_MODE" \
   DEN_WEB_ALLOWED_DEV_ORIGINS="$DEN_WEB_ALLOWED_DEV_ORIGINS" \
-  pnpm --filter @openwork-ee/den-web exec next start --hostname 0.0.0.0 --port "$DEN_WEB_PORT" > /tmp/den-web.log 2>&1 &
+  pnpm --filter @harness-ee/den-web exec next start --hostname 0.0.0.0 --port "$DEN_WEB_PORT" > /tmp/den-web.log 2>&1 &
 
 wait_for_http "http://127.0.0.1:$DEN_WEB_PORT/api/den/health" "Den Web" 180
 
-cat > .openwork-daytona/server-env <<EOF
+cat > .harness-daytona/server-env <<EOF
 DEN_API_URL=$DEN_API_PUBLIC_URL
 DEN_WEB_URL=$DEN_WEB_PUBLIC_URL
 BETTER_AUTH_URL=$BETTER_AUTH_URL
@@ -344,7 +344,7 @@ EOF
 
 echo ""
 echo "============================================"
-echo "  OpenWork Daytona server stack ready"
+echo "  Harness Daytona server stack ready"
 echo ""
 echo "  Den Web:       $DEN_WEB_PUBLIC_URL"
 echo "  Den API:       $DEN_API_PUBLIC_URL"

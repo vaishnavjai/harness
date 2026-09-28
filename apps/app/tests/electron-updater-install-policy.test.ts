@@ -54,13 +54,13 @@ describe("install re-validates the organization's desktop version policy", () =>
     Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
     // Bun aliases import.meta.env to process.env; DEV enables the metadata eval hook.
     process.env.DEV = "true";
-    window.__openworkReadDesktopVersionMetadataEval = () => metadata;
+    window.__harnessReadDesktopVersionMetadataEval = () => metadata;
     installs = 0;
     refreshes = 0;
     statuses = [];
     downloadedConfig = { allowedDesktopVersions: [downloadedVersion] };
     refreshResult = async () => downloadedConfig;
-    Reflect.set(window, "__OPENWORK_ELECTRON__", {
+    Reflect.set(window, "__HARNESS_ELECTRON__", {
       updater: {
         getChannel: async () => ({ channel: "stable", currentVersion: installedVersion }),
         setChannel: async (channel: "stable" | "alpha") => ({ channel, currentVersion: installedVersion }),
@@ -105,7 +105,7 @@ describe("install re-validates the organization's desktop version policy", () =>
     expect(updater.updateStatus).toMatchObject({
       state: "blocked",
       version: downloadedVersion,
-      message: `OpenWork ${downloadedVersion} is available, but this installation is not eligible for it yet.`,
+      message: `Harness ${downloadedVersion} is available, but this installation is not eligible for it yet.`,
     });
     expect(statuses.some((status) => status?.state === "error")).toBe(false);
   });

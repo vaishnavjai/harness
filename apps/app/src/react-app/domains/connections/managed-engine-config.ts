@@ -1,13 +1,13 @@
 import { unwrap } from "@/app/lib/opencode";
 import { isOpencodeV2Client } from "@/app/lib/opencode-v2-adapter";
-import type { OpenworkServerClient } from "@/app/lib/openwork-server";
+import type { HarnessServerClient } from "@/app/lib/harness-server";
 import type { Client } from "@/app/types";
 
 type WorkspaceType = "local" | "remote" | string;
 
 export type UpdateManagedDisabledProvidersOptions = {
   opencodeClient: Client | null;
-  openworkClient?: OpenworkServerClient | null;
+  harnessClient?: HarnessServerClient | null;
   workspaceId?: string | null;
   workspaceType?: WorkspaceType | null;
   disabledProviders: unknown;
@@ -42,7 +42,7 @@ export function disabledProvidersFromConfig(config: unknown): string[] {
 
 export type ReadManagedDisabledProvidersOptions = {
   opencodeClient: Client | null;
-  openworkClient?: OpenworkServerClient | null;
+  harnessClient?: HarnessServerClient | null;
   workspaceId?: string | null;
   workspaceType?: WorkspaceType | null;
   directory?: string;
@@ -52,7 +52,7 @@ export type ReadManagedDisabledProvidersOptions = {
  * The providers hidden through `disabled_providers` (for example a
  * disconnected OpenCode Zen). OpenCode v1 reports them in its config. OpenCode
  * v2 keeps engine config private, so read the same shared list from the
- * OpenWork server instead of treating it as empty and overwriting it.
+ * Harness server instead of treating it as empty and overwriting it.
  */
 export async function readManagedDisabledProviders(
   options: ReadManagedDisabledProvidersOptions,
@@ -60,8 +60,8 @@ export async function readManagedDisabledProviders(
   const client = options.opencodeClient;
   const workspaceId = options.workspaceId?.trim() ?? "";
   if (client && isOpencodeV2Client(client)) {
-    if (!options.openworkClient || !workspaceId || options.workspaceType !== "local") return [];
-    const result = await options.openworkClient.getRuntimeDisabledProviders(workspaceId);
+    if (!options.harnessClient || !workspaceId || options.workspaceType !== "local") return [];
+    const result = await options.harnessClient.getRuntimeDisabledProviders(workspaceId);
     return normalizeDisabledProviders(result.disabledProviders);
   }
   if (!client) return [];
@@ -89,8 +89,8 @@ export async function updateManagedDisabledProviders(
   const disabledProviders = normalizeDisabledProviders(options.disabledProviders);
   const workspaceId = options.workspaceId?.trim() ?? "";
 
-  if (options.openworkClient && workspaceId && options.workspaceType === "local") {
-    const result = await options.openworkClient.setRuntimeDisabledProviders(workspaceId, disabledProviders);
+  if (options.harnessClient && workspaceId && options.workspaceType === "local") {
+    const result = await options.harnessClient.setRuntimeDisabledProviders(workspaceId, disabledProviders);
     return { managedRuntime: true, disabledProviders: result.disabledProviders };
   }
 

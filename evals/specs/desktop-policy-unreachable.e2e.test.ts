@@ -3,10 +3,10 @@ import { expect } from "vitest";
 import {
   app, browserScript, eventually, faultProxy, mcpMock, needs,
   readDenClientState, resolveEvalEngine, server, test,
-} from "@openwork/testkit";
-import { control, engineSessionProbe, evalIn, selectModel, waitFor, writeComposerText } from "@openwork/behaviors";
-import { checkedExec, defaultDaytonaExec } from "@openwork/hosts";
-import type { App } from "@openwork/testkit";
+} from "@harness/testkit";
+import { control, engineSessionProbe, evalIn, selectModel, waitFor, writeComposerText } from "@harness/behaviors";
+import { checkedExec, defaultDaytonaExec } from "@harness/hosts";
+import type { App } from "@harness/testkit";
 
 const providerId = "policy-outage-witness";
 const modelId = "policy-outage-model";
@@ -21,7 +21,7 @@ function quote(value: string): string {
 
 async function configureModel(surface: App, workspaceId: string, modelUrl: string) {
   const configured = await evalIn(surface, browserScript(async (workspaceId, modelUrl, providerId, modelId) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.baseUrl) throw new Error("The local desktop server is not running");
     const headers = { Authorization: `Bearer ${info.ownerToken}`, "Content-Type": "application/json" };
     const root = info.baseUrl.replace(/\/$/, "");
@@ -43,17 +43,17 @@ async function configureModel(surface: App, workspaceId: string, modelUrl: strin
       method: "POST", headers, signal: AbortSignal.timeout(60_000),
     });
     if (!reload.ok) throw new Error(`Engine reload failed: ${reload.status}`);
-    localStorage.setItem("openwork.defaultModel", `${providerId}/${modelId}`);
+    localStorage.setItem("harness.defaultModel", `${providerId}/${modelId}`);
     return { configured: response.status, reloaded: reload.status };
   }, [workspaceId, modelUrl, providerId, modelId]), { awaitPromise: true, timeoutMs: 120_000 });
   expect(configured).toEqual({ configured: 200, reloaded: 200 });
   await evalIn(surface, () => { location.reload(); });
-  await waitFor(surface, () => Boolean(window.__openworkControl), { timeoutMs: 60_000, label: "configured signed-in desktop restored" });
+  await waitFor(surface, () => Boolean(window.__harnessControl), { timeoutMs: 60_000, label: "configured signed-in desktop restored" });
 }
 
 async function runtimePlugins(surface: App, workspaceId: string): Promise<string[]> {
   const result = await evalIn(surface, browserScript(async (workspaceId) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.baseUrl) throw new Error("The local desktop server is not running");
     const response = await fetch(`${info.baseUrl.replace(/\/$/, "")}/workspace/${workspaceId}/opencode/config`, {
       headers: { Authorization: `Bearer ${info.ownerToken}` }, signal: AbortSignal.timeout(20_000),
@@ -67,17 +67,17 @@ async function runtimePlugins(surface: App, workspaceId: string): Promise<string
     return config.plugin.filter((entry: unknown): entry is string => typeof entry === "string");
   }, [workspaceId]), { awaitPromise: true, timeoutMs: 25_000 });
   expect(result.length).toBeGreaterThan(0);
-  expect(result.some((plugin) => /openwork-(?:chrome|extensions|capabilities)/.test(plugin))).toBe(true);
+  expect(result.some((plugin) => /harness-(?:chrome|extensions|capabilities)/.test(plugin))).toBe(true);
   expect(result.filter((plugin) => /(?:^|\/)managed-policy(?:-next)?(?:\.[cm]?[jt]s|\/|$)/.test(plugin))).toEqual([]);
   return result;
 }
 
 test("an admitted signed-in desktop turn executes its next bash tool while Den returns 503, without a managed-policy plugin", { timeout: 1_200_000 }, async ({ place, evidence }) => {
-  needs({ placement: "daytona", commands: ["daytona"], optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+  needs({ placement: "daytona", commands: ["daytona"], optIn: ["HARNESS_EVAL_E2E_TESTS"] });
   expect(resolveEvalEngine(), "this HTTP-hook regression journey targets OpenCode v1").toBe("v1");
   const id = randomUUID();
   const marker = `POLICY-UNREACHABLE-${id}`;
-  const workspacePath = `/tmp/openwork-policy-unreachable-${id}`;
+  const workspacePath = `/tmp/harness-policy-unreachable-${id}`;
   const readyPath = `${workspacePath}/baseline-ready.txt`;
   const releasePath = `${workspacePath}/release-gate.txt`;
   const outputPath = `${workspacePath}/outage-result.txt`;
@@ -126,7 +126,7 @@ test("an admitted signed-in desktop turn executes its next bash tool while Den r
   expect(beforeIdentity.authTokenPresent).toBe(true);
   expect(beforeIdentity.activeOrgId).toBeTruthy();
   const policyBaseline = await eventually(() => evalIn(desktop, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.baseUrl) throw new Error("The local desktop server is not running");
     const response = await fetch(`${info.baseUrl.replace(/\/$/, "")}/managed-policy`, {
       headers: { Authorization: `Bearer ${info.ownerToken}` }, signal: AbortSignal.timeout(10_000),
@@ -175,7 +175,7 @@ test("an admitted signed-in desktop turn executes its next bash tool while Den r
     // Calibrate the actual desktop-server -> Den path, not just a synthetic proxy probe.
     // Explicit refresh still reads Den; assertions use the installed snapshot.
     const policyRefresh = await evalIn(desktop, async () => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.baseUrl) throw new Error("The local desktop server is not running");
       const response = await fetch(`${info.baseUrl.replace(/\/$/, "")}/managed-policy`, {
         headers: { Authorization: `Bearer ${info.ownerToken}` }, signal: AbortSignal.timeout(15_000),

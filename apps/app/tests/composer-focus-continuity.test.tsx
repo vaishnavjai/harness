@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import type { SessionStatus } from "@opencode-ai/sdk/v2/client";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import type { NativeContextMenuRequest } from "../src/app/lib/desktop-types";
 import type { ComposerAttachment, ComposerDraft, PendingPermission, PendingQuestion } from "../src/app/types";
 import type { CloudMcpSubmissionResult } from "../src/react-app/domains/connections/cloud-mcp-submit-readiness";
@@ -27,7 +27,7 @@ afterAll(async () => {
 const workspaceId = "workspace-focus-continuity";
 const sessionId = "session-focus-continuity";
 
-function createSnapshot(status: SessionStatus, updated: number, id = sessionId): OpenworkSessionSnapshot {
+function createSnapshot(status: SessionStatus, updated: number, id = sessionId): HarnessSessionSnapshot {
   return {
     session: {
       id,
@@ -62,7 +62,7 @@ function newTaskComposerContext(draftOwnerKey: string): NewTaskComposerContext {
     modelVariantLabel: "Default",
     modelVariant: null,
     onModelVariantChange: () => {},
-    agentLabel: "OpenWork",
+    agentLabel: "Harness",
     selectedAgent: null,
     listAgents: async () => [],
     onSelectAgent: () => {},
@@ -118,7 +118,7 @@ test.each([
     mock.module(moduleId, () => moduleExports);
   }
   const [
-    { createOpenworkServerClient },
+    { createHarnessServerClient },
     { IDLE_CLOUD_MCP_SUBMISSION_GATE_STATE },
     { useComposerStateStore },
     { getReactQueryClient },
@@ -128,7 +128,7 @@ test.each([
     { DenAuthProvider },
     { DesktopConfigProvider },
   ] = await Promise.all([
-    import("../src/app/lib/openwork-server"),
+    import("../src/app/lib/harness-server"),
     import("../src/react-app/domains/connections/cloud-mcp-submit-readiness"),
     import("../src/react-app/domains/session/surface/composer-state-store"),
     import("../src/react-app/infra/query-client"),
@@ -183,7 +183,7 @@ test.each([
   };
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchStub });
   Object.defineProperty(window, "fetch", { configurable: true, value: fetchStub });
-  window.localStorage.setItem("openwork.shell-config", JSON.stringify({ starterCards: false }));
+  window.localStorage.setItem("harness.shell-config", JSON.stringify({ starterCards: false }));
   let fetchedSnapshot = createSnapshot({ type: "busy" }, 1);
   if (mobileOutcome) {
     fetchedSnapshot = createSnapshot({ type: "idle" }, 1);
@@ -191,7 +191,7 @@ test.each([
     Object.defineProperty(media, "matches", { value: true });
     spyOn(window, "matchMedia").mockReturnValue(media);
   }
-  let snapshotRead: Promise<OpenworkSessionSnapshot> | null = null;
+  let snapshotRead: Promise<HarnessSessionSnapshot> | null = null;
   let historyOnly = false;
   const otherSessionId = `${sessionId}-other`;
   const otherSnapshot = createSnapshot({ type: "busy" }, 1, otherSessionId);
@@ -224,7 +224,7 @@ test.each([
     role: "user",
     parts: [{ type: "text", text: "Keep this session mounted." }],
   }]);
-  const client = createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
+  const client = createHarnessServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
   const container = document.createElement("div");
   document.body.append(container);
   const expectStarting = () => {
@@ -327,7 +327,7 @@ test.each([
                 draftScope="local"
                 isControlTarget={isControlTarget}
                 opencodeBaseUrl={opencodeBaseUrl}
-                openworkToken="test-token"
+                harnessToken="test-token"
                 developerMode
                 modelLabel="Test model"
                 onModelClick={() => {}}
@@ -437,7 +437,7 @@ test.each([
       const { snapshotToUIMessages } = await import("../src/react-app/domains/session/sync/usechat-adapter");
       const { markComposerAutoSend } = await import("../src/react-app/domains/session/surface/composer-auto-send");
       const nativeBaseUrl = "http://127.0.0.1:1/opencode2";
-      const syncInput = { workspaceId, baseUrl: nativeBaseUrl, openworkToken: "test-token" };
+      const syncInput = { workspaceId, baseUrl: nativeBaseUrl, harnessToken: "test-token" };
       const cleanupSync = __createWorkspaceSessionSyncForTest(syncInput);
       const release = trackWorkspaceSessionSync(syncInput, sessionId);
       try {
@@ -829,15 +829,15 @@ test.each([
     expect(copyText).toHaveBeenCalledWith("Keep this session mounted.");
     await openMessageMenu("branch");
     expect(forkAtMessage).toHaveBeenCalledWith(null, sessionId, expect.any(Function));
-    const retainedMessages = queryClient.getQueryData<OpenworkSessionSnapshot>(key)?.messages;
+    const retainedMessages = queryClient.getQueryData<HarnessSessionSnapshot>(key)?.messages;
     await act(async () => updateRouteArchived(true));
 
-    const staleRead = Promise.withResolvers<OpenworkSessionSnapshot>();
+    const staleRead = Promise.withResolvers<HarnessSessionSnapshot>();
     snapshotRead = staleRead.promise;
     let staleRefresh: Promise<void> = Promise.resolve();
     await act(async () => { staleRefresh = queryClient.refetchQueries({ queryKey: key, exact: true }); });
     expect(queryClient.getQueryState(key)?.fetchStatus).toBe("fetching");
-    const freshRead = Promise.withResolvers<OpenworkSessionSnapshot>();
+    const freshRead = Promise.withResolvers<HarnessSessionSnapshot>();
     snapshotRead = freshRead.promise;
     fetchedSnapshot = createSnapshot({ type: "idle" }, 4);
     await act(async () => { expect(await restoreShared()).toEqual({ kind: "done" }); });
@@ -845,10 +845,10 @@ test.each([
     expect(queryClient.getQueryState(key)?.fetchStatus).toBe("fetching");
     expect(container.querySelector('[data-testid="archived-session"]')).toBeNull();
     expect(container.querySelector<HTMLButtonElement>('button[aria-label="Run task"]')?.disabled).toBe(false);
-    expect(queryClient.getQueryData<OpenworkSessionSnapshot>(key)?.session.time.archived).toBe(0);
-    expect(queryClient.getQueryData<OpenworkSessionSnapshot>(routeKey)?.session.time.archived).toBe(0);
+    expect(queryClient.getQueryData<HarnessSessionSnapshot>(key)?.session.time.archived).toBe(0);
+    expect(queryClient.getQueryData<HarnessSessionSnapshot>(routeKey)?.session.time.archived).toBe(0);
     expect(queryClient.getQueryData(unrelatedKey)).toBe(archivedSnapshot);
-    expect(queryClient.getQueryData<OpenworkSessionSnapshot>(key)?.messages).toBe(retainedMessages);
+    expect(queryClient.getQueryData<HarnessSessionSnapshot>(key)?.messages).toBe(retainedMessages);
     expect(restoreRequests).toHaveLength(1);
     expect(await restoreRequests[0]?.json()).toMatchObject({ time: { archived: 0 } });
     expect(sentDrafts).toHaveLength(0);
@@ -856,7 +856,7 @@ test.each([
       staleRead.resolve(archivedSnapshot);
       await staleRefresh;
     });
-    expect(queryClient.getQueryData<OpenworkSessionSnapshot>(key)?.session.time.archived).toBe(0);
+    expect(queryClient.getQueryData<HarnessSessionSnapshot>(key)?.session.time.archived).toBe(0);
     expect(container.querySelector('[data-testid="archived-session"]')).toBeNull();
     await act(async () => { freshRead.resolve(fetchedSnapshot); snapshotRead = null; });
     await waitFor(() => queryClient.getQueryState(key)?.fetchStatus === "idle", "the restored authoritative snapshot");
@@ -883,7 +883,7 @@ test.each([
       expect(button?.querySelector("svg.lucide-loader-circle")).not.toBeNull();
       expect(container.querySelector('[data-message-role="user"] [role="status"]')?.textContent).toBe("Branching...");
     };
-    const branchHistory = Promise.withResolvers<OpenworkSessionSnapshot>();
+    const branchHistory = Promise.withResolvers<HarnessSessionSnapshot>();
     const forkCreated = Promise.withResolvers<void>();
     snapshotRead = branchHistory.promise;
     forkCompletion = forkCreated.promise;
@@ -918,7 +918,7 @@ test.each([
     expect(forkAtMessage).toHaveBeenCalledTimes(3);
     expect(forkNavigation).toHaveBeenCalledTimes(2);
     expect(container.textContent).not.toContain("Branch creation failed");
-    const failedHistory = Promise.withResolvers<OpenworkSessionSnapshot>();
+    const failedHistory = Promise.withResolvers<HarnessSessionSnapshot>();
     snapshotRead = failedHistory.promise;
     await act(async () => branch());
     expectBranching();
@@ -929,7 +929,7 @@ test.each([
     expect(editor.textContent).toBe(draft);
 
     // A late history read cannot fork a new owner; a late fork cannot navigate it.
-    const abandonedHistory = Promise.withResolvers<OpenworkSessionSnapshot>();
+    const abandonedHistory = Promise.withResolvers<HarnessSessionSnapshot>();
     snapshotRead = abandonedHistory.promise;
     await act(async () => branch());
     await act(async () => renderSession(otherSessionId));
@@ -1351,7 +1351,7 @@ test.each([
       const result = await nativeClient.session.messages({ sessionID: sessionId });
       if (result.error || !result.data) throw new Error("Expected native transcript data");
       expect(result.data.every((message) => message.parts.every((part) => part.type === "text"))).toBe(true);
-      const nativeSnapshot: OpenworkSessionSnapshot = {
+      const nativeSnapshot: HarnessSessionSnapshot = {
         ...createSnapshot({ type: "idle" }, 10),
         messages: result.data.map(({ info, parts }) => ({
           info: { id: info.id, sessionID: info.sessionID, role: "user", time: info.time,
@@ -1620,7 +1620,7 @@ test.each([
     });
     await waitFor(() => getQueuedDrainState(sessionId).phase.kind === "ready", "a terminal command to settle from independent status and history");
     expect(admissionStatusRequests.length).toBeGreaterThan(statusReadsBeforeProbe);
-    expect(queryClient.getQueryData<OpenworkSessionSnapshot>(snapshotKey(workspaceId, sessionId))?.status).toBeUndefined();
+    expect(queryClient.getQueryData<HarnessSessionSnapshot>(snapshotKey(workspaceId, sessionId))?.status).toBeUndefined();
     expect(sentDrafts).toHaveLength(sendsBeforeProbe);
     expect(getQueuedDrainState(sessionId).lastResolution).toEqual({ itemId: "deferred-command-probe", resolution: "completed" });
     expectSettled();

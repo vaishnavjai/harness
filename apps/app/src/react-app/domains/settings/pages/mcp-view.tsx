@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 import { desktopRestrictionNotice } from "../../../../app/cloud/desktop-app-restrictions";
-import { isBuiltInOpenWorkExtension, getMcpServerName, type McpDirectoryInfo } from "../../../../app/constants";
+import { isBuiltInHarnessExtension, getMcpServerName, type McpDirectoryInfo } from "../../../../app/constants";
 import { evaluateEnablement } from "../../../../app/enablement";
 import type { EnablementResult } from "../../../../app/extensions";
 import type { CloudImportedPlugin, CloudImportedPluginFile } from "../../../../app/cloud/import-state";
@@ -84,14 +84,14 @@ import {
   canDisconnectMemberConnection,
   canMemberAuthorizeConnection,
 } from "../../connections/native-provider-connections";
-import type { OpenworkClaudePluginPreview } from "../../../../app/lib/openwork-server";
+import type { HarnessClaudePluginPreview } from "../../../../app/lib/harness-server";
 import {
-  isOpenWorkExtensionEnabled,
-  isOpenWorkExtensionHidden,
-  OPENWORK_EXTENSION_STATE_CHANGED,
+  isHarnessExtensionEnabled,
+  isHarnessExtensionHidden,
+  HARNESS_EXTENSION_STATE_CHANGED,
   readExtensionLayout,
-  setOpenWorkExtensionEnabled,
-  setOpenWorkExtensionHidden,
+  setHarnessExtensionEnabled,
+  setHarnessExtensionHidden,
   writeExtensionLayout,
 } from "../extension-state";
 import {
@@ -171,7 +171,7 @@ export type SkillItem = {
   trigger?: string;
   path: string;
   content?: string;
-  origin?: "local" | "openwork-connect";
+  origin?: "local" | "harness-connect";
   marketplaceName?: string;
   pluginName?: string;
 };
@@ -188,7 +188,7 @@ export type McpViewProps = {
   installedCommands?: LibraryCommandItem[];
   /** Composer agents to render in Library. */
   installedAgents?: LibraryAgentItem[];
-  /** MCP capabilities assigned through OpenWork Connect. */
+  /** MCP capabilities assigned through Harness Connect. */
   availableConnectMcpServers?: McpServerEntry[];
   availableConnectMcpStatuses?: McpStatusMap;
   /** Organization inventory is still being fetched and nothing is cached yet. */
@@ -208,7 +208,7 @@ export type McpViewProps = {
   mcpLastUpdatedAt: number | null;
   mcpStatuses: McpStatusMap;
   mcpConnectingName: string | null;
-  /** False when secure storage for OpenWork-managed sign-ins is unavailable on this device. */
+  /** False when secure storage for Harness-managed sign-ins is unavailable on this device. */
   managedOAuthAvailable?: boolean;
   /** Organization policy permission for local extension configuration. */
   allowManageExtensions: boolean;
@@ -224,10 +224,10 @@ export type McpViewProps = {
   isExtensionConnected?: (entry: McpDirectoryInfo) => boolean;
   /** Enablement context for evaluating extension active state. */
   enablementContext?: import("../../../../app/enablement").EnablementContext;
-  /** Organization policy restriction for OpenWork-provided built-in extensions. */
+  /** Organization policy restriction for Harness-provided built-in extensions. */
   builtInExtensionsDisabled?: boolean;
   /** Preview a Claude Code plugin bundle from a GitHub URL ("Will install" disclosure). */
-  previewClaudePlugin?: (url: string) => Promise<OpenworkClaudePluginPreview>;
+  previewClaudePlugin?: (url: string) => Promise<HarnessClaudePluginPreview>;
   /** Install a Claude Code plugin bundle from a GitHub URL. */
   installClaudePlugin?: (url: string) => Promise<{ ok: boolean; message: string }>;
   /** Connected org-level External MCP Connections rendered in My Extensions. */
@@ -424,8 +424,8 @@ export function McpView(props: McpViewProps) {
   const [pendingPlugin, setPendingPlugin] = useState<CloudImportedPlugin | null>(null);
   const [landingConnector, setLandingConnector] = useState<{ pluginId: string; name: string } | null>(null);
   const [detailSkillContent, setDetailSkillContent] = useState<string | null>(null);
-  const [openworkUiMcpCommand, setOpenworkUiMcpCommand] = useState<string[] | null>(null);
-  const [openworkUiMcpEnvironment, setOpenworkUiMcpEnvironment] = useState<Record<string, string> | null>(null);
+  const [harnessUiMcpCommand, setHarnessUiMcpCommand] = useState<string[] | null>(null);
+  const [harnessUiMcpEnvironment, setHarnessUiMcpEnvironment] = useState<Record<string, string> | null>(null);
   const [computerUseMcpCommand, setComputerUseMcpCommand] = useState<string[] | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ExtensionInventoryFilter>(primaryLibraryFilter(props.initialFilter));
@@ -850,7 +850,7 @@ export function McpView(props: McpViewProps) {
     setMcpConnectFailure(null);
     if (target.kind === "skill") {
       setDetailSkillContent(target.skill.content ?? null);
-      if (!target.skill.content && target.skill.origin !== "openwork-connect" && props.readSkill) {
+      if (!target.skill.content && target.skill.origin !== "harness-connect" && props.readSkill) {
         void props.readSkill(target.skill.name).then((result) => {
           if (result?.content) {
             setDetailSkillContent(result.content);
@@ -891,7 +891,7 @@ export function McpView(props: McpViewProps) {
     setDetailTarget(resolved);
     if (resolved?.kind === "skill") {
       setDetailSkillContent(resolved.skill.content ?? null);
-      if (!resolved.skill.content && resolved.skill.origin !== "openwork-connect" && props.readSkill) {
+      if (!resolved.skill.content && resolved.skill.origin !== "harness-connect" && props.readSkill) {
         void props.readSkill(resolved.skill.name).then((result) => {
           if (result?.content) {
             setDetailSkillContent(result.content);
@@ -954,10 +954,10 @@ export function McpView(props: McpViewProps) {
 
   useEffect(() => {
     const refresh = () => setExtensionStateVersion((value) => value + 1);
-    window.addEventListener(OPENWORK_EXTENSION_STATE_CHANGED, refresh);
+    window.addEventListener(HARNESS_EXTENSION_STATE_CHANGED, refresh);
     window.addEventListener("storage", refresh);
     return () => {
-      window.removeEventListener(OPENWORK_EXTENSION_STATE_CHANGED, refresh);
+      window.removeEventListener(HARNESS_EXTENSION_STATE_CHANGED, refresh);
       window.removeEventListener("storage", refresh);
     };
   }, []);
@@ -966,25 +966,25 @@ export function McpView(props: McpViewProps) {
     if (!isDesktopRuntime()) return;
     void (async () => {
       try {
-        const command = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("getOpenworkUiMcpCommand");
+        const command = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("getHarnessUiMcpCommand");
         if (Array.isArray(command) && command.every((part) => typeof part === "string")) {
-          setOpenworkUiMcpCommand(command);
+          setHarnessUiMcpCommand(command);
         }
-        const environment = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("getOpenworkUiMcpEnvironment");
+        const environment = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("getHarnessUiMcpEnvironment");
         if (environment && typeof environment === "object" && !Array.isArray(environment)) {
-          setOpenworkUiMcpEnvironment(Object.fromEntries(
+          setHarnessUiMcpEnvironment(Object.fromEntries(
             Object.entries(environment).filter((entry): entry is [string, string] =>
               typeof entry[0] === "string" && typeof entry[1] === "string"
             ),
           ));
         }
-        const computerUseCommand = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("getComputerUseMcpCommand");
+        const computerUseCommand = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("getComputerUseMcpCommand");
         if (Array.isArray(computerUseCommand) && computerUseCommand.every((part) => typeof part === "string")) {
           setComputerUseMcpCommand(computerUseCommand);
         }
       } catch {
-        setOpenworkUiMcpCommand(null);
-        setOpenworkUiMcpEnvironment(null);
+        setHarnessUiMcpCommand(null);
+        setHarnessUiMcpEnvironment(null);
         setComputerUseMcpCommand(null);
       }
     })();
@@ -1068,7 +1068,7 @@ export function McpView(props: McpViewProps) {
 
   // Servers written into this workspace's config appear under MCPs as local
   // items. Projected Cloud connections have their own account controls, and
-  // OpenWork's own runtimes are app functionality rather than MCPs to browse.
+  // Harness's own runtimes are app functionality rather than MCPs to browse.
   const localServers = props.mcpServers.filter((entry) => {
     if (isConnectDirectMcpServerName(entry.name)) return false;
     const match = resolveQuickConnectMatch(entry.name);
@@ -1092,30 +1092,30 @@ export function McpView(props: McpViewProps) {
   };
 
   const isEntryConfigured = (entry: McpDirectoryInfo) => {
-    if (props.builtInExtensionsDisabled && isBuiltInOpenWorkExtension(entry)) return false;
+    if (props.builtInExtensionsDisabled && isBuiltInHarnessExtension(entry)) return false;
     const result = enablementForEntry(entry);
     if (result) return result.active;
     // Fallback for entries without enablement context.
-    if (isToggleOnlyExtension(entry)) return isOpenWorkExtensionEnabled(entry);
+    if (isToggleOnlyExtension(entry)) return isHarnessExtensionEnabled(entry);
     if (entry.kind === "extension" && !isMcpBackedExtension(entry)) return props.isExtensionConnected?.(entry) ?? false;
     return isQuickConnectConfigured(entry);
   };
 
-  // Built-in OpenWork extensions answer to `allowBuiltInExtensions`; every
+  // Built-in Harness extensions answer to `allowBuiltInExtensions`; every
   // other directory entry is a local install governed by
   // `allowManageExtensions`. Entries the member already installed stay usable
   // but can no longer be managed.
   const builtInDisabledReasonForEntry = (entry: McpDirectoryInfo) =>
-    props.builtInExtensionsDisabled && isBuiltInOpenWorkExtension(entry)
+    props.builtInExtensionsDisabled && isBuiltInHarnessExtension(entry)
       ? builtInExtensionDisabledReason()
       : null;
   const manageDisabledReasonForEntry = (entry: McpDirectoryInfo) =>
-    !props.allowManageExtensions && !isBuiltInOpenWorkExtension(entry)
+    !props.allowManageExtensions && !isBuiltInHarnessExtension(entry)
       ? manageExtensionsDisabledReason()
       : null;
 
   const launchCommandForEntry = (entry: McpDirectoryInfo) => {
-    if (entry.serverName === "openwork-ui") return openworkUiMcpCommand ?? undefined;
+    if (entry.serverName === "harness-ui") return harnessUiMcpCommand ?? undefined;
     if (entry.serverName === "computer-use") return computerUseMcpCommand ?? entry.command;
     return entry.command;
   };
@@ -1188,7 +1188,7 @@ export function McpView(props: McpViewProps) {
       {detailEntry ? (() => {
         const extensionConfigSlot = props.configSlotForEntry?.(detailEntry) ?? null;
         const hasConfigSlot = extensionConfigSlot !== null;
-        const hidden = isOpenWorkExtensionHidden(detailEntry);
+        const hidden = isHarnessExtensionHidden(detailEntry);
         const builtInDisabledReason = builtInDisabledReasonForEntry(detailEntry);
         const disabledReason = builtInDisabledReason ?? manageDisabledReasonForEntry(detailEntry);
         const isConnected = builtInDisabledReason
@@ -1196,7 +1196,7 @@ export function McpView(props: McpViewProps) {
           : detailEntry.serverName === "computer-use"
           ? enablementForEntry(detailEntry)?.active === true
           : isToggleOnlyExtension(detailEntry)
-          ? isOpenWorkExtensionEnabled(detailEntry)
+          ? isHarnessExtensionEnabled(detailEntry)
           : detailEntry.kind === "extension" && !isMcpBackedExtension(detailEntry)
           ? props.isExtensionConnected?.(detailEntry) ?? false
           : isQuickConnectConfigured(detailEntry);
@@ -1222,13 +1222,13 @@ export function McpView(props: McpViewProps) {
             resourceLabels={extensionResourceLabels(detailEntry)}
             contributionLabels={extensionContributionLabels(detailEntry)}
             launchCommand={launchCommandForEntry(detailEntry)}
-            environment={detailEntry.serverName === "openwork-ui" ? openworkUiMcpEnvironment ?? undefined : undefined}
+            environment={detailEntry.serverName === "harness-ui" ? harnessUiMcpEnvironment ?? undefined : undefined}
             url={typeof detailEntry.url === "string" ? detailEntry.url : undefined}
             oauth={detailEntry.oauth}
             configSlot={disabledReason ? null : extensionConfigSlot}
             showEnablementCard
             onConnect={disabledReason ? undefined : isToggleOnlyExtension(detailEntry) ? () => {
-              setOpenWorkExtensionEnabled(detailEntry, true);
+              setHarnessExtensionEnabled(detailEntry, true);
               closeDetail();
             } : hasConfigSlot ? undefined : async () => {
               setMcpConnectFailure(null);
@@ -1243,21 +1243,21 @@ export function McpView(props: McpViewProps) {
               });
             }}
             onUninstall={disabledReason ? undefined : isToggleOnlyExtension(detailEntry) && isConnected ? () => {
-              setOpenWorkExtensionEnabled(detailEntry, false);
+              setHarnessExtensionEnabled(detailEntry, false);
             } : isQuickConnectConfigured(detailEntry) ? () => {
               const slug = getMcpIdentityKey(detailEntry);
               props.removeMcp(slug);
               closeDetail();
             } : undefined}
             onChat={chatWith({ connectors: [detailEntry.name] })}
-            onHide={() => setOpenWorkExtensionHidden(detailEntry, true)}
-            onShow={() => setOpenWorkExtensionHidden(detailEntry, false)}
+            onHide={() => setHarnessExtensionHidden(detailEntry, true)}
+            onShow={() => setHarnessExtensionHidden(detailEntry, false)}
           />
         );
       })() : null}
 
       {detailSkill ? (() => {
-        const hidden = isOpenWorkExtensionHidden(getSkillHiddenId(detailSkill));
+        const hidden = isHarnessExtensionHidden(getSkillHiddenId(detailSkill));
         return (
           <ExtensionDetailModal
             open={!!detailSkill}
@@ -1268,11 +1268,11 @@ export function McpView(props: McpViewProps) {
             description={detailSkill.description ?? "Installed skill"}
             taxonomy="skill"
             connected={true}
-            connectedLabel={detailSkill.origin === "openwork-connect" ? "Available through OpenWork Connect" : undefined}
+            connectedLabel={detailSkill.origin === "harness-connect" ? "Available through Harness Connect" : undefined}
             hidden={hidden}
-            path={detailSkill.origin === "openwork-connect" ? undefined : detailSkill.path}
+            path={detailSkill.origin === "harness-connect" ? undefined : detailSkill.path}
             sourceLabel={
-              detailSkill.origin === "openwork-connect"
+              detailSkill.origin === "harness-connect"
                 ? [detailSkill.pluginName, detailSkill.marketplaceName].filter(Boolean).join(" · ") || t("extensions.surface_cloud")
                 : detailSkill.path
             }
@@ -1282,16 +1282,16 @@ export function McpView(props: McpViewProps) {
             openFileLabel={t("extensions.detail_open_skill")}
             contentPreview={detailSkillContent ?? undefined}
             configSlot={openInDenAction({ id: detailSkill.path })}
-            onReveal={detailSkill.path && detailSkill.origin !== "openwork-connect" ? () => {
+            onReveal={detailSkill.path && detailSkill.origin !== "harness-connect" ? () => {
               void revealDesktopItemInDir(detailSkill.path);
             } : undefined}
-            onUninstall={props.uninstallSkill && detailSkill.origin !== "openwork-connect" ? () => {
+            onUninstall={props.uninstallSkill && detailSkill.origin !== "harness-connect" ? () => {
               props.uninstallSkill?.(detailSkill.name);
               closeDetail();
             } : undefined}
             onChat={chatWith({ skills: [detailSkill.name] })}
-            onHide={() => setOpenWorkExtensionHidden(getSkillHiddenId(detailSkill), true)}
-            onShow={() => setOpenWorkExtensionHidden(getSkillHiddenId(detailSkill), false)}
+            onHide={() => setHarnessExtensionHidden(getSkillHiddenId(detailSkill), true)}
+            onShow={() => setHarnessExtensionHidden(getSkillHiddenId(detailSkill), false)}
           />
         );
       })() : null}
@@ -1357,11 +1357,11 @@ export function McpView(props: McpViewProps) {
               ? `Provided by ${detailConnectMcp.pluginName}${detailConnectMcp.marketplaceName ? ` · ${detailConnectMcp.marketplaceName}` : ""}.`
               : detailConnectMcp.marketplaceName
                 ? `Provided by ${detailConnectMcp.marketplaceName}.`
-                : "Available through OpenWork Connect."
+                : "Available through Harness Connect."
           }
           taxonomy="connection"
           connected={(props.availableConnectMcpStatuses?.[detailConnectMcp.id ?? detailConnectMcp.name]?.status) === "connected"}
-          connectedLabel="Available through OpenWork Connect"
+          connectedLabel="Available through Harness Connect"
           disconnectedLabel="Setup required"
           url={detailConnectMcp.config.type === "remote" ? detailConnectMcp.config.url : undefined}
           oauth={detailConnectMcp.config.type === "remote"}
@@ -1426,7 +1426,7 @@ export function McpView(props: McpViewProps) {
       })() : null}
 
       {detailPlugin ? (() => {
-        const hidden = isOpenWorkExtensionHidden(`plugin:${detailPlugin.pluginId}`);
+        const hidden = isHarnessExtensionHidden(`plugin:${detailPlugin.pluginId}`);
         const marketplaceName = detailPlugin.files.find((file) => file.marketplaceName)?.marketplaceName;
         const cloudItem = libraryCloud.pluginById.get(detailPlugin.pluginId);
         const pluginTaxonomy = cloudItem ? libraryCloudItemTaxonomy(cloudItem.componentKinds, cloudItem.componentCount) : "plugin";
@@ -1474,8 +1474,8 @@ export function McpView(props: McpViewProps) {
               void props.removeCloudPlugin?.(detailPlugin.pluginId);
               closeDetail();
             } : undefined}
-            onHide={() => setOpenWorkExtensionHidden(`plugin:${detailPlugin.pluginId}`, true)}
-            onShow={() => setOpenWorkExtensionHidden(`plugin:${detailPlugin.pluginId}`, false)}
+            onHide={() => setHarnessExtensionHidden(`plugin:${detailPlugin.pluginId}`, true)}
+            onShow={() => setHarnessExtensionHidden(`plugin:${detailPlugin.pluginId}`, false)}
           />
         );
       })() : null}
@@ -1619,7 +1619,7 @@ export function McpView(props: McpViewProps) {
   for (const entry of libraryDirectoryEntries) {
     const configured = isEntryConfigured(entry);
     const enablement = props.enablementContext ? enablementForEntry(entry) : null;
-    const hidden = isOpenWorkExtensionHidden(entry);
+    const hidden = isHarnessExtensionHidden(entry);
     const disabledReason = builtInDisabledReasonForEntry(entry) ?? (configured ? null : manageDisabledReasonForEntry(entry));
     const isComputerUse = entry.id === "computer-use";
     const runtimeStatus = quickConnectStatus(entry)?.status;
@@ -1686,13 +1686,13 @@ export function McpView(props: McpViewProps) {
   }
 
   for (const skill of installedSkills) {
-    const fromOrg = skill.origin === "openwork-connect";
+    const fromOrg = skill.origin === "harness-connect";
     if (fromOrg && skill.pluginName && pluginRowNames.has(skill.pluginName.toLowerCase())) continue;
     if (fromOrg && ownedPluginNames.has(skill.name.toLowerCase())) continue;
-    const hidden = isOpenWorkExtensionHidden(getSkillHiddenId(skill));
+    const hidden = isHarnessExtensionHidden(getSkillHiddenId(skill));
     rows.push({
       key: `skill:${skill.path}`,
-      section: fromOrg ? "openwork" : "mac",
+      section: fromOrg ? "harness" : "mac",
       taxonomy: "skill",
       searchText: `${skill.name} ${skill.description ?? ""}`,
       node: (
@@ -1757,7 +1757,7 @@ export function McpView(props: McpViewProps) {
     const attention = libraryRowAttention(group);
     rows.push({
       key: `connect-mcp:${entry.id ?? entry.name}`,
-      section: "openwork",
+      section: "harness",
       taxonomy: "connection",
       searchText: `${entry.name} ${entry.pluginName ?? ""} ${entry.marketplaceName ?? ""}`,
       node: (
@@ -1790,11 +1790,11 @@ export function McpView(props: McpViewProps) {
       : libraryCloudItemTaxonomy(plugin.files.map((file) => file.objectType), plugin.files.length));
     const group = taxonomy === "connection" ? connectorGroup(plugin.name) : "ready";
     const attention = libraryRowAttention(group);
-    const hidden = isOpenWorkExtensionHidden(`plugin:${plugin.pluginId}`);
+    const hidden = isHarnessExtensionHidden(`plugin:${plugin.pluginId}`);
     const fileCount = plugin.files.length;
     rows.push({
       key: `plugin:${plugin.pluginId}`,
-      section: "openwork",
+      section: "harness",
       taxonomy,
       searchText: [plugin.name, plugin.description ?? "", ...plugin.files.map((file) => `${file.title} ${file.objectType} ${file.path}`)].join(" "),
       node: (
@@ -1821,7 +1821,7 @@ export function McpView(props: McpViewProps) {
     const attention = libraryRowAttention(group);
     rows.push({
       key: item.id,
-      section: "openwork",
+      section: "harness",
       taxonomy: "connection",
       searchText: `${item.name} ${item.description ?? ""} ${connection.url}`,
       node: (
@@ -1843,12 +1843,12 @@ export function McpView(props: McpViewProps) {
 
   const sharedOwned = ownedPlugins.filter((plugin) => isLibraryAudienceShared(libraryCloud.audienceFor(plugin.id)));
   const firstSharedOwned = sharedOwned[0];
-  const openworkRowCount = rows.filter((row) => row.section === "openwork").length;
+  const harnessRowCount = rows.filter((row) => row.section === "harness").length;
   const sectionMeta: Partial<Record<LibrarySection, string | null>> = {
     mine: firstSharedOwned
       ? t("extensions.section_mine_shared", { count: String(sharedOwned.length), audience: libraryAudienceName(libraryCloud.audienceFor(firstSharedOwned.id)) })
       : t("extensions.section_mine_just_me", { count: String(ownedPlugins.length) }),
-    openwork: openworkRowCount > 0 ? t("extensions.section_openwork_meta", { count: String(openworkRowCount) }) : null,
+    harness: harnessRowCount > 0 ? t("extensions.section_harness_meta", { count: String(harnessRowCount) }) : null,
   };
 
   const inventory = (
@@ -2303,7 +2303,7 @@ export type LibraryRow = {
   node: ReactNode;
 };
 
-const librarySectionOrder: LibrarySection[] = ["mac", "mine", "openwork"];
+const librarySectionOrder: LibrarySection[] = ["mac", "mine", "harness"];
 
 function librarySectionLabel(section: LibrarySection) {
   switch (section) {
@@ -2311,8 +2311,8 @@ function librarySectionLabel(section: LibrarySection) {
       return t("extensions.section_mac");
     case "mine":
       return t("extensions.section_mine");
-    case "openwork":
-      return t("extensions.section_openwork");
+    case "harness":
+      return t("extensions.section_harness");
   }
 }
 
@@ -2337,7 +2337,7 @@ const lockedLibraryPreviews: Array<{ name: string; description: string; iconSrc:
 ];
 
 /**
- * Signed out, adding to the Library needs OpenWork Cloud, so the page's one
+ * Signed out, adding to the Library needs Harness Cloud, so the page's one
  * primary action is signing in. It lives here, above what it unlocks, instead
  * of a header "Add to library" that could not do anything.
  */
@@ -2411,7 +2411,7 @@ export function LibraryInventory(props: {
       )}
       {showLocked ? (
         <div className="space-y-2.5" data-library-section="locked">
-          <LibrarySectionHeader section="openwork" label={t("extensions.section_openwork_locked")} />
+          <LibrarySectionHeader section="harness" label={t("extensions.section_harness_locked")} />
           <div className={containerClassName}>
             {lockedLibraryPreviews.map((preview) => (
               <div key={preview.name} className="opacity-60" data-library-locked={preview.name}>

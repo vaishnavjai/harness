@@ -4,11 +4,11 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { eventually, test } from "@openwork/testkit";
+import { eventually, test } from "@harness/testkit";
 import { expect } from "vitest";
-import { CATALOG_FAST_VARIANT, FAST_VARIANT_PREFIX, fastVariantId } from "@openwork/types/cloud-model-fast";
+import { CATALOG_FAST_VARIANT, FAST_VARIANT_PREFIX, fastVariantId } from "@harness/types/cloud-model-fast";
 import { buildCloudProviderConfig } from "../../apps/app/src/react-app/domains/connections/provider-auth/cloud-provider-config";
-import { buildOpenworkRuntimeConfigObjectFromSnapshot } from "../../apps/server/src/openwork-runtime-config";
+import { buildHarnessRuntimeConfigObjectFromSnapshot } from "../../apps/server/src/harness-runtime-config";
 
 import versions from "../../constants.json";
 import { createManagedOpencodeServer } from "../../apps/server/src/managed-opencode";
@@ -24,9 +24,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 for (const engine of ["v1", "v2"]) {
   test(`${engine} dispatches catalog Fast independently of effort`, { timeout: 180_000 }, async ({ evidence }) => {
     const binary = engine === "v1"
-      ? process.env.OPENWORK_EVAL_OPENCODE_BIN_V1 ?? join(import.meta.dirname, "../../apps/desktop/resources/sidecars", process.platform === "win32" ? "opencode.exe" : "opencode")
-      : process.env.OPENWORK_EVAL_OPENCODE2_BIN ?? await installOpencodeV2Binary(
-        join(tmpdir(), "openwork-opencode-v2-verified"), versions.opencodeV2Version,
+      ? process.env.HARNESS_EVAL_OPENCODE_BIN_V1 ?? join(import.meta.dirname, "../../apps/desktop/resources/sidecars", process.platform === "win32" ? "opencode.exe" : "opencode")
+      : process.env.HARNESS_EVAL_OPENCODE2_BIN ?? await installOpencodeV2Binary(
+        join(tmpdir(), "harness-opencode-v2-verified"), versions.opencodeV2Version,
       );
     expect((await exec(binary, ["--version"])).stdout.trim()).toBe(
       engine === "v1" ? versions.opencodeVersion.replace(/^v/, "") : `opencode2 v${versions.opencodeV2Version}`,
@@ -83,8 +83,8 @@ for (const engine of ["v1", "v2"]) {
       ],
     });
     const models = provider.models ?? {};
-    const runtime = buildOpenworkRuntimeConfigObjectFromSnapshot({ provider: { witness: { ...provider } } });
-    // Isolate provider dispatch from unrelated OpenWork plugins in this test.
+    const runtime = buildHarnessRuntimeConfigObjectFromSnapshot({ provider: { witness: { ...provider } } });
+    // Isolate provider dispatch from unrelated Harness plugins in this test.
     await writeFile(configPath, JSON.stringify(engine === "v1" ? { provider: runtime.provider } : {}));
     const env = {
       HOME: root, OPENCODE_CONFIG: configPath, OPENCODE_MODELS_URL: baseURL,

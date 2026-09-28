@@ -100,7 +100,7 @@ describe("Cloud provider status-only rows", () => {
     const conflict = resolveCloudProviderRowStatus({
       ...ready,
       imported: false,
-      syncError: { kind: "conflict", message: "openwork already exists" },
+      syncError: { kind: "conflict", message: "harness already exists" },
     });
     expect(conflict).toBe("conflict");
     expect(canRetryCloudProviderRow(conflict)).toBe(false);

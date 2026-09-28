@@ -1,5 +1,5 @@
-import { browserScript } from "@openwork/cdp";
-import { clickButton, denFetch, waitFor } from "@openwork/behaviors";
+import { browserScript } from "@harness/cdp";
+import { clickButton, denFetch, waitFor } from "@harness/behaviors";
 import { provider } from "../ctx.ts";
 import { inPage } from "../inpage.ts";
 import { DOCS_APP, DOCS_MEMBER, DOCS_PROMPT_CARDS, org } from "../seed.ts";
@@ -39,7 +39,7 @@ async function openEmptyTeamPromptSession(surface: DesktopShotSurface): Promise<
   const config = await denFetch(member, "/v1/me/desktop-config", {
     headers: {
       authorization: `Bearer ${member.token}`,
-      "x-openwork-org-id": surface.organization.orgId,
+      "x-harness-org-id": surface.organization.orgId,
     },
   });
   const expectedPrompts = DOCS_PROMPT_CARDS.map((card) => card.prompt);
@@ -64,7 +64,7 @@ async function openEmptyTeamPromptSession(surface: DesktopShotSurface): Promise<
     const deadline = Date.now() + 60000;
     let last = null;
     while (Date.now() < deadline) {
-      last = await window.__openworkControl.execute("session.create_task", null);
+      last = await window.__harnessControl.execute("session.create_task", null);
       if (last?.ok === true) return last;
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
@@ -135,7 +135,7 @@ export const libraryCreateSkillModal = shot("library-create-skill-modal", {
   at: (surface) => `/workspace/${surface.workspaceId}/extensions/skills`,
   steps: [dismissOverlays, (surface) => clickButton(surface, "Add skill", { timeoutMs: 120_000 }), skillForm],
   expect: ["Create a skill", "Name", "Description", "Create skill"],
-  never: ["Sign in to OpenWork Cloud"],
+  never: ["Sign in to Harness Cloud"],
   viewport: { width: 1440, height: 1000, deviceScaleFactor: 2 },
   out: "packages/docs/images/library-create-skill-modal.png",
 });

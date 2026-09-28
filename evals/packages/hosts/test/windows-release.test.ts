@@ -5,8 +5,8 @@ import type { DaytonaExec } from "../src/daytona.ts";
 import type { DesktopRelease } from "../src/types.ts";
 
 const DIGEST = "a".repeat(64);
-const NAME = "openwork-enterprise-win-x64-0.18.52.exe";
-const URL = `https://github.com/different-ai/openwork/releases/download/v0.18.52/${NAME}`;
+const NAME = "harness-enterprise-win-x64-0.18.52.exe";
+const URL = `https://github.com/vaishnavjai/harness/releases/download/v0.18.52/${NAME}`;
 const VM = "45baa63f-6027-4b23-a17d-206a5c59f247";
 const RELEASE: DesktopRelease = { version: "0.18.52", distribution: "enterprise" };
 const metadata = { tag_name: "v0.18.52", draft: false, prerelease: false,
@@ -31,7 +31,7 @@ function fake() {
       const output = script.includes("WINDOWS_RELEASE_VERIFIED") ? "WINDOWS_RELEASE_VERIFIED"
         : script.includes("Write-Output 'INSTALLED'") ? "INSTALLED"
           : script.includes("GUI_SESSION_1") ? "GUI_SESSION_1"
-            : script.includes("/json/version") ? "OpenWork/0.18.52"
+            : script.includes("/json/version") ? "Harness/0.18.52"
               : "EXEC_READY";
       return { stdout: output, stderr: "", code: 0 };
     }
@@ -56,13 +56,13 @@ test("Windows release provisions private VM, verifies asset, launches as interac
     release: RELEASE, lifetimeMinutes: 120, exec,
     step: (id) => ({ ok: () => { steps.push(`${id}:ok`); }, fail: () => { steps.push(`${id}:fail`); } }),
     releaseFetch: async () => Response.json(metadata),
-    request: async (input) => new Response(String(input).includes("vnc.html") ? "noVNC" : "OpenWork/0.18.52"),
+    request: async (input) => new Response(String(input).includes("vnc.html") ? "noVNC" : "Harness/0.18.52"),
     onCreated: async (id, name) => { tracked = `${id}/${name}`; },
     log: () => {},
   });
   assert.equal(desktop.sandbox, VM);
   assert.deepEqual(steps, ["win-release", "win-create", "win-download", "win-install", "win-launch", "win-viewer", "win-cdp"].map((id) => `${id}:ok`));
-  assert.match(tracked ?? "", /^45baa63f-.*\/openwork-world-win-[0-9a-f]{16}$/);
+  assert.match(tracked ?? "", /^45baa63f-.*\/harness-world-win-[0-9a-f]{16}$/);
   assert.equal(desktop.startup.state, "cdp-responsive");
   assert.equal(desktop.release.assetName, NAME);
   assert.equal(desktop.release.digest, `sha256:${DIGEST}`);
@@ -72,8 +72,8 @@ test("Windows release provisions private VM, verifies asset, launches as interac
   assert.equal(calls.some((args) => args.includes("--public") || args.includes("--volume")), false);
   assert.equal(calls.find((args) => args[0] === "create")?.includes("--ttl"), true);
   assert.ok(scripts.some((script) => script.includes("Get-FileHash") && script.includes(DIGEST) && script.includes(NAME)));
-  assert.ok(scripts.some((script) => script.includes("/ru Administrator /it") && script.includes("OpenWorkWorldInstall")));
-  assert.ok(scripts.some((script) => script.includes("/ru Administrator /it") && script.includes("OpenWorkWorldLaunch")));
+  assert.ok(scripts.some((script) => script.includes("/ru Administrator /it") && script.includes("HarnessWorldInstall")));
+  assert.ok(scripts.some((script) => script.includes("/ru Administrator /it") && script.includes("HarnessWorldLaunch")));
   assert.ok(scripts.some((script) => script.includes("SessionId -eq 1")));
   await desktop[Symbol.asyncDispose]();
   assert.deepEqual(calls.at(-1), ["delete", VM]);

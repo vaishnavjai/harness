@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 
 // Keep the Bun/Happy DOM component tests in their native runtime while publishing
 // their actual exit status and assertion output through the PR evidence lane.

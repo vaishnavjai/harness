@@ -1,5 +1,5 @@
 import { afterEach, expect, spyOn, test } from "bun:test"
-import { createOpenworkServerClient, type OpenworkMcpAppResource, type OpenworkMcpAppToolResult } from "../src/app/lib/openwork-server"
+import { createHarnessServerClient, type HarnessMcpAppResource, type HarnessMcpAppToolResult } from "../src/app/lib/harness-server"
 import { createMcpAppActions } from "../src/components/chat/mcp-app-origin"
 import { createConnectionActionController, hasHostConnectionActions, standardMcpToolResult } from "../src/components/chat/mcp-connection-action"
 import type { ChatConnectionDecisionBinding } from "../src/react-app/domains/session/surface/mcp-chat-reconnect"
@@ -12,15 +12,15 @@ afterEach(() => { restores.splice(0).forEach(restore => restore()) })
 function fixture() {
   const scope = `scope-${++sequence}`
   const events: string[] = []
-  const app: OpenworkMcpAppResource & { hostConnectionActions: boolean } = {
-    launchId: "launch", serverName: "openwork-cloud", toolName: "connection_action",
-    resourceUri: "ui://openwork/connection-action/v2/view.html", html: "", prefersBorder: false,
+  const app: HarnessMcpAppResource & { hostConnectionActions: boolean } = {
+    launchId: "launch", serverName: "harness-cloud", toolName: "connection_action",
+    resourceUri: "ui://harness/connection-action/v2/view.html", html: "", prefersBorder: false,
     csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, hostConnectionActions: true,
   }
   const connection = { schemaVersion: "1", connectionId: "connection", connectionName: "Fixture", state: "needs_connection",
-    actor: "member", message: "Connect Fixture", action: { type: "connect", label: "Authenticate", surface: "openwork_your_connections" } }
+    actor: "member", message: "Connect Fixture", action: { type: "connect", label: "Authenticate", surface: "harness_your_connections" } }
   const intent = (action = "authenticate") => ({ schemaVersion: "1", kind: "connection_action_intent", action, connection })
-  let response: OpenworkMcpAppToolResult & { hostAction?: unknown } = { content: [], hostAction: intent() }
+  let response: HarnessMcpAppToolResult & { hostAction?: unknown } = { content: [], hostAction: intent() }
   let pending = true
   let decision: ChatConnectionDecisionBinding | null = {
     request: { owner: scope, sessionId: "session", turnId: "turn", requestId: "request", toolCallId: "tool", connectionId: "connection" },
@@ -35,7 +35,7 @@ function fixture() {
     expect(isCurrent?.()).toBe(true)
     return "connected"
   }
-  const client = createOpenworkServerClient({ baseUrl: "https://server.example", token: "fixture" })
+  const client = createHarnessServerClient({ baseUrl: "https://server.example", token: "fixture" })
   const server = spyOn(client, "callMcpAppTool").mockImplementation(async () => { events.push("server"); return response })
   restores.push(() => server.mockRestore())
   const origin = { client, workspaceId: "workspace", sessionId: "session", readOnly: false }

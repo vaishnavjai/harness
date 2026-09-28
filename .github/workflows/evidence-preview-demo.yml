@@ -16,7 +16,7 @@ jobs:
   preview:
     # One-PR rollout demonstration. Never execute PR code with these permissions.
     if: >-
-      github.repository == 'different-ai/openwork' &&
+      github.repository == 'vaishnavjai/harness' &&
       github.event.pull_request.number == 5297 &&
       github.event.pull_request.head.ref == 'codex/evidence-preview-card' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
@@ -35,7 +35,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PREVIEW_SHA: ${{ github.event.pull_request.head.sha }}
-      OPENWORK_REVIEW_URL: ${{ vars.OPENWORK_REVIEW_URL }}
+      HARNESS_REVIEW_URL: ${{ vars.HARNESS_REVIEW_URL }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -50,11 +50,11 @@ jobs:
       - uses: pnpm/action-setup@v4
       - name: Install pinned publisher dependencies
         run: |
-          pnpm --filter @openwork/review... install --frozen-lockfile --ignore-scripts
-          pnpm --dir evals --filter @openwork/test-artifacts install --frozen-lockfile --ignore-scripts
+          pnpm --filter @harness/review... install --frozen-lockfile --ignore-scripts
+          pnpm --dir evals --filter @harness/test-artifacts install --frozen-lockfile --ignore-scripts
       - name: Publish this PR's recorded proof
         env:
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.OPENWORK_REVIEW_BLOB_TOKEN }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.HARNESS_REVIEW_BLOB_TOKEN }}
           EVIDENCE_RECEIPT_PATH: ${{ runner.temp }}/evidence-publication.json
         run: node evals/scripts/publish-review.mjs
       - name: Publish native check and deployment

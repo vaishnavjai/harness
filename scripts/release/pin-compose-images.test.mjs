@@ -15,22 +15,22 @@ const NEW_API = "sha256:973cb75d435ce7d17011d689a23c2becab021b230dc8cffe78c7b4ea
 const NEW_WEB = "sha256:b145952d15df51d10fdbe7d689f2399cafa81fdfc55da695befc7659d8b67983";
 const MYSQL = "mysql:8.4@sha256:b3b90af2a6552ae30c266fdb7d5dd55f3afb72404bb78d37fe8a23eb857fd3fb";
 
-const compose = `name: openwork-eval
+const compose = `name: harness-eval
 
 services:
   mysql:
     image: ${MYSQL}
 
   den-migrate:
-    image: ghcr.io/different-ai/openwork-den-api:0.18.37@${OLD_API}
+    image: ghcr.io/vaishnavjai/harness-den-api:0.18.37@${OLD_API}
     restart: "no"
 
   den:
-    image: ghcr.io/different-ai/openwork-den-api:0.18.37@${OLD_API}
+    image: ghcr.io/vaishnavjai/harness-den-api:0.18.37@${OLD_API}
     restart: unless-stopped
 
   web:
-    image: ghcr.io/different-ai/openwork-den-web:0.18.37@${OLD_WEB}
+    image: ghcr.io/vaishnavjai/harness-den-web:0.18.37@${OLD_WEB}
     restart: unless-stopped
 `;
 
@@ -42,7 +42,7 @@ const doc = `1. Download the Compose file into an empty directory:
 
    \`\`\`bash
    curl -fsSLo docker-compose.eval.yml \\
-     https://raw.githubusercontent.com/different-ai/openwork/${OLD_COMMIT}/packaging/docker/docker-compose.eval.yml
+     https://raw.githubusercontent.com/vaishnavjai/harness/${OLD_COMMIT}/packaging/docker/docker-compose.eval.yml
    printf '%s  %s\\n' \\
      '${OLD_CHECKSUM}' \\
      'docker-compose.eval.yml' | shasum -a 256 --check
@@ -51,52 +51,52 @@ const doc = `1. Download the Compose file into an empty directory:
 
 const readme = `\`\`\`bash
 curl -fsSLo docker-compose.eval.yml \\
-  https://raw.githubusercontent.com/different-ai/openwork/${OLD_COMMIT}/packaging/docker/docker-compose.eval.yml
+  https://raw.githubusercontent.com/vaishnavjai/harness/${OLD_COMMIT}/packaging/docker/docker-compose.eval.yml
 printf '%s  %s\\n' \\
   '${OLD_CHECKSUM}' \\
   'docker-compose.eval.yml' | shasum -a 256 --check
 \`\`\`
 `;
 
-test("readComposePins lists only the OpenWork GHCR images, once per service", () => {
+test("readComposePins lists only the Harness GHCR images, once per service", () => {
   assert.deepEqual(readComposePins(compose), [
-    { image: "openwork-den-api", tag: "0.18.37", digest: OLD_API },
-    { image: "openwork-den-api", tag: "0.18.37", digest: OLD_API },
-    { image: "openwork-den-web", tag: "0.18.37", digest: OLD_WEB },
+    { image: "harness-den-api", tag: "0.18.37", digest: OLD_API },
+    { image: "harness-den-api", tag: "0.18.37", digest: OLD_API },
+    { image: "harness-den-web", tag: "0.18.37", digest: OLD_WEB },
   ]);
 });
 
 test("rewriteComposePins replaces every occurrence and leaves the rest untouched", () => {
   const rewritten = rewriteComposePins(compose, {
     version: "0.18.45",
-    digests: { "openwork-den-api": NEW_API, "openwork-den-web": NEW_WEB },
+    digests: { "harness-den-api": NEW_API, "harness-den-web": NEW_WEB },
   });
   assert.equal(
     rewritten,
     compose
-      .replaceAll(`openwork-den-api:0.18.37@${OLD_API}`, `openwork-den-api:0.18.45@${NEW_API}`)
-      .replaceAll(`openwork-den-web:0.18.37@${OLD_WEB}`, `openwork-den-web:0.18.45@${NEW_WEB}`),
+      .replaceAll(`harness-den-api:0.18.37@${OLD_API}`, `harness-den-api:0.18.45@${NEW_API}`)
+      .replaceAll(`harness-den-web:0.18.37@${OLD_WEB}`, `harness-den-web:0.18.45@${NEW_WEB}`),
   );
-  assert.ok(rewritten.includes(MYSQL), "mysql pin is not an OpenWork image and must stay");
+  assert.ok(rewritten.includes(MYSQL), "mysql pin is not a Harness image and must stay");
   assert.equal(rewritten.match(/0\.18\.37/g), null);
 });
 
 test("rewriteComposePins refuses partial or malformed input", () => {
   assert.throws(
-    () => rewriteComposePins(compose, { version: "0.18.45", digests: { "openwork-den-api": NEW_API } }),
-    /No digest provided for openwork-den-web/,
+    () => rewriteComposePins(compose, { version: "0.18.45", digests: { "harness-den-api": NEW_API } }),
+    /No digest provided for harness-den-web/,
   );
   assert.throws(
-    () => rewriteComposePins(compose, { version: "v0.18.45", digests: { "openwork-den-api": NEW_API, "openwork-den-web": NEW_WEB } }),
+    () => rewriteComposePins(compose, { version: "v0.18.45", digests: { "harness-den-api": NEW_API, "harness-den-web": NEW_WEB } }),
     /Invalid stable version/,
   );
   assert.throws(
-    () => rewriteComposePins(compose, { version: "0.18.45", digests: { "openwork-den-api": "sha256:abc", "openwork-den-web": NEW_WEB } }),
-    /Invalid digest for openwork-den-api/,
+    () => rewriteComposePins(compose, { version: "0.18.45", digests: { "harness-den-api": "sha256:abc", "harness-den-web": NEW_WEB } }),
+    /Invalid digest for harness-den-api/,
   );
   assert.throws(
     () => rewriteComposePins("services:\n  mysql:\n    image: mysql:8.4\n", { version: "0.18.45", digests: {} }),
-    /Expected a pinned openwork-den-api image line/,
+    /Expected a pinned harness-den-api image line/,
   );
 });
 
@@ -116,13 +116,13 @@ test("checkComposePins fails on a stale pin and passes once compose and docs agr
 
   const stale = checkComposePins({ composeText: compose, docs, releasedVersion: "0.18.45" });
   assert.equal(stale.ok, false);
-  assert.match(stale.problems[0], /openwork-den-api is pinned to 0\.18\.37 but the released version is 0\.18\.45/);
-  assert.ok(stale.problems.some((problem) => /openwork-den-web is pinned to 0\.18\.37/.test(problem)));
+  assert.match(stale.problems[0], /harness-den-api is pinned to 0\.18\.37 but the released version is 0\.18\.45/);
+  assert.ok(stale.problems.some((problem) => /harness-den-web is pinned to 0\.18\.37/.test(problem)));
   assert.ok(stale.problems.some((problem) => /documented checksum .* does not match/.test(problem)), "fixture docs carry a checksum of another revision");
 
   const pinned = rewriteComposePins(compose, {
     version: "0.18.45",
-    digests: { "openwork-den-api": NEW_API, "openwork-den-web": NEW_WEB },
+    digests: { "harness-den-api": NEW_API, "harness-den-web": NEW_WEB },
   });
   const checksum = sha256Hex(pinned);
   const current = checkComposePins({

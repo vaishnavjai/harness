@@ -1,10 +1,10 @@
-import { browserScript, evaluate } from "@openwork/cdp";
-import type { Place, Seed } from "@openwork/env";
+import { browserScript, evaluate } from "@harness/cdp";
+import type { Place, Seed } from "@harness/env";
 import { sessionArchivePressure } from "./session-archive-pressure.ts";
 
 export function sendPressureMode() {
-  const mode = process.env.OPENWORK_SEND_PRESSURE_MODE ?? "fixed";
-  if (mode !== "baseline" && mode !== "fixed") throw new Error("OPENWORK_SEND_PRESSURE_MODE must be baseline or fixed");
+  const mode = process.env.HARNESS_SEND_PRESSURE_MODE ?? "fixed";
+  if (mode !== "baseline" && mode !== "fixed") throw new Error("HARNESS_SEND_PRESSURE_MODE must be baseline or fixed");
   return mode;
 }
 
@@ -16,7 +16,7 @@ export async function sessionSendPressure(seed: Seed, context: { place: Place })
   const newerDraft = "Keep this newer draft unsent.";
   const reply = "Archive fixture reply.";
   const server = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.baseUrl || !info.running) throw new Error("Isolated fixture is not running");
     return { baseUrl: info.baseUrl, token: info.ownerToken ?? info.clientToken };
   }, { awaitPromise: true });

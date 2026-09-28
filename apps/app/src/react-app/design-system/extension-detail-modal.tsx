@@ -41,7 +41,7 @@ export type ExtensionDetailModalProps = {
   iconSlug?: string;
   iconSrc?: string;
   taxonomy?: ExtensionTaxonomy;
-  /** Show the local stdio wrapper setup used by the OpenWork UI MCP. */
+  /** Show the local stdio wrapper setup used by the Harness UI MCP. */
   uiControl?: boolean;
   connected?: boolean;
   connectedLabel?: string;
@@ -126,22 +126,31 @@ const taxonomyDesc: Record<ExtensionTaxonomy, string> = {
   skill: "A reusable workflow that your agent can execute on demand.",
   command: "A slash command the composer can run in this workspace.",
   agent: "A named agent the composer can run a session as.",
-  plugin: "Extends OpenWork with additional capabilities managed by your organization.",
+  plugin: "Extends Harness with additional capabilities managed by your organization.",
 };
 
-const uiControlClientConfig = `{
-  "mcpServers": {
-    "openwork-ui": {
-      "command": "npx",
-      "args": ["-y", "openwork-ui-mcp"]
-    }
-  }
-}`;
+// Display-only placeholder for web builds, where the desktop cannot report
+// the path of its bundled UI-control MCP. Never an npx command: that would
+// fetch whatever package owns the name on the public registry.
+const fallbackUiControlCommand = ["node", "<harness-checkout>/packages/harness-ui-mcp/index.mjs"];
+
+function uiControlClientConfig(command: string[], environment?: Record<string, string>) {
+  const [executable, ...args] = command;
+  return JSON.stringify({
+    mcpServers: {
+      "harness-ui": {
+        command: executable,
+        args,
+        ...(environment ? { env: environment } : {}),
+      },
+    },
+  }, null, 2);
+}
 
 function uiControlOpencodeConfig(command: string[], environment?: Record<string, string>) {
   return JSON.stringify({
     mcp: {
-      "openwork-ui": {
+      "harness-ui": {
         type: "local",
         command,
         ...(environment ? { environment } : {}),
@@ -151,17 +160,7 @@ function uiControlOpencodeConfig(command: string[], environment?: Record<string,
   }, null, 2);
 }
 
-const fallbackUiControlCommand = ["npx", "-y", "openwork-ui-mcp"];
-
-const fallbackUiControlOpencodeConfig = `{
-  "mcp": {
-    "openwork-ui": {
-      "type": "local",
-      "command": ["npx", "-y", "openwork-ui-mcp"],
-      "enabled": true
-    }
-  }
-}`;
+const fallbackUiControlOpencodeConfig = uiControlOpencodeConfig(fallbackUiControlCommand);
 
 /**
  * Strip YAML-like frontmatter from the beginning of a skill content string.
@@ -805,8 +804,8 @@ function UiControlConnectionDetails(props: UiControlConnectionDetailsProps) {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 text-sm leading-relaxed text-muted-foreground">
-            <div>OpenWork desktop starts a private localhost bridge automatically.</div>
-            <div>Your MCP client starts <span className="font-mono text-card-foreground">openwork-ui-mcp</span> over stdio; the wrapper discovers the bridge and proxies UI tools to it.</div>
+            <div>Harness desktop starts a private localhost bridge automatically.</div>
+            <div>Your MCP client starts <span className="font-mono text-card-foreground">harness-ui-mcp</span> over stdio; the wrapper discovers the bridge and proxies UI tools to it.</div>
             <div>Do not point clients at the random localhost bridge URL directly.</div>
           </div>
         </CardContent>
@@ -818,7 +817,7 @@ function UiControlConnectionDetails(props: UiControlConnectionDetailsProps) {
         </CardHeader>
         <CardContent>
           <pre className="max-h-[180px] overflow-x-auto rounded-xl border border-border p-3 text-xs leading-relaxed text-card-foreground">
-            <code>{uiControlClientConfig}</code>
+            <code>{uiControlClientConfig(props.launchCommand ?? fallbackUiControlCommand, props.environment)}</code>
           </pre>
         </CardContent>
       </Card>
@@ -847,7 +846,7 @@ function UiControlConnectionDetails(props: UiControlConnectionDetailsProps) {
                     Production discovery file
                   </TableCell>
                   <TableCell className="py-2 whitespace-normal">
-                    <span className="font-mono text-xs break-all">~/Library/Application Support/com.differentai.openwork/openwork-ui-control.json</span>
+                    <span className="font-mono text-xs break-all">~/Library/Application Support/com.vaishnavjai.harness/harness-ui-control.json</span>
                   </TableCell>
                 </TableRow>
                 <TableRow className="*:border-border hover:bg-transparent [&>:not(:last-child)]:border-r">
@@ -855,7 +854,7 @@ function UiControlConnectionDetails(props: UiControlConnectionDetailsProps) {
                     Dev discovery file
                   </TableCell>
                   <TableCell className="py-2 whitespace-normal">
-                    <span className="font-mono text-xs break-all">~/Library/Application Support/com.differentai.openwork.dev/openwork-ui-control.json</span>
+                    <span className="font-mono text-xs break-all">~/Library/Application Support/com.vaishnavjai.harness.dev/harness-ui-control.json</span>
                   </TableCell>
                 </TableRow>
                 <TableRow className="*:border-border hover:bg-transparent [&>:not(:last-child)]:border-r">
@@ -863,16 +862,16 @@ function UiControlConnectionDetails(props: UiControlConnectionDetailsProps) {
                     Override
                   </TableCell>
                   <TableCell className="py-2 whitespace-normal">
-                    <span className="font-mono text-xs break-all">OPENWORK_UI_CONTROL_DISCOVERY=/path/to/openwork-ui-control.json</span>
+                    <span className="font-mono text-xs break-all">HARNESS_UI_CONTROL_DISCOVERY=/path/to/harness-ui-control.json</span>
                   </TableCell>
                 </TableRow>
-                {props.environment?.OPENWORK_UI_CONTROL_DISCOVERY ? (
+                {props.environment?.HARNESS_UI_CONTROL_DISCOVERY ? (
                   <TableRow className="*:border-border hover:bg-transparent [&>:not(:last-child)]:border-r">
                     <TableCell className="bg-muted/50 py-2 text-xs font-medium">
                       Current override
                     </TableCell>
                     <TableCell className="py-2 whitespace-normal">
-                      <span className="font-mono text-xs break-all">{props.environment.OPENWORK_UI_CONTROL_DISCOVERY}</span>
+                      <span className="font-mono text-xs break-all">{props.environment.HARNESS_UI_CONTROL_DISCOVERY}</span>
                     </TableCell>
                   </TableRow>
                 ) : null}

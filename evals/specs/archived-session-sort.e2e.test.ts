@@ -3,7 +3,7 @@ import {
   compileVerification, runVerification, spec,
   type VerificationDictionary, type VerificationEvaluationRequest,
   type VerificationEvaluator, type VerificationObservation, type VerificationPlan,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 import { archivedSessionSort } from "../worlds/archived-session-sort.ts";
 
 const test = spec.world(archivedSessionSort, {

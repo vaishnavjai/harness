@@ -39,18 +39,18 @@ async function request(admin: DenSession, path: string, init: RequestInit = {}):
   return { status: response.status, body, text };
 }
 
-export async function grantOpenWorkWebAccess(
+export async function grantHarnessWebAccess(
   admin: DenSession,
   organizationId: string,
   reason: string,
 ): Promise<void> {
-  const result = await request(admin, `/v1/admin/organizations/${organizationId}/openwork-web-access`, {
+  const result = await request(admin, `/v1/admin/organizations/${organizationId}/harness-web-access`, {
     method: "PUT",
     headers: auth(admin),
     body: JSON.stringify({ enabled: true, reason }),
   });
   if (result.status < 200 || result.status >= 300) {
-    throw new Error(`Granting OpenWork Web access failed (${result.status}): ${preview(result.body)}`);
+    throw new Error(`Granting Harness Web access failed (${result.status}): ${preview(result.body)}`);
   }
 }
 

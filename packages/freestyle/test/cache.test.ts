@@ -96,7 +96,7 @@ test("an interrupted build launch is retried through a guarded unit, and bounded
     const body: unknown = JSON.parse(String(init?.body));
     assert.ok(body && typeof body === "object" && "command" in body && typeof body.command === "string");
     assert.match(body.command, /test -f .*world.ready/);
-    assert.match(body.command, /systemctl is-active --quiet openwork-world.service/);
+    assert.match(body.command, /systemctl is-active --quiet harness-world.service/);
     return Response.json({ statusCode: alwaysInterrupted || calls === 1 ? null : 0, stdout: "" });
   } });
   await startBuildUnit(api.vms.ref("builder"), "world");
@@ -161,27 +161,27 @@ test("desktop recipes contain only desktop dependencies and never install world 
   assert.match(tools, /build-essential python3/);
   assert.match(tools, /Node 24 or newer/);
   assert.match(tools, /bun@1\.3\.14/);
-  assert.match(tools, /node \/opt\/openwork-preview\/tools\/node_modules\/bun\/install\.js\n\/opt\/openwork-preview\/tools\/node_modules\/\.bin\/bun --version/);
+  assert.match(tools, /node \/opt\/harness-preview\/tools\/node_modules\/bun\/install\.js\n\/opt\/harness-preview\/tools\/node_modules\/\.bin\/bun --version/);
   assert.match(tools, /corepack prepare pnpm@11\.4\.0 --activate/);
   assert.match(tools, /corepack prepare pnpm@10\.27\.0/);
   const dependencies = dependencyRecipe("desktop");
-  assert.match(dependencies, /--filter @openwork\/desktop\.\.\./);
-  assert.match(dependencies, /--filter openwork-server\.\.\./);
+  assert.match(dependencies, /--filter @harness\/desktop\.\.\./);
+  assert.match(dependencies, /--filter @harness/server\.\.\./);
   const compiled = compiledRecipe("desktop");
-  assert.match(compiled, /@openwork\/headless-threads build/);
+  assert.match(compiled, /@harness\/headless-threads build/);
   assert.match(compiled, /prepare-sidecar/);
   assert.match(compiled, /rebuild:electron-native/);
   assert.match(compiled, /await import\("\.\/evals\/packages\/cdp\/src\/index\.ts"\)/);
-  assert.ok(compiled.includes('export PATH="/opt/openwork-preview/tools/node_modules/.bin:$PATH"'));
+  assert.ok(compiled.includes('export PATH="/opt/harness-preview/tools/node_modules/.bin:$PATH"'));
   const { spawnSync } = await import("node:child_process");
   for (const recipe of [tools, dependencies, compiled]) {
-    assert.ok(recipe.includes("export COREPACK_HOME=/opt/openwork-preview/corepack"));
+    assert.ok(recipe.includes("export COREPACK_HOME=/opt/harness-preview/corepack"));
     const syntax = spawnSync("bash", ["-n"], { input: recipe, encoding: "utf8", timeout: 5_000 });
     assert.equal(syntax.status, 0, syntax.stderr);
   }
-  assert.doesNotMatch([tools, dependencies, compiled].join("\n"), /mysql|redis|den-api|den-web|@openwork-ee\/gateway|@openwork\/world|--dir evals/);
+  assert.doesNotMatch([tools, dependencies, compiled].join("\n"), /mysql|redis|den-api|den-web|@harness-ee\/gateway|@harness\/world|--dir evals/);
   assert.match(toolsRecipe("acme-web"), /mysql-server redis-server/);
-  assert.match(dependencyRecipe("acme-web"), /@openwork-ee\/den-api/);
+  assert.match(dependencyRecipe("acme-web"), /@harness-ee\/den-api/);
   assert.doesNotMatch(toolsRecipe("app-web"), /xfce|mysql/);
 });
 

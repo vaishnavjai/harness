@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { AUTOMATION_DESKTOP_RUNNER_PRESENCE_WINDOW_MS } from "@openwork/types/automations"
+import { AUTOMATION_DESKTOP_RUNNER_PRESENCE_WINDOW_MS } from "@harness/types/automations"
 import {
   AUTOMATION_MANUAL_CLAIM_WINDOW_MS,
   computeAutomationClaimDeadline,

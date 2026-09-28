@@ -60,7 +60,7 @@ final class Fixture: NSObject, NSApplicationDelegate {
         windows = [first, second]
         first.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        if Bundle.main.bundleIdentifier?.hasPrefix("org.example.openwork.launch-fixture.") == true { return }
+        if Bundle.main.bundleIdentifier?.hasPrefix("org.example.harness.launch-fixture.") == true { return }
         Task.detached {
             while let line = readLine(), let data = line.data(using: .utf8) {
                 guard let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }

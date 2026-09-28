@@ -1,8 +1,8 @@
 export type ThemeMode = "light" | "dark" | "system";
 export type ResolvedThemeMode = "light" | "dark";
 
-const THEME_PREF_KEY = "openwork.react.settings.theme-mode";
-const LEGACY_THEME_PREF_KEYS = ["openwork.themePref"];
+const THEME_PREF_KEY = "harness.react.settings.theme-mode";
+const LEGACY_THEME_PREF_KEYS = ["harness.themePref"];
 
 const mediaQuery = "(prefers-color-scheme: dark)";
 const listeners = new Set<() => void>();
@@ -60,7 +60,7 @@ const syncNativeTheme = (mode: ThemeMode) => {
   if (typeof window === "undefined") return;
   // Fire-and-forget window chrome: the shell refuses this before enterprise
   // activation, and the window simply keeps its default theme then.
-  void window.__OPENWORK_ELECTRON__?.invokeDesktop?.("__setNativeTheme", mode)?.catch(() => undefined);
+  void window.__HARNESS_ELECTRON__?.invokeDesktop?.("__setNativeTheme", mode)?.catch(() => undefined);
 };
 
 const getCurrentMode = () => {

@@ -1,5 +1,5 @@
-import { previewWorld, PreviewLaunchError, type PreviewSession, type PreviewWorld } from "@openwork/freestyle";
-import type { BuildProgress } from "@openwork/freestyle/progress";
+import { previewWorld, PreviewLaunchError, type PreviewSession, type PreviewWorld } from "@harness/freestyle";
+import type { BuildProgress } from "@harness/freestyle/progress";
 
 export interface LaunchDependencies {
   readReview(id: string): Promise<{ gitSha: string } | null>;
@@ -45,7 +45,7 @@ export function launchHandlers(deps: LaunchDependencies) {
     try {
       const body: unknown = await request.text().then((text) => text ? JSON.parse(text) : {});
       world = previewWorld(typeof body === "object" && body !== null && "world" in body ? body.world : "app-web");
-    } catch { return Response.json({ error: "Choose OpenWork web, Desktop only, or an ACME full-stack preview." }, { status: 400, headers }); }
+    } catch { return Response.json({ error: "Choose Harness web, Desktop only, or an ACME full-stack preview." }, { status: 400, headers }); }
     // The immutable stored report, never request input, chooses the source commit.
     const gitSha = report.gitSha;
     try {

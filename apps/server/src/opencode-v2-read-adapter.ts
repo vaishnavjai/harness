@@ -12,7 +12,7 @@ function session(value: unknown) {
   const row = data(value);
   if (!isRecord(row)) throw new Error("Invalid engine session response");
   const info = isRecord(row.info) ? row.info : row;
-  const home = info.openworkHomeDirectory;
+  const home = info.harnessHomeDirectory;
   return { ...info, directory: home ?? (isRecord(info.location) ? info.location.directory : undefined) };
 }
 async function pages(read: Read, path: string, limit?: number): Promise<Record<string, unknown>[]> {
@@ -32,7 +32,7 @@ async function pages(read: Read, path: string, limit?: number): Promise<Record<s
 }
 
 /** Adapt read-only native endpoints to the existing semantic query contract.
- * Calls go through OpenWork's native proxy, which checks stable session homes. */
+ * Calls go through Harness's native proxy, which checks stable session homes. */
 export function createV2ReadAdapter(read: Read): Read {
   return async path => {
     const match = /^\/workspace\/([^/]+)\/opencode(\/.*)$/.exec(path);

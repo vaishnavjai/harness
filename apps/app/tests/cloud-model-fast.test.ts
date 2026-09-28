@@ -1,9 +1,9 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { CATALOG_FAST_VARIANT, CLOUD_MODEL_CONFIG_VERSION, FAST_DEFAULT_VARIANT, catalogFastVariants, fastVariantId, nativeModelVariants, materializeLegacyFastProviders } from "@openwork/types/cloud-model-fast";
+import { CATALOG_FAST_VARIANT, CLOUD_MODEL_CONFIG_VERSION, FAST_DEFAULT_VARIANT, catalogFastVariants, fastVariantId, nativeModelVariants, materializeLegacyFastProviders } from "@harness/types/cloud-model-fast";
 import { buildCloudProviderConfig, isCloudProviderOutOfSync } from "../src/react-app/domains/connections/provider-auth/cloud-provider-config";
 import { readWorkspaceCloudImports } from "../src/app/cloud/import-state";
 import type { DenOrgLlmProviderConnection } from "../src/app/lib/den";
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
 import { getModelBehaviorControls } from "../src/app/lib/model-behavior";
 
 const fast = { provider: { body: { service_tier: "priority" } }, cost: { input: 10, output: 60 } };
@@ -25,7 +25,7 @@ describe("catalog Fast runtime gate", () => {
         cost: { input: 20, output: 100, cache_read: 2, cache_write: 25 } } } } };
     const serialized = buildCloudProviderConfig({ ...provider, models: [{ id: "gpt-6-astra", name: "Synthetic Astra", config: raw, createdAt: null }] })
       .models?.["gpt-6-astra"];
-    expect(serialized?.variants).toEqual({ [CATALOG_FAST_VARIANT]: { disabled: true, openworkNativeFast: 1, reasoningEfforts: efforts } });
+    expect(serialized?.variants).toEqual({ [CATALOG_FAST_VARIANT]: { disabled: true, harnessNativeFast: 1, reasoningEfforts: efforts } });
     expect(nativeModelVariants(serialized?.variants, "@opencode-ai/ai/providers/openai-compatible")).toEqual([]);
     const native = nativeModelVariants(serialized?.variants, "@opencode-ai/ai/providers/openai");
     expect(native.map((variant) => variant.id)).toEqual([...efforts, FAST_DEFAULT_VARIANT, ...efforts.map(fastVariantId)]);
@@ -82,7 +82,7 @@ describe("catalog Fast runtime gate", () => {
       expect(JSON.stringify(result)).not.toContain(fastVariantId("hidden"));
     }
     const invalid = { witness: { npm: "@ai-sdk/openai", models: { model: { variants: {
-      [CATALOG_FAST_VARIANT]: { disabled: true, openworkNativeFast: 1, reasoningEfforts: ["unsupported"] },
+      [CATALOG_FAST_VARIANT]: { disabled: true, harnessNativeFast: 1, reasoningEfforts: ["unsupported"] },
     } } } } };
     expect(materializeLegacyFastProviders(invalid)).toEqual(invalid);
   });
@@ -98,7 +98,7 @@ describe("catalog Fast runtime gate", () => {
     } } } } });
     expect(JSON.stringify(result)).not.toContain(CATALOG_FAST_VARIANT);
     expect(JSON.stringify(result)).not.toContain(fastVariantId("hidden"));
-    expect(serialized.models?.model.variants?.[CATALOG_FAST_VARIANT]).toEqual({ disabled: true, openworkNativeFast: 1 });
+    expect(serialized.models?.model.variants?.[CATALOG_FAST_VARIANT]).toEqual({ disabled: true, harnessNativeFast: 1 });
     expect(result.untouched).toBe(providers.untouched);
     expect(materializeLegacyFastProviders(result)).toEqual(result);
   });
@@ -122,7 +122,7 @@ describe("catalog Fast runtime gate", () => {
   test("stores only disabled metadata; native combines it with exact custom variants and Default", () => {
     const serialized = buildCloudProviderConfig(provider).models?.model;
     expect(serialized?.experimental).toBeUndefined();
-    expect(serialized?.variants?.[CATALOG_FAST_VARIANT]).toEqual({ disabled: true, openworkNativeFast: 1 });
+    expect(serialized?.variants?.[CATALOG_FAST_VARIANT]).toEqual({ disabled: true, harnessNativeFast: 1 });
     expect(config.variants).not.toHaveProperty(CATALOG_FAST_VARIANT);
     const variants = nativeModelVariants(serialized?.variants, "@opencode-ai/ai/providers/openai");
     expect(variants.map((entry) => entry.id)).toEqual([
@@ -133,7 +133,7 @@ describe("catalog Fast runtime gate", () => {
       providerOptions: { reasoningEffort: "low", textVerbosity: "high", serviceTier: "priority" },
     });
     expect(variants.find((entry) => entry.id === FAST_DEFAULT_VARIANT)?.settings).toEqual({ providerOptions: { serviceTier: "priority" } });
-    expect(JSON.stringify(variants)).not.toContain("openworkNativeFast");
+    expect(JSON.stringify(variants)).not.toContain("harnessNativeFast");
     expect(nativeModelVariants(serialized?.variants, "@opencode-ai/ai/providers/openai-compatible").map((entry) => entry.id))
       .toEqual(["high", "CustomExact", "default"]);
   });
@@ -172,7 +172,7 @@ describe("catalog Fast runtime gate", () => {
       modelConfigVersion: CLOUD_MODEL_CONFIG_VERSION,
     }] }));
     try {
-      const client = createOpenworkServerClient({ baseUrl: "http://synthetic.test", token: "synthetic" });
+      const client = createHarnessServerClient({ baseUrl: "http://synthetic.test", token: "synthetic" });
       const status = await client.getCloudProviderSyncStatus();
       expect(status.providers[0].modelConfigVersion).toBe(CLOUD_MODEL_CONFIG_VERSION);
       expect(isCloudProviderOutOfSync(provider, status.providers[0])).toBe(false);

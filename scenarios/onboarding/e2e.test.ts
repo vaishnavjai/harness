@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { onboardingWorld } from "./world.ts";
 import { onboarding } from "./workflow.ts";
 import { completionScreenshot } from "./screenshots.ts";

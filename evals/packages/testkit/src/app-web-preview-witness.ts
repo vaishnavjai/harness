@@ -1,6 +1,6 @@
-import { chrome, daytonaSandbox, parsePrivatePreview, privateSandboxId, verifyPrivateWebPreview } from "@openwork/hosts";
-import { evaluateOnSurface } from "@openwork/cdp";
-import type { AttachedSurface } from "@openwork/cdp";
+import { chrome, daytonaSandbox, parsePrivatePreview, privateSandboxId, verifyPrivateWebPreview } from "@harness/hosts";
+import { evaluateOnSurface } from "@harness/cdp";
+import type { AttachedSurface } from "@harness/cdp";
 
 export async function appWebPreviewWitness(options: { sandboxId: string; browserOrigin: string }) {
   let surface: AttachedSurface | undefined;
@@ -10,7 +10,7 @@ export async function appWebPreviewWitness(options: { sandboxId: string; browser
     await verifyPrivateWebPreview(preview);
     surface = await chrome({ name: "private-app-web-browser", host: daytonaSandbox(options.sandboxId), startUrl: "about:blank", headless: true });
     await surface.client.send("Network.enable");
-    await surface.client.send("Network.setBlockedURLs", { urls: ["*openworklabs.com*", "*openwork.so*", "*posthog*", "*sentry*", "*api.openai.com*", "*api.anthropic.com*"] });
+    await surface.client.send("Network.setBlockedURLs", { urls: ["*harness.invalid*", "*harness.so*", "*posthog*", "*sentry*", "*api.openai.com*", "*api.anthropic.com*"] });
     await surface.client.send("Network.setExtraHTTPHeaders", { headers: { "X-Daytona-Skip-Preview-Warning": "true" } });
     await surface.client.send("Page.navigate", { url: preview.browserOrigin });
     const browser = surface;
@@ -19,16 +19,16 @@ export async function appWebPreviewWitness(options: { sandboxId: string; browser
       async read() {
         try {
           return await evaluateOnSurface(browser, async () => {
-            const base = localStorage.getItem("openwork.server.urlOverride") ?? "";
-            const token = localStorage.getItem("openwork.server.token") ?? "";
-            const hostTokenPresent = Boolean(localStorage.getItem("openwork.server.hostToken"));
-            const expectedBase = `${location.origin}/api/openwork`;
+            const base = localStorage.getItem("harness.server.urlOverride") ?? "";
+            const token = localStorage.getItem("harness.server.token") ?? "";
+            const hostTokenPresent = Boolean(localStorage.getItem("harness.server.hostToken"));
+            const expectedBase = `${location.origin}/api/harness`;
             const client = await fetch("/@vite/client", { signal: AbortSignal.timeout(10000) });
             const clientSource = await client.text();
-            const source = await fetch("/src/app/lib/openwork-server.ts", { signal: AbortSignal.timeout(10000) });
+            const source = await fetch("/src/app/lib/harness-server.ts", { signal: AbortSignal.timeout(10000) });
             const appSource = await source.text();
             const sourceOriginFree = source.ok && !clientSource.includes(location.hostname) && !appSource.includes(location.hostname);
-            const relativeBackend = /"VITE_OPENWORK_URL"\s*:\s*"\/api\/openwork"/.test(appSource);
+            const relativeBackend = /"VITE_HARNESS_URL"\s*:\s*"\/api\/harness"/.test(appSource);
             const wsToken = clientSource.match(/\bwsToken\s*=\s*"([a-zA-Z0-9_-]+)"/)?.[1];
             const webSocket = wsToken ? await new Promise<boolean>((done) => {
               const socket = new WebSocket(`${location.origin.replace(/^https:/, "wss:")}/?token=${wsToken}`, "vite-hmr");
@@ -44,11 +44,11 @@ export async function appWebPreviewWitness(options: { sandboxId: string; browser
               socket.onerror = () => finish(false);
             }) : false;
             const html = await fetch("/", { signal: AbortSignal.timeout(10000) });
-            const health = await fetch("/api/openwork/health", { signal: AbortSignal.timeout(10000) });
-            const unauthenticated = await fetch("/api/openwork/workspaces", { signal: AbortSignal.timeout(10000) });
+            const health = await fetch("/api/harness/health", { signal: AbortSignal.timeout(10000) });
+            const unauthenticated = await fetch("/api/harness/workspaces", { signal: AbortSignal.timeout(10000) });
             const headers = { Authorization: `Bearer ${token}` };
-            const authenticated = await fetch("/api/openwork/workspaces", { headers, signal: AbortSignal.timeout(10000) });
-            const hostOnly = await fetch("/api/openwork/approvals", { headers, signal: AbortSignal.timeout(10000) });
+            const authenticated = await fetch("/api/harness/workspaces", { headers, signal: AbortSignal.timeout(10000) });
+            const hostOnly = await fetch("/api/harness/approvals", { headers, signal: AbortSignal.timeout(10000) });
             const workspaces: unknown = authenticated.ok ? await authenticated.json() : null;
             const hasWorkspace = typeof workspaces === "object" && workspaces !== null && "items" in workspaces
               && Array.isArray(workspaces.items) && workspaces.items.length > 0;

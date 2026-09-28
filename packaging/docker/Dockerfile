@@ -1,6 +1,23 @@
+# Build context: the repository root
+#   docker build -f packaging/docker/Dockerfile -t harness-server .
+#
+# harness-server is built from this checkout. It is deliberately never
+# installed from a registry: the harness-server name and the @harness scope
+# on npm are not owned by this project.
+FROM node:22-bookworm-slim AS build
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+  && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && npm install -g bun@1.3.11
+
+WORKDIR /src
+COPY . .
+RUN pnpm install --frozen-lockfile --filter "@harness/server..." --filter "@harness/app..."
+RUN pnpm --filter @harness/server prepare:npm
+
 FROM node:22-bookworm-slim
 
-ARG OPENWORK_SERVER_VERSION=0.18.4
 ARG OPENCODE_VERSION=1.17.11
 ARG OPENCODE_DOWNLOAD_URL=
 
@@ -13,7 +30,10 @@ RUN apt-get update \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
-RUN npm install -g "openwork-server@${OPENWORK_SERVER_VERSION}"
+COPY --from=build /src/apps/server/dist/npm /opt/harness-server
+RUN cd /opt/harness-server \
+  && npm install --omit=dev --ignore-scripts \
+  && ln -s /opt/harness-server/bin/harness-server.mjs /usr/local/bin/harness-server
 
 RUN set -eux; \
   arch="$(dpkg --print-architecture)"; \
@@ -36,21 +56,21 @@ RUN set -eux; \
 
 # Persistent directories (mount volumes here on PaaS/SSH).
 # The data path deliberately keeps its historical name: existing deployments
-# have volumes mounted at /data/openwork-orchestrator, and renaming it here
+# have volumes mounted at /data/harness-orchestrator, and renaming it here
 # would silently orphan their state. The orchestrator CLI itself is gone; this
 # is only a directory name kept for compatibility.
-ENV OPENWORK_DATA_DIR=/data/openwork-orchestrator
-ENV OPENWORK_SIDECAR_DIR=/data/sidecars
+ENV HARNESS_DATA_DIR=/data/harness-orchestrator
+ENV HARNESS_SIDECAR_DIR=/data/sidecars
 
 # The workspace is mounted from the host/volume.
-ENV OPENWORK_WORKSPACE=/workspace
+ENV HARNESS_WORKSPACE=/workspace
 
-# OpenWork host contract surface.
+# Harness host contract surface.
 EXPOSE 8787
 
 VOLUME ["/workspace", "/data"]
 
 # Defaults:
-# - OpenWork server is published intentionally via --host 0.0.0.0
-# - OpenCode is managed by openwork-server and stays internal
-CMD ["/bin/sh", "-lc", "plugin_dir=\"$(npm root -g)/openwork-server/dist/opencode-plugins\"; test -d \"$plugin_dir\"; export OPENWORK_MANAGE_OPENCODE=1 OPENWORK_OPENCODE_BIN=/usr/local/bin/opencode OPENWORK_EXTENSIONS_PLUGIN_DIR=\"$plugin_dir\"; exec openwork-server --workspace \"${OPENWORK_WORKSPACE:-/workspace}\" --host 0.0.0.0 --port \"${OPENWORK_PORT:-8787}\" --cors \"${OPENWORK_CORS_ORIGINS:-*}\" --approval \"${OPENWORK_APPROVAL_MODE:-manual}\""]
+# - Harness server is published intentionally via --host 0.0.0.0
+# - OpenCode is managed by harness-server and stays internal
+CMD ["/bin/sh", "-lc", "plugin_dir=/opt/harness-server/dist/opencode-plugins; test -d \"$plugin_dir\"; export HARNESS_MANAGE_OPENCODE=1 HARNESS_OPENCODE_BIN=/usr/local/bin/opencode HARNESS_EXTENSIONS_PLUGIN_DIR=\"$plugin_dir\"; exec harness-server --workspace \"${HARNESS_WORKSPACE:-/workspace}\" --host 0.0.0.0 --port \"${HARNESS_PORT:-8787}\" --cors \"${HARNESS_CORS_ORIGINS:-*}\" --approval \"${HARNESS_APPROVAL_MODE:-manual}\""]

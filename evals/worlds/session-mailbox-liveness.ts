@@ -1,9 +1,9 @@
-import { browserScript, evaluate } from "@openwork/cdp";
-import { SkipError, type Place, type Seed } from "@openwork/env";
+import { browserScript, evaluate } from "@harness/cdp";
+import { SkipError, type Place, type Seed } from "@harness/env";
 import { createHash } from "node:crypto";
 import { archiveActiveSessions } from "./session-shell.ts";
 
-export const NO_WINDOW_ERROR = "No OpenWork window is connected to this server. Open the OpenWork app or its web tab and try again.";
+export const NO_WINDOW_ERROR = "No Harness window is connected to this server. Open the Harness app or its web tab and try again.";
 
 type MailboxState = {
   armed: boolean;
@@ -60,8 +60,8 @@ export async function sessionMailboxLiveness(seed: Seed, context: { place: Place
   if (context.place.kind !== "local") {
     throw new SkipError("Mailbox liveness requires runner-reachable fixture loopback; use --local --engine v1 --surface electron");
   }
-  if (process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) {
-    throw new SkipError("Mailbox liveness requires source-built Electron; unset OPENWORK_EVAL_ELECTRON_BINARY");
+  if (process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) {
+    throw new SkipError("Mailbox liveness requires source-built Electron; unset HARNESS_EVAL_ELECTRON_BINARY");
   }
   await using resources = new AsyncDisposableStack();
   const fixture = resources.use(await archiveActiveSessions(seed, context));
@@ -73,7 +73,7 @@ export async function sessionMailboxLiveness(seed: Seed, context: { place: Place
   const workspaceIds = [workspaceA.workspaceId, workspaceB.workspaceId];
   const mount = (workspaceId: string) => `/workspace/${encodeURIComponent(workspaceId)}/opencode`;
   const server = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Mailbox fixture server unavailable");
     return { baseUrl: info.baseUrl, token: info.ownerToken ?? info.clientToken };
   }, { awaitPromise: true, timeoutMs: 5_000 });

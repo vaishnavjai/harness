@@ -1,12 +1,12 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { reliableRecoveryWorld } from "../worlds/first-run.ts";
 
 const test = spec.world(reliableRecoveryWorld, { timeout: 300_000 });
-const verifiedArtifact = "https://releases.openwork.test/v1.8.2/OpenWork-darwin-arm64.dmg";
+const verifiedArtifact = "https://releases.harness.test/v1.8.2/Harness-darwin-arm64.dmg";
 
 test("a fatal desktop bootstrap failure offers one-click verified recovery without losing the profile", async ({ world, user, seed, probe }) => {
-  await user.see({ text: /OpenWork (couldn't|could not) start/i });
+  await user.see({ text: /Harness (couldn't|could not) start/i });
   await user.see("Restore previous version");
   await user.see({ role: "button", label: /^reload$/i });
   await user.notSee({ text: /EVAL_FATAL_DESKTOP_BOOTSTRAP_FAILURE|invalid code signature/ });
@@ -20,7 +20,7 @@ test("a fatal desktop bootstrap failure offers one-click verified recovery witho
     .toEqual(["1.8.2"]);
 
   // TODO(primitive): negatively exercise an unverified recovery candidate.
-  await seed.evalIn(world.app, () => (window.__openworkRecoveryControl.select("1.8.1")), { awaitPromise: true });
+  await seed.evalIn(world.app, () => (window.__harnessRecoveryControl.select("1.8.1")), { awaitPromise: true });
   const afterInvalid = await world.snapshot();
   expect(typeof afterInvalid === "object" && afterInvalid !== null ? Reflect.get(afterInvalid, "installRequests") : null).toEqual([]);
   expect(typeof afterInvalid === "object" && afterInvalid !== null ? Reflect.get(afterInvalid, "quitRequested") : null).toBe(false);

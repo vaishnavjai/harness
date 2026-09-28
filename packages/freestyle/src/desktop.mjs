@@ -7,13 +7,13 @@ import { originTransform, replaceOrigins, templateOrigins } from "./origins.mjs"
 
 // Controller-owned: a virtual display, a VNC server bound to loopback, and the
 // noVNC web client, all behind the preview gateway's own access check. The
-// OpenWork desktop app itself comes from the reviewed commit in /workspace.
+// Harness desktop app itself comes from the reviewed commit in /workspace.
 const DESKTOP_DISPLAY = ":99";
 const NOVNC_PORT = 6080;
 const VNC_PORT = 5900;
 const CDP_PORT = 9825;
 const DEN_FRONT_PORT = 5190;
-const LOGS = "/opt/openwork-preview/desktop";
+const LOGS = "/opt/harness-preview/desktop";
 const DEN_PROXY_PREFIX = "/api/den";
 // Paths the preview gateway serves from Den's API on Den's public origin.
 const DEN_API_PATH = /^\/(?:v1|mcp)(?:\/|$)|^\/health$|^\/oauth\/client-metadata\.json$/;
@@ -119,8 +119,8 @@ async function prepareWorkspace(surface, world, { createAndSelectWorkspace, sele
 async function setDefaultModel(surface, world, evalIn, browserScript) {
   const ref = `${world.model.providerId}/${world.model.modelId}`;
   await evalIn(surface, browserScript((value) => {
-    localStorage.setItem("openwork.defaultModel", value);
-    window.dispatchEvent(new Event("openwork.defaultModelChanged"));
+    localStorage.setItem("harness.defaultModel", value);
+    window.dispatchEvent(new Event("harness.defaultModelChanged"));
   }, [ref]));
 }
 
@@ -156,12 +156,12 @@ export async function prepareDesktopProfile() {
 export function desktopProfileEnvironment(profile, environment = process.env) {
   return {
     PATH: environment.PATH, LANG: "en_US.UTF-8",
-    BROWSER: "/usr/local/bin/openwork-preview-browser",
+    BROWSER: "/usr/local/bin/harness-preview-browser",
     pnpm_config_verify_deps_before_run: "false", GOMEMLIMIT: "512MiB",
-    COREPACK_HOME: "/opt/openwork-preview/corepack", COREPACK_ENABLE_NETWORK: "0",
+    COREPACK_HOME: "/opt/harness-preview/corepack", COREPACK_ENABLE_NETWORK: "0",
     ...profile.environment,
     DAYTONA_SECRETS_ENV: "/dev/null",
-    OPENWORK_ELECTRON_SKIP_NATIVE_REBUILD: "1",
+    HARNESS_ELECTRON_SKIP_NATIVE_REBUILD: "1",
   };
 }
 
@@ -182,16 +182,16 @@ export async function startDesktop(stack, world, { prepareProfile = prepareDeskt
   if (profile) writeFileSync(`${LOGS}/profile.json`, JSON.stringify(profile), { mode: 0o600 });
   const env = {
     ...(profile ? desktopProfileEnvironment(profile) : {
-      ...process.env, OPENWORK_DESKTOP_BOOTSTRAP_PATH: `${LOGS}/bootstrap.json`, OPENWORK_ELECTRON_USERDATA: "/root/.openwork-desktop",
-    }), DISPLAY: DESKTOP_DISPLAY, BROWSER: "/usr/local/bin/openwork-preview-browser", OPENWORK_WORKSPACE_DIR: "/workspace", PORT: "5186",
-    OPENWORK_ELECTRON_REMOTE_DEBUG_PORT: String(CDP_PORT), OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN: "1",
-    OPENWORK_ELECTRON_DISABLE_PROTOCOL_REGISTRATION: "1",
+      ...process.env, HARNESS_DESKTOP_BOOTSTRAP_PATH: `${LOGS}/bootstrap.json`, HARNESS_ELECTRON_USERDATA: "/root/.harness-desktop",
+    }), DISPLAY: DESKTOP_DISPLAY, BROWSER: "/usr/local/bin/harness-preview-browser", HARNESS_WORKSPACE_DIR: "/workspace", PORT: "5186",
+    HARNESS_ELECTRON_REMOTE_DEBUG_PORT: String(CDP_PORT), HARNESS_ELECTRON_USE_MOCK_KEYCHAIN: "1",
+    HARNESS_ELECTRON_DISABLE_PROTOCOL_REGISTRATION: "1",
     // The snapshot builder already fetched the sidecars and helpers.
-    OPENWORK_ELECTRON_SKIP_SHARED_PREPARE: "1",
-    OPENWORK_ELECTRON_SKIP_WORKSPACE_BUILD: "1",
+    HARNESS_ELECTRON_SKIP_SHARED_PREPARE: "1",
+    HARNESS_ELECTRON_SKIP_WORKSPACE_BUILD: "1",
   };
   const launcher = existsSync("/workspace/.devcontainer/start-daytona-electron.sh")
-    ? "bash /workspace/.devcontainer/start-daytona-electron.sh" : "pnpm --filter @openwork/desktop dev:electron";
+    ? "bash /workspace/.devcontainer/start-daytona-electron.sh" : "pnpm --filter @harness/desktop dev:electron";
   const log = openSync(`${LOGS}/electron.log`, "a", 0o600);
   const app = spawn("bash", ["-c", `while true; do ${launcher}; sleep 5; done`], { cwd: "/workspace", env, stdio: ["ignore", log, log], detached: true });
   closeSync(log);

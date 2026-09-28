@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
-import { chrome, createLocalHost } from "@openwork/hosts";
-import { callFunctionOnSurface, evaluateOnSurface, type Surface } from "@openwork/cdp";
+import { chrome, createLocalHost } from "@harness/hosts";
+import { callFunctionOnSurface, evaluateOnSurface, type Surface } from "@harness/cdp";
 import { installHostedReceiptObserver } from "./fixtures/mcp-app-sandbox-observer";
 import type { HostedSandboxResource } from "./fixtures/mcp-app-sandbox-hosted";
 export { acquireHostedSandboxResources } from "./fixtures/mcp-app-sandbox-hosted";
@@ -174,7 +174,7 @@ export async function sandboxStartupFixture(hostedResources?: HostedSandboxResou
   resources.defer(async () => {
     await writeFile(resolve(resultsDir, "summary.json"), JSON.stringify({
       scope: hostedResources ? "Hosted read-only demo component integration, not full dashboard or installed Electron" : "Component integration, not a full dashboard or provider test",
-      realModules: ["McpAppSandboxView", "AppBridge", "createOpenworkServerClient", "mcp-app-sandbox proxy exports"],
+      realModules: ["McpAppSandboxView", "AppBridge", "createHarnessServerClient", "mcp-app-sandbox proxy exports"],
       excludedChatSurfaces: ["ConnectorCatalogCard", "ConnectionCard", "useMessageList", "AppChatArtifact", "chat result attribution"],
       ...(hostedResources ? { receiptScope: "Capture-phase inbound MessageEvent in actual opaque srcdoc; exact input/result comparison, not host outbound. Browser/tab/page/OOPIF instrumentation can affect timing; provider HTML is unchanged." } : {}),
       loads,

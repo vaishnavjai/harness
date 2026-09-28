@@ -1,7 +1,7 @@
 import type { EnginePermissionRule } from "./managed-policy-rules.js";
-import { nativeModelVariants } from "@openwork/types/cloud-model-fast";
+import { nativeModelVariants } from "@harness/types/cloud-model-fast";
 import { gatewayBase } from "./gateway-quota.js";
-import { openworkContextV2PluginPath, openworkGatewayQuotaV2PluginPath, openworkProviderFiltersV2PluginPath } from "./openwork-extensions-plugin-path.js";
+import { harnessContextV2PluginPath, harnessGatewayQuotaV2PluginPath, harnessProviderFiltersV2PluginPath } from "./harness-extensions-plugin-path.js";
 import { pathToFileURL } from "node:url";
 // Parallel v2 lane prototype: provider injection is a watched-config write. This module
 // deliberately has no reload/dispose call, unlike managed-opencode.ts and server.ts reloadOpencodeEngine.
@@ -216,16 +216,16 @@ export async function createManagedOpencodeV2Server(
   await mkdir(gatewayQuotaPluginDirectory, { recursive: true, mode: 0o700 });
   await writeFile(join(gatewayQuotaPluginDirectory, "package.json"), JSON.stringify({ type: "module" }), { mode: 0o600 });
   await writeFile(join(gatewayQuotaPluginDirectory, "server.js"),
-    `export { default } from ${JSON.stringify(pathToFileURL(openworkGatewayQuotaV2PluginPath()).href)};\n`, { mode: 0o600 });
+    `export { default } from ${JSON.stringify(pathToFileURL(harnessGatewayQuotaV2PluginPath()).href)};\n`, { mode: 0o600 });
   await mkdir(providerFiltersPluginDirectory, { recursive: true, mode: 0o700 });
   await writeFile(join(providerFiltersPluginDirectory, "package.json"), JSON.stringify({ type: "module" }), { mode: 0o600 });
   await writeFile(join(providerFiltersPluginDirectory, "server.js"),
-    `export { default } from ${JSON.stringify(pathToFileURL(openworkProviderFiltersV2PluginPath()).href)};\n`, { mode: 0o600 });
+    `export { default } from ${JSON.stringify(pathToFileURL(harnessProviderFiltersV2PluginPath()).href)};\n`, { mode: 0o600 });
   if (options.contextTools) {
     await mkdir(contextPluginDirectory, { recursive: true, mode: 0o700 });
     await writeFile(join(contextPluginDirectory, "package.json"), JSON.stringify({ type: "module" }), { mode: 0o600 });
     await writeFile(join(contextPluginDirectory, "server.js"),
-      `export { default } from ${JSON.stringify(pathToFileURL(openworkContextV2PluginPath()).href)};\n`, { mode: 0o600 });
+      `export { default } from ${JSON.stringify(pathToFileURL(harnessContextV2PluginPath()).href)};\n`, { mode: 0o600 });
   }
   // Replace the generated config before boot, removing stale managed-policy
   // registrations while retaining independent engine permissions. Leave the

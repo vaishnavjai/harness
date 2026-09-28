@@ -77,7 +77,7 @@ is required to deploy this feature flag.
 - Enabled owner/super-admin/admin access; denied member access; missing,
   malformed and false capability payloads; keyed provider state and scoped loads.
 - Shared navigation/search builder; BYOK remains present. In the final combined
-  implementation, OpenWork Models remains for non-opted-in organizations and is
+  implementation, Harness Models remains for non-opted-in organizations and is
   hidden when both organization and deployment Gateway enablement are effective.
 - Real BYOK detail screen: migration controls appear only on opt-in and an open
   migration confirmation disappears during an organization switch.

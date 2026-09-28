@@ -1,5 +1,5 @@
-import { addInitScript, browserScript } from "@openwork/cdp";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { addInitScript, browserScript } from "@harness/cdp";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { configureProvider } from "./chat.ts";

@@ -3,12 +3,12 @@ import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const DEFAULT_TIMEOUT_MS = 4000;
-export const EXTERNAL_OPEN_CAPTURE_FILENAME = "openwork-eval-external-opens.jsonl";
+export const EXTERNAL_OPEN_CAPTURE_FILENAME = "harness-eval-external-opens.jsonl";
 
 export function shouldCaptureExternalOpens(isPackaged, env) {
   return isPackaged === false
-    && env.OPENWORK_DEV_MODE === "1"
-    && env.OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS === "1";
+    && env.HARNESS_DEV_MODE === "1"
+    && env.HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS === "1";
 }
 
 function describeError(error) {
@@ -29,7 +29,7 @@ async function defaultOpenExternal(url, electron, capture, appendCapture) {
 
 export async function openExternalUrl(url, deps = {}) {
   const env = deps.env ?? process.env;
-  if (env.OPENWORK_SIMULATE_OPEN_EXTERNAL_FAILURE === "1") {
+  if (env.HARNESS_SIMULATE_OPEN_EXTERNAL_FAILURE === "1") {
     const message = "simulated failure";
     // why: enables evals to prove the failure UX without breaking a real machine.
     console.error("[shell] openExternal failed:", message);

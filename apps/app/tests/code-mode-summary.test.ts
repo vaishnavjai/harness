@@ -27,9 +27,9 @@ test("a single write outranks reads, regardless of their order", () => {
 });
 
 test("a saved issue is described as a creation or update from the submitted action", () => {
-  const create = call("openwork-cloud_execute_capability", "input-available", { name: "mcp:connection:save_issue", body: { team: "Engineering", title: "New issue" } });
-  const update = call("openwork-cloud_execute_capability", "output-available", { name: "mcp:connection:save_issue", body: { id: "ENG-1", title: "Revised" } });
-  const identity = (item: DynamicToolUIPart) => item.toolName === "openwork-cloud_execute_capability" ? "Linear" : null;
+  const create = call("harness-cloud_execute_capability", "input-available", { name: "mcp:connection:save_issue", body: { team: "Engineering", title: "New issue" } });
+  const update = call("harness-cloud_execute_capability", "output-available", { name: "mcp:connection:save_issue", body: { id: "ENG-1", title: "Revised" } });
+  const identity = (item: DynamicToolUIPart) => item.toolName === "harness-cloud_execute_capability" ? "Linear" : null;
   expect(codeModeSummary([create], { running: true, failed: false, serviceName: identity })).toBe("Creating an issue in Linear");
   expect(codeModeSummary([update], { running: false, failed: false, serviceName: identity })).toBe("Updated an issue in Linear");
 });

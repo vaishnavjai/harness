@@ -11,10 +11,10 @@ Internal preparation file for release summaries. This is not yet published to th
 `2026-09-22T21:19:28Z`
 
 #### Title
-Run OpenWork on your own server with one command
+Run Harness on your own server with one command
 
 #### One-line summary
-Self-hosters can run the full OpenWork web app with one command, connecting an account in chat no longer gets stuck, and agents in other AI tools can reach your organization's skills directly.
+Self-hosters can run the full Harness web app with one command, connecting an account in chat no longer gets stuck, and agents in other AI tools can reach your organization's skills directly.
 
 #### Pull requests
 | PR | Audience | Decision | Reason |
@@ -37,7 +37,7 @@ Self-hosters can run the full OpenWork web app with one command, connecting an a
 
 #### Behavior changes and removals
 - Creating or sharing a skill, asking for a mockup, being asked for an environment variable, and browsing connectors now reply in plain text instead of embedded cards. Only the connection card remains.
-- The sidebar account row shows your name and "OpenWork Cloud" instead of your email address. The email is still at the top of the account menu.
+- The sidebar account row shows your name and "Harness Cloud" instead of your email address. The email is still at the top of the account menu.
 
 #### Lines of code changed since previous release
 17096 lines changed since `v0.18.49` (9924 insertions, 7172 deletions).

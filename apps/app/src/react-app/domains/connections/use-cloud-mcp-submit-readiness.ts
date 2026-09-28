@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { readDenSettings } from "../../../app/lib/den";
 import { recordInspectorEvent } from "../../../app/lib/app-inspector";
 import type {
-  OpenworkCloudMcpProviderModelContext,
-  OpenworkServerClient,
-} from "../../../app/lib/openwork-server";
+  HarnessCloudMcpProviderModelContext,
+  HarnessServerClient,
+} from "../../../app/lib/harness-server";
 import { denSettingsChangedEvent } from "../../../app/lib/den-session-events";
 import type { DenAuthStatus } from "../cloud/den-auth-provider";
 import {
@@ -30,15 +30,15 @@ import {
 } from "./use-session-mcp-maintenance";
 
 type CloudMcpSubmitReadinessClient = Pick<
-  OpenworkServerClient,
-  "baseUrl" | "getOpenworkCloudMcpHealth" | "reconcileOpenworkCloudMcp" | "listMcp"
+  HarnessServerClient,
+  "baseUrl" | "getHarnessCloudMcpHealth" | "reconcileHarnessCloudMcp" | "listMcp"
 >;
 
 type UseCloudMcpSubmitReadinessInput = {
   cloudAuthStatus: DenAuthStatus;
   client: CloudMcpSubmitReadinessClient | null;
   workspaceId: string | null;
-  providerModel?: OpenworkCloudMcpProviderModelContext;
+  providerModel?: HarnessCloudMcpProviderModelContext;
 };
 
 type CloudMcpSubmitInput = {
@@ -55,14 +55,14 @@ export type CloudMcpSubmitReadiness = {
 function missingContextIssue(input: {
   client: CloudMcpSubmitReadinessClient | null;
   workspaceId: string;
-  providerModel?: OpenworkCloudMcpProviderModelContext;
+  providerModel?: HarnessCloudMcpProviderModelContext;
 }): CloudMcpSubmissionIssue {
   if (!input.client || !input.workspaceId) {
     return {
       code: "cloud_mcp_submission_context_missing",
       stage: "engine_delivery",
       retryable: true,
-      message: "OpenWork could not resolve the workspace server before checking connected service tools.",
+      message: "Harness could not resolve the workspace server before checking connected service tools.",
       recommendedAction: "Retry after the workspace finishes loading.",
     };
   }
@@ -79,7 +79,7 @@ function missingContextIssue(input: {
     code: "cloud_mcp_submission_context_missing",
     stage: "provider_projection",
     retryable: false,
-    message: "OpenWork could not verify connected service tools for this submission.",
+    message: "Harness could not verify connected service tools for this submission.",
     recommendedAction: "Retry or open Settings → Connect for diagnostics.",
   };
 }
@@ -249,7 +249,7 @@ export function useCloudMcpSubmitReadiness(
         }
         const result = await ensureCloudMcpSubmissionReadiness({
           providerModel,
-          check: () => client.getOpenworkCloudMcpHealth(activeWorkspaceId, providerModel, { probe: true }),
+          check: () => client.getHarnessCloudMcpHealth(activeWorkspaceId, providerModel, { probe: true }),
           repair: async () => {
             const repaired = await syncCloudControlMcpInBackground({
               client,

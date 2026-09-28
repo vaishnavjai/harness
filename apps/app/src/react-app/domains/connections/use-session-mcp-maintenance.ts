@@ -11,12 +11,12 @@ import { recordInspectorEvent } from "../../../app/lib/app-inspector";
 import { denSettingsChangedEvent } from "../../../app/lib/den-session-events";
 import type { DenAuthStatus } from "../cloud/den-auth-provider";
 import {
-  OpenworkServerError,
-  type OpenworkCloudMcpFailure,
-  type OpenworkCloudMcpHealth,
-  type OpenworkCloudMcpProviderModelContext,
-  type OpenworkServerClient,
-} from "../../../app/lib/openwork-server";
+  HarnessServerError,
+  type HarnessCloudMcpFailure,
+  type HarnessCloudMcpHealth,
+  type HarnessCloudMcpProviderModelContext,
+  type HarnessServerClient,
+} from "../../../app/lib/harness-server";
 import { unwrap } from "../../../app/lib/opencode";
 import type { Client, McpServerEntry, McpStatusMap } from "../../../app/types";
 import { attemptSilentMcpReauth } from "./mcp-silent-reauth";
@@ -26,7 +26,7 @@ import {
   readCloudMcpUserState,
 } from "./cloud-mcp-user-state";
 import {
-  runOpenworkCloudMcpReconciler,
+  runHarnessCloudMcpReconciler,
   type CloudMcpClient,
 } from "./cloud-mcp-reconciler";
 
@@ -37,12 +37,12 @@ export const CLOUD_MCP_REFRESH_MARGIN_MS = 24 * 60 * 60 * 1000;
 // waiting for navigation or the ordinary five-minute maintenance interval.
 export const CLOUD_MCP_MAINTENANCE_RETRY_DELAYS_MS = [1_000, 3_000, 10_000, 30_000, 60_000];
 
-type CloudMcpMaintenanceClient = CloudMcpClient & Pick<OpenworkServerClient, "listMcp">;
+type CloudMcpMaintenanceClient = CloudMcpClient & Pick<HarnessServerClient, "listMcp">;
 
 const maintenanceInFlight = new Map<string, symbol>();
 
 export type CloudMcpMaintenanceIssue = Pick<
-  OpenworkCloudMcpFailure,
+  HarnessCloudMcpFailure,
   "code" | "stage" | "retryable" | "recommendedAction" | "message"
 >;
 
@@ -50,7 +50,7 @@ export type CloudMcpBackgroundSyncResult =
   | {
       outcome: "ready";
       status: "synced" | "unchanged";
-      health: OpenworkCloudMcpHealth;
+      health: HarnessCloudMcpHealth;
     }
   | {
       outcome: "skipped";
@@ -62,7 +62,7 @@ export type CloudMcpBackgroundSyncResult =
       outcome: "failed";
       status: "failed";
       issue: CloudMcpMaintenanceIssue;
-      health: OpenworkCloudMcpHealth | null;
+      health: HarnessCloudMcpHealth | null;
     };
 
 export type SessionCloudMcpMaintenanceState = {
@@ -89,12 +89,12 @@ function genericCloudMcpMaintenanceIssue(input?: {
     stage: "engine_delivery",
     retryable: input?.retryable ?? true,
     recommendedAction: "Retry, then open Settings → Connect if the problem continues.",
-    message: input?.message ?? "OpenWork could not verify connected service tools for this workspace.",
+    message: input?.message ?? "Harness could not verify connected service tools for this workspace.",
   };
 }
 
 function failedCloudMcpBackgroundSync(input: {
-  health: OpenworkCloudMcpHealth | null;
+  health: HarnessCloudMcpHealth | null;
   issue?: CloudMcpMaintenanceIssue;
   code?: string;
   message?: string;
@@ -110,7 +110,7 @@ function failedCloudMcpBackgroundSync(input: {
 function cloudMcpMaintenanceFailure(error: unknown): CloudMcpBackgroundSyncResult {
   return failedCloudMcpBackgroundSync({
     health: null,
-    issue: error instanceof OpenworkServerError || error instanceof DenApiError
+    issue: error instanceof HarnessServerError || error instanceof DenApiError
       ? genericCloudMcpMaintenanceIssue({
           code: error.code,
           message: error.message,
@@ -139,12 +139,12 @@ export function waitForCloudMcpRetry(delayMs: number, signal?: AbortSignal, onli
 }
 
 export function getSessionMcpMaintenanceTargetKey(input: {
-  client: Pick<OpenworkServerClient, "baseUrl">;
+  client: Pick<HarnessServerClient, "baseUrl">;
   cloudSignedIn: boolean;
   denBaseUrl?: string | null;
   orgId?: string | null;
   workspaceId: string;
-  providerModel?: OpenworkCloudMcpProviderModelContext;
+  providerModel?: HarnessCloudMcpProviderModelContext;
 }): string {
   return JSON.stringify([
     input.denBaseUrl?.trim().replace(/\/+$/, "") ?? "",
@@ -221,7 +221,7 @@ export async function syncCloudControlMcpInBackground(input: {
   now?: number;
   settings?: DenSettings;
   mintToken?: () => Promise<DenMcpToken | null>;
-  providerModel?: OpenworkCloudMcpProviderModelContext;
+  providerModel?: HarnessCloudMcpProviderModelContext;
   isCurrent?: () => boolean;
 }): Promise<CloudMcpBackgroundSyncResult> {
   // Fence every asynchronous boundary, not just React state updates. A late
@@ -277,14 +277,14 @@ export async function syncCloudControlMcpInBackground(input: {
   }
   const configuredUrl = typeof configured?.config.url === "string" ? configured.config.url : null;
 
-  const refreshCatalog = input.client.refreshOpenworkCloudMcpCatalog;
-  const result = await runOpenworkCloudMcpReconciler({
+  const refreshCatalog = input.client.refreshHarnessCloudMcpCatalog;
+  const result = await runHarnessCloudMcpReconciler({
     mode: "repair",
     client: {
       baseUrl: input.client.baseUrl,
-      getOpenworkCloudMcpHealth: (...args) => guarded(() => input.client.getOpenworkCloudMcpHealth(...args)),
-      reconcileOpenworkCloudMcp: (...args) => guarded(() => input.client.reconcileOpenworkCloudMcp(...args)),
-      ...(refreshCatalog ? { refreshOpenworkCloudMcpCatalog: (...args: Parameters<typeof refreshCatalog>) => guarded(() => refreshCatalog(...args)) } : {}),
+      getHarnessCloudMcpHealth: (...args) => guarded(() => input.client.getHarnessCloudMcpHealth(...args)),
+      reconcileHarnessCloudMcp: (...args) => guarded(() => input.client.reconcileHarnessCloudMcp(...args)),
+      ...(refreshCatalog ? { refreshHarnessCloudMcpCatalog: (...args: Parameters<typeof refreshCatalog>) => guarded(() => refreshCatalog(...args)) } : {}),
     },
     context: {
       ...scope,
@@ -333,7 +333,7 @@ export async function syncCloudControlMcpInBackground(input: {
       return failedCloudMcpBackgroundSync({
         health: result.health,
         code: "cloud_mcp_token_mint_failed",
-        message: "OpenWork could not refresh Cloud authentication for connected service tools.",
+        message: "Harness could not refresh Cloud authentication for connected service tools.",
       });
     }
   }
@@ -413,12 +413,12 @@ export async function healWorkspaceMcpInBackground(input: {
 export function useSessionMcpMaintenance(input: {
   cloudSignedIn: boolean;
   cloudAuthStatus?: DenAuthStatus;
-  client: OpenworkServerClient | null;
+  client: HarnessServerClient | null;
   workspaceId: string | null;
   opencodeClient: Client | null;
   directory: string;
   engineReloadBusy?: boolean;
-  providerModel?: OpenworkCloudMcpProviderModelContext;
+  providerModel?: HarnessCloudMcpProviderModelContext;
 }): SessionCloudMcpMaintenanceState {
   const [cloudMcpState, setCloudMcpState] = useState<SessionCloudMcpMaintenanceState>(
     IDLE_CLOUD_MCP_MAINTENANCE_STATE,

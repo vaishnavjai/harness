@@ -26,7 +26,7 @@ function catalog(messages: Record<string, unknown>[]) {
     const update = systemUpdate(message);
     return update === null ? [] : [update];
   }).join("\n");
-  if (!system.includes("You are OpenWork.")) throw new Error("The model did not receive OpenWork operating instructions");
+  if (!system.includes("You are Harness.")) throw new Error("The model did not receive Harness operating instructions");
   const skills = new Map<string, { id: string; name: string; description: string }>();
   for (const update of system.split(/(?=<available_skills>|The available skills have changed|New skills are available|The following skill IDs|Skill guidance is no longer available|No skills are currently available)/)) {
     if (update.startsWith("<available_skills>") || update.startsWith("The available skills have changed")
@@ -88,7 +88,7 @@ function decide(body: Record<string, unknown>, turn: { prompt: string; forcedSki
       request.arguments = { id };
     }
   }
-  return { request, reply: "OpenWork: UNAVAILABLE" };
+  return { request, reply: "Harness: UNAVAILABLE" };
 }
 
 if (import.meta.main) {

@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import type { Probe } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
+import type { Probe } from "@harness/testkit";
 import { isRenderCrash, releasedEnterpriseActivatedWorld } from "../worlds/released-enterprise-activated.ts";
 import type { ReleasedLaunch } from "../worlds/released-enterprise-activated.ts";
 
@@ -13,17 +13,17 @@ import type { ReleasedLaunch } from "../worlds/released-enterprise-activated.ts"
  */
 const test = spec.world(releasedEnterpriseActivatedWorld, {
   timeout: 300_000,
-  needs: { env: ["OPENWORK_EVAL_ELECTRON_BINARY"] },
+  needs: { env: ["HARNESS_EVAL_ELECTRON_BINARY"] },
 });
 const updateTest = spec.world(releasedEnterpriseActivatedWorld, {
   timeout: 300_000,
-  needs: { env: ["OPENWORK_EVAL_ELECTRON_BINARY", "OPENWORK_EVAL_RELEASED_BASELINE_BINARY"] },
+  needs: { env: ["HARNESS_EVAL_ELECTRON_BINARY", "HARNESS_EVAL_RELEASED_BASELINE_BINARY"] },
 });
 
 /** Heading of the enterprise activation page (enterprise-activation-gate.tsx); an activated install must not show it. */
 const ACTIVATION_HEADING = "Link this app to your organization";
 /** Heading of the root error boundary's recovery screen (app-error-boundary.tsx). */
-const RECOVERY_HEADING = /OpenWork hit an unexpected error/;
+const RECOVERY_HEADING = /Harness hit an unexpected error/;
 /** The forced sign-in surface (den-signin-surface.tsx, fullscreen variant). */
 const SIGN_IN_BUTTON = /^Sign in to /m;
 
@@ -104,7 +104,7 @@ test("an activated enterprise installation boots past the gate to its sign-in su
 
 updateTest("a profile created by the previous release still boots after updating and after a restart", async ({ world, user, probe, evidence, step }) => {
   const baseline = world.baselineBinary;
-  if (!baseline) throw new Error("OPENWORK_EVAL_RELEASED_BASELINE_BINARY is required for the update path");
+  if (!baseline) throw new Error("HARNESS_EVAL_RELEASED_BASELINE_BINARY is required for the update path");
   const expectedVersion = world.expectedVersion;
   const profileDir = world.newProfileDir("update-profile");
 

@@ -6,7 +6,7 @@ import { getReactQueryClient } from "@/react-app/infra/query-client";
 import { useDenAuth } from "./den-auth-provider";
 import { corroboratesGatewayUsageError, gatewayUsageResetDelay, gatewayUsageQueryPrefix, type GatewayUsageErrorEvidence } from "./gateway-usage-state";
 import { refreshGatewayUsageAfterCompletion } from "./gateway-usage-refresh";
-import type { GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import type { GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 function subscribeScope(listener: () => void) {
   let previous = readScope();
   return subscribeGatewayUsageScope(() => {

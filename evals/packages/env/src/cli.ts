@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createConnection } from "mysql2/promise";
-import { main as runWorldCli, parseWorldArgs, type PreflightCheck, type Reaper } from "@openwork/world";
+import { main as runWorldCli, parseWorldArgs, type PreflightCheck, type Reaper } from "@harness/world";
 import { DEFAULT_MYSQL_URL, localMysqlIsRunning, localRedisIsRunning } from "./place.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -44,7 +44,7 @@ const redisCheck: PreflightCheck = {
 export { parseWorldArgs };
 
 function isEphemeralDatabaseName(name: string): boolean {
-  const prefix = "openwork_eval_";
+  const prefix = "harness_eval_";
   if (!name.startsWith(prefix)) return false;
   const suffix = name.slice(prefix.length);
   if (suffix.length < 1 || suffix.length > 60) return false;
@@ -62,7 +62,7 @@ const dropEphemeralDatabase: Reaper = async (entry) => {
     return { status: "skipped", reason: "outside allowed names" };
   }
   try {
-    const url = new URL(process.env.OPENWORK_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
+    const url = new URL(process.env.HARNESS_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
     url.pathname = "/";
     const connection = await createConnection(url.toString());
     try {
@@ -85,10 +85,10 @@ export function main(argv = process.argv.slice(2)): Promise<number> {
     reapers: {
       "mysql-db": dropEphemeralDatabase,
       "daytona-windows-preview": async (entry) => {
-        if (!/^openwork-world-win-[0-9a-f]{16}$/.test(entry.match ?? "") || !/^[a-zA-Z0-9-]{1,100}$/.test(entry.id)) {
+        if (!/^harness-world-win-[0-9a-f]{16}$/.test(entry.match ?? "") || !/^[a-zA-Z0-9-]{1,100}$/.test(entry.id)) {
           return { status: "skipped", reason: "outside Windows world ownership boundary" };
         }
-        const { defaultDaytonaExec } = await import("@openwork/hosts");
+        const { defaultDaytonaExec } = await import("@harness/hosts");
         const info = await defaultDaytonaExec(["info", entry.id, "-f", "json"], { timeoutMs: 30_000 });
         if (info.code !== 0) {
           return /not found|does not exist/i.test(info.stderr + info.stdout)
@@ -101,7 +101,7 @@ export function main(argv = process.argv.slice(2)): Promise<number> {
           || !("snapshot" in value) || value.snapshot !== "windows-medium") {
           return { status: "skipped", reason: "sandbox ownership mismatch" };
         }
-        const { deleteSandboxes } = await import("@openwork/hosts");
+        const { deleteSandboxes } = await import("@harness/hosts");
         await deleteSandboxes([entry.id], { log: () => {} });
         return { status: "reaped" };
       },

@@ -1,10 +1,10 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import { isRecord } from "../worlds/openwork-server-cli.ts";
+import { spec } from "@harness/testkit";
+import { isRecord } from "../worlds/harness-server-cli.ts";
 import { LOOKALIKE_ORIGINS, TYPED_ORIGIN, WORKSPACE_ORIGIN, orgWebOrigins } from "../worlds/org-web-origins.ts";
 
 // New journey: an organization owner approves the exact origin of their
-// self-hosted OpenWork web instance in Org settings. Members can then be
+// self-hosted Harness web instance in Org settings. Members can then be
 // handed back to that origin after sign-in and the site can call Den from the
 // browser; admins can only read the list, and other organizations, lookalike
 // origins, and the removed origin stay refused.
@@ -38,7 +38,7 @@ test("an owner approves their self-hosted web origin so members can sign in ther
     return isRecord(result.body) && typeof result.body.activeOrgId === "string" ? result.body.activeOrgId : "";
   };
   const approvedOrigins = async () => {
-    const result = await probe.api(world.owner, "/v1/org/web-origins", { headers: { "x-openwork-org-id": world.orgId } });
+    const result = await probe.api(world.owner, "/v1/org/web-origins", { headers: { "x-harness-org-id": world.orgId } });
     const origins = isRecord(result.body) && Array.isArray(result.body.origins) ? result.body.origins : [];
     return origins.flatMap((entry) => (isRecord(entry) && typeof entry.origin === "string" ? [entry.origin] : []));
   };
@@ -60,7 +60,7 @@ test("an owner approves their self-hosted web origin so members can sign in ther
     await owner.see(summary, { text: "None" });
     await owner.see({ text: "No origins approved yet." });
     await owner.see({ placeholder: "https://workspace.example.com" });
-    await owner.see({ text: "Members who sign in on an approved origin share their OpenWork session with that site." });
+    await owner.see({ text: "Members who sign in on an approved origin share their Harness session with that site." });
     await frame(owner);
   });
 
@@ -154,7 +154,7 @@ test("an owner approves their self-hosted web origin so members can sign in ther
     await admin.see({ text: "Locked. Owners and super-admins can change approved origins." });
     await admin.see(approveButton);
     await admin.see(removeButton);
-    await admin.notSee({ text: "Members who sign in on an approved origin share their OpenWork session with that site." }, { timeoutMs: 2_000 });
+    await admin.notSee({ text: "Members who sign in on an approved origin share their Harness session with that site." }, { timeoutMs: 2_000 });
     const refused = await admin.click(removeButton).then(() => "clicked", (error: unknown) => (error instanceof Error ? error.message : String(error)));
     const locked = await probe.on(world.adminWeb).dom(`input[type="url"]:disabled, button[aria-label="Remove ${WORKSPACE_ORIGIN}"]:disabled`);
     const origins = await approvedOrigins();

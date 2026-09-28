@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { takePendingDeepLinks } from "../src/app/lib/deep-link-bridge";
-import { parseChatDeepLink } from "../src/app/lib/openwork-links";
+import { parseChatDeepLink } from "../src/app/lib/harness-links";
 import { connectorPrompt, parseConnectorToken, seededConnectorDraft } from "../src/react-app/domains/session/surface/composer/connector-token";
 import {
   connectorChatDeepLink,
@@ -40,18 +40,18 @@ describe("connector Chat deep link round trip", () => {
     expect(github?.prompt).toBe(connectorChatPrompt("GitHub"));
   });
 
-  test("only openwork://chat links seed a chat, and taking them leaves connect and den-auth links queued", () => {
-    expect(parseChatDeepLink("https://app.openworklabs.com/chat?prompt=hello")).toBeNull();
-    expect(parseChatDeepLink("openwork://connect?token=abc")).toBeNull();
-    expect(parseChatDeepLink("openwork://den-auth?grant=abc")).toBeNull();
-    expect(parseChatDeepLink("openwork://chat")).toBeNull();
+  test("only harness://chat links seed a chat, and taking them leaves connect and den-auth links queued", () => {
+    expect(parseChatDeepLink("https://app.harness.invalid/chat?prompt=hello")).toBeNull();
+    expect(parseChatDeepLink("harness://connect?token=abc")).toBeNull();
+    expect(parseChatDeepLink("harness://den-auth?grant=abc")).toBeNull();
+    expect(parseChatDeepLink("harness://chat")).toBeNull();
 
     const queue = {
-      deepLinks: ["openwork://connect?token=abc", "openwork://chat?connector=Notion&prompt=Explain", "openwork://den-auth?grant=xyz"],
+      deepLinks: ["harness://connect?token=abc", "harness://chat?connector=Notion&prompt=Explain", "harness://den-auth?grant=xyz"],
     };
-    const bridgeWindow = { __OPENWORK__: queue } as unknown as Window;
+    const bridgeWindow = { __HARNESS__: queue } as unknown as Window;
     expect(takePendingDeepLinks(bridgeWindow, (url: string) => parseChatDeepLink(url) !== null))
-      .toEqual(["openwork://chat?connector=Notion&prompt=Explain"]);
-    expect(queue.deepLinks).toEqual(["openwork://connect?token=abc", "openwork://den-auth?grant=xyz"]);
+      .toEqual(["harness://chat?connector=Notion&prompt=Explain"]);
+    expect(queue.deepLinks).toEqual(["harness://connect?token=abc", "harness://den-auth?grant=xyz"]);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/email",
+  "name": "@harness/email",
   "private": true,
   "type": "module",
   "exports": {

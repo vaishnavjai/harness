@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 
 import type { FieldsResult } from "../src/app/lib/opencode";
 import { composeNativeSessionHistoryWithRetry, type NativeSessionOperations, type NativeSessionSnapshotTarget } from "../src/app/lib/opencode-session-native";
-import type { OpenworkSessionHistory, OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionHistory, HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import type { Platform } from "../src/react-app/kernel/platform";
 
 const composeWithRetry = composeNativeSessionHistoryWithRetry;
@@ -18,7 +18,7 @@ const v1BaseUrl = "http://127.0.0.1:1/opencode";
 const v2BaseUrl = "http://127.0.0.1:1/opencode2";
 const transcriptText = "Transcript read from the v2 engine.";
 
-function createSnapshot(): OpenworkSessionSnapshot {
+function createSnapshot(): HarnessSessionSnapshot {
   const messageId = `${sessionId}-user-message`;
   return {
     session: {
@@ -113,7 +113,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
     mock.module(moduleId, () => moduleExports);
   }
   const [
-    { createOpenworkServerClient },
+    { createHarnessServerClient },
     { IDLE_CLOUD_MCP_SUBMISSION_GATE_STATE },
     { useComposerStateStore },
     { getReactQueryClient },
@@ -122,7 +122,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
     { ShellConfigProvider },
     sessionNative,
   ] = await Promise.all([
-    import("../src/app/lib/openwork-server"),
+    import("../src/app/lib/harness-server"),
     import("../src/react-app/domains/connections/cloud-mcp-submit-readiness"),
     import("../src/react-app/domains/session/surface/composer-state-store"),
     import("../src/react-app/infra/query-client"),
@@ -135,7 +135,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
   if (registeredDom) GlobalRegistrator.register({ url: "http://localhost/" });
   Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
   // The owned read with retry is the desktop loopback path.
-  Object.defineProperty(window, "__OPENWORK_ELECTRON__", { configurable: true, value: {} });
+  Object.defineProperty(window, "__HARNESS_ELECTRON__", { configurable: true, value: {} });
   document.open();
   document.write("<!doctype html><html><body></body></html>");
   document.close();
@@ -143,7 +143,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
   const fetchStub = async () => new Response("{}", { headers: { "content-type": "application/json" } });
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchStub });
   Object.defineProperty(window, "fetch", { configurable: true, value: fetchStub });
-  window.localStorage.setItem("openwork.shell-config", JSON.stringify({ starterCards: false }));
+  window.localStorage.setItem("harness.shell-config", JSON.stringify({ starterCards: false }));
 
   const readEndpoints: string[] = [];
   const historyWindows: Array<number | undefined> = [];
@@ -224,7 +224,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
   queryClient.clear();
   const key = snapshotKey(workspaceId, sessionId);
   if (interruptFullRead && outcome !== "empty") queryClient.setQueryData(statusKey(workspaceId, sessionId), { type: "busy" });
-  const client = createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
+  const client = createHarnessServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -242,7 +242,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
             draftScope="local"
             isControlTarget={false}
             opencodeBaseUrl={opencodeBaseUrl}
-            openworkToken="test-token"
+            harnessToken="test-token"
             developerMode
             modelLabel="Test model"
             onModelClick={() => {}}
@@ -259,7 +259,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
             modelVariantLabel="Default"
             modelVariant={null}
             onModelVariantChange={() => {}}
-            agentLabel="OpenWork"
+            agentLabel="Harness"
             selectedAgent={null}
             listAgents={async () => []}
             onSelectAgent={() => {}}
@@ -324,7 +324,7 @@ for (const outcome of ["preview", "complete", "empty", "error"]) test(`a session
     expect(readEndpoints).toEqual(expectedReads.map((_, index) => index < (interruptFullRead ? 2 : 1) ? v1BaseUrl : v2BaseUrl));
     expect(historyWindows).toEqual(expectedReads);
     expect(readLimits).toEqual(expectedReads);
-    const cached = queryClient.getQueryData<OpenworkSessionHistory>(key);
+    const cached = queryClient.getQueryData<HarnessSessionHistory>(key);
     expect(cached?.status).toBeUndefined();
     expect(cached?.todos).toBeUndefined();
     expect(cached?.messages).toHaveLength(outcome === "empty" ? 0 : snapshot.messages.length);

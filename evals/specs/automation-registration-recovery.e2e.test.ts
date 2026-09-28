@@ -1,12 +1,12 @@
 import { expect } from "vitest"
-import { clickButton, clickText, denFetch, evalIn, go, waitForText } from "@openwork/behaviors"
-import { app, browserScript, eventually, faultProxy, needs, server, test } from "@openwork/testkit"
-import type { AutomationRun } from "@openwork/types/automations"
+import { clickButton, clickText, denFetch, evalIn, go, waitForText } from "@harness/behaviors"
+import { app, browserScript, eventually, faultProxy, needs, server, test } from "@harness/testkit"
+import type { AutomationRun } from "@harness/types/automations"
 
 // Registration is independent of local engine health. A transient mint failure
 // after reconnect must retry without another online event or a 30-minute wait.
 test("desktop registration recovers from a transient Den outage without another reconnect", { timeout: 420_000 }, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] })
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] })
   await using den = await server({
     place,
     env: { DEN_AUTOMATIONS_ENABLED: "true" },
@@ -132,7 +132,7 @@ test("desktop registration recovers from a transient Den outage without another 
   await clickText(desktop, "Registration recovery receipts", { selector: "button" })
   await waitForText(desktop, "Run history")
   await go(desktop, `/automations?automation=${automationId}&run=${missed.id}`)
-  const guidance = "Keep OpenWork open, signed in, and your computer awake and connected for future runs."
+  const guidance = "Keep Harness open, signed in, and your computer awake and connected for future runs."
   for (const { run, title, variant } of cases) {
     if (run.id !== missed.id) {
       await go(desktop, `/automations?automation=${automationId}&run=${run.id}`)
@@ -195,7 +195,7 @@ function record(value: unknown): Record<string, unknown> {
 // Exercise the real Den dispatch boundary with a synthetic Windows runner;
 // no model provider or private desktop profile participates in this witness.
 test("a queued manual run completes once after a synthetic Windows runner registers", { timeout: 180_000 }, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] })
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] })
   await using den = await server({ place, org: { name: "Synthetic dispatch recovery" } })
   const headers = { authorization: `Bearer ${den.admin.token}` }
   const request = async (path: string, method = "GET", body?: unknown, token?: string) => {

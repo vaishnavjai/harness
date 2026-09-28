@@ -1,6 +1,6 @@
 ---
 name: hunt-a-prod-error
-description: A user saw internal_error, "Unexpected server error", a 500, or an opaque failure in a shipped OpenWork build. Find the cause from local logs and Sentry, name the regressing PR, file the issue, and reply where it was reported.
+description: A user saw internal_error, "Unexpected server error", a 500, or an opaque failure in a shipped Harness build. Find the cause from local logs and Sentry, name the regressing PR, file the issue, and reply where it was reported.
 ---
 
 # Skill: Hunt a Prod Error
@@ -14,7 +14,7 @@ both before naming a cause; either alone produces a guess.
 Desktop server log (OTLP JSON, one record per request):
 
 ```
-~/Library/Application Support/com.differentai.openwork/logs/openwork-server.log{,.1}
+~/Library/Application Support/com.vaishnavjai.harness/logs/harness-server.log{,.1}
 ```
 
 Engine log: `~/.local/share/opencode/log/opencode.log`.
@@ -25,7 +25,7 @@ code path; a burst of failures in the same millisecond points at a shared
 event (GC, rollover, socket), not per-request data.
 
 ```bash
-rg '"status":5' ~/Library/Application\ Support/com.differentai.openwork/logs/openwork-server.log* \
+rg '"status":5' ~/Library/Application\ Support/com.vaishnavjai.harness/logs/harness-server.log* \
   | python3 -c 'import sys,json,re,collections; c=collections.Counter()
 for l in sys.stdin:
   a=json.loads(l)["attributes"]; c[(a["method"], re.sub(r"(ses|ws|msg)_[A-Za-z0-9]+", r"\1_*", a["path"]), a.get("error.code"))]+=1
@@ -38,7 +38,7 @@ local record carries the synthetic `Unexpected server error` and no cause.
 
 ## 2. Sentry: what threw
 
-Sentry is connected through OpenWork Connect (`search_capabilities` →
+Sentry is connected through Harness Connect (`search_capabilities` →
 `search_issues`, `get_sentry_resource`). Org `different-ai-inc`, project
 `desktop-app`, region `https://us.sentry.io`.
 
@@ -54,7 +54,7 @@ files in the stack. Confirm the shipped code matches source before reasoning
 about it:
 
 ```bash
-npx --yes @electron/asar extract-file /Applications/OpenWork.app/Contents/Resources/app.asar server/dist/server.js
+npx --yes @electron/asar extract-file /Applications/Harness.app/Contents/Resources/app.asar server/dist/server.js
 ```
 
 ## 4. Reproduce on the shipping runtime

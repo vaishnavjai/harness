@@ -28,14 +28,14 @@ function thrownValue(): unknown {
   return error;
 }
 function ThrowingChild(): React.ReactNode { if (witness) witness.throws++; throw thrownValue(); }
-function sync() { if (witness) { witness.analytics = isAnalyticsEnabled(); witness.active = window.__openworkWebErrorMonitorActive === true; } }
+function sync() { if (witness) { witness.analytics = isAnalyticsEnabled(); witness.active = window.__harnessWebErrorMonitorActive === true; } }
 function button(label: string, action: () => void) {
   const element = document.createElement('button'); element.textContent = label;
   element.onclick = () => { action(); sync(); }; controls?.append(element);
 }
 button('Crash', () => root.render(<AppErrorBoundary key={++count}><ThrowingChild /></AppErrorBoundary>));
-button('Analytics off', () => localStorage.setItem('openwork.preferences', JSON.stringify({ analyticsEnabled: false })));
-button('Analytics on', () => localStorage.setItem('openwork.preferences', JSON.stringify({ analyticsEnabled: true })));
+button('Analytics off', () => localStorage.setItem('harness.preferences', JSON.stringify({ analyticsEnabled: false })));
+button('Analytics on', () => localStorage.setItem('harness.preferences', JSON.stringify({ analyticsEnabled: true })));
 button('Unique report', () => reportCaughtWebError({ name: 'Error', message: `synthetic unique ${++count}`, stack: 'safe stack' }));
 button('Burst', () => { for (let i = 0; i < 15; i++) reportCaughtWebError({ name: 'Error', message: `synthetic burst ${i}` }); });
 root.render(<AppErrorBoundary><p>Healthy synthetic child</p></AppErrorBoundary>);

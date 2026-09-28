@@ -3,20 +3,20 @@ import { nativeDeepLinkEvent } from "./deep-link-bridge";
 export type * from "./desktop-types";
 export type {
   EngineInfo,
-  OpenworkServerInfo,
+  HarnessServerInfo,
   EngineDoctorResult,
   WorkspaceInfo,
   WorkspaceList,
   WorkspaceExportSummary,
   OpencodeCommandDraft,
-  WorkspaceOpenworkConfig,
+  WorkspaceHarnessConfig,
   AppBuildInfo,
   DesktopDistributionInfo,
   BrandIconApplyResult,
   BrandIconState,
   DesktopBootstrapConfig,
   EvalRelaunchResult,
-  OpenworkDockerCleanupResult,
+  HarnessDockerCleanupResult,
   ExecResult,
   LocalSkillCard,
   LocalSkillContent,
@@ -53,8 +53,8 @@ import type {
   BrowserPanelTab,
   BrowserStatePayload,
   OpenBrowserUrlResult,
-} from "@openwork/browser-tabs";
-import type { ImportableSite, ImportSourceAvailability } from "@openwork/browser-logins";
+} from "@harness/browser-tabs";
+import type { ImportableSite, ImportSourceAvailability } from "@harness/browser-logins";
 
 export type BrowserLoginSite = ImportableSite;
 
@@ -124,7 +124,7 @@ export type BrowserLoginSyncBridge = {
   testWitnessUrl?: () => Promise<string>;
 };
 
-export type { BrowserStatePayload } from "@openwork/browser-tabs";
+export type { BrowserStatePayload } from "@harness/browser-tabs";
 
 export type BrowserProxyState = {
   proxy: { rules: string; authenticated: boolean } | null;
@@ -149,11 +149,11 @@ export type RecoveryActionResult = {
 
 declare global {
   interface Window {
-    __openworkRecoveryControl?: {
+    __harnessRecoveryControl?: {
       snapshot: () => Promise<unknown>;
       select: (id: string) => Promise<unknown>;
     };
-    __OPENWORK_ELECTRON__?: {
+    __HARNESS_ELECTRON__?: {
       invokeDesktop?: <C extends DesktopCommandName>(
         command: C,
         ...args: DesktopCommandArgs<C>
@@ -245,7 +245,7 @@ declare global {
       };
       browser?: {
         openLink?: (url: string, sessionId: string | null) => void;
-        chooseLinkDestination?: (id: string, destination: "openwork" | "external" | null) => Promise<boolean>;
+        chooseLinkDestination?: (id: string, destination: "harness" | "external" | null) => Promise<boolean>;
         onLinkOpenRequest?: (callback: (request: { id: string; url: string } | null) => void) => () => void;
         show?: (bounds: { x: number; y: number; width: number; height: number }, sessionId?: string | null) => Promise<boolean | void>;
         hide?: (options?: { preserveShortcutFocus?: boolean }) => Promise<void>;
@@ -312,7 +312,7 @@ declare global {
 export async function closeSessionBrowserTabs(sessionId: string): Promise<void> {
   if (typeof window === "undefined" || !sessionId.trim()) return;
   try {
-    await window.__OPENWORK_ELECTRON__?.browser?.closeSessionTabs?.(sessionId);
+    await window.__HARNESS_ELECTRON__?.browser?.closeSessionTabs?.(sessionId);
   } catch {
     // Cleanup is idempotent and must not undo a confirmed session deletion.
   }
@@ -322,7 +322,7 @@ async function invokeElectronHelper<C extends DesktopCommandName>(
   command: C,
   ...args: DesktopCommandArgs<C>
 ): Promise<DesktopCommandResult<C>> {
-  const invokeDesktop = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+  const invokeDesktop = window.__HARNESS_ELECTRON__?.invokeDesktop;
   if (!invokeDesktop) {
     throw new Error(`Electron desktop helper is unavailable: ${command}`);
   }
@@ -371,7 +371,7 @@ export const desktopBridge = new Proxy(electronBridge, {
     if (cached) return cached;
 
     const fn = async (...args: unknown[]) => {
-      const invokeDesktop = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+      const invokeDesktop = window.__HARNESS_ELECTRON__?.invokeDesktop;
       if (!invokeDesktop) {
         throw new Error(`Electron desktop helper is unavailable: ${prop}`);
       }
@@ -390,7 +390,7 @@ export const desktopBridge = new Proxy(electronBridge, {
 
 // ---------------------------------------------------------------------------
 // desktopFetch — proxies non-loopback requests through the Electron main
-// process. Loopback hosts (the local opencode/openwork server) use the
+// process. Loopback hosts (the local opencode/harness server) use the
 // renderer's own fetch, which works against same-machine services. Cross-origin
 // requests that need CORS headers the target does not send (e.g. the Den API on
 // a different control plane) should instead use `desktopFetchViaMain` directly.
@@ -439,7 +439,7 @@ async function runCancellableDesktopTransfer<T>(
 }
 
 export function electronLocalPathForFile(file: File): string | null {
-  const getPathForFile = window.__OPENWORK_ELECTRON__?.fileSystem?.getPathForFile;
+  const getPathForFile = window.__HARNESS_ELECTRON__?.fileSystem?.getPathForFile;
   if (!getPathForFile) return null;
   try {
     return getPathForFile(file).trim() || null;
@@ -608,7 +608,7 @@ export function assertDesktopWebUrl(url: string): string {
 
 export async function openDesktopUrl(url: string): Promise<void> {
   const safeUrl = assertDesktopWebUrl(url);
-  const openExternal = window.__OPENWORK_ELECTRON__?.shell?.openExternal;
+  const openExternal = window.__HARNESS_ELECTRON__?.shell?.openExternal;
   if (openExternal) {
     const result = await openExternal(safeUrl);
     if (result && result.ok === false) {
@@ -634,7 +634,7 @@ export async function openDesktopPath(target: string): Promise<void> {
  * resolves outside (for example through a symlink) is revealed in its folder instead.
  */
 export async function openDesktopWorkspaceFile(workspaceRoot: string, target: string): Promise<"opened" | "revealed"> {
-  const result = await invokeElectronHelper("__openWorkspaceFile", workspaceRoot, target);
+  const result = await invokeElectronHelper("__harnessspaceFile", workspaceRoot, target);
   if (!result || typeof result !== "object" || !("ok" in result)) {
     throw new Error("Could not open this file.");
   }
@@ -659,18 +659,18 @@ export async function applyBrandAppName(appName: string | null): Promise<string>
 }
 
 export async function applyBrandIcon(url: string | null): Promise<BrandIconApplyResult> {
-  const apply = typeof window !== "undefined" ? window.__OPENWORK_ELECTRON__?.brandIcon?.apply : undefined;
+  const apply = typeof window !== "undefined" ? window.__HARNESS_ELECTRON__?.brandIcon?.apply : undefined;
   if (!apply) return { ok: false, reason: "bridge-unavailable" };
   return apply(url);
 }
 
 export async function getBrandIconState(): Promise<BrandIconState | null> {
-  const getState = typeof window !== "undefined" ? window.__OPENWORK_ELECTRON__?.brandIcon?.getState : undefined;
+  const getState = typeof window !== "undefined" ? window.__HARNESS_ELECTRON__?.brandIcon?.getState : undefined;
   return getState ? getState() : null;
 }
 
 export async function evalRelaunchDesktopApp(): Promise<EvalRelaunchResult> {
-  const relaunch = typeof window !== "undefined" ? window.__OPENWORK_ELECTRON__?.dev?.evalRelaunch : undefined;
+  const relaunch = typeof window !== "undefined" ? window.__HARNESS_ELECTRON__?.dev?.evalRelaunch : undefined;
   if (!relaunch) {
     throw new Error("Electron eval relaunch helper is unavailable.");
   }
@@ -695,7 +695,7 @@ export async function openDesktopWithApp(target: string, appPath: string, worksp
 }
 
 export async function relaunchDesktopApp(): Promise<void> {
-  await window.__OPENWORK_ELECTRON__?.shell?.relaunch?.();
+  await window.__HARNESS_ELECTRON__?.shell?.relaunch?.();
 }
 
 export async function getDesktopHomeDir(): Promise<string> {
@@ -720,7 +720,7 @@ export async function subscribeDesktopDeepLinks(
     }
   };
   window.addEventListener(nativeDeepLinkEvent, listener as EventListener);
-  const initialUrls = window.__OPENWORK_ELECTRON__?.meta?.initialDeepLinks;
+  const initialUrls = window.__HARNESS_ELECTRON__?.meta?.initialDeepLinks;
   if (Array.isArray(initialUrls) && initialUrls.length > 0) {
     handler(initialUrls);
   }
@@ -731,18 +731,18 @@ export async function subscribeDesktopDeepLinks(
 
 export function readInitialDesktopBootstrapConfig(): DesktopBootstrapConfig | null | undefined {
   if (typeof window === "undefined") return undefined;
-  return window.__OPENWORK_ELECTRON__?.meta?.desktopBootstrap;
+  return window.__HARNESS_ELECTRON__?.meta?.desktopBootstrap;
 }
 
 export function readDesktopDistributionInfo(): DesktopDistributionInfo {
   const distribution = typeof window === "undefined"
     ? undefined
-    : window.__OPENWORK_ELECTRON__?.meta?.distribution;
+    : window.__HARNESS_ELECTRON__?.meta?.distribution;
   return distribution ?? {
     flavor: "public",
-    appName: "OpenWork",
-    appIdentifier: "com.differentai.openwork",
-    protocolScheme: "openwork",
+    appName: "Harness",
+    appIdentifier: "com.vaishnavjai.harness",
+    protocolScheme: "harness",
     requireSignin: false,
     requireActivation: false,
   };
@@ -765,8 +765,8 @@ const {
   workspaceAddAuthorizedRoot,
   workspaceExportConfig,
   workspaceImportConfig,
-  workspaceOpenworkRead,
-  workspaceOpenworkWrite,
+  workspaceHarnessRead,
+  workspaceHarnessWrite,
   opencodeCommandList,
   opencodeCommandWrite,
   opencodeCommandDelete,
@@ -779,11 +779,11 @@ const {
   setDesktopBootstrapConfig,
   connectLinkVerify,
   connectLinkAccept,
-  nukeOpenworkAndOpencodeConfigPreview,
-  nukeOpenworkAndOpencodeConfigAndExit,
-  sandboxCleanupOpenworkContainers,
-  openworkServerInfo,
-  openworkServerRestart,
+  nukeHarnessAndOpencodeConfigPreview,
+  nukeHarnessAndOpencodeConfigAndExit,
+  sandboxCleanupHarnessContainers,
+  harnessServerInfo,
+  harnessServerRestart,
   runtimeBootstrap,
   engineInfo,
   engineDoctor,
@@ -801,7 +801,7 @@ const {
   updaterEnvironment,
   readOpencodeConfig,
   writeOpencodeConfig,
-  resetOpenworkState,
+  resetHarnessState,
   resetOpencodeCache,
   opencodeMcpAuth,
   setWindowDecorations,
@@ -820,8 +820,8 @@ export {
   workspaceAddAuthorizedRoot,
   workspaceExportConfig,
   workspaceImportConfig,
-  workspaceOpenworkRead,
-  workspaceOpenworkWrite,
+  workspaceHarnessRead,
+  workspaceHarnessWrite,
   opencodeCommandList,
   opencodeCommandWrite,
   opencodeCommandDelete,
@@ -834,11 +834,11 @@ export {
   setDesktopBootstrapConfig,
   connectLinkVerify,
   connectLinkAccept,
-  nukeOpenworkAndOpencodeConfigPreview,
-  nukeOpenworkAndOpencodeConfigAndExit,
-  sandboxCleanupOpenworkContainers,
-  openworkServerInfo,
-  openworkServerRestart,
+  nukeHarnessAndOpencodeConfigPreview,
+  nukeHarnessAndOpencodeConfigAndExit,
+  sandboxCleanupHarnessContainers,
+  harnessServerInfo,
+  harnessServerRestart,
   runtimeBootstrap,
   engineInfo,
   engineDoctor,
@@ -856,7 +856,7 @@ export {
   updaterEnvironment,
   readOpencodeConfig,
   writeOpencodeConfig,
-  resetOpenworkState,
+  resetHarnessState,
   resetOpencodeCache,
   opencodeMcpAuth,
   setWindowDecorations,

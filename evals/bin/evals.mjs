@@ -23,11 +23,11 @@ Run E2E tests:
   --with-llm-vision  Judge vision claims inline (default: defer judging)
   --local            Force isolated local resources and clear inherited remote placement
   --daytona          Require Daytona (fails if the CLI is not authenticated)
-  --den <url>        Set OPENWORK_EVAL_DEN_API_URL=<url>
+  --den <url>        Set HARNESS_EVAL_DEN_API_URL=<url>
   --strict-ref       Fail when the runner HEAD differs from the ref the Daytona sandbox builds
   --checkpoints      Save checkpoints for tests tagged "checkpoints" and steps marked { checkpoint: true };
                      worlds that cannot capture print one warning and run normally (requires --local)
-                     (OPENWORK_EVAL_REF, default dev); OPENWORK_EVAL_STRICT_REF=1 does the same
+                     (HARNESS_EVAL_REF, default dev); HARNESS_EVAL_STRICT_REF=1 does the same
   --engine <v1|v2>   Select the app chat engine for a named test
   --surface <value>  Validate declared app surface (web|electron); never switches implementation
   --case <prefix>    Run one registered case by its exact prefix
@@ -42,7 +42,7 @@ Publish recorded evidence (no test reruns or model calls):
   --docshot <path>  Include a DocShot .review.json receipt (repeatable)
   --title <text>    Report title (defaults to Change verification)
   --gap <text>      Declare a coverage gap (repeatable)
-  --review-url <url> Override OPENWORK_REVIEW_URL
+  --review-url <url> Override HARNESS_REVIEW_URL
   --dry-run         Render publication output without posting
   --force           Forward force to the publisher
 
@@ -52,7 +52,7 @@ Other:
 
 Publish mode cannot be combined with test names, run-selection flags, --with-llm-vision,
 --daytona, --local, or --den. Named tests auto-consent to opt-in flags declared in their source;
-value-bearing environment variables are never auto-set. Paid OPENWORK_EVAL_LIVE_OPENAI
+value-bearing environment variables are never auto-set. Paid HARNESS_EVAL_LIVE_OPENAI
 requires an explicit environment opt-in or a registered --case declaring that opt-in.
 
 Registered case examples:
@@ -72,10 +72,10 @@ Publish exit codes:
 export function consentVarsFromSource(text) {
   const variables = new Set();
   const optInPattern = /optIn\s*:\s*\[([^\]]*)\]/gs;
-  const envPattern = /process\.env\.(OPENWORK_EVAL_[A-Z0-9_]+)(?:\?\.trim\(\))?\s*===\s*"1"/g;
+  const envPattern = /process\.env\.(HARNESS_EVAL_[A-Z0-9_]+)(?:\?\.trim\(\))?\s*===\s*"1"/g;
 
   for (const match of text.matchAll(optInPattern)) {
-    for (const literal of match[1].matchAll(/["'](OPENWORK_EVAL_[A-Z0-9_]+)["']/g)) {
+    for (const literal of match[1].matchAll(/["'](HARNESS_EVAL_[A-Z0-9_]+)["']/g)) {
       variables.add(literal[1]);
     }
   }
@@ -201,33 +201,33 @@ export function parseArgs(args) {
   return options;
 }
 
-// The complete caller environment, including OPENWORK_EVAL_ENGINE, is passed
+// The complete caller environment, including HARNESS_EVAL_ENGINE, is passed
 // through below. Only these remote-placement inputs are removed by --local.
 const REMOTE_PLACEMENT_ENV = [
-  "OPENWORK_WORLD_PLACE",
-  "OPENWORK_EVAL_DAYTONA",
-  "OPENWORK_EVAL_DAYTONA_SANDBOX",
-  "OPENWORK_EVAL_DAYTONA_SANDBOX_ID",
-  "OPENWORK_EVAL_DAYTONA_DEN_SANDBOX",
-  "OPENWORK_EVAL_DAYTONA_DEN_WEB_URL",
-  "OPENWORK_EVAL_DAYTONA_DEN_API_URL",
-  "OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX",
-  "OPENWORK_EVAL_DEN_API_URL",
-  "OPENWORK_EVAL_DEN_WEB_URL",
+  "HARNESS_WORLD_PLACE",
+  "HARNESS_EVAL_DAYTONA",
+  "HARNESS_EVAL_DAYTONA_SANDBOX",
+  "HARNESS_EVAL_DAYTONA_SANDBOX_ID",
+  "HARNESS_EVAL_DAYTONA_DEN_SANDBOX",
+  "HARNESS_EVAL_DAYTONA_DEN_WEB_URL",
+  "HARNESS_EVAL_DAYTONA_DEN_API_URL",
+  "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX",
+  "HARNESS_EVAL_DEN_API_URL",
+  "HARNESS_EVAL_DEN_WEB_URL",
 ];
 
 const TRANSPORT_SELECTOR_ENV = new Set([
-  "OPENWORK_EVAL_DAYTONA",
-  "OPENWORK_EVAL_DAYTONA_SANDBOX",
-  "OPENWORK_EVAL_DAYTONA_SANDBOX_ID",
-  "OPENWORK_EVAL_DAYTONA_DEN_SANDBOX",
-  "OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX",
-  "OPENWORK_EVAL_DEN_API_URL",
-  "OPENWORK_EVAL_DEN_WEB_URL",
-  "OPENWORK_EVAL_REF",
-  "OPENWORK_EVAL_ENGINE",
-  "OPENWORK_EVAL_APP_SURFACE",
-  "OPENWORK_EVAL_CHROME_HEADLESS",
+  "HARNESS_EVAL_DAYTONA",
+  "HARNESS_EVAL_DAYTONA_SANDBOX",
+  "HARNESS_EVAL_DAYTONA_SANDBOX_ID",
+  "HARNESS_EVAL_DAYTONA_DEN_SANDBOX",
+  "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX",
+  "HARNESS_EVAL_DEN_API_URL",
+  "HARNESS_EVAL_DEN_WEB_URL",
+  "HARNESS_EVAL_REF",
+  "HARNESS_EVAL_ENGINE",
+  "HARNESS_EVAL_APP_SURFACE",
+  "HARNESS_EVAL_CHROME_HEADLESS",
 ]);
 
 /** Resolve the child environment before any test process can provision resources. */
@@ -241,43 +241,43 @@ export function daytonaAuthenticated(exec = spawnSync) {
 
 export function resolveRunEnvironment(options, env = process.env, probe = daytonaAuthenticated) {
   const childEnv = { ...env };
-  if (options.checkpoints) childEnv.OPENWORK_EVIDENCE_CHECKPOINTS = "1";
-  const worldPlace = env.OPENWORK_WORLD_PLACE?.trim() || undefined;
+  if (options.checkpoints) childEnv.HARNESS_EVIDENCE_CHECKPOINTS = "1";
+  const worldPlace = env.HARNESS_WORLD_PLACE?.trim() || undefined;
   if (options.local) {
     for (const name of REMOTE_PLACEMENT_ENV) delete childEnv[name];
-    childEnv.OPENWORK_WORLD_PLACE = "local";
+    childEnv.HARNESS_WORLD_PLACE = "local";
     return { env: childEnv, placement: "local", reason: "--local" };
   }
   if (options.den !== undefined) {
-    childEnv.OPENWORK_EVAL_DEN_API_URL = options.den;
+    childEnv.HARNESS_EVAL_DEN_API_URL = options.den;
     return { env: childEnv, placement: "attached", reason: "--den" };
   }
   if (options.daytona) {
     if (!probe()) {
       throw new Error("--daytona requested but the daytona CLI is missing or not authenticated. Install it and run `daytona login`.");
     }
-    childEnv.OPENWORK_EVAL_DAYTONA = "1";
-    childEnv.OPENWORK_WORLD_PLACE = "daytona";
+    childEnv.HARNESS_EVAL_DAYTONA = "1";
+    childEnv.HARNESS_WORLD_PLACE = "daytona";
     return { env: childEnv, placement: "daytona", reason: "--daytona" };
   }
   if (worldPlace === "daytona") {
-    childEnv.OPENWORK_EVAL_DAYTONA = "1";
-    return { env: childEnv, placement: "daytona", reason: "OPENWORK_WORLD_PLACE=daytona in environment" };
+    childEnv.HARNESS_EVAL_DAYTONA = "1";
+    return { env: childEnv, placement: "daytona", reason: "HARNESS_WORLD_PLACE=daytona in environment" };
   }
   if (worldPlace !== undefined) {
-    delete childEnv.OPENWORK_EVAL_DAYTONA;
-    return { env: childEnv, placement: "local", reason: `OPENWORK_WORLD_PLACE=${worldPlace} in environment` };
+    delete childEnv.HARNESS_EVAL_DAYTONA;
+    return { env: childEnv, placement: "local", reason: `HARNESS_WORLD_PLACE=${worldPlace} in environment` };
   }
-  if (env.OPENWORK_EVAL_DAYTONA?.trim() === "1") {
-    childEnv.OPENWORK_WORLD_PLACE = "daytona";
-    return { env: childEnv, placement: "daytona", reason: "OPENWORK_EVAL_DAYTONA=1 in environment" };
+  if (env.HARNESS_EVAL_DAYTONA?.trim() === "1") {
+    childEnv.HARNESS_WORLD_PLACE = "daytona";
+    return { env: childEnv, placement: "daytona", reason: "HARNESS_EVAL_DAYTONA=1 in environment" };
   }
   if (probe()) {
-    childEnv.OPENWORK_EVAL_DAYTONA = "1";
-    childEnv.OPENWORK_WORLD_PLACE = "daytona";
+    childEnv.HARNESS_EVAL_DAYTONA = "1";
+    childEnv.HARNESS_WORLD_PLACE = "daytona";
     return { env: childEnv, placement: "daytona", reason: "daytona CLI authenticated" };
   }
-  childEnv.OPENWORK_WORLD_PLACE = "local";
+  childEnv.HARNESS_WORLD_PLACE = "local";
   return { env: childEnv, placement: "local", reason: "daytona CLI missing or not authenticated" };
 }
 
@@ -296,13 +296,13 @@ function remoteSha(listing, ref) {
 
 /**
  * Specs always execute from this checkout, but under Daytona the product is
- * built from OPENWORK_EVAL_REF (default dev) inside the sandbox. Resolve that
+ * built from HARNESS_EVAL_REF (default dev) inside the sandbox. Resolve that
  * ref the way the provisioning gate does (against origin) so a runner/ref
  * mismatch is named before any sandbox is provisioned.
  */
 export function resolveRefAlignment(placement, env = process.env, exec = spawnSync, cwd = repoRoot) {
   if (placement !== "daytona") return null;
-  const sandboxRef = env.OPENWORK_EVAL_REF?.trim() || env.GITHUB_SHA?.trim() || "dev";
+  const sandboxRef = env.HARNESS_EVAL_REF?.trim() || env.GITHUB_SHA?.trim() || "dev";
   const runnerSha = gitOutput(["rev-parse", "HEAD"], exec, cwd).toLowerCase();
   const runnerBranch = gitOutput(["rev-parse", "--abbrev-ref", "HEAD"], exec, cwd);
   const sandboxSha = GIT_SHA.test(sandboxRef)
@@ -333,11 +333,11 @@ export function refAlignmentWarning(alignment) {
   const resolved = alignment.sandboxSha !== alignment.sandboxRef ? ` (${shortSha(alignment.sandboxSha)})` : "";
   return `${runner} differs from the ref the Daytona sandbox builds: ${alignment.sandboxRef}${resolved}. `
     + "Specs run from this checkout while the sandbox builds that ref, so the verdict would judge another commit's product "
-    + "(test-run.json records both as gitSha and sandboxRef). Push this branch and export OPENWORK_EVAL_REF=$(git rev-parse HEAD).";
+    + "(test-run.json records both as gitSha and sandboxRef). Push this branch and export HARNESS_EVAL_REF=$(git rev-parse HEAD).";
 }
 
 export function strictRefRequested(options, env = process.env) {
-  return Boolean(options.strictRef) || env.OPENWORK_EVAL_STRICT_REF?.trim() === "1";
+  return Boolean(options.strictRef) || env.HARNESS_EVAL_STRICT_REF?.trim() === "1";
 }
 
 export function resolveTestNames(names, files = journeyFiles()) {
@@ -380,7 +380,7 @@ function literalPrefixPattern(value) {
 }
 
 export function resolveExecutionSelection(options, resolved, env = process.env, sources) {
-  const childEnv = { ...env, OPENWORK_EVAL_E2E_TESTS: "1" };
+  const childEnv = { ...env, HARNESS_EVAL_E2E_TESTS: "1" };
   let selectedCase;
   if (options.case !== undefined) {
     if (resolved.length !== 1) throw new Error("--case requires exactly one resolved test file.");
@@ -393,7 +393,7 @@ export function resolveExecutionSelection(options, resolved, env = process.env, 
     }
   }
 
-  const engine = options.engine ?? (selectedCase ? (env.OPENWORK_EVAL_ENGINE || "v1").toLowerCase() : undefined);
+  const engine = options.engine ?? (selectedCase ? (env.HARNESS_EVAL_ENGINE || "v1").toLowerCase() : undefined);
   if (selectedCase && !["v1", "v2"].includes(engine)) {
     throw new Error(`Invalid effective engine ${JSON.stringify(engine)}; expected v1 or v2.`);
   }
@@ -404,9 +404,9 @@ export function resolveExecutionSelection(options, resolved, env = process.env, 
   const plan = planWorlds(resolved, { pattern: testNamePattern, casePrefix: selectedCase?.id, surface: options.surface, sources });
   const surface = plan.legacy.length ? undefined : plan.surfaces.includes("appWeb") && !plan.surfaces.includes("desktop") ? "web" : plan.surfaces.includes("desktop") && !plan.surfaces.includes("appWeb") ? "electron" : undefined;
 
-  if (engine !== undefined) childEnv.OPENWORK_EVAL_ENGINE = engine;
-  if (engine !== undefined) delete childEnv.OPENWORK_ENGINE_V2_PREVIEW;
-  if (options.surface !== undefined) childEnv.OPENWORK_EVAL_APP_SURFACE = options.surface;
+  if (engine !== undefined) childEnv.HARNESS_EVAL_ENGINE = engine;
+  if (engine !== undefined) delete childEnv.HARNESS_ENGINE_V2_PREVIEW;
+  if (options.surface !== undefined) childEnv.HARNESS_EVAL_APP_SURFACE = options.surface;
   return {
     env: childEnv,
     engine,
@@ -422,9 +422,9 @@ export function buildChildEnvironment(options, resolved, sources, env = process.
   const selection = resolveExecutionSelection(options, resolved, env, sources);
   const placement = resolveRunEnvironment(options, selection.env, probe);
   const childEnv = { ...placement.env };
-  const consented = new Set(["OPENWORK_EVAL_E2E_TESTS"]);
+  const consented = new Set(["HARNESS_EVAL_E2E_TESTS"]);
   const requested = selection.optIns ?? sources.flatMap(consentVarsFromSource)
-    .filter(variable => variable !== "OPENWORK_EVAL_LIVE_OPENAI");
+    .filter(variable => variable !== "HARNESS_EVAL_LIVE_OPENAI");
   for (const variable of requested) {
     if (TRANSPORT_SELECTOR_ENV.has(variable) || Object.hasOwn(env, variable)) continue;
     childEnv[variable] = "1";
@@ -433,11 +433,11 @@ export function buildChildEnvironment(options, resolved, sources, env = process.
 
   // Consent can never override the already-resolved runtime placement.
   if (placement.placement === "local") {
-    delete childEnv.OPENWORK_EVAL_DAYTONA;
-    childEnv.OPENWORK_WORLD_PLACE = "local";
+    delete childEnv.HARNESS_EVAL_DAYTONA;
+    childEnv.HARNESS_WORLD_PLACE = "local";
   } else if (placement.placement === "daytona") {
-    childEnv.OPENWORK_EVAL_DAYTONA = "1";
-    childEnv.OPENWORK_WORLD_PLACE = "daytona";
+    childEnv.HARNESS_EVAL_DAYTONA = "1";
+    childEnv.HARNESS_WORLD_PLACE = "daytona";
   }
   return { ...selection, ...placement, env: childEnv, consented: [...consented].sort() };
 }
@@ -562,8 +562,8 @@ function run(options) {
   const sources = resolved.map(file => readFileSync(file, "utf8"));
   const selection = buildChildEnvironment(options, resolved, sources);
   const { env: childEnv, placement, reason, consented } = selection;
-  if (options.withLlmVision) delete childEnv.OPENWORK_EVAL_VISION;
-  else childEnv.OPENWORK_EVAL_VISION = "defer";
+  if (options.withLlmVision) delete childEnv.HARNESS_EVAL_VISION;
+  else childEnv.HARNESS_EVAL_VISION = "defer";
   const outputDir = join(evalsDir, "results/.testkit");
   mkdirSync(outputDir, { recursive: true });
   const outputFile = join(outputDir, `cli-run-${Date.now()}-${process.pid}.json`);

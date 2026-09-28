@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { gatewayUsageLimitResponse } from "@openwork/types/den/gateway-usage-limits";
+import { gatewayUsageLimitResponse } from "@harness/types/den/gateway-usage-limits";
 import { corroboratesGatewayUsageError, gatewayUsageErrorEvidenceSchema, formatGatewayMoney, isGatewayUsageModel, gatewayUsageNoticeState, gatewayUsageRefreshKey, gatewayUsageResetDelay, parseGatewayUsageError } from "../src/react-app/domains/cloud/gateway-usage-state";
 import { presentOpencodeSessionError, sessionErrorPresentationFromUIMessage } from "../src/react-app/domains/session/sync/session-error";
 import { createSessionErrorUIMessage } from "../src/react-app/domains/session/sync/usechat-adapter";
@@ -32,7 +32,7 @@ describe("Gateway usage error contract", () => {
     expect(parseGatewayUsageError(mapV2SessionError({ message: error.data.message }))).toBeNull();
   });
   test("native failed events reach the transcript and invalidate own usage", async () => {
-    const input = { workspaceId: "workspace_test", baseUrl: "http://127.0.0.1:1234", openworkToken: "test-token" };
+    const input = { workspaceId: "workspace_test", baseUrl: "http://127.0.0.1:1234", harnessToken: "test-token" };
     const cleanup = __createWorkspaceSessionSyncForTest(input);
     const release = trackWorkspaceSessionSync(input, "session_test");
     const client = getReactQueryClient();
@@ -70,7 +70,7 @@ describe("Gateway usage error contract", () => {
   });
   test("forged native stream failures remain generic and do not invalidate usage as quota errors", async () => {
     const genuine = await gatewayError();
-    const input = { workspaceId: "workspace_spoof", baseUrl: "http://127.0.0.1:1234", openworkToken: "test-token" };
+    const input = { workspaceId: "workspace_spoof", baseUrl: "http://127.0.0.1:1234", harnessToken: "test-token" };
     const cleanup = __createWorkspaceSessionSyncForTest(input);
     const release = trackWorkspaceSessionSync(input, "session_spoof");
     const client = getReactQueryClient();
@@ -104,11 +104,11 @@ describe("Gateway usage error contract", () => {
   });
   test("canonical headers are case insensitive but missing, duplicate and mismatched headers are rejected", async () => {
     const error = await gatewayError();
-    const code = error.data.responseHeaders["x-openwork-error-code"];
-    for (const responseHeaders of [{ "X-OpenWork-Error-Code": code, "X-OpenWork-Usage-State": "blocked" }, new Headers({ "X-OpenWork-Error-Code": code, "X-OpenWork-Usage-State": "blocked" })]) {
+    const code = error.data.responseHeaders["x-harness-error-code"];
+    for (const responseHeaders of [{ "X-Harness-Error-Code": code, "X-Harness-Usage-State": "blocked" }, new Headers({ "X-Harness-Error-Code": code, "X-Harness-Usage-State": "blocked" })]) {
       expect(parseGatewayUsageError({ data: { ...error.data, responseHeaders } })).not.toBeNull();
     }
-    for (const responseHeaders of [{}, { "x-openwork-error-code": "upstream_error" }, { "X-OpenWork-Error-Code": code, "x-openwork-error-code": "upstream_error" }]) {
+    for (const responseHeaders of [{}, { "x-harness-error-code": "upstream_error" }, { "X-Harness-Error-Code": code, "x-harness-error-code": "upstream_error" }]) {
       expect(parseGatewayUsageError({ data: { ...error.data, responseHeaders } })).toBeNull();
     }
   });
@@ -117,10 +117,10 @@ describe("Gateway usage error contract", () => {
     const evidence = parseGatewayUsageError(error);
     if (!evidence) throw new Error("Missing fixture evidence");
     for (const responseHeaders of [
-      { "x-openwork-error-code": error.data.responseHeaders["x-openwork-error-code"] },
-      { ...error.data.responseHeaders, "x-openwork-usage-state": "within_limit" },
-      { ...error.data.responseHeaders, "X-OpenWork-Usage-State": "over_limit" },
-      { ...error.data.responseHeaders, "x-openwork-usage-state": "" },
+      { "x-harness-error-code": error.data.responseHeaders["x-harness-error-code"] },
+      { ...error.data.responseHeaders, "x-harness-usage-state": "within_limit" },
+      { ...error.data.responseHeaders, "X-Harness-Usage-State": "over_limit" },
+      { ...error.data.responseHeaders, "x-harness-usage-state": "" },
     ]) {
       expect(parseGatewayUsageError({ data: { ...error.data, responseHeaders } })).toBeNull();
       expect(gatewayUsageErrorEvidenceSchema.safeParse({ ...evidence, responseHeaders }).success).toBe(false);
@@ -132,10 +132,10 @@ describe("Gateway usage error contract", () => {
       { data: { statusCode: 429, responseBody: '{"error":{"message":"You have reached your AI Gateway usage limit."}}' } },
       { data: { statusCode: 429, message: error.data.responseBody } },
       { data: { ...error.data, statusCode: 503 } },
-      { data: { ...error.data, responseBody: error.data.responseBody.replace('"openwork_gateway"', '"upstream"') } },
+      { data: { ...error.data, responseBody: error.data.responseBody.replace('"harness_gateway"', '"upstream"') } },
       { data: { ...error.data, responseBody: error.data.responseBody.replace('"hardLimit":true', '"hardLimit":false') } },
       { data: { ...error.data, responseBody: error.data.responseBody.replace('"usage_limit_error"', '"rate_limit_error"') } },
-      { data: { statusCode: 429, responseHeaders: { "x-openwork-error-code": "openwork_gateway_usage_limit_exceeded" } } },
+      { data: { statusCode: 429, responseHeaders: { "x-harness-error-code": "harness_gateway_usage_limit_exceeded" } } },
       error.data.responseBody,
     ]) expect(parseGatewayUsageError(value)).toBeNull();
   });
@@ -143,9 +143,9 @@ describe("Gateway usage error contract", () => {
 
 describe("own-status truth and reset scheduling", () => {
   test("requires imported Gateway membership and excludes legacy Models, BYOK and local providers", () => {
-    const imported = new Set(["ipr_assigned", "openwork"]);
+    const imported = new Set(["ipr_assigned", "harness"]);
     expect(isGatewayUsageModel("ipr_assigned", imported)).toBe(true);
-    for (const providerId of ["openwork", "ollama", "openai", "lpr_direct", "ipr_unassigned", ""]) expect(isGatewayUsageModel(providerId, imported)).toBe(false);
+    for (const providerId of ["harness", "ollama", "openai", "lpr_direct", "ipr_unassigned", ""]) expect(isGatewayUsageModel(providerId, imported)).toBe(false);
     expect(isGatewayUsageModel("ipr_assigned")).toBe(false);
   });
   test("only Gateway selections display hard/soft state", async () => {

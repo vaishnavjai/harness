@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-OpenWork is under active development and we prioritize fixes on the latest release and
+Harness is under active development and we prioritize fixes on the latest release and
 the current `dev` branch.
 
 ## Reporting a vulnerability
@@ -11,8 +11,8 @@ Please do not open public GitHub issues for security vulnerabilities.
 
 Instead, report vulnerabilities privately to:
 
-- Email: `ben@openworklabs.com`
-- Subject: `[OpenWork security] <short summary>`
+- Email: `user@example.com`
+- Subject: `[Harness security] <short summary>`
 
 Please include:
 

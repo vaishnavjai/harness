@@ -3,7 +3,7 @@ import { createServer, request as httpRequest } from "node:http";
 import test from "node:test";
 import { daytonaLinkCommands, denLink, MAX_LINK_DAYTONA_COMMAND_LENGTH } from "../src/link.ts";
 import type { Server } from "node:http";
-import type { DaytonaExec } from "@openwork/hosts";
+import type { DaytonaExec } from "@harness/hosts";
 
 const LARGE_BODY = Buffer.alloc(192 * 1024, 97);
 const ADMIN_TOKEN = "a".repeat(64);
@@ -47,12 +47,12 @@ function absoluteGet(proxyUrl: string, target: string): Promise<string> {
 test("Daytona link commands upload the runner-side script before launching its temp path", () => {
   const source = Buffer.alloc(32 * 1024, 97);
   const commands = daytonaLinkCommands(source, "https://den.example.test", 3985, 3986, ADMIN_TOKEN);
-  assert(commands.cleanup.includes("pid=$(</tmp/openwork-den-link-server.pid)"));
+  assert(commands.cleanup.includes("pid=$(</tmp/harness-den-link-server.pid)"));
   assert(commands.cleanup.includes('kill "$pid"'));
-  assert(commands.cleanup.includes("rm -f /tmp/openwork-den-link-server.pid /tmp/openwork-den-link-server.mjs /tmp/openwork-den-link-server.mjs.b64"));
+  assert(commands.cleanup.includes("rm -f /tmp/harness-den-link-server.pid /tmp/harness-den-link-server.mjs /tmp/harness-den-link-server.mjs.b64"));
   assert(!commands.cleanup.includes("pkill"));
-  assert.equal(commands.upload[0], ": > /tmp/openwork-den-link-server.mjs.b64");
-  const chunkPattern = /^printf %s ([A-Za-z0-9+/=]+) >> \/tmp\/openwork-den-link-server\.mjs\.b64$/;
+  assert.equal(commands.upload[0], ": > /tmp/harness-den-link-server.mjs.b64");
+  const chunkPattern = /^printf %s ([A-Za-z0-9+/=]+) >> \/tmp\/harness-den-link-server\.mjs\.b64$/;
   const chunks = commands.upload.slice(1, -1).map((command) => {
     const match = chunkPattern.exec(command);
     assert(match);
@@ -61,16 +61,16 @@ test("Daytona link commands upload the runner-side script before launching its t
   });
   assert.equal(chunks.join(""), source.toString("base64"));
   const finalize = commands.upload.at(-1);
-  assert(finalize?.includes("base64 -d /tmp/openwork-den-link-server.mjs.b64 > /tmp/openwork-den-link-server.mjs"));
-  assert(finalize?.includes("actual_bytes=$(wc -c < /tmp/openwork-den-link-server.mjs)"));
-  assert(finalize?.includes("rm -f /tmp/openwork-den-link-server.mjs.b64"));
+  assert(finalize?.includes("base64 -d /tmp/harness-den-link-server.mjs.b64 > /tmp/harness-den-link-server.mjs"));
+  assert(finalize?.includes("actual_bytes=$(wc -c < /tmp/harness-den-link-server.mjs)"));
+  assert(finalize?.includes("rm -f /tmp/harness-den-link-server.mjs.b64"));
   assert(finalize?.includes(`test \"$actual_bytes\" -eq ${source.byteLength}`));
   const commandLengths = [commands.cleanup, ...commands.upload, commands.detach]
     .map((command) => ["exec", "desktop-sandbox", "--", `bash -lc '${command}'`].join(" ").length);
   assert(Math.max(...commandLengths) <= MAX_LINK_DAYTONA_COMMAND_LENGTH);
-  assert(commands.detach.includes('"node", "/tmp/openwork-den-link-server.mjs"'));
+  assert(commands.detach.includes('"node", "/tmp/harness-den-link-server.mjs"'));
   assert(commands.detach.includes("pid_file.write(str(process.pid)"));
-  assert(commands.detach.includes('os.replace(temporary_pid, "/tmp/openwork-den-link-server.pid")'));
+  assert(commands.detach.includes('os.replace(temporary_pid, "/tmp/harness-den-link-server.pid")'));
   assert(commands.detach.includes(`env={**os.environ, "LINK_ADMIN_TOKEN": "${ADMIN_TOKEN}"}`));
   const launch = commands.detach.split("\n").find((line) => line.startsWith("process = subprocess.Popen"));
   assert(launch);

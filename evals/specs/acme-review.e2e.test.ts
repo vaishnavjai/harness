@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 import { bootAcmeWeb, acmeWebOutputs } from "../../worlds/acme-web.ts";
 import { probeAcmeGateway } from "../../worlds/lib/acme-gateway-probe.ts";
 import { normalizeOutputs, maskOutputs } from "../../packages/world/src/outputs.ts";
@@ -27,7 +27,7 @@ test("ACME review connects demo sign-in, real services, and revealable world out
   const result = await probeAcmeGateway(world);
   expect(result.reply).toBe("Acme AI Gateway is working.");
   expect(result.upstreamRequests).toBeGreaterThan(0);
-  evidence.recordAssertionEvidence("The full service chain responds", "OpenWork and OpenCode routed a real request through Den's managed provider and AI Gateway to the deterministic model upstream. The world also owns isolated MySQL and Redis-backed Den state.", true);
+  evidence.recordAssertionEvidence("The full service chain responds", "Harness and OpenCode routed a real request through Den's managed provider and AI Gateway to the deterministic model upstream. The world also owns isolated MySQL and Redis-backed Den state.", true);
 
   const { values, meta } = normalizeOutputs(acmeWebOutputs(world));
   expect(values.alexPassword).toBe(world.den.admin.password);

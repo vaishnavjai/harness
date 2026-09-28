@@ -4,9 +4,9 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { z } from "zod";
-import { openworkSessionModelSchema } from "@openwork/types/openwork-affordance";
+import { harnessSessionModelSchema } from "@harness/types/harness-affordance";
 import type { ResolvedWorkspaceEndpoint } from "../src/app/lib/workspace-endpoint";
-import type { OpenworkControlAPI } from "../src/react-app/shell/control/control-provider";
+import type { HarnessControlAPI } from "../src/react-app/shell/control/control-provider";
 import type { RouteWorkspace } from "../src/react-app/shell/route-workspaces";
 import { checkDesktopAppRestriction, type DesktopAppRestrictionChecker } from "../src/app/cloud/desktop-app-restrictions";
 import type { DenDesktopConfig } from "../src/app/lib/den";
@@ -26,13 +26,13 @@ for (const [key, value] of Object.entries(nativeHttp)) {
   Object.defineProperty(window, key, { configurable: true, value });
 }
 const [
-  { OpenworkControlProvider },
+  { HarnessControlProvider },
   { useSessionControlActions },
-  { createOpenworkServerClient },
+  { createHarnessServerClient },
 ] = await Promise.all([
   import("../src/react-app/shell/control/control-provider"),
   import("../src/react-app/domains/session/control/session-control-actions"),
-  import("../src/app/lib/openwork-server"),
+  import("../src/app/lib/harness-server"),
 ]);
 const previousAct = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
@@ -70,7 +70,7 @@ async function mountCatalogActions(extraProviders: Array<{ id: string; name: str
   const workspaces: RouteWorkspace[] = ["one", "two"].map((id) => ({
     id, name: id, displayNameResolved: id, path: `/tmp/${id}`, preset: "starter", workspaceType: "local",
   }));
-  const client = createOpenworkServerClient({ baseUrl, token: "fixture" });
+  const client = createHarnessServerClient({ baseUrl, token: "fixture" });
   const endpointForWorkspace = (workspace: RouteWorkspace | null | undefined): ResolvedWorkspaceEndpoint | null => workspace ? {
     baseUrl, token: "fixture", workspaceId: workspace.id, isRemote: false, client,
     mountedBaseUrl: `${baseUrl}/workspace/${workspace.id}`, opencodeBaseUrl: `${baseUrl}/workspace/${workspace.id}/opencode`,
@@ -82,7 +82,7 @@ async function mountCatalogActions(extraProviders: Array<{ id: string; name: str
         one: [{ id: "ses_one", model: { id: "opaque", providerID: "provider", variant: "high" } }, { id: "unbound" }],
         two: [{ id: "ses_two", model: { id: "opaque", providerID: "provider", variant: "default" } }],
       },
-      canCreateTask: false, openworkClient: client, opencodeClient: null, endpointForWorkspace,
+      canCreateTask: false, harnessClient: client, opencodeClient: null, endpointForWorkspace,
       navigateToSession: () => { throw new Error("Must not navigate"); }, navigateToSessionRoot: () => { throw new Error("Must not navigate"); }, createTaskInWorkspace: () => null,
       openModelPicker: () => { throw new Error("Must not open picker"); }, refreshRouteState: () => {}, archiveSession: async () => ({ kind: "done" }),
     });
@@ -91,17 +91,17 @@ async function mountCatalogActions(extraProviders: Array<{ id: string; name: str
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
-  await act(async () => root.render(<MemoryRouter><OpenworkControlProvider><Register /></OpenworkControlProvider></MemoryRouter>));
+  await act(async () => root.render(<MemoryRouter><HarnessControlProvider><Register /></HarnessControlProvider></MemoryRouter>));
   cleanups.push(async () => { await act(async () => root.unmount()); host.remove(); });
-  const api = window.__openworkControl;
+  const api = window.__harnessControl;
   if (!api) throw new Error("Control API unavailable");
   return { api, requests, unavailable, names };
 }
 
-async function listedModels(api: OpenworkControlAPI, workspaceId?: string) {
+async function listedModels(api: HarnessControlAPI, workspaceId?: string) {
   const result = await api.query({ id: "session.list_sessions", args: workspaceId ? { workspaceId } : {} });
   if (!result.ok) throw new Error(result.error);
-  return z.array(z.object({ sessionId: z.string(), model: openworkSessionModelSchema.nullable() })).parse(result.result);
+  return z.array(z.object({ sessionId: z.string(), model: harnessSessionModelSchema.nullable() })).parse(result.result);
 }
 
 test("renderer lists workspace-specific picker labels without changing bound ids or effort", async () => {

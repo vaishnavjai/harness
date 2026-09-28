@@ -1,13 +1,13 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 
 import { DenApiError, type DenMcpToken, type DenSettings } from "../src/app/lib/den";
-import { OpenworkServerError, type OpenworkCloudMcpHealth, type OpenworkCloudMcpReconcilePayload } from "../src/app/lib/openwork-server";
+import { HarnessServerError, type HarnessCloudMcpHealth, type HarnessCloudMcpReconcilePayload } from "../src/app/lib/harness-server";
 import {
   __setCloudMcpUserStateStorageForTest,
   readCloudMcpSyncMarker,
   writeCloudMcpUserState,
 } from "../src/react-app/domains/connections/cloud-mcp-user-state";
-import { cleanupOpenworkCloudMcpAfterSignOut } from "../src/react-app/domains/connections/cloud-mcp-reconciler";
+import { cleanupHarnessCloudMcpAfterSignOut } from "../src/react-app/domains/connections/cloud-mcp-reconciler";
 import {
   getSessionMcpMaintenanceTargetKey,
   runCloudMcpMaintenanceWithRetry,
@@ -19,7 +19,7 @@ import {
 const NOW = Date.parse("2026-07-09T12:00:00.000Z");
 const WORKSPACE_ID = "workspace_1";
 const SETTINGS: DenSettings = {
-  baseUrl: "https://app.openwork.test",
+  baseUrl: "https://app.harness.test",
   authToken: "session-token",
   activeOrgId: "organization_1",
 };
@@ -30,10 +30,10 @@ const MINTED: DenMcpToken = {
   appHostExpiresAt: new Date(NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
   organizationId: "organization_1",
   scopes: ["mcp:read", "mcp:write"],
-  resource: "https://api.openwork.test/mcp",
+  resource: "https://api.harness.test/mcp",
 };
 
-function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
+function cloudHealth(usable: boolean): HarnessCloudMcpHealth {
   return {
     schemaVersion: 1,
     phase: usable ? "ready" : "missing_desired",
@@ -43,7 +43,7 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
     workspace: { id: WORKSPACE_ID, type: "local", directory: "/workspace", path: "/workspace" },
     desired: {
       present: usable,
-      name: "openwork-cloud",
+      name: "harness-cloud",
       revision: usable ? "rev_ready" : null,
       config: null,
       token: { present: usable, metadata: {} },
@@ -58,14 +58,14 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
     },
     engine: { status: usable ? "connected" : "not_checked" },
     tools: {
-      expected: ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
-      present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-      missing: usable ? [] : ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
+      expected: ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
+      present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+      missing: usable ? [] : ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
       providerProjection: {
         checked: usable,
-        provider: "openwork",
+        provider: "harness",
         model: "gpt-5",
-        present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
+        present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
         missing: [],
       },
     },
@@ -75,14 +75,14 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
       code: "cloud_desired_missing",
       stage: "desired",
       retryable: false,
-      recommendedAction: "Connect OpenWork Cloud",
+      recommendedAction: "Connect Harness Cloud",
       message: "missing",
     },
     checkedAt: new Date(NOW).toISOString(),
   };
 }
 
-function retryableCloudHealth(): OpenworkCloudMcpHealth {
+function retryableCloudHealth(): HarnessCloudMcpHealth {
   const health = cloudHealth(false);
   return {
     ...health,
@@ -92,7 +92,7 @@ function retryableCloudHealth(): OpenworkCloudMcpHealth {
   };
 }
 
-function missingMcpTokenHealth(): OpenworkCloudMcpHealth {
+function missingMcpTokenHealth(): HarnessCloudMcpHealth {
   const health = cloudHealth(false);
   return {
     ...health,
@@ -102,9 +102,9 @@ function missingMcpTokenHealth(): OpenworkCloudMcpHealth {
       code: "missing_mcp_token",
       stage: "transport_auth",
       retryable: false,
-      recommendedAction: "Refresh OpenWork Cloud authentication",
-      message: "openwork-cloud token is missing.",
-      aliases: ["openwork_cloud_auth_required"],
+      recommendedAction: "Refresh Harness Cloud authentication",
+      message: "harness-cloud token is missing.",
+      aliases: ["harness_cloud_auth_required"],
     },
   };
 }
@@ -126,12 +126,12 @@ describe("session MCP maintenance", () => {
   beforeEach(() => installStorageStub());
 
   test("mints and hot-updates the Cloud MCP without opening Settings", async () => {
-    const writes: Array<{ workspaceId: string; payload: OpenworkCloudMcpReconcilePayload }> = [];
+    const writes: Array<{ workspaceId: string; payload: HarnessCloudMcpReconcilePayload }> = [];
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({ items: [] }),
-      getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-      reconcileOpenworkCloudMcp: async (workspaceId: string, payload: OpenworkCloudMcpReconcilePayload) => {
+      getHarnessCloudMcpHealth: async () => cloudHealth(false),
+      reconcileHarnessCloudMcp: async (workspaceId: string, payload: HarnessCloudMcpReconcilePayload) => {
         writes.push({ workspaceId, payload });
         return cloudHealth(true);
       },
@@ -149,11 +149,11 @@ describe("session MCP maintenance", () => {
       workspaceId: WORKSPACE_ID,
       payload: {
         workspaceId: WORKSPACE_ID,
-        name: "openwork-cloud",
+        name: "harness-cloud",
         config: {
           type: "remote",
           enabled: true,
-          url: "https://api.openwork.test/mcp/agent",
+          url: "https://api.harness.test/mcp/agent",
           headers: { Authorization: "Bearer mcp-token" },
           oauth: false,
         },
@@ -161,7 +161,7 @@ describe("session MCP maintenance", () => {
         tokenMetadata: {
           organizationId: "organization_1",
           expiresAt: MINTED.expiresAt,
-          resource: "https://api.openwork.test/mcp",
+          resource: "https://api.harness.test/mcp",
           scopes: "mcp:read mcp:write",
         },
         org: { id: "organization_1", slug: null, name: null },
@@ -188,15 +188,15 @@ describe("session MCP maintenance", () => {
     const waits: number[] = [];
     const attempts: Array<{ outcome: string; attempt: number; willRetry: boolean }> = [];
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
         }],
       }),
-      getOpenworkCloudMcpHealth: async () => retryableCloudHealth(),
-      reconcileOpenworkCloudMcp: async () => {
+      getHarnessCloudMcpHealth: async () => retryableCloudHealth(),
+      reconcileHarnessCloudMcp: async () => {
         reconcileCount += 1;
         return reconcileCount === 3 ? cloudHealth(true) : retryableCloudHealth();
       },
@@ -238,15 +238,15 @@ describe("session MCP maintenance", () => {
     let writeCount = 0;
     let healthReady = false;
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
         }],
       }),
-      getOpenworkCloudMcpHealth: async () => cloudHealth(healthReady),
-      reconcileOpenworkCloudMcp: async () => {
+      getHarnessCloudMcpHealth: async () => cloudHealth(healthReady),
+      reconcileHarnessCloudMcp: async () => {
         writeCount += 1;
         healthReady = true;
         return cloudHealth(true);
@@ -281,13 +281,13 @@ describe("session MCP maintenance", () => {
     const refreshes: string[] = [];
     let mints = 0;
     let writes = 0;
-    const ready: OpenworkCloudMcpHealth = { ...cloudHealth(true), appHostAuthorizationReady: true, connectCatalogDiagnostic: "ready" };
+    const ready: HarnessCloudMcpHealth = { ...cloudHealth(true), appHostAuthorizationReady: true, connectCatalogDiagnostic: "ready" };
     const client = {
-      baseUrl: "https://worker.openwork.test",
-      listMcp: async () => ({ items: [{ name: "openwork-cloud", config: { type: "remote", enabled: true } }] }),
-      getOpenworkCloudMcpHealth: async () => ready,
-      reconcileOpenworkCloudMcp: async () => { writes += 1; return ready; },
-      refreshOpenworkCloudMcpCatalog: async (workspaceId: string) => { refreshes.push(workspaceId); return ready; },
+      baseUrl: "https://worker.harness.test",
+      listMcp: async () => ({ items: [{ name: "harness-cloud", config: { type: "remote", enabled: true } }] }),
+      getHarnessCloudMcpHealth: async () => ready,
+      reconcileHarnessCloudMcp: async () => { writes += 1; return ready; },
+      refreshHarnessCloudMcpCatalog: async (workspaceId: string) => { refreshes.push(workspaceId); return ready; },
     };
     for (let tick = 0; tick < 2; tick += 1) {
       expect(await syncCloudControlMcpInBackground({
@@ -309,13 +309,13 @@ describe("session MCP maintenance", () => {
   test("a stale healthy maintenance target cannot refresh the direct catalog", async () => {
     let current = true;
     let refreshes = 0;
-    const ready: OpenworkCloudMcpHealth = { ...cloudHealth(true), appHostAuthorizationReady: true, connectCatalogDiagnostic: "ready" };
+    const ready: HarnessCloudMcpHealth = { ...cloudHealth(true), appHostAuthorizationReady: true, connectCatalogDiagnostic: "ready" };
     const client = {
-      baseUrl: "https://worker.openwork.test",
-      listMcp: async () => ({ items: [{ name: "openwork-cloud", config: { type: "remote", enabled: true } }] }),
-      getOpenworkCloudMcpHealth: async () => { current = false; return ready; },
-      reconcileOpenworkCloudMcp: async () => { throw new Error("Unexpected credential write"); },
-      refreshOpenworkCloudMcpCatalog: async () => { refreshes += 1; return ready; },
+      baseUrl: "https://worker.harness.test",
+      listMcp: async () => ({ items: [{ name: "harness-cloud", config: { type: "remote", enabled: true } }] }),
+      getHarnessCloudMcpHealth: async () => { current = false; return ready; },
+      reconcileHarnessCloudMcp: async () => { throw new Error("Unexpected credential write"); },
+      refreshHarnessCloudMcpCatalog: async () => { refreshes += 1; return ready; },
     };
     await expect(syncCloudControlMcpInBackground({
       client, workspaceId: WORKSPACE_ID, settings: SETTINGS, isCurrent: () => current,
@@ -332,14 +332,14 @@ describe("session MCP maintenance", () => {
     const result = await runCloudMcpMaintenanceWithRetry({
       attempt: () => syncCloudControlMcpInBackground({
         client: {
-          baseUrl: "https://worker.openwork.test",
+          baseUrl: "https://worker.harness.test",
           listMcp: async () => ({ items: [] }),
-          getOpenworkCloudMcpHealth: async () => {
+          getHarnessCloudMcpHealth: async () => {
             checks += 1;
             if (elapsed < 10_000) throw new TypeError("Failed to fetch");
             return cloudHealth(false);
           },
-          reconcileOpenworkCloudMcp: async () => { writes += 1; return cloudHealth(true); },
+          reconcileHarnessCloudMcp: async () => { writes += 1; return cloudHealth(true); },
         },
         settings: SETTINGS,
         workspaceId: WORKSPACE_ID,
@@ -365,10 +365,10 @@ describe("session MCP maintenance", () => {
       const result = await runCloudMcpMaintenanceWithRetry({
         attempt: () => syncCloudControlMcpInBackground({
           client: {
-            baseUrl: "https://worker.openwork.test",
-            listMcp: async () => { attempts += 1; throw new OpenworkServerError(403, code, "Blocked"); },
-            getOpenworkCloudMcpHealth: async () => { throw new Error("must not probe"); },
-            reconcileOpenworkCloudMcp: async () => { throw new Error("must not register"); },
+            baseUrl: "https://worker.harness.test",
+            listMcp: async () => { attempts += 1; throw new HarnessServerError(403, code, "Blocked"); },
+            getHarnessCloudMcpHealth: async () => { throw new Error("must not probe"); },
+            reconcileHarnessCloudMcp: async () => { throw new Error("must not register"); },
           },
           settings: SETTINGS,
           workspaceId: WORKSPACE_ID,
@@ -409,10 +409,10 @@ describe("session MCP maintenance", () => {
     const result = await runCloudMcpMaintenanceWithRetry({
       attempt: () => syncCloudControlMcpInBackground({
         client: {
-          baseUrl: "https://worker.openwork.test",
+          baseUrl: "https://worker.harness.test",
           listMcp: async () => ({ items: [] }),
-          getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-          reconcileOpenworkCloudMcp: async () => { writes += 1; return cloudHealth(true); },
+          getHarnessCloudMcpHealth: async () => cloudHealth(false),
+          reconcileHarnessCloudMcp: async () => { writes += 1; return cloudHealth(true); },
         },
         settings: SETTINGS,
         workspaceId: WORKSPACE_ID,
@@ -433,14 +433,14 @@ describe("session MCP maintenance", () => {
     let probes = 0;
     let writes = 0;
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({ items: [] }),
-      getOpenworkCloudMcpHealth: async () => { probes += 1; await pending; return cloudHealth(false); },
-      reconcileOpenworkCloudMcp: async () => { writes += 1; return cloudHealth(true); },
+      getHarnessCloudMcpHealth: async () => { probes += 1; await pending; return cloudHealth(false); },
+      reconcileHarnessCloudMcp: async () => { writes += 1; return cloudHealth(true); },
     };
     const old = syncCloudControlMcpInBackground({
       client, settings: SETTINGS, workspaceId: WORKSPACE_ID, mintToken: async () => MINTED,
-      providerModel: { provider: "openwork", model: "old" }, isCurrent: () => current,
+      providerModel: { provider: "harness", model: "old" }, isCurrent: () => current,
     });
     const oldRejection = old.then(
       () => { throw new Error("obsolete repair must be cancelled"); },
@@ -452,7 +452,7 @@ describe("session MCP maintenance", () => {
       signal: new AbortController().signal,
       attempt: () => syncCloudControlMcpInBackground({
         client, settings: SETTINGS, workspaceId: WORKSPACE_ID, mintToken: async () => MINTED,
-        providerModel: { provider: "openwork", model: "new" },
+        providerModel: { provider: "harness", model: "new" },
       }),
       wait: async () => {},
     });
@@ -487,10 +487,10 @@ describe("session MCP maintenance", () => {
     let writes = 0;
     const run = syncCloudControlMcpInBackground({
       client: {
-        baseUrl: "https://worker.openwork.test",
+        baseUrl: "https://worker.harness.test",
         listMcp: async () => ({ items: [] }),
-        getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-        reconcileOpenworkCloudMcp: async () => { writes += 1; return cloudHealth(true); },
+        getHarnessCloudMcpHealth: async () => cloudHealth(false),
+        reconcileHarnessCloudMcp: async () => { writes += 1; return cloudHealth(true); },
       },
       settings: SETTINGS,
       workspaceId: WORKSPACE_ID,
@@ -500,7 +500,7 @@ describe("session MCP maintenance", () => {
     await expect(run).rejects.toMatchObject({ name: "AbortError" });
     expect(writes).toBe(0);
     expect(readCloudMcpSyncMarker({
-      denBaseUrl: SETTINGS.baseUrl, serverBaseUrl: "https://worker.openwork.test",
+      denBaseUrl: SETTINGS.baseUrl, serverBaseUrl: "https://worker.harness.test",
       orgId: SETTINGS.activeOrgId ?? "", workspaceId: WORKSPACE_ID,
     })).toBe(null);
   });
@@ -509,14 +509,14 @@ describe("session MCP maintenance", () => {
     let writeCount = 0;
     const probeOptionsSeen: Array<{ probe?: boolean } | undefined> = [];
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
         }],
       }),
-      getOpenworkCloudMcpHealth: async (
+      getHarnessCloudMcpHealth: async (
         _workspaceId: string,
         _providerModel?: unknown,
         options?: { probe?: boolean },
@@ -524,7 +524,7 @@ describe("session MCP maintenance", () => {
         probeOptionsSeen.push(options);
         return options?.probe ? missingMcpTokenHealth() : cloudHealth(true);
       },
-      reconcileOpenworkCloudMcp: async () => {
+      reconcileHarnessCloudMcp: async () => {
         writeCount += 1;
         return cloudHealth(true);
       },
@@ -547,19 +547,19 @@ describe("session MCP maintenance", () => {
     const writes: string[] = [];
     const readyWorkspaces = new Set<string>();
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
         }],
       }),
       addMcp: async (workspaceId: string) => {
         writes.push(workspaceId);
         return { items: [] };
       },
-      getOpenworkCloudMcpHealth: async (workspaceId: string) => cloudHealth(readyWorkspaces.has(workspaceId)),
-      reconcileOpenworkCloudMcp: async (workspaceId: string) => {
+      getHarnessCloudMcpHealth: async (workspaceId: string) => cloudHealth(readyWorkspaces.has(workspaceId)),
+      reconcileHarnessCloudMcp: async (workspaceId: string) => {
         writes.push(workspaceId);
         readyWorkspaces.add(workspaceId);
         return cloudHealth(true);
@@ -604,23 +604,23 @@ describe("session MCP maintenance", () => {
       baseUrl,
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
         }],
       }),
       addMcp: async () => {
         writes.push(baseUrl);
         return { items: [] };
       },
-      getOpenworkCloudMcpHealth: async () => cloudHealth(readyWorkers.has(baseUrl)),
-      reconcileOpenworkCloudMcp: async () => {
+      getHarnessCloudMcpHealth: async () => cloudHealth(readyWorkers.has(baseUrl)),
+      reconcileHarnessCloudMcp: async () => {
         writes.push(baseUrl);
         readyWorkers.add(baseUrl);
         return cloudHealth(true);
       },
     });
-    const workerA = makeClient("https://worker-a.openwork.test");
-    const workerB = makeClient("https://worker-b.openwork.test");
+    const workerA = makeClient("https://worker-a.harness.test");
+    const workerB = makeClient("https://worker-b.harness.test");
     const mintToken = async () => {
       mintCount += 1;
       return MINTED;
@@ -643,7 +643,7 @@ describe("session MCP maintenance", () => {
   test("explicit removal keeps background maintenance disabled", async () => {
     writeCloudMcpUserState("removed", {
       denBaseUrl: SETTINGS.baseUrl,
-      serverBaseUrl: "https://worker.openwork.test",
+      serverBaseUrl: "https://worker.harness.test",
       orgId: SETTINGS.activeOrgId ?? "",
       workspaceId: WORKSPACE_ID,
     });
@@ -652,13 +652,13 @@ describe("session MCP maintenance", () => {
 
     await expect(syncCloudControlMcpInBackground({
       client: {
-        baseUrl: "https://worker.openwork.test",
+        baseUrl: "https://worker.harness.test",
         // The engine list is consulted (an existing enabled entry must stay
         // maintained even under recorded intent), but with no entry present
         // the recorded removal keeps provisioning skipped.
         listMcp: async () => ({ items: [] }),
-        getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-        reconcileOpenworkCloudMcp: async () => {
+        getHarnessCloudMcpHealth: async () => cloudHealth(false),
+        reconcileHarnessCloudMcp: async () => {
           reconciled = true;
           return cloudHealth(true);
         },
@@ -676,15 +676,15 @@ describe("session MCP maintenance", () => {
 
   test("pre-signout cleanup removes runtime MCP and disconnects the exact active workspace before resolving", async () => {
     const events: string[] = [];
-    await cleanupOpenworkCloudMcpAfterSignOut({
+    await cleanupHarnessCloudMcpAfterSignOut({
       context: {
         denBaseUrl: SETTINGS.baseUrl,
-        serverBaseUrl: "https://worker.openwork.test",
+        serverBaseUrl: "https://worker.harness.test",
         orgId: SETTINGS.activeOrgId ?? "",
         workspaceId: WORKSPACE_ID,
       },
-      openworkClient: {
-        baseUrl: "https://worker.openwork.test",
+      harnessClient: {
+        baseUrl: "https://worker.harness.test",
         removeMcp: async (workspaceId, name) => {
           events.push(`remove:${workspaceId}:${name}`);
         },
@@ -701,15 +701,15 @@ describe("session MCP maintenance", () => {
     events.push("auth-cleared");
 
     expect(events.slice(0, 2).sort()).toEqual([
-      "disconnect:/workspace/exact:openwork-cloud",
-      `remove:${WORKSPACE_ID}:openwork-cloud`,
+      "disconnect:/workspace/exact:harness-cloud",
+      `remove:${WORKSPACE_ID}:harness-cloud`,
     ].sort());
     expect(events[2]).toBe("auth-cleared");
   });
 
   test("deduplicates the same target without blocking another workspace", async () => {
-    const firstClient = { baseUrl: "https://worker.openwork.test" };
-    const recreatedClient = { baseUrl: "https://worker.openwork.test/" };
+    const firstClient = { baseUrl: "https://worker.harness.test" };
+    const recreatedClient = { baseUrl: "https://worker.harness.test/" };
     const targetA = getSessionMcpMaintenanceTargetKey({
       client: firstClient,
       cloudSignedIn: true,

@@ -25,11 +25,11 @@ app.on("before-quit", () => { hostPromise?.then((host) => host.close()).catch(()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const COMPUTER_USE_HELPER_APP_NAME = "OpenWork Computer Use.app";
+const COMPUTER_USE_HELPER_APP_NAME = "Harness Computer Use.app";
 const COMPUTER_USE_HELPER_EXECUTABLE = "ComputerUse";
 
 function computerUseHelperAppPath() {
-  const explicitApp = process.env.OPENWORK_COMPUTER_USE_APP?.trim();
+  const explicitApp = process.env.HARNESS_COMPUTER_USE_APP?.trim();
   const candidates = [
     explicitApp,
     process.resourcesPath ? path.join(process.resourcesPath, "helpers", COMPUTER_USE_HELPER_APP_NAME) : null,
@@ -47,10 +47,10 @@ async function getComputerUseMcpCommand() {
   if (helperExecutable) return [helperExecutable, "relay", (await computerUseHost()).socketPath];
 
   if (app.isPackaged) {
-    throw new Error("OpenWork Computer Use is missing from this OpenWork build.");
+    throw new Error("Harness Computer Use is missing from this Harness build.");
   }
 
-  throw new Error("The Computer Use helper is unavailable. Rebuild or reinstall OpenWork.");
+  throw new Error("The Computer Use helper is unavailable. Rebuild or reinstall Harness.");
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +61,7 @@ async function getComputerUseMcpCommand() {
 
 function resolveComputerUseExecutable() {
   // 1. Explicit env override.
-  const explicit = process.env.OPENWORK_COMPUTER_USE_BINARY?.trim();
+  const explicit = process.env.HARNESS_COMPUTER_USE_BINARY?.trim();
   if (explicit && existsSync(explicit)) return explicit;
 
   // 2. .app bundle (packaged builds + pnpm dev).
@@ -111,12 +111,12 @@ function spawnCheckPermissions(bin) {
       try {
         const parsed = JSON.parse(stdout.trim());
         resolve({
-          ok: parsed?.ok === true && parsed?.protocolVersion === "openwork.computer-use/1",
-          accessibility: parsed?.accessibility === true && parsed?.protocolVersion === "openwork.computer-use/1",
-          screenRecording: parsed?.screenRecording === true && parsed?.protocolVersion === "openwork.computer-use/1",
+          ok: parsed?.ok === true && parsed?.protocolVersion === "harness.computer-use/1",
+          accessibility: parsed?.accessibility === true && parsed?.protocolVersion === "harness.computer-use/1",
+          screenRecording: parsed?.screenRecording === true && parsed?.protocolVersion === "harness.computer-use/1",
           supported: parsed?.supported === true,
           protocolVersion: parsed?.protocolVersion,
-          ...(parsed?.protocolVersion !== "openwork.computer-use/1" ? { error: "This helper uses the previous Computer Use implementation. Rebuild or reinstall OpenWork, then reconnect Computer Use." } : {}),
+          ...(parsed?.protocolVersion !== "harness.computer-use/1" ? { error: "This helper uses the previous Computer Use implementation. Rebuild or reinstall Harness, then reconnect Computer Use." } : {}),
         });
       } catch {
         resolve({ ok: false, accessibility: false, screenRecording: false, error: "Permission check returned invalid output." });
@@ -154,7 +154,7 @@ let setupProcess = null;
 async function openComputerUseSetupApp() {
   if (process.platform !== "darwin") throw new Error("Desktop Computer Use requires macOS 14 or later.");
   const bin = resolveComputerUseExecutable();
-  if (!bin) throw new Error("The Computer Use helper is unavailable. Rebuild or reinstall OpenWork.");
+  if (!bin) throw new Error("The Computer Use helper is unavailable. Rebuild or reinstall Harness.");
   // Keep the responsible application consistent with --check and the MCP
   // child. LaunchServices gives the GUI its own TCC identity instead.
   if (setupProcess && setupProcess.exitCode === null && !setupProcess.killed) {

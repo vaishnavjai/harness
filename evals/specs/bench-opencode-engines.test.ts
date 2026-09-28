@@ -5,7 +5,7 @@ import { createServer, type IncomingMessage } from "node:http";
 import { arch, cpus, platform, tmpdir, totalmem } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { eventually, test } from "@openwork/testkit";
+import { eventually, test } from "@harness/testkit";
 import { expect } from "vitest";
 
 import {
@@ -19,7 +19,7 @@ import {
 } from "../../apps/server/src/managed-opencode-v2";
 
 const execFileAsync = promisify(execFile);
-const iterations = Number(process.env.OPENWORK_BENCH_ITERATIONS ?? "1");
+const iterations = Number(process.env.HARNESS_BENCH_ITERATIONS ?? "1");
 const pacingMs = 20;
 const tokenCount = 20;
 const pollIntervalMs = 25;
@@ -132,7 +132,7 @@ async function provisionBinary(
   if (typeof override === "string" && override.trim() !== "") return override;
 
   if (packageName === "@opencode-ai/cli") {
-    return installOpencodeV2Binary(join(tmpdir(), "openwork-opencode-v2-verified"), version);
+    return installOpencodeV2Binary(join(tmpdir(), "harness-opencode-v2-verified"), version);
   }
   const binary = join(import.meta.dirname, "../../apps/desktop/resources/sidecars", process.platform === "win32" ? `${binaryName}.exe` : binaryName);
   const result = await execFileAsync(binary, ["--version"], { timeout: 15_000 });
@@ -784,7 +784,7 @@ function assertCompleted(results: EngineResults): void {
 
 test("benchmarks OpenCode v1 and v2 engines with identical client sequences", { timeout: 600_000 }, async ({ evidence }) => {
   if (!Number.isInteger(iterations) || iterations < 1) {
-    throw new Error("OPENWORK_BENCH_ITERATIONS must be a positive integer");
+    throw new Error("HARNESS_BENCH_ITERATIONS must be a positive integer");
   }
 
   const versions = await readVersions();
@@ -792,13 +792,13 @@ test("benchmarks OpenCode v1 and v2 engines with identical client sequences", { 
     versions.v1,
     "opencode-ai",
     "opencode",
-    "OPENWORK_EVAL_OPENCODE_BIN_V1",
+    "HARNESS_EVAL_OPENCODE_BIN_V1",
   );
   const v2Binary = await provisionBinary(
     versions.v2,
     "@opencode-ai/cli",
     "opencode2",
-    "OPENWORK_EVAL_OPENCODE2_BIN",
+    "HARNESS_EVAL_OPENCODE2_BIN",
   );
 
   const v1 = await runLane("v1", v1Binary);
@@ -829,7 +829,7 @@ test("benchmarks OpenCode v1 and v2 engines with identical client sequences", { 
   }
 
   const cpu = cpus();
-  const resultsDir = process.env.OPENWORK_BENCH_RESULTS_DIR ?? tmpdir();
+  const resultsDir = process.env.HARNESS_BENCH_RESULTS_DIR ?? tmpdir();
   await mkdir(resultsDir, { recursive: true });
   const outputPath = join(resultsDir, `bench-opencode-engines-${Date.now()}.json`);
   await writeFile(outputPath, `${JSON.stringify({

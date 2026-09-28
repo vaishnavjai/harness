@@ -11,7 +11,7 @@ export async function main() {
   const { values } = parseArgs({ options: {
     mysqld: { type: "string" }, pnpm: { type: "string" }, suite: { type: "string", default: "package" },
   } });
-  if (process.env.OPENWORK_WORLD_PLACE !== "local") throw new Error("Use explicit --place local; this foreground-only world owns a disposable native MySQL instance.");
+  if (process.env.HARNESS_WORLD_PLACE !== "local") throw new Error("Use explicit --place local; this foreground-only world owns a disposable native MySQL instance.");
   if (!values.mysqld || !values.pnpm || !["package", "focused"].includes(values.suite)) throw new Error("Required: --mysqld <absolute binary> --pnpm <pnpm.cjs> [--suite package|focused]");
   const repo = fileURLToPath(new URL("..", import.meta.url));
   await using mysql = await nativeMysql0097({ mysqld: values.mysqld, pnpm: values.pnpm });
@@ -24,7 +24,7 @@ export async function main() {
       const child = spawn(process.execPath, args, { cwd, env, stdio: "inherit", signal: controller.signal });
       return await new Promise<number>((resolve, reject) => { child.once("error", reject); child.once("close", code => resolve(code ?? 1)); });
     };
-    for (const pkg of ["@openwork/types", "@openwork-ee/den-db"]) {
+    for (const pkg of ["@harness/types", "@harness-ee/den-db"]) {
       const build = await run([values.pnpm, "--filter", pkg, "build"], repo, mysql.env);
       if (build !== 0) throw new Error(`${pkg} build failed: exit ${build}`);
     }

@@ -1,15 +1,15 @@
 import { createServer } from "node:http";
 import { performance } from "node:perf_hooks";
 import { expect } from "vitest";
-import { allocateFreePort } from "@openwork/cdp";
-import { startMockMcp } from "@openwork/labs";
-import { readTranscriptMessages, spec } from "@openwork/testkit";
+import { allocateFreePort } from "@harness/cdp";
+import { startMockMcp } from "@harness/labs";
+import { readTranscriptMessages, spec } from "@harness/testkit";
 import { engineParity } from "../worlds/engine-parity.ts";
 
 const test = spec.world(engineParity, {
   timeout: 420_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 function record(value: unknown): value is Record<string, unknown> {

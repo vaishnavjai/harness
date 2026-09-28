@@ -11,14 +11,14 @@ import {
   OPENAI_IMAGE_GENERATION_EXTENSION_ID,
 } from "./openai-image-generation.js";
 import {
-  callOpenWorkCloudUploadAction,
-  OPENWORK_CLOUD_UPLOAD_ACTIONS,
-  OPENWORK_CLOUD_UPLOADS_EXTENSION_ID,
+  callHarnessCloudUploadAction,
+  HARNESS_CLOUD_UPLOAD_ACTIONS,
+  HARNESS_CLOUD_UPLOADS_EXTENSION_ID,
 } from "./cloud-uploads.js";
 
-const OPENWORK_EXPERIMENTAL_EXTENSION_ACTIONS = [
+const HARNESS_EXPERIMENTAL_EXTENSION_ACTIONS = [
   ...OPENAI_IMAGE_GENERATION_EXTENSION_ACTIONS,
-  ...OPENWORK_CLOUD_UPLOAD_ACTIONS,
+  ...HARNESS_CLOUD_UPLOAD_ACTIONS,
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -34,8 +34,8 @@ function readStringField(value: unknown, key: string): string {
 export function listExperimentalExtensionActions(extensionId: string) {
   const filter = extensionId.trim();
   return filter
-    ? OPENWORK_EXPERIMENTAL_EXTENSION_ACTIONS.filter((action) => action.extensionId === filter)
-    : OPENWORK_EXPERIMENTAL_EXTENSION_ACTIONS;
+    ? HARNESS_EXPERIMENTAL_EXTENSION_ACTIONS.filter((action) => action.extensionId === filter)
+    : HARNESS_EXPERIMENTAL_EXTENSION_ACTIONS;
 }
 
 export async function callExperimentalExtensionAction(config: ServerConfig, env: EnvService, input: unknown, connectSnapshot?: ConnectSnapshot, signal?: AbortSignal) {
@@ -52,9 +52,9 @@ export async function callExperimentalExtensionAction(config: ServerConfig, env:
   if (extensionId === "google-workspace") {
     return googleWorkspaceCloudRequired(connectSnapshot?.cloudHealth ?? null);
   }
-  const registered = OPENWORK_EXPERIMENTAL_EXTENSION_ACTIONS.find((item) => item.extensionId === extensionId && item.action === action);
+  const registered = HARNESS_EXPERIMENTAL_EXTENSION_ACTIONS.find((item) => item.extensionId === extensionId && item.action === action);
   if (!registered) {
-    throw new ApiError(404, "extension_action_not_found", "OpenWork extension action not found");
+    throw new ApiError(404, "extension_action_not_found", "Harness extension action not found");
   }
 
   if (extensionId === OPENAI_IMAGE_GENERATION_EXTENSION_ID) {
@@ -62,10 +62,10 @@ export async function callExperimentalExtensionAction(config: ServerConfig, env:
     if (result) return result;
   }
 
-  if (extensionId === OPENWORK_CLOUD_UPLOADS_EXTENSION_ID) {
-    const result = await callOpenWorkCloudUploadAction(config, action, args, context, { signal });
+  if (extensionId === HARNESS_CLOUD_UPLOADS_EXTENSION_ID) {
+    const result = await callHarnessCloudUploadAction(config, action, args, context, { signal });
     if (result) return result;
   }
 
-  throw new ApiError(501, "extension_action_not_implemented", `${registered.title} is registered but not implemented on openwork-server yet.`, { extensionId, action, args });
+  throw new ApiError(501, "extension_action_not_implemented", `${registered.title} is registered but not implemented on harness-server yet.`, { extensionId, action, args });
 }

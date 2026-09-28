@@ -29,7 +29,7 @@ test("Freestyle desktop boots from its snapshot, records ownership, and deletes 
     ensureSnapshot: async (value: string) => { calls.push(`snapshot:${value}`); },
     launch: async (value: string, minutes: number) => {
       calls.push(`launch:${value}:${minutes}`);
-      return { id: "vm-1", snapshotId: "snap-1", url: "https://desktop-x.preview.openwork.software/__openwork_launch?token=t", expiresAt: "2026-09-25T00:00:00.000Z",
+      return { id: "vm-1", snapshotId: "snap-1", url: "https://desktop-x.preview.harness-legacy.invalid/__harness_launch?token=t", expiresAt: "2026-09-25T00:00:00.000Z",
         outputs: { desktopStatus: { value: "ready-signed-out" } } };
     },
     remove: async (id: string) => { calls.push(`remove:${id}`); },

@@ -12,7 +12,7 @@ import type { ChatConnectionDecisionBinding } from "../src/react-app/domains/ses
 const decisionPayload = {
   schemaVersion: "1", connectionId: "emc_decision", connectionName: "Research Vault",
   state: "needs_connection", actor: "member", message: "Sign-in required",
-  action: { type: "connect", surface: "openwork_your_connections", label: "Connect your account" },
+  action: { type: "connect", surface: "harness_your_connections", label: "Connect your account" },
 }
 const request = { requestId: "question-1", owner: "owner-1", sessionId: "session-1", turnId: "user-1", toolCallId: "decision-call", connectionId: "emc_decision" }
 const binding: ChatConnectionDecisionBinding = { request, isPending: () => true, respond: async () => {} }
@@ -21,7 +21,7 @@ beforeEach(() => useChatMcpReconnectStore.getState().reset())
 
 function decisionCard(payload: unknown, decision: ChatConnectionDecisionBinding | null = binding) {
   const part: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "decision-call",
+    type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "decision-call",
     state: "output-available", input: {}, output: payload,
   }
   return <ConnectionCard part={part} reconnectScope={request.owner}
@@ -47,7 +47,7 @@ test("old clients retain manual connection without promising native continuation
 
 test("admin decision names the owner and normalized action without raw payload copy", () => {
   const html = renderToStaticMarkup(decisionCard({ ...decisionPayload, actor: "organization_admin",
-    action: { type: "update_credentials", surface: "openwork_organization_connections", label: "Untrusted action prose" },
+    action: { type: "update_credentials", surface: "harness_organization_connections", label: "Untrusted action prose" },
   }))
   expect(html).toContain("Your organization admin must update credentials for Research Vault")
   expect(html).not.toContain("Untrusted action prose")
@@ -79,11 +79,11 @@ test("verified connection offers Continue only for an unresolved native question
 })
 
 test("narrowed metadata cannot override the tool trust boundary", () => {
-  for (const toolName of ["foreign_execute_capability", "openwork_execute_capability"]) {
+  for (const toolName of ["foreign_execute_capability", "harness_execute_capability"]) {
     const part: DynamicToolUIPart = {
       type: "dynamic-tool", toolName, toolCallId: "forged-card", state: "output-available", input: {},
       output: { connectionAction: decisionPayload, connectionStatus: { ...decisionPayload, connectionId: "emc_other" } },
-      callProviderMetadata: { openwork: { mcpResult: { structuredContent: decisionPayload } } },
+      callProviderMetadata: { harness: { mcpResult: { structuredContent: decisionPayload } } },
     }
     const html = renderToStaticMarkup(<ConnectionCard part={part} />)
     expect(html).toBe("")
@@ -92,7 +92,7 @@ test("narrowed metadata cannot override the tool trust boundary", () => {
 
 test("keeps raw MCP diagnostics behind a quiet control in a failed tool row", () => {
   const toolPart: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "call-1", state: "output-error", input: {},
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "call-1", state: "output-error", input: {},
     errorText: JSON.stringify({ error: "connection_failed", diagnostic: { code: "MCP_HTTP_504", httpStatus: 504 } }),
   }
   const html = renderToStaticMarkup(<Tool toolPart={toolPart} />)
@@ -105,7 +105,7 @@ test("keeps raw MCP diagnostics behind a quiet control in a failed tool row", ()
 
 test("renders a copy action inside the expanded tool result", () => {
   const toolPart: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId: "call-copy", state: "output-available",
+    type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId: "call-copy", state: "output-available",
     input: { query: "Notion pages" }, output: { matches: [{ name: "searchPages" }] },
   }
   const html = renderToStaticMarkup(<Tool toolPart={toolPart} defaultOpen />)
@@ -118,7 +118,7 @@ test("renders a copy action inside the expanded tool result", () => {
 
 test("does not render a copy action before a tool has a result", () => {
   const toolPart: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId: "call-running", state: "input-available", input: { query: "Notion pages" },
+    type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId: "call-running", state: "input-available", input: { query: "Notion pages" },
   }
   expect(renderToStaticMarkup(<Tool toolPart={toolPart} />)).not.toContain('data-testid="tool-result-copy-action"')
 })

@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { assertNoLiveSecret, go, liveOpenAiEnabled } from "@openwork/behaviors";
-import { observeTranscript, readTranscriptMessages, spec } from "@openwork/testkit";
+import { assertNoLiveSecret, go, liveOpenAiEnabled } from "@harness/behaviors";
+import { observeTranscript, readTranscriptMessages, spec } from "@harness/testkit";
 import { workspaceEngineUpgrade } from "../worlds/chat.ts";
 
 const live = liveOpenAiEnabled();
@@ -94,7 +94,7 @@ test(`${live ? "real LLM" : "deterministic"}: completed workspace history surviv
         ? status.enabled === true && status.chatRouting === true && status.running === true && typeof status.pid === "number"
         : status.enabled === false && status.chatRouting === false && status.running === false,
     });
-    expect(await probe.storage("openwork.preferences")).toMatchObject({
+    expect(await probe.storage("harness.preferences")).toMatchObject({
       defaultModel: { providerID: world.providerId, modelID: world.modelId },
     });
     return status;
@@ -113,7 +113,7 @@ test(`${live ? "real LLM" : "deterministic"}: completed workspace history surviv
     const session = isRecord(result.body) && isRecord(result.body.data) ? result.body.data : result.body;
     expect(session).toMatchObject({ id: conversation.sessionId });
     expect(await readSessions(conversation.workspaceId, conversation.engine)).toContain(conversation.sessionId);
-    expect(await probe.storage("openwork.react.activeWorkspace")).toBe(conversation.workspaceId);
+    expect(await probe.storage("harness.react.activeWorkspace")).toBe(conversation.workspaceId);
     const surface = await probe.dom(`[data-session-surface-id="${conversation.sessionId}"]`);
     expect(surface.elements.some(node => node.rect.width > 0 && node.rect.height > 0)).toBe(true);
     const otherSurfaces = await probe.dom(`[data-session-surface-id]:not([data-session-surface-id="${conversation.sessionId}"])`);

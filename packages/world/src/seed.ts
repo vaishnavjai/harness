@@ -8,7 +8,7 @@ export interface WorldSeed {
   arg?: string;
 }
 
-export const SEEDS_ENV = "OPENWORK_WORLD_SEEDS";
+export const SEEDS_ENV = "HARNESS_WORLD_SEEDS";
 
 const NAME = /^[a-z][a-z0-9-]{0,40}$/;
 const ARG = /^[A-Za-z0-9._-]{1,64}$/;

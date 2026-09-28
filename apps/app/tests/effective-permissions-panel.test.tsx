@@ -3,10 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { t } from "../src/i18n";
 import { EffectivePermissionsPanel } from "../src/react-app/domains/settings/panels/effective-permissions-panel";
-import type { OpenworkServerCapabilities } from "../src/app/lib/openwork-server";
+import type { HarnessServerCapabilities } from "../src/app/lib/harness-server";
 
-const readableCapabilities: OpenworkServerCapabilities = {
-  skills: { read: true, write: true, source: "openwork" },
+const readableCapabilities: HarnessServerCapabilities = {
+  skills: { read: true, write: true, source: "harness" },
   plugins: { read: true, write: true },
   mcp: { read: true, write: true },
   commands: { read: true, write: true },
@@ -17,9 +17,9 @@ describe("effective permissions panel", () => {
   test("names the section and explains that the engine is the source of truth", () => {
     const markup = renderToStaticMarkup(
       <EffectivePermissionsPanel
-        openworkServerClient={null}
-        openworkServerStatus="connected"
-        openworkServerCapabilities={readableCapabilities}
+        harnessServerClient={null}
+        harnessServerStatus="connected"
+        harnessServerCapabilities={readableCapabilities}
         runtimeWorkspaceId="ws_1"
       />,
     );
@@ -34,9 +34,9 @@ describe("effective permissions panel", () => {
   test("explains what is missing instead of showing an empty list", () => {
     const markup = renderToStaticMarkup(
       <EffectivePermissionsPanel
-        openworkServerClient={null}
-        openworkServerStatus="disconnected"
-        openworkServerCapabilities={null}
+        harnessServerClient={null}
+        harnessServerStatus="disconnected"
+        harnessServerCapabilities={null}
         runtimeWorkspaceId={null}
       />,
     );

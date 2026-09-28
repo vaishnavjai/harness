@@ -6,7 +6,7 @@ import { githubApi, presentEvidence } from "./evidence-presentation.mjs";
 // from an immutable, reviewed checkout, never the tested PR's working tree.
 const repo = process.env.GITHUB_REPOSITORY;
 const sha = process.env.PREVIEW_SHA;
-if (repo !== "different-ai/openwork" || !/^[a-f0-9]{40}$/.test(sha ?? "")) throw new Error("Unsupported preview identity");
+if (repo !== "vaishnavjai/harness" || !/^[a-f0-9]{40}$/.test(sha ?? "")) throw new Error("Unsupported preview identity");
 const workflow = githubApi(`repos/${repo}/actions/workflows/pr-proof.yml`);
 const deadline = Date.now() + 25 * 60_000;
 let observed;

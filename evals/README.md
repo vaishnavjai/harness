@@ -1,7 +1,7 @@
-# OpenWork tests and test evidence
+# Harness tests and test evidence
 
 All executable coverage lives in [`specs/**/*.test.ts`](./specs) and imports
-`test` from `@openwork/testkit`. Tests that drive Electron, Den, or another app
+`test` from `@harness/testkit`. Tests that drive Electron, Den, or another app
 surface use `.e2e.test.ts`.
 
 ## Paved path
@@ -82,7 +82,7 @@ in are compiled by their own projects with their own flags. Nothing inside
 
 Run the E2E lane with `pnpm evals:e2e [test-names...]`. Naming a test
 auto-satisfies the opt-in flags declared in its source, but value-bearing
-environment variables such as `OPENWORK_EVAL_MODEL` are never auto-set. Vision
+environment variables such as `HARNESS_EVAL_MODEL` are never auto-set. Vision
 judging is deferred by default; add `--with-llm-vision` to judge inline. Use
 `--local` to force isolated local resources, `--daytona` to require Daytona,
 `--den <url>` to reuse Den, or `--publish --pr <number>` to judge and publish
@@ -111,13 +111,13 @@ configuration, runs one selected case per sandbox, and checks the immutable
 ref/source guard before launch.
 
 Under Daytona the spec files run from this checkout while the sandbox builds
-`OPENWORK_EVAL_REF` (default `dev`). The CLI resolves that ref against `origin`,
+`HARNESS_EVAL_REF` (default `dev`). The CLI resolves that ref against `origin`,
 appends `ref=<ref>` to the placement line, and warns on stderr when it differs
-from the runner `HEAD`; `--strict-ref` (or `OPENWORK_EVAL_STRICT_REF=1`) turns
+from the runner `HEAD`; `--strict-ref` (or `HARNESS_EVAL_STRICT_REF=1`) turns
 the warning into a failure before any sandbox is provisioned. Evidence records
 both commits: `gitSha` is the runner checkout and `sandboxRef` is the ref the
 sandbox built. To test a branch, push it and export
-`OPENWORK_EVAL_REF=$(git rev-parse HEAD)`.
+`HARNESS_EVAL_REF=$(git rev-parse HEAD)`.
 
 `--case` filters Vitest by the registered literal case prefix. A passing result
 means that selected case passed; other cases in the file are reported as not
@@ -172,7 +172,7 @@ Surface and substrate are independent axes:
 Run a live spec only by exact name and with explicit consent and endpoint values:
 
 ```bash
-OPENWORK_EVAL_LIVE=1 OPENWORK_EVAL_LIVE_DEN_API_URL=https://api.openworklabs.com OPENWORK_EVAL_SECRET_LIVE_MAILBOX_EMAIL=<mailbox> pnpm evals:pr specs/prod-den-signup-invites.live.test.ts
+HARNESS_EVAL_LIVE=1 HARNESS_EVAL_LIVE_DEN_API_URL=https://api.harness.invalid HARNESS_EVAL_SECRET_LIVE_MAILBOX_EMAIL=<mailbox> pnpm evals:pr specs/prod-den-signup-invites.live.test.ts
 ```
 
 The live Den is attached and never deleted. Timestamped plus-addressed identities,
@@ -190,7 +190,7 @@ world import); a file with no boundary is also called out for `node:fs` and
 grandfathers legacy files and only shrinks. Cleanup deletes them, moves unit
 tests next to their module, or folds their assertions into a journey spec.
 
-- Import `test` from `@openwork/testkit`.
+- Import `test` from `@harness/testkit`.
 - Name app-driving files `<slug>.e2e.test.ts`; app-less tests use `<slug>.test.ts`.
 - Live specs use `<slug>.live.test.ts`, never run in PR/E2E suites, and require a consent environment variable.
 - Acquire resources in dependency order with `needs()` → `server()` → `app()`.
@@ -203,20 +203,20 @@ tests next to their module, or folds their assertions into a journey spec.
 ## Writing specs
 
 New app-driving specs use `spec.world()` and four capability-restricted
-channels. Import them only from `@openwork/testkit`.
+channels. Import them only from `@harness/testkit`.
 
 | Channel | Purpose | Allowed effects |
 | --- | --- | --- |
 | `seed` | Arrange the world | Create Den, desktops, browsers, data, mocks, sessions, and faults; this is the only API/state write channel. |
 | `user` | Act as a person | Trusted CDP mouse, keyboard, navigation, reload, visible assertions, screenshots, and vision checks. It cannot evaluate JS, fetch, or use app controls. |
-| `agent` | Use the product automation rail | Explicit `window.__openworkControl` actions, including agent sends and session actions. |
+| `agent` | Use the product automation rail | Explicit `window.__harnessControl` actions, including agent sends and session actions. |
 | `probe` | Observe without changing state | Read text, composer/storage/hash/API/witness state, and poll with `eventually`. Probe API calls are GET-only. |
 
 A world is an imperative async function. Resources created through `seed` are
 owned by the fixture's `AsyncDisposableStack` and released in reverse order.
 Worlds are per-test by default; `{ scope: "file" }` shares exactly the handles
 the world returns. E2E files automatically need
-`OPENWORK_EVAL_E2E_TESTS=1`, and unmet needs skip before the world starts.
+`HARNESS_EVAL_E2E_TESTS=1`, and unmet needs skip before the world starts.
 
 ```ts
 export async function emptySession(seed: Seed) {
@@ -290,14 +290,14 @@ const test = spec.world(emptySession, {
 });
 test("a draft survives reloads", async ({ user, probe, step }) => {
   await user.type("composer", "Keep this draft");
-  const revision = await probe.storage("openwork.session-drafts.v2", pickRevision);
+  const revision = await probe.storage("harness.session-drafts.v2", pickRevision);
   await step("draft survives three reloads", async () => {
     for (let i = 0; i < 3; i += 1) {
       await user.reload();
       await user.see("composer", { editable: true, text: "Keep this draft" });
     }
   });
-  expect(await probe.storage("openwork.session-drafts.v2", pickRevision)).toBe(revision);
+  expect(await probe.storage("harness.session-drafts.v2", pickRevision)).toBe(revision);
 });
 ```
 
@@ -332,11 +332,11 @@ This is enforced by `pnpm --dir evals run lint:layers`.
 
 | Layer | Contents | Rule |
 | --- | --- | --- |
-| L0 | `@openwork/matchers` | Turn supplied facts into pure findings; no I/O. |
-| L1 | `@openwork/cdp`, `@openwork/labs` | Provide protocol and lab primitives; do not own journeys or test lifecycle. |
-| L2 | `@openwork/behaviors` | Provide framework-free actions and observations over narrow handles. |
-| L3 | root `@openwork/world` + `@openwork/env` | The shared package owns script discovery, CLI receipts, and the headless-web surface; env provides concrete eval resources. Neither depends on Vitest. |
-| L4 | `@openwork/testkit` and `evals/bin/evals.mjs` | Adapt environments to specs, Vitest, and evidence. |
+| L0 | `@harness/matchers` | Turn supplied facts into pure findings; no I/O. |
+| L1 | `@harness/cdp`, `@harness/labs` | Provide protocol and lab primitives; do not own journeys or test lifecycle. |
+| L2 | `@harness/behaviors` | Provide framework-free actions and observations over narrow handles. |
+| L3 | root `@harness/world` + `@harness/env` | The shared package owns script discovery, CLI receipts, and the headless-web surface; env provides concrete eval resources. Neither depends on Vitest. |
+| L4 | `@harness/testkit` and `evals/bin/evals.mjs` | Adapt environments to specs, Vitest, and evidence. |
 
 ## Composable packages and diagnostics
 
@@ -345,21 +345,21 @@ executable coverage is always assembled as a test under `specs/`.
 
 | Package | Owns |
 | --- | --- |
-| root `@openwork/world` | script discovery, CLI lifecycle receipts, local state store, `hold()`, and headless-web surface |
-| `@openwork/env` | places and concrete Den, desktop, mock, LiteLLM, and kind resources |
-| `@openwork/testkit` | thin Vitest adapter: fixture, needs/skip mapping, evidence bridging, and spec-facing re-exports |
-| `@openwork/cdp` | raw CDP client, targets, `Surface`, and `attachSurface` |
-| `@openwork/labs` | egress, identity-provider, release-feed, and mock-MCP labs |
-| `@openwork/hosts` | local and Daytona hosts and `resolveHost()` |
-| `@openwork/behaviors` | framework-free actions and observations over narrow handles |
-| `@openwork/matchers` | pure findings over facts, with no I/O |
-| `@openwork/test-evidence` | screenshot capture, visual validation, and ambient test-evidence recording used by testkit |
-| `@openwork/timeline` | timing spans for long test journeys |
-| `@openwork/test-artifacts` | index, render, and PR publication for completed test runs |
+| root `@harness/world` | script discovery, CLI lifecycle receipts, local state store, `hold()`, and headless-web surface |
+| `@harness/env` | places and concrete Den, desktop, mock, LiteLLM, and kind resources |
+| `@harness/testkit` | thin Vitest adapter: fixture, needs/skip mapping, evidence bridging, and spec-facing re-exports |
+| `@harness/cdp` | raw CDP client, targets, `Surface`, and `attachSurface` |
+| `@harness/labs` | egress, identity-provider, release-feed, and mock-MCP labs |
+| `@harness/hosts` | local and Daytona hosts and `resolveHost()` |
+| `@harness/behaviors` | framework-free actions and observations over narrow handles |
+| `@harness/matchers` | pure findings over facts, with no I/O |
+| `@harness/test-evidence` | screenshot capture, visual validation, and ambient test-evidence recording used by testkit |
+| `@harness/timeline` | timing spans for long test journeys |
+| `@harness/test-artifacts` | index, render, and PR publication for completed test runs |
 
 Because behaviors and matchers do not depend on a test context, they also power
 the standalone diagnostic script at `evals/scripts/diagnose.mts`. It imports
-only `@openwork/behaviors` and `@openwork/matchers` and can inspect a real
+only `@harness/behaviors` and `@harness/matchers` and can inspect a real
 endpoint without creating test evidence.
 
 ## Worlds
@@ -417,7 +417,7 @@ metadata only; it does not stop the process. `help` and `list` discover
 `desktop-prod-live` is a deliberately dangerous local-only mode. It launches
 source Electron through `pnpm dev` with isolated Electron userData, app
 identifier, Vite/CDP ports, and protocol registration, while resolving the
-installed production `OPENWORK_DATA_DIR` and channel-aware `OPENCODE_DB` only at
+installed production `HARNESS_DATA_DIR` and channel-aware `OPENCODE_DB` only at
 launch time. It never copies or symlinks those stores, does not boot or modify a
 Den, and does not seed a workspace, session, or sign-in. Production may remain
 running, but concurrent writes from production and dev are unsupported and may
@@ -426,17 +426,17 @@ corrupt state. Its parser requires exactly `--allow-shared-state`, after the
 does not delete shared stores.
 
 `headless-prod-live` applies the same symbolic state selection to source Vite +
-`openwork-server` without Electron. Its production tokens, server state, config,
-OpenWork data, and OpenCode database are resolved in place and never copied into
+`harness-server` without Electron. Its production tokens, server state, config,
+Harness data, and OpenCode database are resolved in place and never copied into
 the receipt. It requires the same exact script argument and refuses remote
 access, public hosts, and non-loopback host bindings.
 
 `worlds/den-split-origin-kind.ts` attaches to the shared
-`openwork-kube-lab` kind substrate and owns only its local port-forwards. Run its
+`harness-kube-lab` kind substrate and owns only its local port-forwards. Run its
 opt-in proof on a machine with local Docker, kind, kubectl, and Helm:
 
 ```bash
-OPENWORK_EVAL_E2E_TESTS=1 OPENWORK_EVAL_KIND_E2E=1 pnpm --dir evals exec vitest run --config vitest.config.ts --project e2e specs/world-kind-den.e2e.test.ts
+HARNESS_EVAL_E2E_TESTS=1 HARNESS_EVAL_KIND_E2E=1 pnpm --dir evals exec vitest run --config vitest.config.ts --project e2e specs/world-kind-den.e2e.test.ts
 ```
 
 Daytona cannot host this substrate: its sandbox has no Docker binary or daemon,
@@ -448,7 +448,7 @@ runtime can start kind there.
 ### Drive the app
 
 Import the script's builder, create one disposal stack, and call the builder.
-Compose journeys from `@openwork/behaviors`; executable coverage belongs in
+Compose journeys from `@harness/behaviors`; executable coverage belongs in
 `evals/specs`.
 
 ```ts
@@ -507,13 +507,13 @@ the pass/fail verdict.
 For an isolated Den API without Electron or Den Web, use the development helper:
 
 ```bash
-pnpm --dir evals dev:den -- up --port 8891 --database openwork_den_my_eval --seed
+pnpm --dir evals dev:den -- up --port 8891 --database harness_den_my_eval --seed
 pnpm --dir evals dev:den -- down --port 8891 --drop-database
 ```
 
 The port and database are generated when omitted. The helper starts MySQL,
 pushes the current schema, and prints the eval URL exports and teardown command.
-It also adds the printed `OPENWORK_EVAL_DEN_WEB_URL` to the trusted origins;
+It also adds the printed `HARNESS_EVAL_DEN_WEB_URL` to the trusted origins;
 without that origin, Better Auth rejects eval sign-in with
 `403 INVALID_ORIGIN`.
 
@@ -569,7 +569,7 @@ These names are designed but not built. Do not attempt to use them:
   secret references, never secret values.
 
 The low-level escape hatch available today is
-`OPENWORK_EVAL_DEN_API_URL` with `OPENWORK_EVAL_DEN_WEB_URL`. It attaches an
+`HARNESS_EVAL_DEN_API_URL` with `HARNESS_EVAL_DEN_WEB_URL`. It attaches an
 existing Den at the `server()` level and is called `reuse` in current code.
 Attached mode has no `apiLog()` and does not support `seedProfile`. Locally
 launched mocks are loopback-only and therefore unreachable from a remote Den.
@@ -640,7 +640,7 @@ const count: number = await probe.eval(browserScript(
 ));
 ```
 
-Import `browserScript` from `@openwork/testkit` in specs and `@openwork/cdp` in
+Import `browserScript` from `@harness/testkit` in specs and `@harness/cdp` in
 worlds and lower layers. It binds explicit serializable arguments; browser code
 cannot capture test variables or imported runtime helpers. Return plain data,
 not elements or functions. API JSON remains `unknown` where the contract is

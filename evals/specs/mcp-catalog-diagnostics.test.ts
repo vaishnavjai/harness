@@ -2,9 +2,9 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 import { startCatalogWitness } from "../packages/labs/src/mock-mcp-catalog.ts";
-import { bootServer, isRecord, stopChild } from "../worlds/openwork-server-cli.ts";
+import { bootServer, isRecord, stopChild } from "../worlds/harness-server-cli.ts";
 import { seedSyntheticPreactivatedDen } from "../packages/env/src/app-web-bootstrap.ts";
 
 // Operators can distinguish catalog failures and local App-host provisioning in
@@ -17,21 +17,21 @@ test("catalog reconciliation attributes failures without leaking private auth or
   const clientToken = "catalog-client-test-token";
   const witness = await startCatalogWitness(privateAuthorization);
   const children: ReturnType<typeof bootServer>["child"][] = [];
-  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENWORK_") && !key.startsWith("OPENCODE")));
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("HARNESS_") && !key.startsWith("OPENCODE")));
   const headers = { authorization: `Bearer ${clientToken}`, "content-type": "application/json" };
   const config = { type: "remote", url: `${witness.url}/mcp/agent`, enabled: true, oauth: false, headers: { Authorization: memberAuthorization } };
-  const index = (servers: unknown[]) => JSON.stringify({ schemaVersion: "openwork.connect/mcp-servers/1", servers });
+  const index = (servers: unknown[]) => JSON.stringify({ schemaVersion: "harness.connect/mcp-servers/1", servers });
   async function boot(name: string, devMode: string, syntheticPreactivatedDenOrigin?: string) {
     const home = join(root, name);
     const workspace = join(home, "workspace");
     await mkdir(workspace, { recursive: true });
-    await mkdir(join(home, "config", "openwork"), { recursive: true });
+    await mkdir(join(home, "config", "harness"), { recursive: true });
     const bootstrapEnv = await seedSyntheticPreactivatedDen(home, syntheticPreactivatedDenOrigin);
     const server = bootServer({
       ...inherited, HOME: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"),
       XDG_STATE_HOME: join(home, "state"), XDG_CACHE_HOME: join(home, "cache"),
-      OPENWORK_RUNTIME_DB: join(home, "runtime.sqlite"), OPENWORK_DEV_MODE: devMode,
-      OPENWORK_OPENCODE_BASE_URL: witness.url, OPENWORK_MANAGE_OPENCODE: "0",
+      HARNESS_RUNTIME_DB: join(home, "runtime.sqlite"), HARNESS_DEV_MODE: devMode,
+      HARNESS_OPENCODE_BASE_URL: witness.url, HARNESS_MANAGE_OPENCODE: "0",
       ...bootstrapEnv,
     }, clientToken, workspace, () => {});
     children.push(server.child);
@@ -40,7 +40,7 @@ test("catalog reconciliation attributes failures without leaking private auth or
     expect(response.status).toBe(200);
     const payload: unknown = await response.json();
     if (!isRecord(payload) || !Array.isArray(payload.items) || !isRecord(payload.items[0]) || typeof payload.items[0].id !== "string") throw new Error("Missing workspace");
-    return `${base}/workspace/${payload.items[0].id}/mcp/openwork-cloud/reconcile`;
+    return `${base}/workspace/${payload.items[0].id}/mcp/harness-cloud/reconcile`;
   }
   async function reconcile(url: string, authorization?: string, enabled = true) {
     const response = await fetch(url, {
@@ -73,7 +73,7 @@ test("catalog reconciliation attributes failures without leaking private auth or
     return body;
   }
   async function expectResolveError(endpoint: string, code: string) {
-    const response = await fetch(endpoint.replace("/mcp/openwork-cloud/reconcile", "/mcp-apps/resolve"), {
+    const response = await fetch(endpoint.replace("/mcp/harness-cloud/reconcile", "/mcp-apps/resolve"), {
       method: "POST", headers, signal: AbortSignal.timeout(20_000),
       body: JSON.stringify({ launch: { connectionId: "catalog-connection", toolName: "show", resourceUri: "ui://fixture/app" } }),
     });
@@ -107,11 +107,11 @@ test("catalog reconciliation attributes failures without leaking private auth or
     evidence.recordAssertionEvidence("App-host provisioning is independent of ordinary Cloud health", "Ordinary health GET remains usable after global reconciliation without private auth, reports false then true after private authorization, and retains the same desired revision. GET makes no direct probe or catalog requests and leaks neither credential.", true);
     await expectResolveError(endpoint, "server_unavailable");
     expect(witness.requests.some((entry) => entry.method === "resources/read" && entry.privateAuth && entry.appHostCapability)).toBe(true);
-    expect(witness.registrations.some((entry) => entry.name.startsWith("openwork-direct-"))).toBe(false);
+    expect(witness.registrations.some((entry) => entry.name.startsWith("harness-direct-"))).toBe(false);
     const descriptor = { connectionId: "catalog-connection", name: "Catalog fixture", description: null, url: `${witness.url}/mcp/agent/connections/catalog-connection`, exposeDirectly: true };
     witness.catalog(index([descriptor]));
     expect((await reconcile(endpoint)).connectCatalogDiagnostic).toBe("ready");
-    const directName = witness.registrations.find((entry) => entry.name.startsWith("openwork-direct-"))?.name;
+    const directName = witness.registrations.find((entry) => entry.name.startsWith("harness-direct-"))?.name;
     expect(directName).toBeDefined();
 
     for (const invalid of ["not-json", JSON.stringify({ schemaVersion: "unsupported", servers: [] })]) {
@@ -120,7 +120,7 @@ test("catalog reconciliation attributes failures without leaking private auth or
       await expectResolveError(endpoint, "connect_catalog_invalid_catalog");
     }
     expect(witness.disconnects).toContain(directName);
-    const projectedCount = witness.registrations.filter((entry) => entry.name.startsWith("openwork-direct-")).length;
+    const projectedCount = witness.registrations.filter((entry) => entry.name.startsWith("harness-direct-")).length;
     witness.catalog(index([descriptor, { ...descriptor, connectionId: "rejected", url: "https://untrusted.invalid/mcp" }]));
     expect((await reconcile(endpoint)).connectCatalogDiagnostic).toBe("invalid_proxy_descriptor");
     await expectResolveError(endpoint, "connect_catalog_invalid_proxy_descriptor");
@@ -129,7 +129,7 @@ test("catalog reconciliation attributes failures without leaking private auth or
       expect((await reconcile(endpoint)).connectCatalogDiagnostic).toBe("discovery_unavailable");
       await expectResolveError(endpoint, "connect_catalog_discovery_unavailable");
     }
-    expect(witness.registrations.filter((entry) => entry.name.startsWith("openwork-direct-"))).toHaveLength(projectedCount);
+    expect(witness.registrations.filter((entry) => entry.name.startsWith("harness-direct-"))).toHaveLength(projectedCount);
     expect(witness.registrations.every((entry) => !entry.privateAuth)).toBe(true);
     evidence.recordAssertionEvidence("Catalog failure attribution and fail-closed projection", "Real reconciliation HTTP responses distinguish missing auth, empty, ready, invalid JSON/schema, invalid proxy, and unavailable HTTP 401/403/404/503; revoked direct entry disconnected and no rejected catalog reprojected it. Engine registrations contain no private auth.", true);
 

@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { timed } from "@openwork/timeline";
-import { attachSurface, describeAppState, dumpScreenState, isInteractive, probeAppStateOnSurface } from "@openwork/cdp";
+import { timed } from "@harness/timeline";
+import { attachSurface, describeAppState, dumpScreenState, isInteractive, probeAppStateOnSurface } from "@harness/cdp";
 import { resolveHost } from "./resolve.ts";
-import type { AppStateProbe, AppSurfaceState, AttachedSurface, Surface, SurfaceHandle } from "@openwork/cdp";
+import type { AppStateProbe, AppSurfaceState, AttachedSurface, Surface, SurfaceHandle } from "@harness/cdp";
 import type { DesktopRelease, ElectronStartupObservation, Host } from "./types.ts";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
@@ -15,7 +15,7 @@ function messageText(error: unknown): string {
 }
 
 function logCleanupError(name: string, error: unknown): void {
-  console.warn(`[openwork/evals] Desktop ${name} cleanup failed: ${messageText(error)}`);
+  console.warn(`[harness/evals] Desktop ${name} cleanup failed: ${messageText(error)}`);
 }
 
 async function appendDesktopLog(error: unknown, handle: SurfaceHandle): Promise<unknown> {
@@ -34,7 +34,7 @@ async function appendDesktopLog(error: unknown, handle: SurfaceHandle): Promise<
 export interface DesktopOptions {
   name?: string;
   mode?: "spawn" | "attach";
-  /** Explicit CDP endpoint for attach mode; falls back to OPENWORK_EVAL_CDP_URL. */
+  /** Explicit CDP endpoint for attach mode; falls back to HARNESS_EVAL_CDP_URL. */
   cdpUrl?: string;
   /**
    * Where this desktop runs. Defaults to the ambient host (`resolveHost()`).
@@ -144,7 +144,7 @@ async function waitForReadiness(app: Surface, timeoutMs: number): Promise<AppRea
     await sleep(Math.min(POLL_INTERVAL_MS, Math.max(0, deadline - Date.now())));
   }
   throw new Error(
-    `OpenWork desktop did not become ready after ${timeoutMs}ms: ${describeAppState(last)} On screen: ${await dumpScreenState(app)}.`,
+    `Harness desktop did not become ready after ${timeoutMs}ms: ${describeAppState(last)} On screen: ${await dumpScreenState(app)}.`,
   );
 }
 
@@ -167,9 +167,9 @@ export async function desktop(opts: DesktopOptions = {}): Promise<DesktopHandle>
   let handle: SurfaceHandle;
 
   if (mode === "attach") {
-    const cdpUrl = opts.cdpUrl?.trim() || process.env.OPENWORK_EVAL_CDP_URL?.trim();
+    const cdpUrl = opts.cdpUrl?.trim() || process.env.HARNESS_EVAL_CDP_URL?.trim();
     if (!cdpUrl) {
-      throw new Error('desktop({ mode: "attach" }) requires cdpUrl or OPENWORK_EVAL_CDP_URL to point at a running Electron app.');
+      throw new Error('desktop({ mode: "attach" }) requires cdpUrl or HARNESS_EVAL_CDP_URL to point at a running Electron app.');
     }
     handle = {
       name: opts.name ?? "attached-app",

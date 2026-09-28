@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
-import { allocateFreePort } from "@openwork/cdp";
+import { allocateFreePort } from "@harness/cdp";
 import { electronLaunchEnv, electronProfilePaths, electronSurfaceEnv, freePort, pruneStaleSurfaceProfiles, registerLiveProfileRoot, resolveChromeBinary, stopOwnedElectronSurface, unregisterLiveProfileRoot } from "../src/local.ts";
 
 const ENV_KEYS = [
@@ -14,20 +14,20 @@ const ENV_KEYS = [
   "HOME",
   "LOCALAPPDATA",
   "OPENCODE_CONFIG_DIR",
-  "OPENWORK_DATA_DIR",
-  "OPENWORK_DESKTOP_BOOTSTRAP_PATH",
-  "OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY",
-  "OPENWORK_DEV_MODE",
-  "OPENWORK_ELECTRON_APP_IDENTIFIER",
-  "OPENWORK_ELECTRON_APP_NAME",
-  "OPENWORK_ELECTRON_DISABLE_PROTOCOL_REGISTRATION",
-  "OPENWORK_ELECTRON_REMOTE_DEBUG_PORT",
-  "OPENWORK_ELECTRON_SKIP_SHARED_PREPARE",
-  "OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN",
-  "OPENWORK_ELECTRON_USERDATA",
-  "OPENWORK_ENV_STORE",
+  "HARNESS_DATA_DIR",
+  "HARNESS_DESKTOP_BOOTSTRAP_PATH",
+  "HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY",
+  "HARNESS_DEV_MODE",
+  "HARNESS_ELECTRON_APP_IDENTIFIER",
+  "HARNESS_ELECTRON_APP_NAME",
+  "HARNESS_ELECTRON_DISABLE_PROTOCOL_REGISTRATION",
+  "HARNESS_ELECTRON_REMOTE_DEBUG_PORT",
+  "HARNESS_ELECTRON_SKIP_SHARED_PREPARE",
+  "HARNESS_ELECTRON_USE_MOCK_KEYCHAIN",
+  "HARNESS_ELECTRON_USERDATA",
+  "HARNESS_ENV_STORE",
   "PORT",
-  "VITE_DISABLE_OPENWORK_MODELS",
+  "VITE_DISABLE_HARNESS_MODELS",
   "XDG_CACHE_HOME",
   "XDG_CONFIG_HOME",
   "XDG_DATA_HOME",
@@ -35,7 +35,7 @@ const ENV_KEYS = [
 ].sort();
 
 test("electronProfilePaths returns all expected paths under the profile root", () => {
-  const root = join(tmpdir(), "openwork-local-host-profile");
+  const root = join(tmpdir(), "harness-local-host-profile");
   const paths = electronProfilePaths(root);
 
   assert.deepEqual(Object.keys(paths).sort(), [
@@ -61,11 +61,11 @@ test("electronProfilePaths returns all expected paths under the profile root", (
 });
 
 test("electronSurfaceEnv matches the isolated Electron demo contract", () => {
-  const root = join(tmpdir(), "openwork-local-host-env");
+  const root = join(tmpdir(), "harness-local-host-env");
   const paths = electronProfilePaths(root);
   const env = electronSurfaceEnv(paths, {
-    appName: "OpenWork Eval probe",
-    appIdentifier: "com.differentai.openwork.eval.probe",
+    appName: "Harness Eval probe",
+    appIdentifier: "com.vaishnavjai.harness.eval.probe",
     port: 5123,
     cdpPort: 9123,
   });
@@ -80,17 +80,17 @@ test("electronSurfaceEnv matches the isolated Electron demo contract", () => {
   assert.equal(env.APPDATA, paths.appDataDir);
   assert.equal(env.HOME, paths.homeDir);
   assert.equal(env.LOCALAPPDATA, paths.localAppDataDir);
-  assert.equal(env.OPENWORK_DATA_DIR, paths.dataDir);
-  assert.equal(env.OPENWORK_DESKTOP_BOOTSTRAP_PATH, paths.bootstrapPath);
-  assert.equal(env.OPENWORK_ENV_STORE, paths.envStorePath);
+  assert.equal(env.HARNESS_DATA_DIR, paths.dataDir);
+  assert.equal(env.HARNESS_DESKTOP_BOOTSTRAP_PATH, paths.bootstrapPath);
+  assert.equal(env.HARNESS_ENV_STORE, paths.envStorePath);
   assert.equal(env.OPENCODE_CONFIG_DIR, paths.opencodeConfigDir);
-  assert.equal(env.OPENWORK_ELECTRON_USERDATA, paths.userDataDir);
+  assert.equal(env.HARNESS_ELECTRON_USERDATA, paths.userDataDir);
   assert.equal(env.PORT, "5123");
-  assert.equal(env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT, "9123");
-  assert.equal(env.OPENWORK_ELECTRON_APP_NAME, "OpenWork Eval probe");
-  assert.equal(env.OPENWORK_ELECTRON_APP_IDENTIFIER, "com.differentai.openwork.eval.probe");
-  assert.equal(env.OPENWORK_ELECTRON_SKIP_SHARED_PREPARE, "1");
-  assert.equal(env.OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN, "1");
+  assert.equal(env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT, "9123");
+  assert.equal(env.HARNESS_ELECTRON_APP_NAME, "Harness Eval probe");
+  assert.equal(env.HARNESS_ELECTRON_APP_IDENTIFIER, "com.vaishnavjai.harness.eval.probe");
+  assert.equal(env.HARNESS_ELECTRON_SKIP_SHARED_PREPARE, "1");
+  assert.equal(env.HARNESS_ELECTRON_USE_MOCK_KEYCHAIN, "1");
   assert.equal(env.XDG_CACHE_HOME, paths.cacheHome);
   assert.equal(env.XDG_CONFIG_HOME, paths.configHome);
   assert.equal(env.XDG_DATA_HOME, paths.dataHome);
@@ -98,36 +98,36 @@ test("electronSurfaceEnv matches the isolated Electron demo contract", () => {
 });
 
 test("electronSurfaceEnv maps the v2 eval lane before caller overrides", () => {
-  const previous = process.env.OPENWORK_EVAL_ENGINE;
-  process.env.OPENWORK_EVAL_ENGINE = "V2";
+  const previous = process.env.HARNESS_EVAL_ENGINE;
+  process.env.HARNESS_EVAL_ENGINE = "V2";
   try {
-    const paths = electronProfilePaths(join(tmpdir(), "openwork-local-host-v2-env"));
+    const paths = electronProfilePaths(join(tmpdir(), "harness-local-host-v2-env"));
     const options = {
-      appName: "OpenWork Eval v2",
-      appIdentifier: "com.differentai.openwork.eval.v2",
+      appName: "Harness Eval v2",
+      appIdentifier: "com.vaishnavjai.harness.eval.v2",
       port: 5124,
       cdpPort: 9124,
     };
-    assert.equal(electronSurfaceEnv(paths, options).OPENWORK_ENGINE_V2_PREVIEW, "1");
+    assert.equal(electronSurfaceEnv(paths, options).HARNESS_ENGINE_V2_PREVIEW, "1");
     assert.equal(
-      electronSurfaceEnv(paths, options, { OPENWORK_ENGINE_V2_PREVIEW: "sidecar" }).OPENWORK_ENGINE_V2_PREVIEW,
+      electronSurfaceEnv(paths, options, { HARNESS_ENGINE_V2_PREVIEW: "sidecar" }).HARNESS_ENGINE_V2_PREVIEW,
       "sidecar",
     );
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_EVAL_ENGINE;
-    else process.env.OPENWORK_EVAL_ENGINE = previous;
+    if (previous === undefined) delete process.env.HARNESS_EVAL_ENGINE;
+    else process.env.HARNESS_EVAL_ENGINE = previous;
   }
 });
 
 test("electronLaunchEnv keeps the launching shell's OPENCODE_* out of the app", () => {
-  const paths = electronProfilePaths(join(tmpdir(), "openwork-local-host-launch-env"));
+  const paths = electronProfilePaths(join(tmpdir(), "harness-local-host-launch-env"));
   const options = {
-    appName: "OpenWork Eval launch",
-    appIdentifier: "com.differentai.openwork.eval.launch",
+    appName: "Harness Eval launch",
+    appIdentifier: "com.vaishnavjai.harness.eval.launch",
     port: 5125,
     cdpPort: 9125,
   };
-  // What an OpenWork agent shell exports for the host app's own engine.
+  // What a Harness agent shell exports for the host app's own engine.
   const shell = {
     PATH: "/usr/bin:/bin",
     OPENCODE_DB: "/host/opencode.db",
@@ -147,12 +147,12 @@ test("electronLaunchEnv keeps the launching shell's OPENCODE_* out of the app", 
 });
 
 test("stopOwnedElectronSurface verifies profile ownership before removing it", async () => {
-  const profileDir = await mkdtemp(join(tmpdir(), "openwork-owned-electron-"));
+  const profileDir = await mkdtemp(join(tmpdir(), "harness-owned-electron-"));
   const userDataDir = join(profileDir, "electron-userdata");
   await mkdir(userDataDir, { recursive: true });
   const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
     detached: true,
-    env: { ...process.env, OPENWORK_ELECTRON_USERDATA: userDataDir },
+    env: { ...process.env, HARNESS_ELECTRON_USERDATA: userDataDir },
     stdio: "ignore",
   });
   child.unref();
@@ -172,7 +172,7 @@ test("resolveChromeBinary returns the macOS default path", () => {
 });
 
 test("resolveChromeBinary finds Linux Chrome on PATH and reports a helpful error otherwise", async () => {
-  const binDir = await mkdtemp(join(tmpdir(), "openwork-chrome-bin-"));
+  const binDir = await mkdtemp(join(tmpdir(), "harness-chrome-bin-"));
   const chromePath = join(binDir, "google-chrome");
   try {
     await writeFile(chromePath, "#!/bin/sh\nexit 0\n", "utf8");
@@ -293,7 +293,7 @@ test("surface cleanup still stops a listener in the surface's own process group"
 });
 
 test("pruneStaleSurfaceProfiles removes untracked profiles and never touches live ones", async () => {
-  const rootDir = await mkdtemp(join(tmpdir(), "openwork-surface-prune-"));
+  const rootDir = await mkdtemp(join(tmpdir(), "harness-surface-prune-"));
   const livePath = resolve(rootDir, "live-a");
   const stalePath = resolve(rootDir, "stale-b");
   const killed: string[] = [];
@@ -320,7 +320,7 @@ test("pruneStaleSurfaceProfiles removes untracked profiles and never touches liv
 test("pruneStaleSurfaceProfiles kills only processes tied to stale profiles", {
   skip: process.platform !== "darwin" && process.platform !== "linux",
 }, async () => {
-  const rootDir = await mkdtemp(join(tmpdir(), "openwork-surface-process-prune-"));
+  const rootDir = await mkdtemp(join(tmpdir(), "harness-surface-process-prune-"));
   const livePath = resolve(rootDir, "live-a");
   const stalePath = resolve(rootDir, "stale-b");
   await mkdir(livePath);
@@ -348,7 +348,7 @@ test("pruneStaleSurfaceProfiles kills only processes tied to stale profiles", {
 });
 
 test("disposing a surface unregisters its profile so a later prune can remove it", async () => {
-  const rootDir = await mkdtemp(join(tmpdir(), "openwork-surface-unregister-"));
+  const rootDir = await mkdtemp(join(tmpdir(), "harness-surface-unregister-"));
   const profilePath = resolve(rootDir, "live-a");
   await mkdir(profilePath);
   try {

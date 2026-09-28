@@ -1,18 +1,18 @@
 extends: ./electron-builder.base.yml
-appId: com.differentai.openwork
-productName: OpenWork Cloud
+appId: com.vaishnavjai.harness
+productName: Harness Cloud
 extraMetadata:
-  openworkDistribution: cloud
+  harnessDistribution: cloud
 protocols:
-  - name: OpenWork Cloud
+  - name: Harness Cloud
     schemes:
-      - openwork
+      - harness
 publish:
   - provider: github
     owner: different-ai
-    repo: openwork
+    repo: harness
     releaseType: release
     channel: cloud
 linux:
-  executableName: openwork-cloud
-artifactName: openwork-cloud-${os}-${arch}-${version}.${ext}
+  executableName: harness-cloud
+artifactName: harness-cloud-${os}-${arch}-${version}.${ext}

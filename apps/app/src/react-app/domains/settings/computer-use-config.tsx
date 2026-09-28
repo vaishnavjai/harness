@@ -37,7 +37,7 @@ registerExtensionConfig("computer-use", (ctx) => (
 ));
 
 function hasDesktopBridge() {
-  return typeof window !== "undefined" && Boolean(window.__OPENWORK_ELECTRON__?.invokeDesktop);
+  return typeof window !== "undefined" && Boolean(window.__HARNESS_ELECTRON__?.invokeDesktop);
 }
 
 function parsePermissionResult(value: unknown): PermissionResult {
@@ -98,7 +98,7 @@ export function ComputerUseConfig({ connected, connecting, onConnect, onRefresh,
       <CardHeader>
         <CardTitle>Work in an app you choose</CardTitle>
         <CardDescription>
-          Approve one Mac app, choose its window, and decide how OpenWork can help. Your input interrupts control; Stop in the preview ends access.
+          Approve one Mac app, choose its window, and decide how Harness can help. Your input interrupts control; Stop in the preview ends access.
         </CardDescription>
         <CardAction>
           <Button variant="ghost" size="icon-sm" aria-label="Refresh Computer Use status" onClick={() => void refresh()} disabled={busy}>
@@ -109,7 +109,7 @@ export function ComputerUseConfig({ connected, connecting, onConnect, onRefresh,
       <CardContent className="space-y-5">
         <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-3 text-sm" role="status" aria-live="polite">
           {ready ? <CheckCircle2 className="size-4 shrink-0 text-green-11" /> : <ShieldCheck className="size-4 shrink-0 text-muted-foreground" />}
-          <span>{ready ? "Ready · app access is approved when a session starts" : !supported ? "Available in OpenWork for macOS 14 or later" : !connected ? permissionsReady ? "Permissions are ready. Enable Computer Use for this workspace." : "Set up Computer Use for this workspace" : "Connected · finish macOS permissions below"}</span>
+          <span>{ready ? "Ready · app access is approved when a session starts" : !supported ? "Available in Harness for macOS 14 or later" : !connected ? permissionsReady ? "Permissions are ready. Enable Computer Use for this workspace." : "Set up Computer Use for this workspace" : "Connected · finish macOS permissions below"}</span>
         </div>
         {!ready ? (
           <Button className="w-full" onClick={() => { if (!connected) connect.mutate(); else setup.mutate(); }} disabled={!supported || connecting || connect.isPending || setup.isPending || (!connected && !onConnect)}>

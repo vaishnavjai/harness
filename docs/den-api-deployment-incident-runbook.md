@@ -1,6 +1,6 @@
 # Den API deployment incident runbook
 
-Owner: OpenWork platform on-call
+Owner: Harness platform on-call
 
 Service: production Den API on Render
 
@@ -10,8 +10,8 @@ The canonical native production contract is:
 
 ```sh
 pnpm install --frozen-lockfile --trust-lockfile
-pnpm --filter @openwork-ee/den-api run build
-pnpm --filter @openwork-ee/den-api start
+pnpm --filter @harness-ee/den-api run build
+pnpm --filter @harness-ee/den-api start
 ```
 
 The build resolves Den API's workspace dependency graph, builds every package with
@@ -21,8 +21,8 @@ cold-starts `dist/main.js` without development conditions in
 `evals/specs/den-api-production-package.test.ts`.
 
 Render must use the commands above or deploy the CI-validated
-`ghcr.io/different-ai/openwork-den-api` image. Promotion must require both the
-production-package spec and the `Publish EE Artifacts / Build openwork-den-api`
+`ghcr.io/vaishnavjai/harness-den-api` image. Promotion must require both the
+production-package spec and the `Publish EE Artifacts / Build harness-den-api`
 image smoke check.
 
 ## Alert contract
@@ -40,7 +40,7 @@ Every alert must include:
 - commit SHA and deployment URL
 - Render deploy ID and failing phase
 - error excerpt
-- owner: OpenWork platform on-call
+- owner: Harness platform on-call
 - this runbook URL
 - Render rollback and redeploy links
 

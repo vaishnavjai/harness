@@ -18,7 +18,7 @@ test("targets are explicit and reject impossible provider/OS combinations", () =
   assert.deepEqual(resolveTarget({ provider: "freestyle" }), { provider: "freestyle", os: "linux" });
   assert.throws(() => resolveTarget({ provider: "local", os: "windows" }, "darwin"), /cannot run windows/);
   assert.throws(() => resolveTarget({ provider: "freestyle", os: "windows" }), /cannot run windows/);
-  assert.throws(() => targetFromEnv({ OPENWORK_WORLD_PLACE: "future" }), /Unknown world placement/);
+  assert.throws(() => targetFromEnv({ HARNESS_WORLD_PLACE: "future" }), /Unknown world placement/);
 });
 
 test("sources resolve moving refs before their identity is calculated", async () => {
@@ -31,7 +31,7 @@ test("sources resolve moving refs before their identity is calculated", async ()
   });
   assert.deepEqual(sourceFor(sources, "den"), { kind: "sha", sha: SHA, ref: "dev" });
   assert.deepEqual(sourceFor({ "*": { kind: "local" } }, "den"), { kind: "local" });
-  assert.deepEqual(sourcesFromEnv({ OPENWORK_WORLD_SOURCES: JSON.stringify(sources) }), sources);
+  assert.deepEqual(sourcesFromEnv({ HARNESS_WORLD_SOURCES: JSON.stringify(sources) }), sources);
   await assert.rejects(resolveSources([parseSourceFlag("local"), parseSourceFlag("sha:" + SHA)], async () => SHA), /given twice/);
   assert.throws(() => parseSourceFlag("desktop=release:latest"), /release source/);
   assert.throws(() => parseSourceFlag("den=sha:dev"), /full 40-character/);
@@ -39,7 +39,7 @@ test("sources resolve moving refs before their identity is calculated", async ()
 
 test("seeds have a bounded, round-trippable syntax", () => {
   assert.deepEqual(parseSeedFlag("team,sessions:20"), [{ name: "team" }, { name: "sessions", arg: "20" }]);
-  assert.deepEqual(seedsFromEnv({ OPENWORK_WORLD_SEEDS: JSON.stringify(parseSeedFlag("team")) }), [{ name: "team" }]);
+  assert.deepEqual(seedsFromEnv({ HARNESS_WORLD_SEEDS: JSON.stringify(parseSeedFlag("team")) }), [{ name: "team" }]);
   assert.throws(() => parseSeedFlag("customer:private/key"), /Invalid argument/);
 });
 

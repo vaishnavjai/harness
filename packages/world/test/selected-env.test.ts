@@ -8,7 +8,7 @@ import { readScriptWorldSnapshot } from "../src/script-world.ts";
 
 test("CLI handoff replaces inherited selection markers and fingerprints selected values before adoption", async () => {
   const root = await mkdtemp(join(tmpdir(), "world-selected-env-"));
-  const selected = ["OPENWORK_WORLD_SELECTED_ENV_KEYS", "OPENWORK_WORLD_SNAPSHOT_DIR", "WORLD_TEST_CONFIG"];
+  const selected = ["HARNESS_WORLD_SELECTED_ENV_KEYS", "HARNESS_WORLD_SNAPSHOT_DIR", "WORLD_TEST_CONFIG"];
   const previous = new Map(selected.map((key) => [key, process.env[key]]));
   const worlds = join(root, "worlds");
   const snapshots = join(root, "receipts");
@@ -17,9 +17,9 @@ test("CLI handoff replaces inherited selection markers and fingerprints selected
     await mkdir(worlds);
     const hold = new URL("../src/hold.ts", import.meta.url).href;
     await writeFile(join(worlds, "probe.ts"), `import { hold } from ${JSON.stringify(hold)};
-await hold({ outputs: { selected: process.env.OPENWORK_WORLD_SELECTED_ENV_KEYS ?? "missing" } });`);
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = snapshots;
-    process.env.OPENWORK_WORLD_SELECTED_ENV_KEYS = '["FORGED_KEY"]';
+await hold({ outputs: { selected: process.env.HARNESS_WORLD_SELECTED_ENV_KEYS ?? "missing" } });`);
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = snapshots;
+    process.env.HARNESS_WORLD_SELECTED_ENV_KEYS = '["FORGED_KEY"]';
     process.env.WORLD_TEST_CONFIG = "first";
     const up = (keys: string[]) => main(["up", "probe", "--place", "local", "--stage", "selection", "--detach", "--timeout", "10000", ...keys], options);
     const down = () => main(["down", "probe", "--stage", "selection"], options);

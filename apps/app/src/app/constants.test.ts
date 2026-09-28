@@ -5,30 +5,30 @@ declare const expect: (value: unknown) => {
 };
 
 import {
-  OPENWORK_EXTENSION_CATALOG,
-  filterOpenWorkExtensionCatalogForPlatform,
-  resolveOpenWorkExtensionCatalogPlatform,
+  HARNESS_EXTENSION_CATALOG,
+  filterHarnessExtensionCatalogForPlatform,
+  resolveHarnessExtensionCatalogPlatform,
 } from "./constants";
 
 function filteredIds(platform: "darwin" | "linux" | "windows" | "web") {
-  return filterOpenWorkExtensionCatalogForPlatform(OPENWORK_EXTENSION_CATALOG, platform)
+  return filterHarnessExtensionCatalogForPlatform(HARNESS_EXTENSION_CATALOG, platform)
     .flatMap((entry) => entry.id ? [entry.id] : []);
 }
 
-describe("OpenWork extension catalog platform filter", () => {
+describe("Harness extension catalog platform filter", () => {
   test("resolves browser runtime to web and desktop runtime to OS", () => {
-    expect(resolveOpenWorkExtensionCatalogPlatform("web", "macos")).toEqual("web");
-    expect(resolveOpenWorkExtensionCatalogPlatform("desktop", "macos")).toEqual("darwin");
-    expect(resolveOpenWorkExtensionCatalogPlatform("desktop", "windows")).toEqual("windows");
-    expect(resolveOpenWorkExtensionCatalogPlatform("desktop", "linux")).toEqual("linux");
+    expect(resolveHarnessExtensionCatalogPlatform("web", "macos")).toEqual("web");
+    expect(resolveHarnessExtensionCatalogPlatform("desktop", "macos")).toEqual("darwin");
+    expect(resolveHarnessExtensionCatalogPlatform("desktop", "windows")).toEqual("windows");
+    expect(resolveHarnessExtensionCatalogPlatform("desktop", "linux")).toEqual("linux");
   });
 
   test("hides desktop-only extensions in web", () => {
     expect(filteredIds("web")).toEqual(["ollama"]);
   });
 
-  test("keeps OpenWork Browser desktop-only and Computer Use mac-only", () => {
-    expect(filteredIds("darwin")).toEqual(["openwork-browser", "computer-use", "ollama"]);
-    expect(filteredIds("linux")).toEqual(["openwork-browser", "ollama"]);
+  test("keeps Harness Browser desktop-only and Computer Use mac-only", () => {
+    expect(filteredIds("darwin")).toEqual(["harness-browser", "computer-use", "ollama"]);
+    expect(filteredIds("linux")).toEqual(["harness-browser", "ollama"]);
   });
 });

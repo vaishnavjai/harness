@@ -1,12 +1,12 @@
 services:
   mysql:
     image: mysql:8.4
-    container_name: openwork-web-local-mysql
+    container_name: harness-web-local-mysql
     ports:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: openwork_den
+      MYSQL_DATABASE: harness_den
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -ppassword --silent"]
       interval: 5s
@@ -14,11 +14,11 @@ services:
       retries: 30
       start_period: 10s
     volumes:
-      - openwork-web-local-mysql-data:/var/lib/mysql
+      - harness-web-local-mysql-data:/var/lib/mysql
 
   redis:
     image: redis:7.4-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
-    container_name: openwork-web-local-redis
+    container_name: harness-web-local-redis
     ports:
       - "127.0.0.1:6379:6379"
     healthcheck:
@@ -29,4 +29,4 @@ services:
       start_period: 5s
 
 volumes:
-  openwork-web-local-mysql-data:
+  harness-web-local-mysql-data:

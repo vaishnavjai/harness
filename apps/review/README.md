@@ -1,4 +1,4 @@
-# OpenWork Review
+# Harness Review
 
 An immutable, private review page composed from existing test records and
 DocShot receipts. Publication reads completed files; it never runs tests,
@@ -8,10 +8,10 @@ result. Pending judgments and coverage gaps remain visible.
 ## Develop and verify
 
 ```sh
-pnpm --filter @openwork/review-app... install --frozen-lockfile
+pnpm --filter @harness/review-app... install --frozen-lockfile
 pnpm --dir evals install --frozen-lockfile --ignore-scripts
-pnpm --filter @openwork/review-app build
-OPENWORK_EVAL_REVIEW=1 pnpm evals:pr specs/evidence-review.test.ts
+pnpm --filter @harness/review-app build
+HARNESS_EVAL_REVIEW=1 pnpm evals:pr specs/evidence-review.test.ts
 ```
 
 The journey boots the production app with isolated local storage and checks
@@ -20,9 +20,9 @@ rejection of production deployments through HTTP. Its inputs are explicitly
 synthetic fixtures; they do not claim to have tested the example behaviors shown
 in the report.
 
-For development, create a directory and set `OPENWORK_REVIEW_LOCAL_DIR` to its
+For development, create a directory and set `HARNESS_REVIEW_LOCAL_DIR` to its
 absolute path in both the app and publisher environments. Run
-`pnpm --filter @openwork/review-app dev` (port 3011). `uploadReview()` also accepts
+`pnpm --filter @harness/review-app dev` (port 3011). `uploadReview()` also accepts
 local storage through this environment variable, using the same manifest-last
 write behavior. Local development has no login; keep it bound to loopback.
 
@@ -33,14 +33,14 @@ that directory, and connect a **private** Vercel Blob store. Configure
 `BLOB_READ_WRITE_TOKEN` for the Preview environment. Enable **Vercel Authentication**
 under Deployment Protection with **Standard Protection** (or All Deployments).
 Deploy with `vercel deploy --target preview`, then give the deployment a stable
-alias and use that alias for `OPENWORK_REVIEW_URL`:
+alias and use that alias for `HARNESS_REVIEW_URL`:
 
 ```sh
-vercel alias set <deployment-url> openwork-review-<team>.vercel.app
+vercel alias set <deployment-url> harness-review-<team>.vercel.app
 ```
 
 Never use a deployment URL (`<project>-<hash>-<team>.vercel.app`) for
-`OPENWORK_REVIEW_URL`: it is an immutable snapshot, so every report link would
+`HARNESS_REVIEW_URL`: it is an immutable snapshot, so every report link would
 keep opening the app version from that one deploy. Aliases on `*.vercel.app`
 stay under Standard Protection; do not alias a production custom domain.
 
@@ -59,15 +59,15 @@ authorization header. See [Vercel Authentication](https://vercel.com/docs/deploy
 
 The **Review app deploy** workflow redeploys the app whenever `apps/review`,
 `packages/review`, or the lockfile changes on the default branch (or on manual
-dispatch) and moves the alias named by `OPENWORK_REVIEW_URL` to the new
+dispatch) and moves the alias named by `HARNESS_REVIEW_URL` to the new
 deployment, then checks that the alias still answers anonymous requests with
 Vercel Authentication. It needs repository variables
-`OPENWORK_REVIEW_VERCEL_ORG_ID` and `OPENWORK_REVIEW_VERCEL_PROJECT_ID` (from
+`HARNESS_REVIEW_VERCEL_ORG_ID` and `HARNESS_REVIEW_VERCEL_PROJECT_ID` (from
 `.vercel/project.json` after `vercel link`) and the `VERCEL_TOKEN` secret.
 Report publication uploads data to the existing app; it never creates a
 deployment.
 
-Set `OPENWORK_REVIEW_URL` and `BLOB_READ_WRITE_TOKEN` in the publishing
+Set `HARNESS_REVIEW_URL` and `BLOB_READ_WRITE_TOKEN` in the publishing
 environment. The existing command publishes a compact link when configured:
 
 ```sh
@@ -112,8 +112,8 @@ Candidate publisher and review-app checks live in the PR-only
 `Evidence review candidate checks` workflow. It has no publishing secret or
 write permission.
 
-For automatic publication, keep repository variable `OPENWORK_REVIEW_URL`, secret
-`OPENWORK_REVIEW_BLOB_TOKEN`, and the existing Vercel Preview/private Blob
+For automatic publication, keep repository variable `HARNESS_REVIEW_URL`, secret
+`HARNESS_REVIEW_BLOB_TOKEN`, and the existing Vercel Preview/private Blob
 configuration. No new environment variable is required. Do not require Evidence
 review or PR change proof in branch protection; only the proof-supplied contract
 is part of the existing required aggregate. Human approval remains in GitHub.
@@ -140,7 +140,7 @@ within the function's 800-second budget. The page polls `GET /r/<id>/launch?worl
 which reports the build's current layer and finished service steps (read from the
 builder VM tagged with the commit), and shows them like `pnpm world up`: finished
 steps with their times, the running step, and what is left. It launches when the
-snapshot is ready. Typical first builds: about 2 minutes for OpenWork web and 6 for
+snapshot is ready. Typical first builds: about 2 minutes for Harness web and 6 for
 ACME with warm caches. The provider's builder lock deduplicates concurrent
 first launches. Only the guest VM fetches and executes PR code, without the
 provider credential. Clones resume the snapshot's processes; launch only assigns
@@ -153,12 +153,12 @@ before use so a new sandbox does not outlive the session it inherited.
 Per-commit snapshots are deleted after two days, or after one day without a launch.
 The hourly **Freestyle cleanup** workflow (`scripts/cleanup-freestyle.ts`) reclaims
 old naming versions, superseded cache layers and expired checkpoints, and fails when
-too many OpenWork snapshots remain. Run it with `--dry-run` to see the plan.
+too many Harness snapshots remain. Run it with `--dry-run` to see the plan.
 
 Set `FREESTYLE_API_KEY` in the protected Vercel Preview environment. Every report
 offers **Launch in Freestyle**. The server reads the commit from the stored report;
 the browser cannot select another revision. On the first launch it checks out that
-exact public commit in an isolated builder, installs OpenWork, starts the web app
+exact public commit in an isolated builder, installs Harness, starts the web app
 and local engine, and saves a private running snapshot. Later launches clone it.
 Each click gets a new VM, a new hostname, and a new access token, including repeat
 clicks from the same reviewer. **Open sandbox** opens the resulting app.
@@ -195,7 +195,7 @@ existing placements.
 In the review page, **Desktop only (signed out)** selects the distinct `desktop`
 Freestyle snapshot: Electron, its local engine and internal renderer, XFCE, and
 noVNC. It starts on a fresh profile without Den, MySQL, Redis, AI Gateway, demo
-accounts, or a separate web preview. OpenWork's normal empty local workspace and
+accounts, or a separate web preview. Harness's normal empty local workspace and
 free starter model are retained, with no conversations or provisioned providers.
 Only the private desktop viewer is published; no demo sign-in details are returned. Its dedicated
 CI job verifies two signed-out clones, viewer access and cross-clone isolation,
@@ -207,7 +207,7 @@ web preview, and remains bound to the world that was launched. Switching choices
 clears the previous world's displayed links, not its VM. All choices keep the
 same two-hour expiry and access checks.
 
-Validate with `pnpm --filter @openwork/freestyle test`, the world package tests,
+Validate with `pnpm --filter @harness/freestyle test`, the world package tests,
 and the reviewer production build. UI follows DESIGN.md P3, P4, P10, P11, S1,
 C1, C2, and C6: the launch stays in place, failures are actionable, and snapshot
 details are collapsed. Review has no shared button component, so it uses a native
@@ -227,7 +227,7 @@ Failed; skipped/unknown tests, missing assertion evidence, pending judgments,
 and declared gaps are Incomplete. An image-only document is Reference. Human
 approval and discussion stay in GitHub.
 
-Freestyle previews use the verified `preview.openwork.software` wildcard: `*.preview` CNAME to `beta-web.freestyle.sh`, `_acme-challenge.preview` NS to `beta-dns.freestyle.sh`, and Freestyle ownership verification. Keep its wildcard certificate active. This avoids the permanent free `style.dev` hostname claim limit; TLS routes still expire with each VM.
+Freestyle previews use the verified `preview.harness-legacy.invalid` wildcard: `*.preview` CNAME to `beta-web.freestyle.sh`, `_acme-challenge.preview` NS to `beta-dns.freestyle.sh`, and Freestyle ownership verification. Keep its wildcard certificate active. This avoids the permanent free `style.dev` hostname claim limit; TLS routes still expire with each VM.
 
 ## Developer review workspace
 
@@ -258,7 +258,7 @@ focus behavior (P5); colors reuse the desktop Radix palette. Browser proofs emit
 real-size screenshots for P10:
 
 ```sh
-pnpm --filter @openwork/review-app build
+pnpm --filter @harness/review-app build
 pnpm evals:e2e specs/review-workspace.e2e.test.ts --local
 pnpm evals:e2e specs/review-sandbox.e2e.test.ts --local
 pnpm evals:e2e specs/freestyle-review.e2e.test.ts --local

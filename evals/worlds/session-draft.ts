@@ -1,5 +1,5 @@
-import { browserScript, type Surface } from "@openwork/cdp";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { browserScript, type Surface } from "@harness/cdp";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 import { configureProvider } from "./chat.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -152,11 +152,11 @@ export async function queuedFollowUps(seed: Seed) {
   return { app, workspace, session, running, queued,
     observeQueuedTransport: (hold: boolean) => queuedTransport(app, session.sessionId, hold),
     engineMessageCounts: () => seed.evalIn(app, browserScript(async (workspaceId, sessionId, marker, engine) => {
-      const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+      const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
       const mount = engine === "v2" ? "/opencode2/api" : "/opencode";
       const response = await fetch(base + "/workspace/" + encodeURIComponent(workspaceId) + mount
         + "/session/" + encodeURIComponent(sessionId) + "/message", {
-        headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+        headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
       });
       if (!response.ok) throw new Error("Native message count failed: HTTP " + response.status);
       const body: unknown = await response.json();

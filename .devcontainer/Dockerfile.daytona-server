@@ -1,4 +1,4 @@
-# Daytona image for the OpenWork Den server stack.
+# Daytona image for the Harness Den server stack.
 #
 # This intentionally does not run Docker inside Daytona. The sandbox runs the
 # same services as packaging/docker/docker-compose.den-dev.yml directly:
@@ -19,8 +19,8 @@ RUN apt-get update \
   && /usr/local/share/nvm/current/bin/npm install -g pnpm@10.27.0 bun@1.3.14 \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* /root/.cache /root/.npm /tmp/* \
-  && printf 'daytona ALL=(ALL) NOPASSWD:ALL\n' >/etc/sudoers.d/daytona-openwork \
-  && chmod 0440 /etc/sudoers.d/daytona-openwork \
+  && printf 'daytona ALL=(ALL) NOPASSWD:ALL\n' >/etc/sudoers.d/daytona-harness \
+  && chmod 0440 /etc/sudoers.d/daytona-harness \
   && install -d -o daytona -g daytona /workspace
 
 WORKDIR /workspace
@@ -33,10 +33,10 @@ ENV PATH="/usr/local/share/nvm/current/bin:$PATH"
 # snapshot limit.
 USER daytona
 
-RUN git clone --depth 1 --branch dev https://github.com/different-ai/openwork.git . \
-  && mkdir -p /workspace/.openwork-daytona \
-  && sha256sum /workspace/pnpm-lock.yaml | cut -d ' ' -f 1 > /workspace/.openwork-daytona/pnpm-lock.sha256 \
-  && git rev-parse HEAD > /workspace/.openwork-daytona/base-commit \
+RUN git clone --depth 1 --branch dev https://github.com/vaishnavjai/harness . \
+  && mkdir -p /workspace/.harness-daytona \
+  && sha256sum /workspace/pnpm-lock.yaml | cut -d ' ' -f 1 > /workspace/.harness-daytona/pnpm-lock.sha256 \
+  && git rev-parse HEAD > /workspace/.harness-daytona/base-commit \
   && git gc --prune=now
 
 # Bake dependencies and the sandbox-invariant Den builds so a boot from this
@@ -52,22 +52,22 @@ RUN git clone --depth 1 --branch dev https://github.com/different-ai/openwork.gi
 # same lockfile; a ref that changes the lockfile reinstalls at boot.
 RUN CI=1 ELECTRON_SKIP_BINARY_DOWNLOAD=1 PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
     PUPPETEER_SKIP_DOWNLOAD=1 CYPRESS_INSTALL_BINARY=0 \
-    pnpm install --store-dir /workspace/.openwork-daytona/pnpm-store --frozen-lockfile \
-      --filter @openwork-ee/den-api... \
-      --filter @openwork-ee/den-web... \
-      --filter @openwork-ee/den-db... \
-      --filter @openwork/ui... \
-      --filter @openwork-ee/utils... \
-      --filter @openwork/mcp-apps... \
+    pnpm install --store-dir /workspace/.harness-daytona/pnpm-store --frozen-lockfile \
+      --filter @harness-ee/den-api... \
+      --filter @harness-ee/den-web... \
+      --filter @harness-ee/den-db... \
+      --filter @harness/ui... \
+      --filter @harness-ee/utils... \
+      --filter @harness/mcp-apps... \
   && NEXT_PUBLIC_POSTHOG_KEY= NEXT_PUBLIC_POSTHOG_API_KEY= \
-    pnpm --filter @openwork/ui build \
+    pnpm --filter @harness/ui build \
   && NEXT_PUBLIC_POSTHOG_KEY= NEXT_PUBLIC_POSTHOG_API_KEY= \
-    pnpm --filter @openwork-ee/utils build \
+    pnpm --filter @harness-ee/utils build \
   && NEXT_PUBLIC_POSTHOG_KEY= NEXT_PUBLIC_POSTHOG_API_KEY= \
-    pnpm --filter @openwork-ee/den-web build \
-  && pnpm --filter @openwork-ee/den-api run build:mcp-apps \
-  && { git rev-parse HEAD:packages/ui HEAD:ee/packages/utils HEAD:ee/apps/den-web; cat /workspace/.openwork-daytona/pnpm-lock.sha256; } \
-    | sha256sum | cut -d ' ' -f 1 > /workspace/.openwork-daytona/den-web-build.tree \
-  && { git rev-parse HEAD:packages/mcp-apps; cat /workspace/.openwork-daytona/pnpm-lock.sha256; } \
-    | sha256sum | cut -d ' ' -f 1 > /workspace/.openwork-daytona/den-api-assets.tree \
+    pnpm --filter @harness-ee/den-web build \
+  && pnpm --filter @harness-ee/den-api run build:mcp-apps \
+  && { git rev-parse HEAD:packages/ui HEAD:ee/packages/utils HEAD:ee/apps/den-web; cat /workspace/.harness-daytona/pnpm-lock.sha256; } \
+    | sha256sum | cut -d ' ' -f 1 > /workspace/.harness-daytona/den-web-build.tree \
+  && { git rev-parse HEAD:packages/mcp-apps; cat /workspace/.harness-daytona/pnpm-lock.sha256; } \
+    | sha256sum | cut -d ' ' -f 1 > /workspace/.harness-daytona/den-api-assets.tree \
   && rm -rf /home/daytona/.cache /home/daytona/.npm /home/daytona/.local/share/pnpm/store

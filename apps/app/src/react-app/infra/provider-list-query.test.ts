@@ -25,7 +25,7 @@ describe("clearProviderListQueries", () => {
     const unrelatedKey = ["workspaces"] as const;
     const unrelatedValue = ["workspace"];
 
-    queryClient.setQueryData(firstProviderKey, { all: ["openwork"] });
+    queryClient.setQueryData(firstProviderKey, { all: ["harness"] });
     queryClient.setQueryData(secondProviderKey, { all: ["lpr_team"] });
     queryClient.setQueryData(unrelatedKey, unrelatedValue);
 

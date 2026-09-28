@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { allocateFreePort } from "@openwork/cdp";
+import { allocateFreePort } from "@harness/cdp";
 import { startMockMcp } from "../src/mock-mcp.ts";
 
 test("records an unauthenticated initialize attempt as a handshake", async () => {

@@ -1,9 +1,9 @@
-import type { OpenworkMcpAppResource } from "../../../apps/app/src/app/lib/openwork-server";
+import type { HarnessMcpAppResource } from "../../../apps/app/src/app/lib/harness-server";
 import type { PreservedMcpAppResult } from "../../../apps/app/src/components/chat/mcp-app-frame";
 
 export type HostedSandboxResource = {
   label: string;
-  app: OpenworkMcpAppResource;
+  app: HarnessMcpAppResource;
   inputArguments: Record<string, unknown>;
   result: PreservedMcpAppResult;
 };

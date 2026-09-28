@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { appSmokeWorld } from "../worlds/first-run.ts";
 
 const test = spec.world(appSmokeWorld);
@@ -35,10 +35,10 @@ test("app boots with a control route and meaningful visible content", async ({ w
     expect(sessions.status).toBe(200);
     expect(sessions.body).toEqual([]);
     const tools = await world.packagedToolIds();
-    expect(tools).toEqual(expect.arrayContaining(["openwork_docs_search", "openwork_query"]));
+    expect(tools).toEqual(expect.arrayContaining(["harness_docs_search", "harness_query"]));
     evidence.recordAssertionEvidence(
-      "The packaged engine loads OpenWork Connect canary tools",
-      "The automatically selected default workspace exposes openwork_docs_search and openwork_query through the real engine tool registry without test-driven workspace creation or engine startup. The engine resolves the shipped plugins outside app.asar without repository dependencies.",
+      "The packaged engine loads Harness Connect canary tools",
+      "The automatically selected default workspace exposes harness_docs_search and harness_query through the real engine tool registry without test-driven workspace creation or engine startup. The engine resolves the shipped plugins outside app.asar without repository dependencies.",
       true,
     );
     evidence.recordAssertionEvidence(
@@ -49,7 +49,7 @@ test("app boots with a control route and meaningful visible content", async ({ w
   } else {
     expect(world.workspace?.workspaceId).toBeTruthy();
     await user.looks([
-      "A ready OpenWork workspace composer with meaningful visible content is on screen",
+      "A ready Harness workspace composer with meaningful visible content is on screen",
       "No generic error or 'Something went wrong' crash message is visible",
     ]);
   }

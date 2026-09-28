@@ -2,7 +2,7 @@
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
-import type { EngineV2PreviewStatus } from "../src/app/lib/openwork-server";
+import type { EngineV2PreviewStatus } from "../src/app/lib/harness-server";
 
 GlobalRegistrator.register({ url: "http://localhost" });
 Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });

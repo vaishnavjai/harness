@@ -57,8 +57,8 @@ test("old evidence template versions and expired checkpoints are reclaimed", () 
   assert.equal(plan[live.slug ?? ""], undefined);
 });
 
-test("snapshots OpenWork did not create are never planned or counted", () => {
-  const personal = [snapshot("jalil-openwork-dev-1234", 500), snapshot("test-something", 500), { ...snapshot("", 500), slug: null }];
+test("snapshots Harness did not create are never planned or counted", () => {
+  const personal = [snapshot("jalil-harness-dev-1234", 500), snapshot("test-something", 500), { ...snapshot("", 500), slug: null }];
   assert.deepEqual(planCleanup(personal, { now, inUse: new Set() }), []);
   for (const item of personal) assert.equal(isOurs(item.slug), false);
   assert.equal(isOurs(snapshotSlug(sha("a"), "acme-web")), true);

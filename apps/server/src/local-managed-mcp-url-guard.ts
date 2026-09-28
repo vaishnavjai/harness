@@ -115,7 +115,7 @@ function parseHttpUrl(rawUrl: string): URL {
 }
 
 function allowPrivateUrls(): boolean {
-  return process.env.OPENWORK_DEV_MODE === "1" || process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS === "1";
+  return process.env.HARNESS_DEV_MODE === "1" || process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS === "1";
 }
 
 type ResolveAddresses = (hostname: string, options: LookupAllOptions) => Promise<LookupAddress[]>;

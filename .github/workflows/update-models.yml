@@ -29,7 +29,7 @@ env:
 
 jobs:
   update-models:
-    if: github.repository == 'different-ai/openwork'
+    if: github.repository == 'vaishnavjai/harness'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: warden-clearance
 
@@ -232,7 +232,7 @@ jobs:
             exit 1
           fi
 
-          BODY="Machine-generated snapshot of \`ee/apps/gateway/src/models/base.json\` from https://models.dev/api.json, schema-validated by the Update Models workflow before commit. Auto-approval satisfies the required-review gate only; \`openwork-tests-required\` still gates the merge."
+          BODY="Machine-generated snapshot of \`ee/apps/gateway/src/models/base.json\` from https://models.dev/api.json, schema-validated by the Update Models workflow before commit. Auto-approval satisfies the required-review gate only; \`harness-tests-required\` still gates the merge."
           gh api "repos/$REPO/pulls/$PR/reviews" \
             -f event=APPROVE \
             -f commit_id="$HEAD_SHA" \

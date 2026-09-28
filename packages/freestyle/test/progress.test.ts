@@ -19,17 +19,17 @@ function fakeApi(vms: ReturnType<typeof vm>[], files: Record<string, string> = {
 test("no live builder means not building, and the query is scoped to this commit and world", async () => {
   const queries: string[] = [];
   assert.deepEqual(await buildProgress(sha, "acme-web", fakeApi([], {}, queries)), { building: false, steps: [] });
-  assert.deepEqual(queries, [`openworkBuild:acme-web-${sha}`]);
+  assert.deepEqual(queries, [`harnessBuild:acme-web-${sha}`]);
 });
 
 test("the newest live builder names the layer; services report finished steps with durations", async () => {
   const api = fakeApi([
-    vm("vm-old", "OpenWork compiled builder", "2026-09-25T10:00:00Z", "stopped"),
-    vm("vm-a", "OpenWork dependencies builder", "2026-09-25T10:01:00Z"),
-    vm("vm-b", "OpenWork running-template builder", "2026-09-25T10:02:00Z"),
+    vm("vm-old", "Harness compiled builder", "2026-09-25T10:00:00Z", "stopped"),
+    vm("vm-a", "Harness dependencies builder", "2026-09-25T10:01:00Z"),
+    vm("vm-b", "Harness running-template builder", "2026-09-25T10:02:00Z"),
   ], {
-    "vm-b:/opt/openwork-preview/build-stages.jsonl": '{"stage":"checkout","durationMs":5100}\n{"stage":"compile","durationMs":1900}\n',
-    "vm-b:/opt/openwork-preview/runtime-stages.jsonl": '{"stage":"world-services","durationMs":44000}\n{"stage":"den-pages","durat',
+    "vm-b:/opt/harness-preview/build-stages.jsonl": '{"stage":"checkout","durationMs":5100}\n{"stage":"compile","durationMs":1900}\n',
+    "vm-b:/opt/harness-preview/runtime-stages.jsonl": '{"stage":"world-services","durationMs":44000}\n{"stage":"den-pages","durat',
   });
   const progress = await buildProgress(sha, "acme-web", api);
   assert.equal(progress.building, true);
@@ -40,6 +40,6 @@ test("the newest live builder names the layer; services report finished steps wi
 });
 
 test("steps are only read while services start; other layers report the layer alone", async () => {
-  const progress = await buildProgress(sha, "app-web", fakeApi([vm("vm-c", "OpenWork world builder", "2026-09-25T10:03:00Z")]));
+  const progress = await buildProgress(sha, "app-web", fakeApi([vm("vm-c", "Harness world builder", "2026-09-25T10:03:00Z")]));
   assert.deepEqual(progress, { building: true, layer: "world", since: "2026-09-25T10:03:00Z", steps: [] });
 });

@@ -36,8 +36,8 @@ describe("workspace route native session lists", () => {
       id: "rem_ui-id",
       workspaceType: "remote",
       baseUrl: "https://remote.example.test/worker",
-      openworkToken: "remote-token",
-      openworkWorkspaceId: "server/id",
+      harnessToken: "remote-token",
+      harnessWorkspaceId: "server/id",
     }, {
       baseUrl: "https://local.example.test",
       token: "local-token",

@@ -7,22 +7,22 @@ import { denSessionUpdatedEvent, denSettingsChangedEvent } from "@/app/lib/den-s
 
 import {
   SUGGESTED_PLUGINS,
-  filterOpenWorkExtensionCatalogForPlatform,
-  resolveOpenWorkExtensionCatalogPlatform,
+  filterHarnessExtensionCatalogForPlatform,
+  resolveHarnessExtensionCatalogPlatform,
 } from "@/app/constants";
 import type { EnablementContext } from "@/app/enablement";
 import { createClient, unwrap } from "@/app/lib/opencode";
 import {
-  createOpenworkServerClient,
-  isLoopbackOpenworkServerUrl,
-  readOpenworkServerSettings,
-  type OpenworkCloudMcpHealth,
-  type OpenworkCloudMcpProviderModelContext,
-  type OpenworkServerCapabilities,
-  type OpenworkServerClient,
-  type OpenworkWorkspaceInfo,
-} from "@/app/lib/openwork-server";
-import { buildOpenworkEnvRuntimeKey } from "@/app/lib/openwork-env-runtime";
+  createHarnessServerClient,
+  isLoopbackHarnessServerUrl,
+  readHarnessServerSettings,
+  type HarnessCloudMcpHealth,
+  type HarnessCloudMcpProviderModelContext,
+  type HarnessServerCapabilities,
+  type HarnessServerClient,
+  type HarnessWorkspaceInfo,
+} from "@/app/lib/harness-server";
+import { buildHarnessEnvRuntimeKey } from "@/app/lib/harness-env-runtime";
 import {
   collectAgentContextDiagnosticObservations,
   isAgentContextDiagnosticsWorkspaceAllowed,
@@ -68,9 +68,9 @@ import {
   routeWorkspaceSelectionCommitter,
 } from "@/react-app/shell/route-refresh-control";
 import { createConnectionsStore, useConnectionsStoreSnapshot } from "@/react-app/domains/connections/store";
-import { cleanupOpenworkCloudMcpAfterSignOut } from "@/react-app/domains/connections/cloud-mcp-reconciler";
+import { cleanupHarnessCloudMcpAfterSignOut } from "@/react-app/domains/connections/cloud-mcp-reconciler";
 import { useOrgMcpConnections } from "@/react-app/domains/connections/use-org-mcp-connections";
-import { createOpenworkServerStore, useOpenworkServerStoreSnapshot } from "@/react-app/domains/connections/openwork-server-store";
+import { createHarnessServerStore, useHarnessServerStoreSnapshot } from "@/react-app/domains/connections/harness-server-store";
 import {
   connectGatewayProvider,
   GATEWAY_CONNECT_TIMEOUT_MESSAGE,
@@ -90,7 +90,7 @@ import "@/react-app/domains/settings/computer-use-config";
 import "@/react-app/domains/settings/browser-extension-config";
 import { useSettingsExtensionController } from "@/react-app/domains/settings/settings-extension-controller";
 import { buildExtensionItems } from "@/react-app/domains/settings/extension-items";
-import { isOpenWorkExtensionEnabled, OPENWORK_EXTENSION_STATE_CHANGED } from "@/react-app/domains/settings/extension-state";
+import { isHarnessExtensionEnabled, HARNESS_EXTENSION_STATE_CHANGED } from "@/react-app/domains/settings/extension-state";
 import { PreferencesView } from "@/react-app/domains/settings/pages/preferences-view";
 import { GeneralSettingsView } from "@/react-app/domains/settings/pages/general-view";
 import { AuthorizedFoldersPanel } from "@/react-app/domains/settings/panels/authorized-folders-panel";
@@ -123,15 +123,15 @@ import { useDebugViewModel } from "@/react-app/domains/settings/state/debug-view
 import { useDesktopUpdater } from "@/react-app/domains/settings/state/desktop-updater-provider";
 import { CloudSessionProvider, useCloudSession } from "@/react-app/domains/settings/cloud/cloud-session-provider";
 import { useDenSession } from "@/react-app/domains/settings/cloud/use-den-session";
-import { useControlAction, type OpenworkControlAction } from "./control/control-provider";
+import { useControlAction, type HarnessControlAction } from "./control/control-provider";
 import { useBootState } from "./boot-state";
 import { SettingsShell } from "@/react-app/domains/settings/shell/settings-shell";
 import { createExtensionsStore, useExtensionsStoreSnapshot } from "@/react-app/domains/settings/state/extensions-store";
 import { usePlatform } from "@/react-app/kernel/platform";
 import { useLocal } from "@/react-app/kernel/local-provider";
 import {
-  openworkServerInfo,
-  openworkServerRestart,
+  harnessServerInfo,
+  harnessServerRestart,
   engineStart,
   resolveWorkspaceListSelectedId,
   workspaceBootstrap,
@@ -154,13 +154,13 @@ import { useCheckDesktopRestriction, useDesktopConfig } from "@/react-app/domain
 import { useRestrictionNotice } from "@/react-app/domains/cloud/restriction-notice-provider";
 import { useCloudProviderAutoSync } from "@/react-app/domains/cloud/use-cloud-provider-auto-sync";
 import {
-  hasOpenWorkModelsAvailable,
-  hideOpenWorkModelsPromo,
-  useOpenWorkModelsPromoEligibility,
-  isOpenWorkModelsPromoHidden,
-  openWorkModelsPromoChangedEvent,
-  shouldShowOpenWorkModelsSyncing,
-} from "@/react-app/domains/cloud/openwork-models-promo";
+  hasHarnessModelsAvailable,
+  hideHarnessModelsPromo,
+  useHarnessModelsPromoEligibility,
+  isHarnessModelsPromoHidden,
+  harnessModelsPromoChangedEvent,
+  shouldShowHarnessModelsSyncing,
+} from "@/react-app/domains/cloud/harness-models-promo";
 import {
   isDesktopRuntime,
   isElectronRuntime,
@@ -185,11 +185,11 @@ import type { ModelRef } from "@/app/types";
 import { workspaceSwatchColor } from "@/react-app/domains/session/sidebar/utils";
 import { recordInspectorEvent } from "../../app/lib/app-inspector";
 import {
-  ensureDesktopLocalOpenworkConnection,
+  ensureDesktopLocalHarnessConnection,
   shouldAttemptDesktopLocalReconnect,
-} from "./desktop-local-openwork";
+} from "./desktop-local-harness";
 import { reloadEngineWithDesktopFallback } from "./engine-reload-escalation";
-import { resolveOpenworkConnection } from "./openwork-connection";
+import { resolveHarnessConnection } from "./harness-connection";
 import { abortSessionSafe, listCommands } from "@/app/lib/opencode-session";
 import { notifyAlert } from "./notifications";
 import { useReloadCoordinator } from "./reload-coordinator";
@@ -228,8 +228,8 @@ import {
   type LibraryCommandItem,
 } from "@/react-app/domains/settings/library";
 
-const ROUTE_OPENWORK_CAPABILITIES: OpenworkServerCapabilities = {
-  skills: { read: true, write: true, source: "openwork" },
+const ROUTE_HARNESS_CAPABILITIES: HarnessServerCapabilities = {
+  skills: { read: true, write: true, source: "harness" },
   plugins: { read: true, write: true },
   mcp: { read: true, write: true },
   commands: { read: true, write: true },
@@ -237,7 +237,7 @@ const ROUTE_OPENWORK_CAPABILITIES: OpenworkServerCapabilities = {
 };
 
 async function reloadEngineOrRestartDesktop(
-  client: Pick<OpenworkServerClient, "reloadEngine">,
+  client: Pick<HarnessServerClient, "reloadEngine">,
   workspaceId: string,
   afterRestart?: () => Promise<void>,
 ): Promise<void> {
@@ -247,13 +247,13 @@ async function reloadEngineOrRestartDesktop(
   }
 }
 
-function isOpenWorkCloudProvider(provider: {
+function isHarnessCloudProvider(provider: {
   providerId?: string | null;
   source?: string | null;
   sourceProviderId?: string | null;
 }) {
   return [provider.providerId, provider.source, provider.sourceProviderId].some(
-    (value) => value?.trim().toLowerCase() === "openwork",
+    (value) => value?.trim().toLowerCase() === "harness",
   );
 }
 
@@ -294,7 +294,7 @@ function reconcileSelectedWorkspaceId(
   return serverList.activeId?.trim() || desktopSelectedId || workspaces[0]?.id || "";
 }
 
-const SETTINGS_HIDE_TITLEBAR_KEY = "openwork.react.settings.hide-titlebar";
+const SETTINGS_HIDE_TITLEBAR_KEY = "harness.react.settings.hide-titlebar";
 
 export function parseSettingsPath(pathname: string): {
   tab: SettingsTab;
@@ -532,7 +532,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   }, [location.state, navigate, props.embedded, props.standaloneExtensions, selectedWorkspaceId]);
   const [baseUrl, setBaseUrl] = useState("");
   const [token, setToken] = useState("");
-  const [openworkClient, setOpenworkClient] = useState<OpenworkServerClient | null>(null);
+  const [harnessClient, setHarnessClient] = useState<HarnessServerClient | null>(null);
   const [activeClient, setActiveClient] = useState<Client | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
@@ -552,12 +552,12 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const [disabledProviders, setDisabledProviders] = useState<string[]>([]);
   const [developerMode, setDeveloperMode] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("openwork.developerMode") === "1";
+    return window.localStorage.getItem("harness.developerMode") === "1";
   });
   const toggleDeveloperMode = useCallback(() => {
     setDeveloperMode((current) => {
       const next = !current;
-      try { window.localStorage.setItem("openwork.developerMode", next ? "1" : "0"); } catch {}
+      try { window.localStorage.setItem("harness.developerMode", next ? "1" : "0"); } catch {}
       return next;
     });
   }, []);
@@ -589,7 +589,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const [userEnvKeys, setUserEnvKeys] = useState<string[]>([]);
   const [cloudMcpHealthResult, setCloudMcpHealthResult] = useState<{
     workspaceId: string;
-    health: OpenworkCloudMcpHealth;
+    health: HarnessCloudMcpHealth;
   } | null>(null);
   const emptyWorkspaceDisplay = useMemo<WorkspaceDisplay>(
     () => ({
@@ -610,10 +610,10 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     selectedWorkspaceRoot: "",
     selectedWorkspaceType: "local" as "local" | "remote",
     runtimeWorkspaceId: null as string | null,
-    openworkServerClient: null as OpenworkServerClient | null,
-    selectedWorkspaceOpenworkClient: null as OpenworkServerClient | null,
-    openworkServerStatus: "disconnected" as "connected" | "disconnected",
-    openworkServerCapabilities: null as OpenworkServerCapabilities | null,
+    harnessServerClient: null as HarnessServerClient | null,
+    selectedWorkspaceHarnessClient: null as HarnessServerClient | null,
+    harnessServerStatus: "disconnected" as "connected" | "disconnected",
+    harnessServerCapabilities: null as HarnessServerCapabilities | null,
     selectedWorkspaceDisplay: emptyWorkspaceDisplay as WorkspaceDisplay,
     providerItems: [] as ProviderListItem[],
     providerDefaults: {} as Record<string, string>,
@@ -651,7 +651,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             preset: "starter",
             workspaceType: selectedWorkspace.workspaceType ?? "local",
             displayName: selectedWorkspace.displayNameResolved,
-            openworkWorkspaceName: selectedWorkspace.openworkWorkspaceName,
+            harnessWorkspaceName: selectedWorkspace.harnessWorkspaceName,
           }
         : emptyWorkspaceDisplay,
     [emptyWorkspaceDisplay, selectedWorkspace],
@@ -696,10 +696,10 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     selectedWorkspaceRoot,
     selectedWorkspaceType: selectedWorkspace?.workspaceType ?? "local",
     runtimeWorkspaceId: selectedWorkspace?.id ?? null,
-    openworkServerClient: openworkClient,
-    selectedWorkspaceOpenworkClient: openworkClient,
-    openworkServerStatus: openworkClient ? "connected" : "disconnected",
-    openworkServerCapabilities: openworkClient ? ROUTE_OPENWORK_CAPABILITIES : null,
+    harnessServerClient: harnessClient,
+    selectedWorkspaceHarnessClient: harnessClient,
+    harnessServerStatus: harnessClient ? "connected" : "disconnected",
+    harnessServerCapabilities: harnessClient ? ROUTE_HARNESS_CAPABILITIES : null,
     selectedWorkspaceDisplay,
     providerItems: providers,
     providerDefaults,
@@ -726,17 +726,17 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     [sessionsByWorkspaceId],
   );
 
-  const openworkServerStore = useMemo(
+  const harnessServerStore = useMemo(
     () =>
-      createOpenworkServerStore({
+      createHarnessServerStore({
         startupPreference: () => {
           // In desktop mode, loopback URLs are ephemeral local runtime details.
           // Only non-loopback stored URLs indicate an explicit remote/manual
           // server connection preference.
           if (!isDesktopRuntime()) return "server";
-          const stored = readOpenworkServerSettings();
+          const stored = readHarnessServerSettings();
           const storedUrl = stored.urlOverride?.trim() ?? "";
-          return storedUrl && !isLoopbackOpenworkServerUrl(storedUrl) ? "server" : "local";
+          return storedUrl && !isLoopbackHarnessServerUrl(storedUrl) ? "server" : "local";
         },
         documentVisible: () => typeof document === "undefined" || document.visibilityState === "visible",
         developerMode: () => routeStateRef.current.developerMode,
@@ -746,9 +746,9 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         restartLocalServer: async () => {
           if (!isDesktopRuntime()) return false;
           try {
-            await openworkServerRestart({
+            await harnessServerRestart({
               remoteAccessEnabled:
-                readOpenworkServerSettings().remoteAccessEnabled === true,
+                readHarnessServerSettings().remoteAccessEnabled === true,
             });
             return true;
           } catch {
@@ -769,7 +769,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         selectedWorkspaceId: () => routeStateRef.current.selectedWorkspaceId,
         selectedWorkspaceRoot: () => routeStateRef.current.selectedWorkspaceRoot,
         workspaceType: () => routeStateRef.current.selectedWorkspaceType,
-        openworkServer: openworkServerStore,
+        harnessServer: harnessServerStore,
         runtimeWorkspaceId: () => routeStateRef.current.runtimeWorkspaceId,
         ensureRuntimeWorkspaceId: async () =>
           routeStateRef.current.runtimeWorkspaceId?.trim() ||
@@ -778,7 +778,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         developerMode: () => routeStateRef.current.developerMode,
         markReloadRequired: reloadCoordinator.markReloadRequired,
       }),
-    [openworkServerStore, reloadCoordinator.markReloadRequired],
+    [harnessServerStore, reloadCoordinator.markReloadRequired],
   );
   refreshMcpServersRef.current = connectionsStore.refreshMcpServers;
   notifyMcpReloadingRef.current = connectionsStore.notifyMcpReloading;
@@ -807,7 +807,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
           routeStateRef.current.runtimeWorkspaceId?.trim() ||
           routeStateRef.current.selectedWorkspaceId.trim() ||
           null,
-        openworkServer: openworkServerStore,
+        harnessServer: harnessServerStore,
         setProviders,
         setProviderDefaults,
         setProviderConnectedIds,
@@ -821,7 +821,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
           });
         },
       }),
-    [checkDesktopRestriction, openworkServerStore, reloadCoordinator.markReloadRequired],
+    [checkDesktopRestriction, harnessServerStore, reloadCoordinator.markReloadRequired],
   );
   const extensionsStore = useMemo(
     () =>
@@ -832,11 +832,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         selectedWorkspaceId: () => routeStateRef.current.selectedWorkspaceId,
         selectedWorkspaceRoot: () => routeStateRef.current.selectedWorkspaceRoot,
         workspaceType: () => routeStateRef.current.selectedWorkspaceType,
-        openworkServer: openworkServerStore,
-        openworkServerConnection: () => ({
-          openworkServerClient: routeStateRef.current.openworkServerClient,
-          openworkServerStatus: routeStateRef.current.openworkServerStatus,
-          openworkServerCapabilities: routeStateRef.current.openworkServerCapabilities,
+        harnessServer: harnessServerStore,
+        harnessServerConnection: () => ({
+          harnessServerClient: routeStateRef.current.harnessServerClient,
+          harnessServerStatus: routeStateRef.current.harnessServerStatus,
+          harnessServerCapabilities: routeStateRef.current.harnessServerCapabilities,
         }),
         runtimeWorkspaceId: () => routeStateRef.current.runtimeWorkspaceId,
         ensureRuntimeWorkspaceId: async () =>
@@ -853,9 +853,9 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         },
         markReloadRequired: reloadCoordinator.markReloadRequired,
       }),
-    [openworkServerStore, reloadCoordinator.markReloadRequired],
+    [harnessServerStore, reloadCoordinator.markReloadRequired],
   );
-  const openworkServerSnapshot = useOpenworkServerStoreSnapshot(openworkServerStore);
+  const harnessServerSnapshot = useHarnessServerStoreSnapshot(harnessServerStore);
   const connectionsSnapshot = useConnectionsStoreSnapshot(connectionsStore);
   const providerAuthSnapshot = useProviderAuthStoreSnapshot(providerAuthStore);
   const cloudSession = useCloudSession();
@@ -920,44 +920,44 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const extensionsSnapshot = useExtensionsStoreSnapshot(extensionsStore);
   const orgMcpConnections = useOrgMcpConnections();
 
-  const openworkServerStatusForMcp = openworkServerSnapshot.openworkServerStatus;
+  const harnessServerStatusForMcp = harnessServerSnapshot.harnessServerStatus;
   useEffect(() => {
-    if (openworkServerStatusForMcp !== "connected") return;
-    // The first MCP read races the openwork-server store's initial health
+    if (harnessServerStatusForMcp !== "connected") return;
+    // The first MCP read races the harness-server store's initial health
     // check (a fresh store always starts "disconnected"), so it falls back
     // to config files where server-runtime (config.remote) entries — notably
     // the cloud control MCP — don't exist. Without this re-read the built-in
     // cards show "Tap to connect" until the next full remount even though
     // the entries are configured and healthy.
     void connectionsStore.refreshMcpServers();
-  }, [connectionsStore, openworkServerStatusForMcp]);
+  }, [connectionsStore, harnessServerStatusForMcp]);
 
   useEffect(() => {
-    if (openworkServerStatusForMcp !== "connected") return;
+    if (harnessServerStatusForMcp !== "connected") return;
     // Same race for the Cloud Providers rows: the provider-auth store's
     // start() read fires while this store still reports "disconnected", so
     // it takes the legacy (empty) config read and the rows sit on "Syncing"
     // even though the server's /cloud-provider-sync/status already lists the
     // providers as synced. Re-derive from the server once it is reachable.
     void providerAuthStore.refreshImportedCloudProviders();
-  }, [openworkServerStatusForMcp, providerAuthStore]);
+  }, [harnessServerStatusForMcp, providerAuthStore]);
 
   const cleanupCloudMcpForSignOut = useCallback(async (settings: DenSettings) => {
-    const client = routeStateRef.current.selectedWorkspaceOpenworkClient;
+    const client = routeStateRef.current.selectedWorkspaceHarnessClient;
     const workspaceId = routeStateRef.current.runtimeWorkspaceId?.trim() ?? "";
     const orgId = settings.activeOrgId?.trim() ?? "";
     if (!client || !workspaceId || !orgId) return;
     // Settings only has a safe, exact OpenCode client/directory for the active
     // workspace here, so sign-out cleanup is intentionally scoped to that
     // workspace instead of guessing across every configured worker.
-    await cleanupOpenworkCloudMcpAfterSignOut({
+    await cleanupHarnessCloudMcpAfterSignOut({
       context: {
         denBaseUrl: settings.baseUrl,
         serverBaseUrl: client.baseUrl,
         workspaceId,
         orgId,
       },
-      openworkClient: client,
+      harnessClient: client,
       opencodeClient: routeStateRef.current.activeClient,
       directory: routeStateRef.current.selectedWorkspaceRoot,
     });
@@ -1021,50 +1021,50 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     void refreshConnectCapabilities({ force: true });
   }, [refreshConnectCapabilities]);
 
-  const hasOpenWorkCloudProvider = useMemo(
+  const hasHarnessCloudProvider = useMemo(
     () =>
-      providerAuthSnapshot.cloudOrgProviders.some(isOpenWorkCloudProvider) ||
-      Object.values(providerAuthSnapshot.importedCloudProviders ?? {}).some(isOpenWorkCloudProvider),
+      providerAuthSnapshot.cloudOrgProviders.some(isHarnessCloudProvider) ||
+      Object.values(providerAuthSnapshot.importedCloudProviders ?? {}).some(isHarnessCloudProvider),
     [providerAuthSnapshot.cloudOrgProviders, providerAuthSnapshot.importedCloudProviders],
   );
-  const [openWorkModelsPromoHidden, setOpenWorkModelsPromoHidden] = useState(isOpenWorkModelsPromoHidden);
-  const openWorkModelsPromoEligible = useOpenWorkModelsPromoEligibility();
-  // Entitled = Den/import says OpenWork Models is included. Available = local
-  // engine actually exposes selectable openwork models.
-  const openWorkModelsEntitled = cloudSession.isSignedIn && hasOpenWorkCloudProvider;
-  const openWorkModelsAvailable = hasOpenWorkModelsAvailable({
+  const [harnessModelsPromoHidden, setHarnessModelsPromoHidden] = useState(isHarnessModelsPromoHidden);
+  const harnessModelsPromoEligible = useHarnessModelsPromoEligibility();
+  // Entitled = Den/import says Harness Models is included. Available = local
+  // engine actually exposes selectable harness models.
+  const harnessModelsEntitled = cloudSession.isSignedIn && hasHarnessCloudProvider;
+  const harnessModelsAvailable = hasHarnessModelsAvailable({
     providerConnectedIds,
     providers,
   });
-  const showOpenWorkModelsSyncing = shouldShowOpenWorkModelsSyncing({
-    entitled: openWorkModelsEntitled,
-    available: openWorkModelsAvailable,
+  const showHarnessModelsSyncing = shouldShowHarnessModelsSyncing({
+    entitled: harnessModelsEntitled,
+    available: harnessModelsAvailable,
     workspaceReady: Boolean(selectedWorkspaceId && activeClient),
     reloadPending: providerAuthSnapshot.cloudProviderServerSync?.reloadPending === true,
   });
-  const showOpenWorkModelsSubscribe =
-    openWorkModelsPromoEligible &&
-    !openWorkModelsEntitled &&
-    !openWorkModelsAvailable &&
-    !openWorkModelsPromoHidden;
-  const showOpenWorkModelsConnect =
-    openWorkModelsPromoEligible &&
-    !openWorkModelsEntitled &&
-    !openWorkModelsAvailable &&
-    openWorkModelsPromoHidden;
+  const showHarnessModelsSubscribe =
+    harnessModelsPromoEligible &&
+    !harnessModelsEntitled &&
+    !harnessModelsAvailable &&
+    !harnessModelsPromoHidden;
+  const showHarnessModelsConnect =
+    harnessModelsPromoEligible &&
+    !harnessModelsEntitled &&
+    !harnessModelsAvailable &&
+    harnessModelsPromoHidden;
 
   useEffect(() => {
-    const handlePromoChanged = () => setOpenWorkModelsPromoHidden(isOpenWorkModelsPromoHidden());
-    window.addEventListener(openWorkModelsPromoChangedEvent, handlePromoChanged);
-    return () => window.removeEventListener(openWorkModelsPromoChangedEvent, handlePromoChanged);
+    const handlePromoChanged = () => setHarnessModelsPromoHidden(isHarnessModelsPromoHidden());
+    window.addEventListener(harnessModelsPromoChangedEvent, handlePromoChanged);
+    return () => window.removeEventListener(harnessModelsPromoChangedEvent, handlePromoChanged);
   }, []);
 
-  const dismissOpenWorkModelsPromo = useCallback(() => {
-    hideOpenWorkModelsPromo();
-    setOpenWorkModelsPromoHidden(true);
+  const dismissHarnessModelsPromo = useCallback(() => {
+    hideHarnessModelsPromo();
+    setHarnessModelsPromoHidden(true);
   }, []);
 
-  const subscribeToOpenWorkModels = useCallback(() => {
+  const subscribeToHarnessModels = useCallback(() => {
     providerAuthStore.closeProviderAuthModal();
     const accountPath = selectedWorkspaceId
       ? workspaceSettingsRoute(selectedWorkspaceId, "cloud-account")
@@ -1101,8 +1101,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   const shareWorkspaceState = useShareWorkspaceState({
     workspaces,
-    openworkServerHostInfo: openworkServerSnapshot.openworkServerHostInfo,
-    openworkServerSettings: openworkServerSnapshot.openworkServerSettings,
+    harnessServerHostInfo: harnessServerSnapshot.harnessServerHostInfo,
+    harnessServerSettings: harnessServerSnapshot.harnessServerSettings,
     engineInfo: null,
     exportWorkspaceBusy,
     openLink: (url) => platform.openLink(url),
@@ -1111,8 +1111,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   const debugViewProps = useDebugViewModel({
     developerMode,
-    openworkServerStore,
-    openworkServerSnapshot,
+    harnessServerStore,
+    harnessServerSnapshot,
     runtimeWorkspaceId: selectedWorkspace?.id ?? null,
     selectedWorkspaceRoot,
     setRouteError: (message) => {
@@ -1133,11 +1133,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   const runtimeWorkspaceId = selectedWorkspaceEndpoint?.workspaceId ?? selectedWorkspace?.id ?? null;
   routeStateRef.current.runtimeWorkspaceId = runtimeWorkspaceId;
-  routeStateRef.current.selectedWorkspaceOpenworkClient = selectedWorkspaceEndpoint?.client ?? openworkClient;
+  routeStateRef.current.selectedWorkspaceHarnessClient = selectedWorkspaceEndpoint?.client ?? harnessClient;
   const cloudMcpHealth = cloudMcpHealthResult?.workspaceId === runtimeWorkspaceId
     ? cloudMcpHealthResult.health
     : null;
-  const handleCloudMcpHealthChange = useCallback((health: OpenworkCloudMcpHealth | null) => {
+  const handleCloudMcpHealthChange = useCallback((health: HarnessCloudMcpHealth | null) => {
     const workspaceId = runtimeWorkspaceId?.trim() ?? "";
     if ((routeStateRef.current.runtimeWorkspaceId?.trim() ?? "") !== workspaceId) return;
     setCloudMcpHealthResult(health && workspaceId ? { workspaceId, health } : null);
@@ -1146,7 +1146,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const opencodeClient = useMemo(() => {
     if (!selectedWorkspaceEndpoint) {
       return engineRootEndpoint
-        ? createClient(engineRootEndpoint.opencodeBaseUrl, undefined, { token: engineRootEndpoint.token, mode: "openwork" })
+        ? createClient(engineRootEndpoint.opencodeBaseUrl, undefined, { token: engineRootEndpoint.token, mode: "harness" })
         : null;
     }
     if (!selectedWorkspaceEndpoint.token) return null;
@@ -1155,7 +1155,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       selectedWorkspaceRoot || undefined,
       {
         token: selectedWorkspaceEndpoint.token,
-        mode: "openwork",
+        mode: "harness",
       },
     );
   }, [engineRootEndpoint, selectedWorkspaceEndpoint, selectedWorkspaceRoot]);
@@ -1207,13 +1207,13 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     disabledProviders,
     cloudProvidersEnabled: cloudSession.isSignedIn,
   });
-  const currentCloudMcpModel = useMemo<OpenworkCloudMcpProviderModelContext | null>(() => {
+  const currentCloudMcpModel = useMemo<HarnessCloudMcpProviderModelContext | null>(() => {
     const provider = local.prefs.defaultModel?.providerID.trim() ?? "";
     const model = local.prefs.defaultModel?.modelID.trim() ?? "";
     return provider && model ? { provider, model } : null;
   }, [local.prefs.defaultModel]);
   const refreshCloudMcpHealth = useCallback(async () => {
-    const client = selectedWorkspaceEndpoint?.client ?? openworkClient;
+    const client = selectedWorkspaceEndpoint?.client ?? harnessClient;
     const workspaceId = runtimeWorkspaceId?.trim() ?? "";
     if (!client || !workspaceId) {
       setCloudMcpHealthResult(null);
@@ -1221,11 +1221,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     }
     // probe: the Advanced page refresh should verify the Cloud endpoint
     // directly (outside the engine), not just report the engine's cached state.
-    const health = await client.getOpenworkCloudMcpHealth(workspaceId, currentCloudMcpModel ?? undefined, { probe: true });
+    const health = await client.getHarnessCloudMcpHealth(workspaceId, currentCloudMcpModel ?? undefined, { probe: true });
     if (routeStateRef.current.runtimeWorkspaceId?.trim() !== workspaceId) return null;
     setCloudMcpHealthResult({ workspaceId, health });
     return health;
-  }, [currentCloudMcpModel, openworkClient, runtimeWorkspaceId, selectedWorkspaceEndpoint]);
+  }, [currentCloudMcpModel, harnessClient, runtimeWorkspaceId, selectedWorkspaceEndpoint]);
   const { commandPaletteOpen, setCommandPaletteOpen } = useCommandPaletteShortcut(!props.embedded);
   const developerModePaletteItem = useMemo(
     () => settingsDeveloperModePaletteItem(developerMode, () => {
@@ -1252,10 +1252,10 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   useEffect(() => {
     const refresh = () => setExtensionStateVersion((value) => value + 1);
-    window.addEventListener(OPENWORK_EXTENSION_STATE_CHANGED, refresh);
+    window.addEventListener(HARNESS_EXTENSION_STATE_CHANGED, refresh);
     window.addEventListener("storage", refresh);
     return () => {
-      window.removeEventListener(OPENWORK_EXTENSION_STATE_CHANGED, refresh);
+      window.removeEventListener(HARNESS_EXTENSION_STATE_CHANGED, refresh);
       window.removeEventListener("storage", refresh);
     };
   }, []);
@@ -1276,21 +1276,21 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   }, []);
 
   useEffect(() => {
-    if (!openworkClient) {
+    if (!harnessClient) {
       setUserEnvKeys([]);
       return;
     }
     let cancelled = false;
-    void openworkClient.listUserEnvKeys()
+    void harnessClient.listUserEnvKeys()
       .then((response) => { if (!cancelled) setUserEnvKeys(response.keys); })
       .catch(() => { if (!cancelled) setUserEnvKeys([]); });
     return () => { cancelled = true; };
-  }, [openworkClient]);
+  }, [harnessClient]);
 
   const installOpenAiImageExtension = useCallback(async (apiKey: string) => {
     const resolvedApiKey = apiKey.trim();
-    if (!openworkClient) {
-      setImageExtensionError("OpenWork server is not connected.");
+    if (!harnessClient) {
+      setImageExtensionError("Harness server is not connected.");
       return;
     }
     if (!resolvedApiKey) {
@@ -1302,23 +1302,23 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     setImageExtensionStatus(null);
     setImageExtensionError(null);
     try {
-      await openworkClient.upsertUserEnv([{ key: "OPENAI_API_KEY", value: resolvedApiKey }]);
+      await harnessClient.upsertUserEnv([{ key: "OPENAI_API_KEY", value: resolvedApiKey }]);
       setUserEnvKeys((current) => Array.from(new Set([...current, "OPENAI_API_KEY"])));
-      setImageExtensionStatus("Saved OPENAI_API_KEY. Agents can use OpenWork extension actions for image generation.");
+      setImageExtensionStatus("Saved OPENAI_API_KEY. Agents can use Harness extension actions for image generation.");
     } catch (error) {
       setImageExtensionError(describeRouteError(error));
     } finally {
       setImageExtensionBusy(false);
     }
-  }, [openworkClient]);
+  }, [harnessClient]);
 
   const generateOpenAiTestImage = useCallback(async (input: { apiKey: string; prompt: string }) => {
-    const client = selectedWorkspaceEndpoint?.client ?? openworkClient;
+    const client = selectedWorkspaceEndpoint?.client ?? harnessClient;
     const workspaceId = runtimeWorkspaceId?.trim() ?? "";
     const apiKey = input.apiKey.trim();
     const prompt = input.prompt.trim();
     if (!client || !workspaceId) {
-      setImageGenerationError("OpenWork server is not connected for this workspace.");
+      setImageGenerationError("Harness server is not connected for this workspace.");
       return;
     }
     if (!apiKey) {
@@ -1334,8 +1334,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     setImageGenerationStatus(null);
     setImageGenerationError(null);
     try {
-      if (openworkClient) {
-        await openworkClient.upsertUserEnv([{ key: "OPENAI_API_KEY", value: apiKey }]);
+      if (harnessClient) {
+        await harnessClient.upsertUserEnv([{ key: "OPENAI_API_KEY", value: apiKey }]);
         setUserEnvKeys((current) => Array.from(new Set([...current, "OPENAI_API_KEY"])));
       }
       const response = await client.callExtensionAction({
@@ -1358,14 +1358,14 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     } finally {
       setImageGenerationBusy(false);
     }
-  }, [openworkClient, runtimeWorkspaceId, selectedWorkspaceEndpoint, selectedWorkspaceRoot]);
+  }, [harnessClient, runtimeWorkspaceId, selectedWorkspaceEndpoint, selectedWorkspaceRoot]);
 
   const installLocalProvider = useCallback(async (input: LocalProviderInstallInput) => {
-    const client = selectedWorkspaceEndpoint?.client ?? openworkClient;
+    const client = selectedWorkspaceEndpoint?.client ?? harnessClient;
     const workspaceId = runtimeWorkspaceId?.trim() ?? "";
     const modelId = input.modelId.trim();
     if (!client || !workspaceId) {
-      setLocalProviderError("OpenWork server is not connected for this workspace.");
+      setLocalProviderError("Harness server is not connected for this workspace.");
       return;
     }
     if (!modelId) {
@@ -1399,7 +1399,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       }
       await refreshProviderListQueries(getReactQueryClient());
       try {
-        window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
+        window.dispatchEvent(new CustomEvent("harness-server-settings-changed"));
       } catch {
         // ignore browser event dispatch failures
       }
@@ -1409,7 +1409,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     } finally {
       setLocalProviderBusy(false);
     }
-  }, [local, openworkClient, reloadCoordinator, runtimeWorkspaceId, selectedWorkspaceEndpoint]);
+  }, [local, harnessClient, reloadCoordinator, runtimeWorkspaceId, selectedWorkspaceEndpoint]);
 
   useEffect(() => {
     local.setUi((previous) => ({ ...previous, view: "settings", tab: route.tab }));
@@ -1453,11 +1453,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       }
       if (!attempt.isCurrent()) return;
 
-      const { normalizedBaseUrl, resolvedToken, resolvedHostToken } = await resolveOpenworkConnection();
+      const { normalizedBaseUrl, resolvedToken, resolvedHostToken } = await resolveHarnessConnection();
       if (!attempt.isCurrent()) return;
 
       if (!normalizedBaseUrl || !resolvedToken) {
-        setOpenworkClient(null);
+        setHarnessClient(null);
         setBaseUrl("");
         setToken("");
         setWorkspaces(desktopWorkspaces);
@@ -1471,7 +1471,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         return;
       }
 
-      const client = createOpenworkServerClient({
+      const client = createHarnessServerClient({
         baseUrl: normalizedBaseUrl,
         token: resolvedToken,
         hostToken: resolvedHostToken || undefined,
@@ -1562,7 +1562,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       );
       if (!attempt.isCurrent()) return;
 
-      setOpenworkClient(client);
+      setHarnessClient(client);
       setBaseUrl(normalizedBaseUrl);
       setToken(resolvedToken);
       setWorkspaces(nextWorkspaces);
@@ -1624,16 +1624,16 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   const reloadWorkspaceEngineFromUi = useCallback(async () => {
     const workspaceId = routeStateRef.current.runtimeWorkspaceId?.trim() || selectedWorkspaceId.trim();
-    if (!openworkClient || !workspaceId) {
+    if (!harnessClient || !workspaceId) {
       toast.error(t("app.error_connect_first"));
       return false;
     }
 
-    await reloadEngineOrRestartDesktop(openworkClient, workspaceId, refreshRouteState);
+    await reloadEngineOrRestartDesktop(harnessClient, workspaceId, refreshRouteState);
     await refreshProviderListQueries(getReactQueryClient());
 
     try {
-      window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
+      window.dispatchEvent(new CustomEvent("harness-server-settings-changed"));
     } catch {
       // ignore browser event dispatch failures
     }
@@ -1643,19 +1643,19 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     void pollMcpServersAfterReloadRef.current?.();
 
     return true;
-  }, [openworkClient, refreshRouteState, selectedWorkspaceId]);
+  }, [harnessClient, refreshRouteState, selectedWorkspaceId]);
 
   useEffect(() => {
     return reloadCoordinator.registerWorkspaceReloadControls({
       workspaceId: selectedWorkspace?.id || selectedWorkspaceId || "",
       applyLiveChanges: async () => {
         if (selectedWorkspace?.workspaceType === "remote") return false;
-        const status = await openworkClient?.getEngineV2PreviewStatus();
+        const status = await harnessClient?.getEngineV2PreviewStatus();
         if (!status?.enabled || !status.chatRouting) return false;
         await refreshProviderListQueries(getReactQueryClient()).catch(() => undefined);
         return true;
       },
-      canReloadWorkspaceEngine: () => Boolean(openworkClient && (selectedWorkspace?.id || selectedWorkspaceId)),
+      canReloadWorkspaceEngine: () => Boolean(harnessClient && (selectedWorkspace?.id || selectedWorkspaceId)),
       reloadWorkspaceEngine: reloadWorkspaceEngineFromUi,
       activeSessions: () => activeReloadBlockingSessions,
       stopSession: async (sessionId) => {
@@ -1670,7 +1670,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   }, [
     activeClient,
     activeReloadBlockingSessions,
-    openworkClient,
+    harnessClient,
     reloadCoordinator,
     reloadWorkspaceEngineFromUi,
     selectedWorkspace?.id,
@@ -1725,7 +1725,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
 
   const remoteWorkspaceConnectionEditor = useRemoteWorkspaceConnectionEditor({
     workspaces,
-    client: openworkClient,
+    client: harnessClient,
     onSaved: handleRemoteWorkspaceConnectionSaved,
   });
 
@@ -1788,7 +1788,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   );
 
   useEffect(() => {
-    if (openworkClient) {
+    if (harnessClient) {
       reconnectAttemptedWorkspaceIdRef.current = "";
     }
     // Same gate as the session route: reconnect must not probe the local
@@ -1799,7 +1799,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         bootPhase,
         bootRouteReady,
         routeLoading: loading,
-        hasClient: Boolean(openworkClient),
+        hasClient: Boolean(harnessClient),
         connectionPending: false,
         workspaceType: selectedWorkspace?.workspaceType ?? null,
       })
@@ -1811,7 +1811,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     if (!workspaceId || reconnectAttemptedWorkspaceIdRef.current === workspaceId) return;
     reconnectAttemptedWorkspaceIdRef.current = workspaceId;
 
-    void ensureDesktopLocalOpenworkConnection({
+    void ensureDesktopLocalHarnessConnection({
       route: "settings",
       workspace: selectedWorkspace,
       allWorkspaces: workspaces,
@@ -1825,7 +1825,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         dedupeKey: "server-reconnect",
       });
     });
-  }, [bootPhase, bootRouteReady, loading, openworkClient, selectedWorkspace, workspaces]);
+  }, [bootPhase, bootRouteReady, loading, harnessClient, selectedWorkspace, workspaces]);
 
   useEffect(() => {
     // A workspace-route change must invalidate the previous refresh even if
@@ -1835,20 +1835,20 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     const handleSettingsChange = () => {
       void refreshRouteState({ supersede: true });
     };
-    window.addEventListener("openwork-server-settings-changed", handleSettingsChange);
+    window.addEventListener("harness-server-settings-changed", handleSettingsChange);
     return () => {
-      window.removeEventListener("openwork-server-settings-changed", handleSettingsChange);
+      window.removeEventListener("harness-server-settings-changed", handleSettingsChange);
     };
   }, [refreshRouteState]);
 
   // Load auto-compaction state from OpenCode config on workspace change.
   useEffect(() => {
-    if (!openworkClient || !selectedWorkspaceId) return;
+    if (!harnessClient || !selectedWorkspaceId) return;
     const workspaceId = routeStateRef.current.runtimeWorkspaceId?.trim() || selectedWorkspaceId;
     let cancelled = false;
     (async () => {
       try {
-        const config = await openworkClient.getConfig(workspaceId);
+        const config = await harnessClient.getConfig(workspaceId);
         if (cancelled) return;
         const compaction = config.opencode?.compaction;
         const auto = compaction && typeof compaction === "object" && "auto" in compaction
@@ -1861,17 +1861,17 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       }
     })();
     return () => { cancelled = true; };
-  }, [openworkClient, selectedWorkspaceId]);
+  }, [harnessClient, selectedWorkspaceId]);
 
   const toggleAutoCompactContext = useCallback(async () => {
     if (autoCompactContextBusy) return;
     const workspaceId = routeStateRef.current.runtimeWorkspaceId?.trim() || selectedWorkspaceId;
-    if (!openworkClient || !workspaceId) return;
+    if (!harnessClient || !workspaceId) return;
     const next = !autoCompactContext;
     setAutoCompactContext(next);
     setAutoCompactContextBusy(true);
     try {
-      await openworkClient.patchConfig(workspaceId, {
+      await harnessClient.patchConfig(workspaceId, {
         opencode: { compaction: { auto: next } },
       });
       reloadCoordinator.markReloadRequired("config", {
@@ -1884,10 +1884,10 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     } finally {
       setAutoCompactContextBusy(false);
     }
-  }, [autoCompactContext, autoCompactContextBusy, openworkClient, reloadCoordinator, selectedWorkspaceId]);
+  }, [autoCompactContext, autoCompactContextBusy, harnessClient, reloadCoordinator, selectedWorkspaceId]);
 
   useEffect(() => {
-    openworkServerStore.start();
+    harnessServerStore.start();
     connectionsStore.start();
     providerAuthStore.start();
     extensionsStore.start();
@@ -1896,11 +1896,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       extensionsStore.dispose();
       providerAuthStore.dispose();
       connectionsStore.dispose();
-      openworkServerStore.dispose();
+      harnessServerStore.dispose();
     };
-  }, [connectionsStore, extensionsStore, openworkServerStore, providerAuthStore]);
+  }, [connectionsStore, extensionsStore, harnessServerStore, providerAuthStore]);
 
-  const refreshMarketplaceAction = useMemo<OpenworkControlAction>(() => ({
+  const refreshMarketplaceAction = useMemo<HarnessControlAction>(() => ({
     id: "extensions.refresh-marketplace",
     label: "Refresh marketplace extensions",
     description: "Force a fresh sync of organization marketplace plugins from the cloud.",
@@ -1930,14 +1930,14 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     providerAuthStore.syncFromOptions();
   }, [
     providerAuthStore,
-    openworkServerSnapshot.openworkServerStatus,
-    openworkServerSnapshot.openworkServerCapabilities?.providerSync,
-    openworkServerSnapshot.openworkServerClient,
-    openworkServerSnapshot.openworkServerHostInfo?.generation,
+    harnessServerSnapshot.harnessServerStatus,
+    harnessServerSnapshot.harnessServerCapabilities?.providerSync,
+    harnessServerSnapshot.harnessServerClient,
+    harnessServerSnapshot.harnessServerHostInfo?.generation,
   ]);
 
   useEffect(() => {
-    openworkServerStore.syncFromOptions();
+    harnessServerStore.syncFromOptions();
     connectionsStore.syncFromOptions();
     providerAuthStore.syncFromOptions();
     extensionsStore.syncFromOptions();
@@ -1945,7 +1945,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     activeClient,
     connectionsStore,
     extensionsStore,
-    openworkServerStore,
+    harnessServerStore,
     providerAuthStore,
     selectedWorkspace?.id,
     selectedWorkspace?.workspaceType,
@@ -1974,7 +1974,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const workspaceType = selectedWorkspace?.workspaceType ?? "local";
   const isRemoteWorkspace = workspaceType === "remote";
   const canWriteWorkspacePlugins =
-    !isRemoteWorkspace || openworkServerSnapshot.openworkServerCanWritePlugins;
+    !isRemoteWorkspace || harnessServerSnapshot.harnessServerCanWritePlugins;
   const pluginsAccessHint =
     isRemoteWorkspace && !canWriteWorkspacePlugins ? t("app.plugins_hint_readonly") : null;
   const defaultModelLabel = local.prefs.defaultModel
@@ -2018,8 +2018,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       ? []
       : [{ id, name: providers.find((provider) => provider.id === id)?.name ?? PROVIDER_LABELS[id.toLowerCase()] ?? id }],
   );
-  const openworkCloudMcpUrl = connectionsSnapshot.mcpServers.find(
-    (server) => server.name === "openwork-cloud",
+  const harnessCloudMcpUrl = connectionsSnapshot.mcpServers.find(
+    (server) => server.name === "harness-cloud",
   )?.config.url ?? null;
 
   // Build enablement context from all available runtime state.
@@ -2047,7 +2047,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       isToggleEnabled: (ref: string) => {
         const catalog = connectionsStore.quickConnect;
         const match = catalog.find((e: { id?: string; serverName?: string }) => (e.id ?? e.serverName) === ref);
-        return match ? isOpenWorkExtensionEnabled(match) : false;
+        return match ? isHarnessExtensionEnabled(match) : false;
       },
     };
   }, [computerUsePermissions, connectionsSnapshot, extensionStateVersion, providerConnectedIds, userEnvKeys]);
@@ -2056,20 +2056,20 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
   const restartExtensionLocalServer = useCallback(async () => {
     if (!isDesktopRuntime()) return false;
     try {
-      await openworkServerRestart({
+      await harnessServerRestart({
         remoteAccessEnabled:
-          readOpenworkServerSettings().remoteAccessEnabled === true,
+          readHarnessServerSettings().remoteAccessEnabled === true,
       });
-      await openworkServerStore.reconnectOpenworkServer();
+      await harnessServerStore.reconnectHarnessServer();
       await refreshRouteState();
       return true;
     } catch {
       return false;
     }
-  }, [openworkServerStore, refreshRouteState]);
+  }, [harnessServerStore, refreshRouteState]);
   const extensionController = useSettingsExtensionController({
-    openworkServerClient: selectedWorkspaceEndpoint?.client ?? openworkClient,
-    hostOpenworkServerClient: openworkClient,
+    harnessServerClient: selectedWorkspaceEndpoint?.client ?? harnessClient,
+    hostHarnessServerClient: harnessClient,
     enablementContext,
     mcpServers: connectionsSnapshot.mcpServers,
     mcpConnectingName: connectionsSnapshot.mcpConnectingName,
@@ -2097,9 +2097,9 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       onInstall: installLocalProvider,
     },
   });
-  const extensionCatalogPlatform = resolveOpenWorkExtensionCatalogPlatform(platform.platform, platform.os);
+  const extensionCatalogPlatform = resolveHarnessExtensionCatalogPlatform(platform.platform, platform.os);
   const quickConnectCatalog = useMemo(
-    () => filterOpenWorkExtensionCatalogForPlatform(connectionsStore.quickConnect, extensionCatalogPlatform),
+    () => filterHarnessExtensionCatalogForPlatform(connectionsStore.quickConnect, extensionCatalogPlatform),
     [connectionsStore.quickConnect, extensionCatalogPlatform],
   );
   const extensionItems = useMemo(
@@ -2154,7 +2154,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     loaded: orgMcpConnections.loaded,
     error: orgMcpConnections.error,
   });
-  const diagnosticsClient = selectedWorkspaceEndpoint?.client ?? openworkClient;
+  const diagnosticsClient = selectedWorkspaceEndpoint?.client ?? harnessClient;
   const diagnosticsWorkspaceAllowed = isAgentContextDiagnosticsWorkspaceAllowed(selectedWorkspace);
   const diagnosticsAvailable = Boolean(
     diagnosticsClient
@@ -2162,7 +2162,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     && diagnosticsWorkspaceAllowed,
   );
   const diagnosticsUnavailableReason = selectedWorkspace?.workspaceType === "remote"
-    && selectedWorkspace.remoteType !== "openwork"
+    && selectedWorkspace.remoteType !== "harness"
     ? "direct-remote-opencode" as const
     : null;
   const diagnosticsWorkspaceType = selectedWorkspace?.workspaceType === "remote"
@@ -2191,7 +2191,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     token,
   ]);
   const runAgentContextDiagnostics = useCallback(async () => {
-    const client = selectedWorkspaceEndpoint?.client ?? openworkClient;
+    const client = selectedWorkspaceEndpoint?.client ?? harnessClient;
     const workspaceId = runtimeWorkspaceId?.trim() ?? "";
     if (
       !client
@@ -2208,14 +2208,14 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     });
     return client.runAgentContextDiagnostics(workspaceId, observations);
   }, [
-    openworkClient,
+    harnessClient,
     organizationConnectionsProbe,
     orgMcpConnections.connections,
     runtimeWorkspaceId,
     selectedWorkspace,
     selectedWorkspaceEndpoint,
   ]);
-  const routeOpenworkStatus = openworkClient ? "connected" : "disconnected";
+  const routeHarnessStatus = harnessClient ? "connected" : "disconnected";
   const notFoundRouteError = !loading && routeWorkspaceId && !selectedWorkspace
     ? "Workspace was not found. Select a new workspace from the sidebar."
     : null;
@@ -2228,13 +2228,13 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       });
     }
   }, [notFoundRouteError]);
-  const routeOpenworkCapabilities: OpenworkServerCapabilities | null = openworkClient
-    ? ROUTE_OPENWORK_CAPABILITIES
+  const routeHarnessCapabilities: HarnessServerCapabilities | null = harnessClient
+    ? ROUTE_HARNESS_CAPABILITIES
     : null;
-  const environmentRuntimeKey = buildOpenworkEnvRuntimeKey({
-    baseUrl: openworkServerSnapshot.openworkServerBaseUrl || openworkServerSnapshot.openworkServerUrl,
-    pid: openworkServerSnapshot.openworkServerHostInfo?.pid ?? null,
-    port: openworkServerSnapshot.openworkServerHostInfo?.port ?? null,
+  const environmentRuntimeKey = buildHarnessEnvRuntimeKey({
+    baseUrl: harnessServerSnapshot.harnessServerBaseUrl || harnessServerSnapshot.harnessServerUrl,
+    pid: harnessServerSnapshot.harnessServerHostInfo?.pid ?? null,
+    port: harnessServerSnapshot.harnessServerHostInfo?.port ?? null,
   });
 
   const handleApplyEnvironmentChanges = async () => {
@@ -2263,12 +2263,12 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       preferSidecar: true,
       runtime: "direct",
       workspacePaths,
-      openworkRemoteAccess: openworkServerSnapshot.openworkServerSettings.remoteAccessEnabled === true,
+      harnessRemoteAccess: harnessServerSnapshot.harnessServerSettings.remoteAccessEnabled === true,
       // The user env file is read when the local server process spawns, so a
       // healthy engine must be replaced, not reused, for new values to apply.
       forceRestart: true,
     });
-    const reconnected = await openworkServerStore.reconnectOpenworkServer();
+    const reconnected = await harnessServerStore.reconnectHarnessServer();
     if (!reconnected) {
       await refreshRouteState().catch(() => {});
       return { statusMessage: t("settings.environment.apply_refresh_failed") };
@@ -2306,11 +2306,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     if (!trimmed) return;
     setRenameWorkspaceBusy(true);
     try {
-      if (!openworkClient) {
-        toast.error("OpenWork server is unavailable. Reconnect the server before renaming workspaces.");
+      if (!harnessClient) {
+        toast.error("Harness server is unavailable. Reconnect the server before renaming workspaces.");
         return;
       }
-      await openworkClient.updateWorkspaceDisplayName(renameWorkspaceId, trimmed);
+      await harnessClient.updateWorkspaceDisplayName(renameWorkspaceId, trimmed);
       setRenameWorkspaceId(null);
       setRenameWorkspaceTitle("");
       await refreshRouteState();
@@ -2321,7 +2321,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
     } finally {
       setRenameWorkspaceBusy(false);
     }
-  }, [openworkClient, refreshRouteState, renameWorkspaceId, renameWorkspaceTitle]);
+  }, [harnessClient, refreshRouteState, renameWorkspaceId, renameWorkspaceTitle]);
 
   const handleRevealWorkspace = useCallback(async (workspaceId: string) => {
     const workspace = workspaces.find((item) => item.id === workspaceId);
@@ -2344,7 +2344,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       }
       return;
     }
-    throw new Error("OpenWork server is unavailable. Reconnect the server before exporting workspace config.");
+    throw new Error("Harness server is unavailable. Reconnect the server before exporting workspace config.");
   }, [workspaceServerClientResolver, workspaces]);
 
   const handleForgetWorkspace = useCallback(async (workspaceId: string) => {
@@ -2352,8 +2352,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       const message = t("workspace_list.remove_confirm") || "Remove this workspace from the sidebar?";
       if (!window.confirm(message)) return;
     }
-    if (openworkClient) {
-      await openworkClient.deleteWorkspace(workspaceId).catch(() => undefined);
+    if (harnessClient) {
+      await harnessClient.deleteWorkspace(workspaceId).catch(() => undefined);
     }
     if (isDesktopRuntime()) {
       await workspaceForget(workspaceId).catch(() => undefined);
@@ -2367,7 +2367,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       }
     }
     await refreshRouteState();
-  }, [openworkClient, refreshRouteState, selectedWorkspaceId, workspaces]);
+  }, [harnessClient, refreshRouteState, selectedWorkspaceId, workspaces]);
 
   if (route.redirectPath && !props.embedded) {
     const target = props.standaloneExtensions
@@ -2414,16 +2414,16 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             developerMode={developerMode}
             onSendFeedback={() => platform.openLink(buildFeedbackUrl({ entrypoint: "settings" }))}
             onJoinDiscord={() => platform.openLink("https://discord.gg/VEhNQXxYMB")}
-            onReportIssue={() => platform.openLink("https://github.com/different-ai/openwork/issues/new?template=bug.yml")}
+            onReportIssue={() => platform.openLink("https://github.com/vaishnavjai/harness/issues/new?template=bug.yml")}
           />
         );
       case "permissions":
         return (
           <SettingsStack>
             <AuthorizedFoldersPanel
-              openworkServerClient={openworkClient}
-              openworkServerStatus={routeOpenworkStatus}
-              openworkServerCapabilities={routeOpenworkCapabilities}
+              harnessServerClient={harnessClient}
+              harnessServerStatus={routeHarnessStatus}
+              harnessServerCapabilities={routeHarnessCapabilities}
               runtimeWorkspaceId={runtimeWorkspaceId}
               selectedWorkspaceRoot={selectedWorkspaceRoot}
               activeWorkspaceType={workspaceType}
@@ -2479,7 +2479,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             organizationName={cloudSession.activeOrgName}
             cloudProviderIds={new Set([
               ...Object.values(providerAuthSnapshot.importedCloudProviders ?? {}).map((p) => p.providerId),
-              ...(openWorkModelsEntitled || openWorkModelsAvailable ? ["openwork"] : []),
+              ...(harnessModelsEntitled || harnessModelsAvailable ? ["harness"] : []),
             ])}
             gatewayProviderIds={gatewayProviderIds}
             gatewayConnectProviders={gatewayConnectProviders}
@@ -2491,11 +2491,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
               toast.info("Stopped waiting. Browser sign-in was not revoked. Refresh AI Providers after finishing, or Connect again to retry.");
             }}
             onConnectGatewayProvider={(provider) => { void handleConnectGatewayProvider(provider); }}
-            showOpenWorkModelsSubscribe={showOpenWorkModelsSubscribe}
-            showOpenWorkModelsConnect={showOpenWorkModelsConnect}
-            showOpenWorkModelsSyncing={showOpenWorkModelsSyncing}
-            onSubscribeOpenWorkModels={subscribeToOpenWorkModels}
-            onDismissOpenWorkModels={dismissOpenWorkModelsPromo}
+            showHarnessModelsSubscribe={showHarnessModelsSubscribe}
+            showHarnessModelsConnect={showHarnessModelsConnect}
+            showHarnessModelsSyncing={showHarnessModelsSyncing}
+            onSubscribeHarnessModels={subscribeToHarnessModels}
+            onDismissHarnessModels={dismissHarnessModelsPromo}
             cloudProvidersView={
               <CloudProvidersView
                 embedded
@@ -2504,11 +2504,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
                 connectCloudProvider={providerAuthStore.connectCloudProvider}
                 importedCloudProviders={providerAuthSnapshot.importedCloudProviders}
                 importsUnavailable={
-                  openworkServerSnapshot.openworkServerCapabilities?.config?.read === false ||
-                  openworkServerSnapshot.openworkServerCapabilities?.config?.write === false
+                  harnessServerSnapshot.harnessServerCapabilities?.config?.read === false ||
+                  harnessServerSnapshot.harnessServerCapabilities?.config?.write === false
                 }
                 lastSyncError={providerAuthSnapshot.lastSyncError}
-                openworkServerAvailable={Boolean(openworkServerSnapshot.openworkServerClient)}
+                harnessServerAvailable={Boolean(harnessServerSnapshot.harnessServerClient)}
                 onOpenAccount={openCloudAccountSettings}
                 refreshCloudOrgProviders={providerAuthStore.refreshCloudOrgProviders}
                 runCloudProviderSync={providerAuthStore.runCloudProviderSync}
@@ -2615,7 +2615,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
                   void connectionsStore.removeMcp(name);
                 }}
                 setMcpEnabled={
-                  routeOpenworkStatus === "connected" && routeOpenworkCapabilities?.mcp?.write
+                  routeHarnessStatus === "connected" && routeHarnessCapabilities?.mcp?.write
                     ? (name, enabled) => connectionsStore.setMcpEnabled(name, enabled)
                     : undefined
                 }
@@ -2671,11 +2671,11 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             connectCloudProvider={providerAuthStore.connectCloudProvider}
             importedCloudProviders={providerAuthSnapshot.importedCloudProviders}
             importsUnavailable={
-              openworkServerSnapshot.openworkServerCapabilities?.config?.read === false ||
-              openworkServerSnapshot.openworkServerCapabilities?.config?.write === false
+              harnessServerSnapshot.harnessServerCapabilities?.config?.read === false ||
+              harnessServerSnapshot.harnessServerCapabilities?.config?.write === false
             }
             lastSyncError={providerAuthSnapshot.lastSyncError}
-            openworkServerAvailable={Boolean(openworkServerSnapshot.openworkServerClient)}
+            harnessServerAvailable={Boolean(harnessServerSnapshot.harnessServerClient)}
             onOpenAccount={openCloudAccountSettings}
             refreshCloudOrgProviders={providerAuthStore.refreshCloudOrgProviders}
             runCloudProviderSync={providerAuthStore.runCloudProviderSync}
@@ -2691,28 +2691,28 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
               busy={busy}
               clientConnected={Boolean(opencodeClient)}
               opencodeConnectStatus={null}
-              openworkServerStatus={openworkServerSnapshot.openworkServerStatus}
+              harnessServerStatus={harnessServerSnapshot.harnessServerStatus}
               developerMode={developerMode}
               toggleDeveloperMode={toggleDeveloperMode}
               opencodeDevModeEnabled={false}
               openDebugDeepLink={async () => ({ ok: false, message: "Debug deep links are not wired into the React settings route yet." })}
-              cloudMcpUrl={openworkCloudMcpUrl}
-              canInspectRuntimeConfig={Boolean(openworkClient && selectedWorkspaceId)}
+              cloudMcpUrl={harnessCloudMcpUrl}
+              canInspectRuntimeConfig={Boolean(harnessClient && selectedWorkspaceId)}
               getRuntimeConfigStatus={async () => {
-                if (!openworkClient || !selectedWorkspaceId) {
+                if (!harnessClient || !selectedWorkspaceId) {
                   throw new Error("Select a workspace to inspect runtime config.");
                 }
-                return openworkClient.getRuntimeConfigStatus(selectedWorkspaceId);
+                return harnessClient.getRuntimeConfigStatus(selectedWorkspaceId);
               }}
               cloudMcpHealth={cloudMcpHealth}
               refreshCloudMcpHealth={refreshCloudMcpHealth}
               organizationServer={denSession}
-              engineClient={openworkClient}
+              engineClient={harnessClient}
             />
             {platform.capabilities.localRuntimeControl ? (
               <RecoveryView
                 anyActiveRuns={false}
-                workspaceConfigPath={selectedWorkspaceRoot ? `${selectedWorkspaceRoot}/.opencode/openwork.json` : ""}
+                workspaceConfigPath={selectedWorkspaceRoot ? `${selectedWorkspaceRoot}/.opencode/harness.json` : ""}
                 resetConfigBusy={resetConfigBusy}
                 onResetAppConfigDefaults={() => {}}
                 configActionStatus={configActionStatus}
@@ -2721,13 +2721,13 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
                 onRepairOpencodeCache={() => {}}
                 dockerCleanupBusy={false}
                 dockerCleanupResult={null}
-                onCleanupOpenworkDockerContainers={() => {}}
+                onCleanupHarnessDockerContainers={() => {}}
               />
             ) : null}
             <EffectivePermissionsPanel
-              openworkServerClient={openworkClient}
-              openworkServerStatus={routeOpenworkStatus}
-              openworkServerCapabilities={routeOpenworkCapabilities}
+              harnessServerClient={harnessClient}
+              harnessServerStatus={routeHarnessStatus}
+              harnessServerCapabilities={routeHarnessCapabilities}
               runtimeWorkspaceId={runtimeWorkspaceId}
               refreshToken={permissionsRefreshToken}
             />
@@ -2783,7 +2783,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       case "environment":
         return (
           <EnvironmentView
-            client={openworkServerSnapshot.openworkServerClient}
+            client={harnessServerSnapshot.harnessServerClient}
             isRemoteWorkspace={isRemoteWorkspace}
             onApplyChanges={isDesktopRuntime() && !isRemoteWorkspace ? handleApplyEnvironmentChanges : undefined}
             applyBlocked={activeReloadBlockingSessions.length > 0}
@@ -2801,7 +2801,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
             key={runtimeWorkspaceId ?? selectedWorkspaceId}
             {...debugViewProps}
             agentAccess={{
-              client: selectedWorkspaceEndpoint?.client ?? openworkClient,
+              client: selectedWorkspaceEndpoint?.client ?? harnessClient,
               workspaceId: runtimeWorkspaceId,
               currentModel: currentCloudMcpModel,
               onHealthChange: handleCloudMcpHealthChange,
@@ -2840,7 +2840,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
           selectedWorkspaceColor={selectedWorkspaceColor}
           workspaces={workspaceOptions}
           onSelectWorkspace={handleSelectSettingsWorkspace}
-          headerStatus={routeOpenworkStatus}
+          headerStatus={routeHarnessStatus}
           busyHint={loading ? t("session.loading_detail") : busyLabel}
           onClose={props.onClose ?? (() => navigate(settingsReturnRoute(
             selectedWorkspaceId,
@@ -2854,7 +2854,7 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
       )}
 
       <CommandPalette
-        engineClient={openworkClient}
+        engineClient={harnessClient}
         open={commandPaletteOpen}
         onClose={() => setCommandPaletteOpen(false)}
         developerMode={developerMode}
@@ -2926,8 +2926,8 @@ function SettingsRouteContent(props: SettingsSurfaceProps = {}) {
         onSubmitApiKey={providerAuthStore.submitProviderApiKey}
         onSubmitOAuth={providerAuthStore.completeProviderAuthOAuth}
         onRefreshProviders={providerAuthStore.refreshProviders}
-        showOpenWorkModelsSubscribe={showOpenWorkModelsSubscribe}
-        onSubscribeOpenWorkModels={subscribeToOpenWorkModels}
+        showHarnessModelsSubscribe={showHarnessModelsSubscribe}
+        onSubscribeHarnessModels={subscribeToHarnessModels}
         onClose={() => providerAuthStore.closeProviderAuthModal()}
       />
       <RenameWorkspaceModal

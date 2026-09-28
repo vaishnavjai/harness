@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const args = process.argv.slice(2);
 
-const REPO = "different-ai/openwork";
+const REPO = "vaishnavjai/harness";
 const WORKFLOW = "Release App";
 
 const dryRun = args.includes("--dry-run");

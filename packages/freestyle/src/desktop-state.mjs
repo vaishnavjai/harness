@@ -4,29 +4,29 @@ import { posix as path } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 export async function readDesktopProfile(read = readFile) {
-  const root = "/opt/openwork-preview/desktop";
+  const root = "/opt/harness-preview/desktop";
   const profile = JSON.parse(await read(`${root}/profile.json`, "utf8"));
-  if (typeof profile.rootPath !== "string" || !/^\/opt\/openwork-preview\/desktop\/openwork-test-profile-[A-Za-z0-9]+$/.test(profile.rootPath)
+  if (typeof profile.rootPath !== "string" || !/^\/opt\/harness-preview\/desktop\/harness-test-profile-[A-Za-z0-9]+$/.test(profile.rootPath)
     || profile.userDataPath !== `${profile.rootPath}/electron/user-data`
-    || !profile.environment || !["HOME", "XDG_DATA_HOME", "OPENCODE_CONFIG_DIR", "OPENWORK_ENV_STORE"].every((key) => typeof profile.environment[key] === "string") || !Object.values(profile.environment).every((value) => typeof value === "string" && value.startsWith(`${profile.rootPath}/`) && path.normalize(value) === value)
-    || profile.environment.OPENWORK_DESKTOP_BOOTSTRAP_PATH !== `${profile.rootPath}/openwork/config/desktop-bootstrap.json`
-    || profile.environment.OPENWORK_SERVER_CONFIG !== `${profile.rootPath}/openwork/config/server.json`) throw new Error("Invalid isolated desktop profile");
+    || !profile.environment || !["HOME", "XDG_DATA_HOME", "OPENCODE_CONFIG_DIR", "HARNESS_ENV_STORE"].every((key) => typeof profile.environment[key] === "string") || !Object.values(profile.environment).every((value) => typeof value === "string" && value.startsWith(`${profile.rootPath}/`) && path.normalize(value) === value)
+    || profile.environment.HARNESS_DESKTOP_BOOTSTRAP_PATH !== `${profile.rootPath}/harness/config/desktop-bootstrap.json`
+    || profile.environment.HARNESS_SERVER_CONFIG !== `${profile.rootPath}/harness/config/server.json`) throw new Error("Invalid isolated desktop profile");
   async function optional(file) {
     try { return JSON.parse(await read(file, "utf8")); }
     catch (error) { if (error?.code === "ENOENT") return undefined; throw error; }
   }
-  const expectedWorkspacePath = `${profile.userDataPath}/openwork-dev-data/home/OpenWork Chat`;
-  const registry = await optional(`${profile.userDataPath}/openwork-workspaces.json`);
-  const server = await optional(profile.environment.OPENWORK_SERVER_CONFIG);
+  const expectedWorkspacePath = `${profile.userDataPath}/harness-dev-data/home/Harness Chat`;
+  const registry = await optional(`${profile.userDataPath}/harness-workspaces.json`);
+  const server = await optional(profile.environment.HARNESS_SERVER_CONFIG);
   const validRegistry = (value) => Array.isArray(value?.workspaces) && value.workspaces.length === 1
     && value.workspaces.every((workspace) => workspace.path === expectedWorkspacePath && (workspace.workspaceType ?? "local") === "local"
-      && (workspace.preset ?? "starter") === "starter" && (workspace.name ?? "OpenWork Chat") === "OpenWork Chat"
-      && (workspace.displayName ?? "OpenWork Chat") === "OpenWork Chat" && !workspace.baseUrl && !workspace.openworkHostUrl && !workspace.openworkToken);
+      && (workspace.preset ?? "starter") === "starter" && (workspace.name ?? "Harness Chat") === "Harness Chat"
+      && (workspace.displayName ?? "Harness Chat") === "Harness Chat" && !workspace.baseUrl && !workspace.harnessHostUrl && !workspace.harnessToken);
   const legacy = await optional(`${profile.userDataPath}/workspace-state.json`);
-  const noBootstrap = await optional(profile.environment.OPENWORK_DESKTOP_BOOTSTRAP_PATH) === undefined && await optional(`${root}/bootstrap.json`) === undefined;
-  const dataHomes = [profile.environment.XDG_DATA_HOME, `${profile.userDataPath}/openwork-dev-data/xdg/data`];
-  const configHomes = [profile.environment.OPENCODE_CONFIG_DIR, `${profile.userDataPath}/openwork-dev-data/config/opencode`];
-  const env = await optional(profile.environment.OPENWORK_ENV_STORE);
+  const noBootstrap = await optional(profile.environment.HARNESS_DESKTOP_BOOTSTRAP_PATH) === undefined && await optional(`${root}/bootstrap.json`) === undefined;
+  const dataHomes = [profile.environment.XDG_DATA_HOME, `${profile.userDataPath}/harness-dev-data/xdg/data`];
+  const configHomes = [profile.environment.OPENCODE_CONFIG_DIR, `${profile.userDataPath}/harness-dev-data/config/opencode`];
+  const env = await optional(profile.environment.HARNESS_ENV_STORE);
   let noNativeProviderCredentials = env === undefined || (Array.isArray(env?.variables) && env.variables.length === 0);
   for (const file of [
     ...dataHomes.flatMap((home) => [`${home}/opencode/auth.json`, `${home}/opencode/mcp-auth.json`]),
@@ -45,7 +45,7 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
   import("/src/app/constants.ts"), import("/src/app/lib/desktop.ts"),
 ])) {
   const flags = {
-    reloaded: nonce === null || globalThis.__openworkPreviewReload === nonce,
+    reloaded: nonce === null || globalThis.__harnessPreviewReload === nonce,
     rendererRead: false, productContractRead: false, firstRun: false, noAppCloudIdentity: false,
     signInOffered: false, ordinaryDefaultModel: false, routeReady: false, routeWorkspaceValid: false, noRouteConversations: false,
     nativeRead: false, nativeLocalOnly: false, nativeWorkspaceMatches: false, noNativeCloudSession: false,
@@ -60,18 +60,18 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
     } catch { return false; }
   };
   try {
-    const prefs = JSON.parse(localStorage.getItem("openwork.preferences") ?? "{}");
+    const prefs = JSON.parse(localStorage.getItem("harness.preferences") ?? "{}");
     if (!record(prefs)) return flags;
     flags.rendererRead = true;
     flags.firstRun = prefs.hasCompletedOnboarding === undefined || prefs.hasCompletedOnboarding === false;
     flags.noAppCloudIdentity = ["authToken", "activeOrgId", "activeOrgSlug", "activeOrgName", "sessionOrigin", "mcp.sync"]
-      .every((key) => !localStorage.getItem(`openwork.den.${key}`));
+      .every((key) => !localStorage.getItem(`harness.den.${key}`));
     flags.signInOffered = [...document.querySelectorAll("button, a, [role=button]")].some((element) => element.textContent?.trim() === "Sign in");
-    const route = window.__openwork?.slice("route");
+    const route = window.__harness?.slice("route");
     const workspace = route?.workspaces?.[0];
     flags.routeReady = route?.loading === false && route?.connected === true && route?.connectionPending === false && !route?.routeError;
     flags.routeWorkspaceValid = Array.isArray(route?.workspaces) && route.workspaces.length === 1
-      && workspace.workspaceType === "local" && workspace.path === expectedWorkspacePath && workspace.displayNameResolved === "OpenWork Chat"
+      && workspace.workspaceType === "local" && workspace.path === expectedWorkspacePath && workspace.displayNameResolved === "Harness Chat"
       && typeof workspace.id === "string" && workspace.id === route.selectedWorkspaceId && !workspace.loading && !workspace.error;
     flags.noRouteConversations = !route?.selectedSessionId && workspace?.sessionCount === 0
       && record(route?.sessionsByWorkspaceId) && Object.values(route.sessionsByWorkspaceId).every((sessions) => Array.isArray(sessions) && sessions.length === 0);
@@ -81,8 +81,8 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
     const modelRef = `${DEFAULT_MODEL.providerID}/${DEFAULT_MODEL.modelID}`;
     const ordinaryModel = (model) => model === undefined || model === null || model === "" || model === modelRef
       || (record(model) && model.providerID === DEFAULT_MODEL.providerID && model.modelID === DEFAULT_MODEL.modelID);
-    flags.ordinaryDefaultModel = ordinaryModel(localStorage.getItem("openwork.defaultModel")) && ordinaryModel(prefs.defaultModel);
-    const info = await desktop.openworkServerInfo();
+    flags.ordinaryDefaultModel = ordinaryModel(localStorage.getItem("harness.defaultModel")) && ordinaryModel(prefs.defaultModel);
+    const info = await desktop.harnessServerInfo();
     const bootstrap = await desktop.getDesktopBootstrapConfig();
     const base = new URL(info.baseUrl);
     flags.nativeLocalOnly = info.running === true && info.remoteAccessEnabled === false && localUrl(info.baseUrl)
@@ -90,7 +90,7 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
     if (!flags.nativeLocalOnly || !info.clientToken || !info.hostToken) return flags;
     async function get(endpoint, host = false) {
       const response = await fetch(new URL(endpoint, base), {
-        headers: host ? { "x-openwork-host-token": info.hostToken } : { authorization: `Bearer ${info.clientToken}` },
+        headers: host ? { "x-harness-host-token": info.hostToken } : { authorization: `Bearer ${info.clientToken}` },
         credentials: "omit", redirect: "error", signal: AbortSignal.timeout(5_000),
       });
       if (!response.ok) throw new Error("Native read unavailable");
@@ -102,9 +102,9 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
     const nativeWorkspace = registry?.items?.[0];
     flags.nativeWorkspaceMatches = Array.isArray(registry?.items) && registry.items.length === 1
       && nativeWorkspace.workspaceType === "local" && nativeWorkspace.path === expectedWorkspacePath && nativeWorkspace.preset === "starter"
-      && nativeWorkspace.name === "OpenWork Chat"
+      && nativeWorkspace.name === "Harness Chat"
       && nativeWorkspace.id === workspace?.id && localUrl(nativeWorkspace.baseUrl) && localUrl(nativeWorkspace.opencode?.baseUrl)
-      && !nativeWorkspace.openworkHostUrl && !nativeWorkspace.openworkToken;
+      && !nativeWorkspace.harnessHostUrl && !nativeWorkspace.harnessToken;
     flags.noNativeCloudSession = cloud?.hasSession === false;
     flags.noProvisionedModel = record(providers?.provider) && emptyMap(providers.provider)
       && Array.isArray(cloud?.providers) && cloud.providers.length === 0 && Array.isArray(cloud?.skippedProviders) && cloud.skippedProviders.length === 0;
@@ -117,11 +117,11 @@ export async function observeDesktop({ nonce, expectedWorkspacePath }, loadProdu
     const configs = [config?.opencode, runtime?.runtime, runtime?.effectiveRuntime,
       runtime?.sources?.projectOpencode?.config, runtime?.sources?.globalOpencode?.config];
     flags.noProvisionedModel = flags.noProvisionedModel && configs.every((entry) => record(entry) && emptyMap(entry.provider) && ordinaryModel(entry.model) && ordinaryModel(entry.small_model));
-    const imports = config?.openwork?.cloudImports;
-    flags.noCloudConfiguration = record(config?.openwork) && configs.every((entry) => record(entry) && !entry.managedPolicy
-      && emptyMap(entry.mcp?.["openwork-cloud"]) && !Object.keys(entry.mcp ?? {}).some((key) => /^(openwork-connect-|openwork-direct-|openwork-app-host-connect-)/.test(key)))
+    const imports = config?.harness?.cloudImports;
+    flags.noCloudConfiguration = record(config?.harness) && configs.every((entry) => record(entry) && !entry.managedPolicy
+      && emptyMap(entry.mcp?.["harness-cloud"]) && !Object.keys(entry.mcp ?? {}).some((key) => /^(harness-connect-|harness-direct-|harness-app-host-connect-)/.test(key)))
       && (imports === undefined || (record(imports) && ["providers", "plugins", "marketplaces", "configItems", "skills"].every((key) => emptyMap(imports[key]))))
-      && emptyMap(config.openwork.desktopCloudSync?.entries);
+      && emptyMap(config.harness.desktopCloudSync?.entries);
     flags.nativeRead = true;
   } catch {
     return flags;
@@ -148,7 +148,7 @@ export async function inspectDesktop({ reload = false, timeoutMs = 60_000, loadC
     surface = await attachSurface({ name: "preview-desktop-only", kind: "electron", hostKind: "local", cdpUrl: "http://127.0.0.1:9825" }, { timeoutMs: Math.min(timeoutMs, 30_000) });
     const nonce = reload ? randomUUID() : null;
     if (reload) {
-      init = await addInitScript(surface.client, browserScript((value) => { globalThis.__openworkPreviewReload = value; }, [nonce]));
+      init = await addInitScript(surface.client, browserScript((value) => { globalThis.__harnessPreviewReload = value; }, [nonce]));
       await surface.client.send("Page.reload", { ignoreCache: true }, { timeoutMs: 10_000 });
     }
     const deadline = Date.now() + timeoutMs;

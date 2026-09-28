@@ -15,7 +15,7 @@ afterEach(async () => {
 });
 
 async function createRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-managed-opencode-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-managed-opencode-"));
   roots.push(root);
   return root;
 }
@@ -126,12 +126,12 @@ describe("managed OpenCode startup", () => {
     await writeFile(join(policyDir, "server.js"), oldEntrypoint);
     await writeFile(join(root, "config", "opencode.json"), JSON.stringify({ plugins: [policyDir] }));
     const shellPath = join(root, "shell-child.mjs");
-    await writeFile(shellPath, "console.log(JSON.stringify({ policy: process.env.OPENWORK_POLICY_TOKEN ?? null, client: process.env.OPENWORK_SERVER_TOKEN ?? null, ipc: typeof process.send === 'function' }));");
+    await writeFile(shellPath, "console.log(JSON.stringify({ policy: process.env.HARNESS_POLICY_TOKEN ?? null, client: process.env.HARNESS_SERVER_TOKEN ?? null, ipc: typeof process.send === 'function' }));");
     const bin = await writeExecutable(root, "policy-env.mjs", [
       "import { execFileSync } from 'node:child_process';",
       "const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request) {",
       "  const path = new URL(request.url).pathname;",
-      "  if (path === '/env') return Response.json({ policy: process.env.OPENWORK_POLICY_TOKEN ?? null, client: process.env.OPENWORK_SERVER_TOKEN ?? null, ipc: typeof process.send === 'function' });",
+      "  if (path === '/env') return Response.json({ policy: process.env.HARNESS_POLICY_TOKEN ?? null, client: process.env.HARNESS_SERVER_TOKEN ?? null, ipc: typeof process.send === 'function' });",
       `  if (path === '/shell-env') return Response.json(JSON.parse(execFileSync(process.execPath, [${JSON.stringify(shellPath)}], { encoding: 'utf8' })));`,
       "  return Response.json({ healthy: true, version: 'test', pid: process.pid });",
       "} });",
@@ -140,7 +140,7 @@ describe("managed OpenCode startup", () => {
     ]);
     const managed = await createManagedOpencodeV2Server({
       bin, rootDir: root,
-      env: { OPENWORK_SERVER_TOKEN: "must-stay-private", OPENWORK_POLICY_TOKEN: "policy-only-test-token" },
+      env: { HARNESS_SERVER_TOKEN: "must-stay-private", HARNESS_POLICY_TOKEN: "policy-only-test-token" },
       permissions: async () => [{ action: "shell", resource: "*", effect: "deny" }],
     });
     try {

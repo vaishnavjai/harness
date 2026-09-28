@@ -1,7 +1,7 @@
-import type { Seed } from "@openwork/env";
-import { SkipError } from "@openwork/env";
+import type { Seed } from "@harness/env";
+import { SkipError } from "@harness/env";
 
-/** Render uses OpenWork's public pre-registered OAuth app. */
+/** Render uses Harness's public pre-registered OAuth app. */
 export const OAUTH_PRESET_ID = "render";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,12 +31,12 @@ export async function connectorQuickAddPresetAuth(seed: Seed) {
   if (!preset) throw new Error(`Den has no ${OAUTH_PRESET_ID} preset.`);
   const presetUrl = preset.url;
   const presetName = preset.displayName;
-  if (typeof presetUrl !== "string" || typeof presetName !== "string" || preset.authType !== "oauth" || preset.defaultOAuthClientId !== "openwork") throw new Error(`The ${OAUTH_PRESET_ID} preset does not supply OpenWork's OAuth app.`);
+  if (typeof presetUrl !== "string" || typeof presetName !== "string" || preset.authType !== "oauth" || preset.defaultOAuthClientId !== "harness") throw new Error(`The ${OAUTH_PRESET_ID} preset does not supply Harness's OAuth app.`);
 
   // Read the real hosted server metadata without signing in to a Render account.
   const discover = await seed.api(den.admin, "/v1/mcp-connections/discover", {
     method: "POST",
-    headers: { "x-openwork-org-id": orgId },
+    headers: { "x-harness-org-id": orgId },
     body: JSON.stringify({ url: presetUrl }),
   });
   const authentication = isRecord(discover.body) && isRecord(discover.body.authentication) ? discover.body.authentication : null;

@@ -16,7 +16,7 @@ describe("env-file", () => {
   let path: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openwork-env-"));
+    dir = mkdtempSync(join(tmpdir(), "harness-env-"));
     path = join(dir, "env.json");
   });
 
@@ -34,8 +34,8 @@ describe("env-file", () => {
     expect(isValidEnvKey("")).toBe(false);
   });
 
-  test("isReservedEnvKey blocks OPENWORK_ / OPENCODE_ prefixes", () => {
-    expect(isReservedEnvKey("OPENWORK_TOKEN")).toBe(true);
+  test("isReservedEnvKey blocks HARNESS_ / OPENCODE_ prefixes", () => {
+    expect(isReservedEnvKey("HARNESS_TOKEN")).toBe(true);
     expect(isReservedEnvKey("OPENCODE_SERVER_PASSWORD")).toBe(true);
     expect(isReservedEnvKey("ANTHROPIC_API_KEY")).toBe(false);
     expect(isReservedEnvKey("GCLOUD_PROJECT")).toBe(false);
@@ -101,7 +101,7 @@ describe("env-file", () => {
 
   test("upsertMany rejects reserved keys", async () => {
     const svc = new EnvService({ path });
-    const promise = svc.upsertMany([{ key: "OPENWORK_TOKEN", value: "x" }]);
+    const promise = svc.upsertMany([{ key: "HARNESS_TOKEN", value: "x" }]);
     await expect(promise).rejects.toBeInstanceOf(InvalidEnvKeyError);
     await expect(promise).rejects.toMatchObject({ code: "reserved_env_key" });
   });
@@ -109,15 +109,15 @@ describe("env-file", () => {
   test("upsertMany accepts managed voice keys but does not inject them", async () => {
     const svc = new EnvService({ path });
     await svc.upsertMany([
-      { key: "OPENWORK_API_KEY", value: "ow_inf_test" },
-      { key: "OPENWORK_INFERENCE_BASE_URL", value: "https://inference.example.test" },
+      { key: "HARNESS_API_KEY", value: "ow_inf_test" },
+      { key: "HARNESS_INFERENCE_BASE_URL", value: "https://inference.example.test" },
       { key: "ANTHROPIC_API_KEY", value: "sk-ant" },
     ]);
 
     expect((await svc.list()).map((entry) => entry.key)).toEqual([
       "ANTHROPIC_API_KEY",
-      "OPENWORK_API_KEY",
-      "OPENWORK_INFERENCE_BASE_URL",
+      "HARNESS_API_KEY",
+      "HARNESS_INFERENCE_BASE_URL",
     ]);
     expect(await EnvService.readForInjection(path)).toEqual({ ANTHROPIC_API_KEY: "sk-ant" });
   });
@@ -157,7 +157,7 @@ describe("env-file", () => {
         schemaVersion: 1,
         updatedAt: Date.now(),
         variables: [
-          { key: "OPENWORK_TOKEN", value: "stolen" },
+          { key: "HARNESS_TOKEN", value: "stolen" },
           { key: "ANTHROPIC_API_KEY", value: "sk-ant" },
         ],
       }),

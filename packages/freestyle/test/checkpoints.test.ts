@@ -50,8 +50,8 @@ function provider(manifest = checkpoint(), uniqueSlots = false) {
   } });
   return { api, creates, removed, files };
 }
-const reachable: typeof fetch = async (input) => new URL(String(input)).pathname === "/__openwork_launch"
-  ? new Response(null, { status: 303, headers: { "set-cookie": "__Host-openwork-preview=synthetic" } }) : new Response("noVNC");
+const reachable: typeof fetch = async (input) => new URL(String(input)).pathname === "/__harness_launch"
+  ? new Response(null, { status: 303, headers: { "set-cookie": "__Host-harness-preview=synthetic" } }) : new Response("noVNC");
 
 test("checkpoint schema rejects malformed IDs, hashes, times, and unbounded retention", () => {
   const valid = checkpoint();
@@ -93,7 +93,7 @@ test("a retried request reuses its fork and unique provider slots cap concurrent
   const first = await forkEvidenceCheckpoint(value, "d".repeat(32), requestId, mock.api, reachable);
   // A new screenshot of a working copy replaces its capture manifest, not the
   // immutable receipt identifying the copy returned by this launch request.
-  mock.files.set(`${first.id}:/opt/openwork-preview/checkpoint.json`, JSON.stringify({ ...value, id: `ow-evidence-v1-${"e".repeat(32)}` }));
+  mock.files.set(`${first.id}:/opt/harness-preview/checkpoint.json`, JSON.stringify({ ...value, id: `ow-evidence-v1-${"e".repeat(32)}` }));
   const again = await forkEvidenceCheckpoint(value, "d".repeat(32), requestId, mock.api, reachable);
   assert.equal(again.id, first.id); assert.equal(again.url, first.url); assert.equal(mock.creates.length, 1);
   await forkEvidenceCheckpoint(value, "d".repeat(32), randomUUID(), mock.api, reachable);

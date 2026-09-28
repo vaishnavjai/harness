@@ -3,7 +3,7 @@
 import { useState } from "react"
 import type { DynamicToolUIPart } from "ai"
 import { Braces, Check, Loader2, Lock } from "lucide-react"
-import type { ConnectionActionPayload } from "@openwork/types/connection-action-app"
+import type { ConnectionActionPayload } from "@harness/types/connection-action-app"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -20,7 +20,7 @@ const ACTION_OWNER = {
   organization_admin: "Your organization admin",
   provider_admin: "The provider admin",
   network_admin: "Your network admin",
-  openwork: "OpenWork support",
+  harness: "Harness support",
 }
 
 const BLOCKED_VERB: Partial<Record<ConnectionActionType, string>> = {
@@ -49,7 +49,7 @@ function ServiceMark({ name, iconUrl }: { name: string; iconUrl: string | null |
 }
 
 /**
- * Native presentation of one OpenWork connection report in the transcript.
+ * Native presentation of one Harness connection report in the transcript.
  * One state-first line (P1/P2), flat (S1), 40px row (S2), at most two verb
  * labels (C1/T4); blocked states are neutral with a lock (C5); the raw failure
  * lives behind an icon-only disclosure (T2/P3).

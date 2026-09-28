@@ -3,16 +3,16 @@ import { constants, existsSync, openSync } from "node:fs";
 import { access, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
-import { allocateFreePort, allocateFreePorts, listTargets, waitForCdp } from "@openwork/cdp";
-import type { SurfaceExit } from "@openwork/cdp";
+import { allocateFreePort, allocateFreePorts, listTargets, waitForCdp } from "@harness/cdp";
+import type { SurfaceExit } from "@harness/cdp";
 import {
   desktopBootstrapPath,
   globalOpencodeConfigDir,
   opencodeDbCandidates,
-  openworkEnvStorePath,
-  openworkServerConfigPath,
-  openworkServerDataDir,
-} from "@openwork/paths";
+  harnessEnvStorePath,
+  harnessServerConfigPath,
+  harnessServerDataDir,
+} from "@harness/paths";
 import { ensureDenStack } from "./den-stack.ts";
 import { resolveEvalEngineValue } from "./eval-engine.ts";
 import type { ChildProcess } from "node:child_process";
@@ -400,7 +400,7 @@ async function runPrepareScript(scriptPath: string, outDir: string, desktopRoot:
 }
 
 async function prepareSharedElectronResources(repoRoot: string, log: (message: string) => void): Promise<void> {
-  if (process.env.OPENWORK_EVAL_ELECTRON_RESOURCES_PREPARED === "1") return;
+  if (process.env.HARNESS_EVAL_ELECTRON_RESOURCES_PREPARED === "1") return;
   if (!prepareSharedResourcesPromise) {
     prepareSharedResourcesPromise = (async () => {
       const desktopRoot = join(repoRoot, "apps", "desktop");
@@ -461,9 +461,9 @@ export function electronProfilePaths(root: string): ElectronProfilePaths {
     bootstrapPath: join(root, "bootstrap.json"),
     cacheHome: join(root, "xdg-cache"),
     configHome: join(root, "xdg-config"),
-    dataDir: join(root, "openwork-data"),
+    dataDir: join(root, "harness-data"),
     dataHome: join(root, "xdg-data"),
-    envStorePath: join(root, "openwork-env.json"),
+    envStorePath: join(root, "harness-env.json"),
     homeDir: join(root, "home"),
     localAppDataDir: join(root, "local-appdata"),
     opencodeConfigDir: join(root, "opencode-config"),
@@ -510,21 +510,21 @@ export function electronSurfaceEnv(
     APPDATA: paths.appDataDir,
     HOME: paths.homeDir,
     LOCALAPPDATA: paths.localAppDataDir,
-    OPENWORK_DATA_DIR: paths.dataDir,
-    OPENWORK_DESKTOP_BOOTSTRAP_PATH: paths.bootstrapPath,
-    OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "1",
-    OPENWORK_DEV_MODE: "1",
-    OPENWORK_ENV_STORE: paths.envStorePath,
-    ...(resolveEvalEngineValue(process.env.OPENWORK_EVAL_ENGINE) === "v2" ? { OPENWORK_ENGINE_V2_PREVIEW: "1" } : {}),
+    HARNESS_DATA_DIR: paths.dataDir,
+    HARNESS_DESKTOP_BOOTSTRAP_PATH: paths.bootstrapPath,
+    HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "1",
+    HARNESS_DEV_MODE: "1",
+    HARNESS_ENV_STORE: paths.envStorePath,
+    ...(resolveEvalEngineValue(process.env.HARNESS_EVAL_ENGINE) === "v2" ? { HARNESS_ENGINE_V2_PREVIEW: "1" } : {}),
     OPENCODE_CONFIG_DIR: paths.opencodeConfigDir,
-    VITE_DISABLE_OPENWORK_MODELS: "1",
-    OPENWORK_ELECTRON_APP_IDENTIFIER: options.appIdentifier,
-    OPENWORK_ELECTRON_APP_NAME: options.appName,
-    OPENWORK_ELECTRON_DISABLE_PROTOCOL_REGISTRATION: "1",
-    OPENWORK_ELECTRON_REMOTE_DEBUG_PORT: String(options.cdpPort),
-    OPENWORK_ELECTRON_SKIP_SHARED_PREPARE: "1",
-    OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN: "1",
-    OPENWORK_ELECTRON_USERDATA: paths.userDataDir,
+    VITE_DISABLE_HARNESS_MODELS: "1",
+    HARNESS_ELECTRON_APP_IDENTIFIER: options.appIdentifier,
+    HARNESS_ELECTRON_APP_NAME: options.appName,
+    HARNESS_ELECTRON_DISABLE_PROTOCOL_REGISTRATION: "1",
+    HARNESS_ELECTRON_REMOTE_DEBUG_PORT: String(options.cdpPort),
+    HARNESS_ELECTRON_SKIP_SHARED_PREPARE: "1",
+    HARNESS_ELECTRON_USE_MOCK_KEYCHAIN: "1",
+    HARNESS_ELECTRON_USERDATA: paths.userDataDir,
     PORT: String(options.port),
     XDG_CACHE_HOME: paths.cacheHome,
     XDG_CONFIG_HOME: paths.configHome,
@@ -536,7 +536,7 @@ export function electronSurfaceEnv(
 
 /**
  * Launch env for an isolated Electron surface. The launching shell's OPENCODE_*
- * never reach the app: an OpenWork agent shell exports the host app's
+ * never reach the app: a Harness agent shell exports the host app's
  * OPENCODE_DB, which points the eval app's engine at the person's real
  * database. Values a caller sets on purpose arrive through `isolationEnv`
  * (electronSurfaceEnv overrides), so they still apply.
@@ -554,15 +554,15 @@ export function liveSharedProductionStateEnv(state: InstalledProductionDesktopSt
     XDG_DATA_HOME: join(state.homeDir, ".local", "share"),
     XDG_CACHE_HOME: join(state.homeDir, ".cache"),
     XDG_STATE_HOME: join(state.homeDir, ".local", "state"),
-    OPENWORK_DATA_DIR: state.dataDir,
-    OPENWORK_DESKTOP_BOOTSTRAP_PATH: state.bootstrapPath,
-    OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "0",
-    OPENWORK_DESKTOP_WORKSPACE_STATE_PATH: state.workspaceStatePath,
-    OPENWORK_DEV_SHARED_STATE: "1",
-    OPENWORK_ENV_STORE: state.envStorePath,
-    OPENWORK_SERVER_CONFIG: state.serverConfigPath,
-    OPENWORK_SERVER_STATE_PATH: state.serverStatePath,
-    OPENWORK_SERVER_TOKEN_STORE_PATH: state.serverTokenStorePath,
+    HARNESS_DATA_DIR: state.dataDir,
+    HARNESS_DESKTOP_BOOTSTRAP_PATH: state.bootstrapPath,
+    HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "0",
+    HARNESS_DESKTOP_WORKSPACE_STATE_PATH: state.workspaceStatePath,
+    HARNESS_DEV_SHARED_STATE: "1",
+    HARNESS_ENV_STORE: state.envStorePath,
+    HARNESS_SERVER_CONFIG: state.serverConfigPath,
+    HARNESS_SERVER_STATE_PATH: state.serverStatePath,
+    HARNESS_SERVER_TOKEN_STORE_PATH: state.serverTokenStorePath,
     OPENCODE_DB: state.opencodeDb,
     OPENCODE_CONFIG_DIR: state.opencodeConfigDir,
   };
@@ -573,7 +573,7 @@ async function requireInstalledPath(path: string, kind: "directory" | "file", la
   try {
     metadata = await stat(path);
   } catch {
-    throw new Error(`${label} is unavailable at ${path}. Start the installed production OpenWork desktop once and confirm its local state exists.`);
+    throw new Error(`${label} is unavailable at ${path}. Start the installed production Harness desktop once and confirm its local state exists.`);
   }
   const matches = kind === "directory" ? metadata.isDirectory() : metadata.isFile();
   if (!matches) throw new Error(`${label} at ${path} is not a ${kind}.`);
@@ -589,14 +589,14 @@ export async function resolveInstalledProductionDesktopState(
   }
   const env = options.env ?? process.env;
   const homeDir = options.homeDir ?? homedir();
-  const dataDir = openworkServerDataDir({ env, homeDir, platform });
-  await requireInstalledPath(dataDir, "directory", "Installed production OpenWork data directory");
-  const userDataDir = join(homeDir, "Library", "Application Support", "com.differentai.openwork");
-  const workspaceStatePath = join(userDataDir, "openwork-workspaces.json");
-  const serverTokenStorePath = join(userDataDir, "openwork-server-tokens.json");
-  const serverStatePath = join(userDataDir, "openwork-server-state.json");
-  const serverConfigPath = openworkServerConfigPath({ env, homeDir, platform });
-  const envStorePath = openworkEnvStorePath({ env, homeDir, platform });
+  const dataDir = harnessServerDataDir({ env, homeDir, platform });
+  await requireInstalledPath(dataDir, "directory", "Installed production Harness data directory");
+  const userDataDir = join(homeDir, "Library", "Application Support", "com.vaishnavjai.harness");
+  const workspaceStatePath = join(userDataDir, "harness-workspaces.json");
+  const serverTokenStorePath = join(userDataDir, "harness-server-tokens.json");
+  const serverStatePath = join(userDataDir, "harness-server-state.json");
+  const serverConfigPath = harnessServerConfigPath({ env, homeDir, platform });
+  const envStorePath = harnessEnvStorePath({ env, homeDir, platform });
   const bootstrapPath = desktopBootstrapPath({ env, homeDir, platform, userDataDir });
   const opencodeConfigDir = globalOpencodeConfigDir({ env, homeDir, platform });
   for (const [path, label] of [
@@ -708,7 +708,7 @@ export async function stopOwnedElectronSurface(pid: number, profileDir: string):
       resolveDescription(stdout);
     });
   });
-  if (!processDescription.includes(`OPENWORK_ELECTRON_USERDATA=${join(profileDir, "electron-userdata")}`)) {
+  if (!processDescription.includes(`HARNESS_ELECTRON_USERDATA=${join(profileDir, "electron-userdata")}`)) {
     throw new Error(`Refusing to stop pid ${pid}: it does not own the expected eval Electron profile.`);
   }
   await killLocalPid(pid);
@@ -771,7 +771,7 @@ export function createLocalHost(options: LocalHostOptions): DisposableHost {
   // generate Makefiles with unquoted include paths under that HOME, so a repo
   // checkout on a path containing spaces breaks every native rebuild. The env
   // override lets such machines park surfaces on a space-free path (e.g. /tmp).
-  const surfacesRootOverride = process.env.OPENWORK_EVAL_SURFACES_DIR?.trim();
+  const surfacesRootOverride = process.env.HARNESS_EVAL_SURFACES_DIR?.trim();
   const rootDir = options.rootDir ?? (surfacesRootOverride
     ? surfacesRootOverride
     : join(options.repoRoot, "evals", "results", ".surfaces", String(process.pid)));
@@ -797,7 +797,7 @@ export function createLocalHost(options: LocalHostOptions): DisposableHost {
 // so pass the container-safe switches when we detect a sandbox.
 function insideContainerSandbox(env: NodeJS.ProcessEnv = process.env): boolean {
   if ((env.DAYTONA_SANDBOX_ID ?? "").trim().length > 0) return true;
-  if ((env.OPENWORK_EVAL_CONTAINER_ELECTRON ?? "").trim() === "1") return true;
+  if ((env.HARNESS_EVAL_CONTAINER_ELECTRON ?? "").trim() === "1") return true;
   return existsSync("/daytona-secrets") || existsSync("/daytona-artifacts");
 }
 
@@ -879,8 +879,8 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
       await writeBootstrap(paths.bootstrapPath, opts.bootstrap);
       const [port, cdpPort] = await allocateFreePorts(2);
       if (port === undefined || cdpPort === undefined) throw new Error("Could not allocate Electron Vite/CDP ports.");
-      const appName = `OpenWork Eval ${name}`;
-      const appIdentifier = `com.differentai.openwork.eval.${sanitizeSlug(name)}`;
+      const appName = `Harness Eval ${name}`;
+      const appIdentifier = `com.vaishnavjai.harness.eval.${sanitizeSlug(name)}`;
       const isolationEnv = electronSurfaceEnv(paths, { appName, appIdentifier, port, cdpPort }, opts.env);
       const env = electronLaunchEnv(process.env, isolationEnv);
       const launchArgs = containerLaunchArgs(env.ELECTRON_EXTRA_LAUNCH_ARGS);
@@ -895,12 +895,12 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
       if (insideContainerSandbox() && (env.DISPLAY ?? "").trim().length === 0) env.DISPLAY = ":99";
       const logPath = join(profileRoot, "electron.log");
       const packagedBinary = opts.devCommand === undefined
-        ? process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()
+        ? process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()
         : undefined;
       let spawned: SpawnedDetached;
       if (packagedBinary) {
         await access(packagedBinary, constants.F_OK).catch(() => {
-          throw new Error(`OPENWORK_EVAL_ELECTRON_BINARY does not exist: ${packagedBinary}`);
+          throw new Error(`HARNESS_EVAL_ELECTRON_BINARY does not exist: ${packagedBinary}`);
         });
         log(`Starting local Electron surface ${name} from packaged binary ${packagedBinary} (CDP :${cdpPort})...`);
         // An installed artifact must not resolve assets from the checkout's cwd.
@@ -948,7 +948,7 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
       const cdpUrl = `http://127.0.0.1:${cdpPort}`;
       const launch = async (headless: boolean): Promise<SpawnedDetached> => {
         const spawned = spawnDetached(binary, chromeArgs(cdpPort, profileDir, startUrl, headless), { cwd: profileRoot, env, logPath });
-        await writeFile(join(profileDir, "openwork-eval-chrome.pid"), `${spawned.pid}\n`, "utf8");
+        await writeFile(join(profileDir, "harness-eval-chrome.pid"), `${spawned.pid}\n`, "utf8");
         try {
           await waitForCdpOrExit("Chrome", cdpUrl, spawned, logPath);
         } catch (error) {
@@ -961,7 +961,7 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
       };
       let spawned: SpawnedDetached;
       try {
-        spawned = await launch(opts.headless === true || process.env.OPENWORK_EVAL_CHROME_HEADLESS === "1");
+        spawned = await launch(opts.headless === true || process.env.HARNESS_EVAL_CHROME_HEADLESS === "1");
       } catch (error) {
         if (!messageText(error).includes("SIGTRAP")) throw error;
         log(`Chrome surface ${name} exited with SIGTRAP under the windowed launch; retrying with --headless=new.`);
@@ -985,9 +985,9 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
         log("seed:none requested; local Den stack currently keeps the Acme demo seed, so continuing with the default seed.");
       }
       await ensureDenStack({ log, cdpCandidates: [], skipApp: true, orgMode: opts.orgMode });
-      const apiUrl = process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
-      const webUrl = process.env.OPENWORK_EVAL_DEN_WEB_URL?.trim();
-      if (!apiUrl || !webUrl) throw new Error("Den stack did not export OPENWORK_EVAL_DEN_API_URL / OPENWORK_EVAL_DEN_WEB_URL.");
+      const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
+      const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
+      if (!apiUrl || !webUrl) throw new Error("Den stack did not export HARNESS_EVAL_DEN_API_URL / HARNESS_EVAL_DEN_WEB_URL.");
       const orgMode = await runtimeOrgMode(webUrl);
       const apiPort = explicitPort(apiUrl);
       const webPort = explicitPort(webUrl);
@@ -998,8 +998,8 @@ async function ensureDisplay(repoRoot: string, env: NodeJS.ProcessEnv, log: (mes
 
     async share(): Promise<ShareLinks> {
       const links: ShareLinks = [];
-      const webUrl = process.env.OPENWORK_EVAL_DEN_WEB_URL?.trim();
-      const apiUrl = process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
+      const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
+      const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
       if (webUrl) links.push({ label: "Den Web", url: webUrl });
       if (apiUrl) links.push({ label: "Den API", url: apiUrl });
       return links;

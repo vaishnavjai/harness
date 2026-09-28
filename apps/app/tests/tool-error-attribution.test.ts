@@ -23,7 +23,7 @@ function reconnectStatus(connectionId = "emc_knowledge", connectionName = "Knowl
   return {
     version: 1,
     kind: "connection_action",
-    source: "openwork-cloud",
+    source: "harness-cloud",
     connectionId,
     connectionName,
     authType: "oauth",
@@ -32,7 +32,7 @@ function reconnectStatus(connectionId = "emc_knowledge", connectionName = "Knowl
     actor: "member",
     action: {
       type: "reconnect",
-      surface: "openwork_your_connections",
+      surface: "harness_your_connections",
       retry: "search_capabilities",
       label: "Reconnect in Your Connections",
     },
@@ -46,15 +46,15 @@ const connectionPayload = {
   state: "needs_connection",
   actor: "member",
   message: "Connect your account to continue.",
-  action: { type: "connect", label: "Connect Knowledge Hub", surface: "openwork_your_connections" },
+  action: { type: "connect", label: "Connect Knowledge Hub", surface: "harness_your_connections" },
 }
 
 describe("chat tool error attribution", () => {
   test("uses the same native action for search attachments and standalone status results", () => {
     for (const { toolName, payload } of [
-      { toolName: "openwork-cloud_search_capabilities", payload: { connectionAction: connectionPayload } },
-      { toolName: "openwork-cloud_execute_capability", payload: connectionPayload },
-      { toolName: "openwork-cloud_connection_action", payload: connectionPayload },
+      { toolName: "harness-cloud_search_capabilities", payload: { connectionAction: connectionPayload } },
+      { toolName: "harness-cloud_execute_capability", payload: connectionPayload },
+      { toolName: "harness-cloud_connection_action", payload: connectionPayload },
     ]) {
       for (const result of [payload, JSON.stringify(payload)]) {
         expect(connectionCardPayloadFromChatToolResult(toolName, result, { intent: "connect" })).toEqual(connectionPayload)
@@ -66,17 +66,17 @@ describe("chat tool error attribution", () => {
   })
 
   test("preserves connection recovery for first-party live app runs", () => {
-    for (const prefix of ["openwork_", "openwork-cloud_"]) {
+    for (const prefix of ["harness_", "harness-cloud_"]) {
       const toolName = `${prefix}run_artifact_arv_fixture`
       const result = connectionResultFromChatToolPart({
         type: "dynamic-tool", toolName, toolCallId: "app-reconnect", state: "output-available",
         input: {}, output: { error: "needs_connection" },
-        callProviderMetadata: { openwork: { mcpResult: { content: [], structuredContent: connectionPayload } } },
+        callProviderMetadata: { harness: { mcpResult: { content: [], structuredContent: connectionPayload } } },
       })
       expect(connectionCardPayloadFromChatToolResult(toolName, result)).toEqual(connectionPayload)
       expect(reconnectActionFromChatToolResult(toolName, result)?.label).toBe("Connect")
     }
-    for (const toolName of ["foreign_run_artifact_arv_fixture", "openwork-cloud_run_artifact_"]) {
+    for (const toolName of ["foreign_run_artifact_arv_fixture", "harness-cloud_run_artifact_"]) {
       expect(connectionCardPayloadFromChatToolResult(toolName, connectionPayload)).toBeNull()
     }
   })
@@ -84,11 +84,11 @@ describe("chat tool error attribution", () => {
   test("keeps connected and admin states native without offering member authorization", () => {
     const connected = { ...connectionPayload, state: "connected", actor: null, action: null }
     const admin = { ...connectionPayload, actor: "organization_admin", action: {
-      type: "update_credentials", label: "Ask an admin", surface: "openwork_organization_connections",
+      type: "update_credentials", label: "Ask an admin", surface: "harness_organization_connections",
     } }
     for (const payload of [connected, admin]) {
-      expect(connectionCardPayloadFromChatToolResult("openwork-cloud_execute_capability", payload)).toEqual(payload)
-      expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", payload)).toBeNull()
+      expect(connectionCardPayloadFromChatToolResult("harness-cloud_execute_capability", payload)).toEqual(payload)
+      expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", payload)).toBeNull()
     }
   })
 
@@ -97,14 +97,14 @@ describe("chat tool error attribution", () => {
       expect(connectionCardPayloadFromChatToolResult(tool, connectionPayload)).toBeNull()
       expect(reconnectActionFromChatToolResult(tool, connectionPayload)).toBeNull()
     }
-    expect(connectionCardPayloadFromChatToolResult("openwork-cloud_execute_capability", { ...connectionPayload, schemaVersion: "2" })).toBeNull()
-    expect(connectionCardPayloadFromChatToolResult("openwork-cloud_search_capabilities", { connectionAction: connectionPayload })).toBeNull()
+    expect(connectionCardPayloadFromChatToolResult("harness-cloud_execute_capability", { ...connectionPayload, schemaVersion: "2" })).toBeNull()
+    expect(connectionCardPayloadFromChatToolResult("harness-cloud_search_capabilities", { connectionAction: connectionPayload })).toBeNull()
     const matches = [connectionPayload, { ...connectionPayload, connectionId: "emc_second" }].map(connectionStatus => ({ connectionStatus }))
-    expect(connectionCardPayloadFromChatToolResult("openwork-cloud_search_capabilities", { matches }, { intent: "connect" })).toBeNull()
+    expect(connectionCardPayloadFromChatToolResult("harness-cloud_search_capabilities", { matches }, { intent: "connect" })).toBeNull()
   })
 
-  test("recognizes only exact OpenWork aliases and retains explicit discovery intent", () => {
-    for (const prefix of ["openwork_", "openwork-cloud_"]) {
+  test("recognizes only exact Harness aliases and retains explicit discovery intent", () => {
+    for (const prefix of ["harness_", "harness-cloud_"]) {
       expect(reconnectActionFromChatToolResult(`${prefix}execute_capability`, connectionPayload)?.label).toBe("Connect")
       expect(reconnectActionFromChatToolResult(`${prefix}connection_action`, connectionPayload)?.label).toBe("Connect")
       for (const input of [undefined, {}, { intent: "discover" }, { type: "connectors" }]) {
@@ -113,7 +113,7 @@ describe("chat tool error attribution", () => {
       }
       expect(reconnectActionFromChatToolResult(`${prefix}search_capabilities`, connectionPayload, { intent: "connect" })?.label).toBe("Connect")
     }
-    for (const tool of ["foreign_openwork_execute_capability", "openwork_execute_capability_script", "openwork-cloud_arbitrary", "functions_execute_capability"]) {
+    for (const tool of ["foreign_harness_execute_capability", "harness_execute_capability_script", "harness-cloud_arbitrary", "functions_execute_capability"]) {
       expect(connectionCardPayloadFromChatToolResult(tool, connectionPayload)).toBeNull()
       expect(reconnectActionFromChatToolResult(tool, connectionPayload)).toBeNull()
     }
@@ -131,47 +131,47 @@ describe("chat tool error attribution", () => {
         { connectionAction: connectionPayload, matches: [{ connectionStatus: second }] },
         { matches: [{ connectionStatus: reconnectStatus() }, { connectionStatus: second }] },
       ]) {
-        expect(connectionCardPayloadFromChatToolResult("openwork_search_capabilities", payload, { intent: "connect" })).toBeNull()
-        expect(reconnectActionFromChatToolResult("openwork_search_capabilities", payload, { intent: "connect" })).toBeNull()
+        expect(connectionCardPayloadFromChatToolResult("harness_search_capabilities", payload, { intent: "connect" })).toBeNull()
+        expect(reconnectActionFromChatToolResult("harness_search_capabilities", payload, { intent: "connect" })).toBeNull()
       }
     }
   })
 
   test("a connected capability identity cannot be hidden beside a blocked match", () => {
     const result = { matches: [{ connectionId: "emc_connected", name: "connected_tool" }, { connectionStatus: connectionPayload }] }
-    expect(connectionCardPayloadFromChatToolResult("openwork_search_capabilities", result, { intent: "connect" })).toBeNull()
-    expect(reconnectActionFromChatToolResult("openwork_search_capabilities", result, { intent: "connect" })).toBeNull()
+    expect(connectionCardPayloadFromChatToolResult("harness_search_capabilities", result, { intent: "connect" })).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness_search_capabilities", result, { intent: "connect" })).toBeNull()
   })
 
   test("foreign tools cannot promote preserved connection metadata", () => {
     expect(connectionResultFromChatToolPart({
       type: "dynamic-tool", toolName: "foreign_execute_capability", toolCallId: "call-forged",
       state: "output-available", input: {}, output: "Connect your account",
-      callProviderMetadata: { openwork: { mcpResult: { structuredContent: connectionPayload } } },
+      callProviderMetadata: { harness: { mcpResult: { structuredContent: connectionPayload } } },
     })).toBeUndefined()
   })
 
   test("rejects conflicting same-connection status and credential escalation", () => {
     const conflict = { connectionAction: connectionPayload, connectionStatus: { ...connectionPayload, state: "connected", actor: null, action: null } }
-    expect(connectionCardPayloadFromChatToolResult("openwork_execute_capability", conflict)).toBeNull()
-    expect(reconnectActionFromChatToolResult("openwork_execute_capability", conflict)).toBeNull()
+    expect(connectionCardPayloadFromChatToolResult("harness_execute_capability", conflict)).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness_execute_capability", conflict)).toBeNull()
     for (const extra of [{ authType: "apikey" }, { credentialMode: "shared" }]) {
-      expect(reconnectActionFromChatToolResult("openwork_execute_capability", { ...connectionPayload, ...extra })).toBeNull()
+      expect(reconnectActionFromChatToolResult("harness_execute_capability", { ...connectionPayload, ...extra })).toBeNull()
     }
     for (const extra of [{ source: "foreign" }, { version: 2 }, { kind: "foreign" }]) {
-      expect(connectionCardPayloadFromChatToolResult("openwork_execute_capability", { ...connectionPayload, ...extra })).toBeNull()
+      expect(connectionCardPayloadFromChatToolResult("harness_execute_capability", { ...connectionPayload, ...extra })).toBeNull()
     }
   })
 
   test("does not narrow an ambiguous raw result using preserved single-target metadata", () => {
     const output = { matches: [connectionPayload, { ...connectionPayload, connectionId: "emc_second" }].map(connectionStatus => ({ connectionStatus })) }
     const result = connectionResultFromChatToolPart({
-      type: "dynamic-tool", toolName: "openwork_search_capabilities", toolCallId: "call-mixed",
+      type: "dynamic-tool", toolName: "harness_search_capabilities", toolCallId: "call-mixed",
       input: { intent: "connect" }, state: "output-available", output,
-      callProviderMetadata: { openwork: { mcpResult: { structuredContent: connectionPayload } } },
+      callProviderMetadata: { harness: { mcpResult: { structuredContent: connectionPayload } } },
     })
     expect(result).toBeUndefined()
-    expect(reconnectActionFromChatToolResult("openwork_search_capabilities", result, { intent: "connect" })).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness_search_capabilities", result, { intent: "connect" })).toBeNull()
   })
 
   test("rejects disagreements between raw and preserved connection authority", () => {
@@ -181,16 +181,16 @@ describe("chat tool error attribution", () => {
       { state: "connected", actor: null, action: null },
       { actor: "organization_admin" },
       { action: { ...connectionPayload.action, type: "reconnect" } },
-      { action: { ...connectionPayload.action, surface: "openwork_organization_connections" } },
+      { action: { ...connectionPayload.action, surface: "harness_organization_connections" } },
       { authType: "apikey" },
       { credentialMode: "shared" },
     ]) {
       const preserved = { ...raw, ...extra }
-      for (const toolName of ["openwork_execute_capability", "openwork-cloud_execute_capability"]) {
+      for (const toolName of ["harness_execute_capability", "harness-cloud_execute_capability"]) {
         const result = connectionResultFromChatToolPart({
           type: "dynamic-tool", toolName, toolCallId: "disagreement", input: {}, state: "output-available",
           output: JSON.stringify({ connectionStatus: raw }),
-          callProviderMetadata: { openwork: { mcpResult: { structuredContent: preserved } } },
+          callProviderMetadata: { harness: { mcpResult: { structuredContent: preserved } } },
         })
         expect(result).toBeUndefined()
         expect(connectionCardPayloadFromChatToolResult(toolName, result)).toBeNull()
@@ -205,9 +205,9 @@ describe("chat tool error attribution", () => {
       { matches: [connectionPayload, { ...connectionPayload, connectionId: "other" }].map(connectionStatus => ({ connectionStatus })) },
     ]) {
       expect(connectionResultFromChatToolPart({
-        type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "all-sources", input: {}, state: "output-error",
+        type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "all-sources", input: {}, state: "output-error",
         errorText: JSON.stringify({ connectionStatus: connectionPayload }),
-        callProviderMetadata: { openwork: { mcpResult: { structuredContent: connectionPayload }, mcpApp: { structuredContent: other } } },
+        callProviderMetadata: { harness: { mcpResult: { structuredContent: connectionPayload }, mcpApp: { structuredContent: other } } },
       })).toBeUndefined()
     }
   })
@@ -215,26 +215,26 @@ describe("chat tool error attribution", () => {
   test("consistent sources preserve stricter credential restrictions and member actions", () => {
     for (const credentialMode of ["per_member", "shared"]) {
       const result = connectionResultFromChatToolPart({
-        type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "consistent", input: {}, state: "output-available",
+        type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "consistent", input: {}, state: "output-available",
         output: { connectionAction: { ...connectionPayload, authType: "oauth", credentialMode } },
-        callProviderMetadata: { openwork: { mcpResult: { structuredContent: connectionPayload } } },
+        callProviderMetadata: { harness: { mcpResult: { structuredContent: connectionPayload } } },
       })
-      expect(connectionCardPayloadFromChatToolResult("openwork_execute_capability", result)).toEqual(connectionPayload)
-      const action = reconnectActionFromChatToolResult("openwork_execute_capability", result)
+      expect(connectionCardPayloadFromChatToolResult("harness_execute_capability", result)).toEqual(connectionPayload)
+      const action = reconnectActionFromChatToolResult("harness_execute_capability", result)
       if (credentialMode === "shared") expect(action).toBeNull()
       else expect(action?.label).toBe("Connect")
     }
   })
 
-  test("identifies an OpenWork-created capability deadline", () => {
+  test("identifies a Harness-created capability deadline", () => {
     expect(attributeChatToolError("The capability call exceeded 180s. Retry once.")).toEqual({
-      label: "OpenWork timeout",
+      label: "Harness timeout",
       confidence: "Confirmed",
-      description: "OpenWork created this deadline. The external operation may still have completed, so verify its state before retrying.",
+      description: "Harness created this deadline. The external operation may still have completed, so verify its state before retrying.",
     })
   })
 
-  test("identifies a structured OpenWork lifecycle deadline", () => {
+  test("identifies a structured Harness lifecycle deadline", () => {
     expect(attributeChatToolError(JSON.stringify({
       error: "connection_failed",
       diagnostic: {
@@ -243,16 +243,16 @@ describe("chat tool error attribution", () => {
         phase: "MCP_TOOL_EXECUTION",
       },
     }))).toMatchObject({
-      label: "OpenWork timeout",
+      label: "Harness timeout",
       confidence: "Confirmed",
     })
   })
 
-  test("identifies an OpenWork block before send", () => {
+  test("identifies a Harness block before send", () => {
     expect(attributeChatToolError(JSON.stringify({
       diagnostic: { code: "MCP_URL_BLOCKED", category: "security_blocked" },
     }))).toMatchObject({
-      label: "Blocked by OpenWork",
+      label: "Blocked by Harness",
       confidence: "Confirmed",
     })
   })
@@ -323,7 +323,7 @@ describe("chat tool error attribution", () => {
       connectionStatus: reconnectStatus(),
     })
 
-    expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", errorText)).toEqual({
+    expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", errorText)).toEqual({
       connectionId: "emc_knowledge",
       connectionName: "Knowledge Hub",
       label: "Reconnect",
@@ -338,8 +338,8 @@ describe("chat tool error attribution", () => {
       }],
     })
 
-    expect(reconnectActionFromChatToolResult("openwork-cloud_search_capabilities", output)).toBeNull()
-    expect(reconnectActionFromChatToolResult("openwork-cloud_search_capabilities", output, { intent: "connect" })).toEqual({
+    expect(reconnectActionFromChatToolResult("harness-cloud_search_capabilities", output)).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness-cloud_search_capabilities", output, { intent: "connect" })).toEqual({
       connectionId: "emc_knowledge",
       connectionName: "Knowledge Hub",
       label: "Reconnect",
@@ -354,7 +354,7 @@ describe("chat tool error attribution", () => {
       },
     })
 
-    expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", errorText)).toEqual({
+    expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", errorText)).toEqual({
       connectionId: "emc_knowledge",
       connectionName: "Knowledge Hub",
       label: "Reconnect",
@@ -372,19 +372,19 @@ describe("chat tool error attribution", () => {
         actor: "organization_admin",
         action: {
           type: "inspect_connection",
-          surface: "openwork_organization_connections",
+          surface: "harness_organization_connections",
           retry: "search_capabilities",
         },
       },
     })
 
     expect(reconnectActionFromChatToolResult("malicious_execute_capability", reconnectPayload)).toBeNull()
-    expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", providerPayload)).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", providerPayload)).toBeNull()
   })
 
   test("supports first-time member OAuth but rejects mismatched states and credentials", () => {
-    const status = { ...reconnectStatus(), state: "needs_connection", action: { type: "connect", surface: "openwork_your_connections", retry: "search_capabilities" } }
-    const action = (value: unknown) => reconnectActionFromChatToolResult("openwork-cloud_search_capabilities", { matches: [{ connectionStatus: value }] }, { intent: "connect" })
+    const status = { ...reconnectStatus(), state: "needs_connection", action: { type: "connect", surface: "harness_your_connections", retry: "search_capabilities" } }
+    const action = (value: unknown) => reconnectActionFromChatToolResult("harness-cloud_search_capabilities", { matches: [{ connectionStatus: value }] }, { intent: "connect" })
     expect(action(status)).toEqual({ connectionId: "emc_knowledge", connectionName: "Knowledge Hub", label: "Connect" })
     expect(action({ ...status, authType: "apikey" })).toBeNull()
     expect(action({ ...status, credentialMode: "shared" })).toBeNull()
@@ -400,7 +400,7 @@ describe("chat tool error attribution", () => {
       })),
     }
 
-    expect(reconnectActionFromChatToolResult("openwork-cloud_search_capabilities", output, { intent: "connect" })).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness-cloud_search_capabilities", output, { intent: "connect" })).toBeNull()
   })
 
   test("rejects unversioned, shared, and admin-owned action shapes", () => {
@@ -412,12 +412,12 @@ describe("chat tool error attribution", () => {
       actor: "organization_admin",
       action: {
         type: "reconnect",
-        surface: "openwork_organization_connections",
+        surface: "harness_organization_connections",
         retry: "search_capabilities",
       },
     }
 
-    expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", { connectionStatus: unversioned })).toBeNull()
-    expect(reconnectActionFromChatToolResult("openwork-cloud_execute_capability", { connectionStatus: shared })).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", { connectionStatus: unversioned })).toBeNull()
+    expect(reconnectActionFromChatToolResult("harness-cloud_execute_capability", { connectionStatus: shared })).toBeNull()
   })
 })

@@ -67,7 +67,7 @@ synchronization, and runtime authorization retain their existing behavior.
 Disabling management does not revoke keys or cancel billing. Removing the Helm
 component can interrupt traffic and is a different operation.
 
-OpenWork Models billing, subscriptions, keys, and legacy contracts are unchanged.
+Harness Models billing, subscriptions, keys, and legacy contracts are unchanged.
 Follow the current [Gateway deployment guide](../packages/docs/self-host/gateway.mdx)
 and [safe upgrade and disable guide](../packages/docs/self-host/gateway-upgrade.mdx)
 for installation configuration, schema cutover, secret handling, and recovery.

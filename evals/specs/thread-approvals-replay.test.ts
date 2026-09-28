@@ -3,8 +3,8 @@ import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect } from "vitest";
-import { needs, test, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { needs, test, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 import { clearEnginePoolForConfig, computeEngineConfigFingerprint, type EngineSpawnTemplate } from "../../apps/server/src/engine-pool.js";
 import { buildEngineAuthProbeHeader } from "../../apps/server/src/engine-registry.js";
 import { createManagedOpencodeServer, type ManagedOpencodeServer } from "../../apps/server/src/managed-opencode.js";
@@ -13,11 +13,11 @@ import { listThreadApprovals } from "../../apps/server/src/thread-approvals.js";
 import type { ServerConfig } from "../../apps/server/src/types.js";
 
 /**
- * OpenWork server + engine pool around the real pinned engine + a scripted
+ * Harness server + engine pool around the real pinned engine + a scripted
  * provider. thread-approvals-engine-memory shows the engine forgetting an
- * "always" reply once its instance is rebuilt; this spec shows OpenWork
+ * "always" reply once its instance is rebuilt; this spec shows Harness
  * remembering it for the thread and answering the repeat ask. The engine's
- * own event stream is watched, so "the engine asked and OpenWork answered" is
+ * own event stream is watched, so "the engine asked and Harness answered" is
  * observed at the source rather than inferred.
  */
 
@@ -117,19 +117,19 @@ async function bootStack(): Promise<Stack> {
     while (disposers.length) await disposers.pop()?.();
   };
   try {
-    const root = await mkdtemp(join(tmpdir(), "openwork-thread-approvals-stack-"));
+    const root = await mkdtemp(join(tmpdir(), "harness-thread-approvals-stack-"));
     disposers.push(() => rm(root, { recursive: true, force: true }));
     const workspace = join(root, "workspace");
     const xdg = join(root, "xdg");
     await Promise.all([mkdir(workspace, { recursive: true }), mkdir(join(xdg, "config", "opencode"), { recursive: true }), mkdir(join(root, "home"), { recursive: true })]);
     const previousEnv = {
-      OPENWORK_DATA_DIR: process.env.OPENWORK_DATA_DIR,
-      OPENWORK_TOKEN_STORE: process.env.OPENWORK_TOKEN_STORE,
-      OPENWORK_RUNTIME_DB: process.env.OPENWORK_RUNTIME_DB,
+      HARNESS_DATA_DIR: process.env.HARNESS_DATA_DIR,
+      HARNESS_TOKEN_STORE: process.env.HARNESS_TOKEN_STORE,
+      HARNESS_RUNTIME_DB: process.env.HARNESS_RUNTIME_DB,
     };
-    process.env.OPENWORK_DATA_DIR = join(root, "data");
-    process.env.OPENWORK_TOKEN_STORE = join(root, "tokens.json");
-    process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
+    process.env.HARNESS_DATA_DIR = join(root, "data");
+    process.env.HARNESS_TOKEN_STORE = join(root, "tokens.json");
+    process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
     disposers.push(() => {
       for (const [key, value] of Object.entries(previousEnv)) {
         if (value === undefined) delete process.env[key];
@@ -314,14 +314,14 @@ async function createThread(stack: Stack, title: string): Promise<string> {
 }
 
 test.skipIf(missingRequirements.length > 0)(
-  `an always reply on a thread is replayed by OpenWork after the engine instance is rebuilt, and only for that thread${skipSuffix}`,
+  `an always reply on a thread is replayed by Harness after the engine instance is rebuilt, and only for that thread${skipSuffix}`,
   { timeout: 240_000 },
   async ({ evidence }) => {
     needs(requirements);
     await using stack = await bootStack();
     const thread = await createThread(stack, "Thread approvals");
 
-    // Turn 1: the workspace asks; the user replies "always" through OpenWork's proxy.
+    // Turn 1: the workspace asks; the user replies "always" through Harness's proxy.
     const first = await turn(stack, thread, "printf 'grant one'");
     if (!first.asked) throw new Error("the first command did not ask");
     expect(first.asked.permission).toBe("bash");
@@ -330,19 +330,19 @@ test.skipIf(missingRequirements.length > 0)(
     const remembered = await until(
       () => listThreadApprovals(stack.config, "ws_1", thread),
       (grants) => grants.some((grant) => grant.permission === "bash"),
-      "OpenWork remembered the thread's grant",
+      "Harness remembered the thread's grant",
       10_000,
     );
     evidence.recordAssertionEvidence(
-      "OpenWork records an always reply against its thread",
-      `Thread ${thread} now carries ${JSON.stringify(remembered)} in OpenWork's own store.`,
+      "Harness records an always reply against its thread",
+      `Thread ${thread} now carries ${JSON.stringify(remembered)} in Harness's own store.`,
       true,
     );
 
     // Rebuild the instance as every reload does; the engine's own memory is gone.
     await stack.request("POST", "/opencode/instance/dispose");
 
-    // Turn 2: same thread, covered command — the engine asks, OpenWork answers, the command runs.
+    // Turn 2: same thread, covered command — the engine asks, Harness answers, the command runs.
     const askedBefore = stack.events.filter((event) => event.type === "permission.asked" && event.sessionID === thread).length;
     const second = await turn(stack, thread, "printf 'grant two'");
     if (second.asked) {
@@ -357,14 +357,14 @@ test.skipIf(missingRequirements.length > 0)(
     expect(stack.calls).toEqual(["printf 'grant one'", "printf 'grant two'"]);
     evidence.recordAssertionEvidence(
       "After an engine instance rebuild the same thread's covered command runs without a human reply",
-      `The engine asked (${askedAfter - askedBefore} new ask on ${thread}), OpenWork answered "always" (${alwaysReplies} always replies observed on the engine's event stream), and the command completed.`,
+      `The engine asked (${askedAfter - askedBefore} new ask on ${thread}), Harness answered "always" (${alwaysReplies} always replies observed on the engine's event stream), and the command completed.`,
       true,
     );
 
     // Replaying with "always" re-seeds the engine's own memory, which is
     // instance-wide today (one click covers every thread in the instance until
     // it is rebuilt) — unchanged by this change. After another rebuild only
-    // OpenWork's memory is left, and that is per thread.
+    // Harness's memory is left, and that is per thread.
     await stack.request("POST", "/opencode/instance/dispose");
     const third = await turn(stack, thread, "printf 'grant three'");
     if (third.asked) {
@@ -380,7 +380,7 @@ test.skipIf(missingRequirements.length > 0)(
     expect(await listThreadApprovals(stack.config, "ws_1", sibling)).toEqual([]);
     evidence.recordAssertionEvidence(
       "A thread's approval never replays for a sibling thread",
-      `Sibling ${sibling} asked for the same command and kept waiting; OpenWork holds no grant for it.`,
+      `Sibling ${sibling} asked for the same command and kept waiting; Harness holds no grant for it.`,
       true,
     );
     if (siblingTurn.asked) {

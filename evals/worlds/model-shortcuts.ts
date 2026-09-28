@@ -1,6 +1,6 @@
-import { browserScript, reload } from "@openwork/cdp";
-import { CATALOG_FAST_VARIANT } from "@openwork/types/cloud-model-fast";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { browserScript, reload } from "@harness/cdp";
+import { CATALOG_FAST_VARIANT } from "@harness/types/cloud-model-fast";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 
 import { configureProvider } from "./chat.ts";
 
@@ -40,7 +40,7 @@ export async function modelShortcutsWeb(seed: Seed) {
       options: { baseURL: `${witness.url}/v1`, apiKey: "synthetic-fast-key" },
       models: { [fastModelId]: { name: "Fast witness", reasoning: true, variants: {
         high: { reasoningEffort: "high" },
-        [CATALOG_FAST_VARIANT]: { disabled: true, openworkNativeFast: 1 },
+        [CATALOG_FAST_VARIANT]: { disabled: true, harnessNativeFast: 1 },
       } } },
     },
   } }, engine);
@@ -54,7 +54,7 @@ export async function modelShortcutsWeb(seed: Seed) {
     },
   };
   await seed.evalIn(app, browserScript((stored) => {
-    localStorage.setItem("openwork.shortcuts.v1", stored);
+    localStorage.setItem("harness.shortcuts.v1", stored);
   }, [JSON.stringify({ version: 1, shortcuts: [retired] })]));
   await reload(app);
   // The chord a person presses depends on the OS: Cmd on macOS, Ctrl elsewhere.

@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { expect } from "vitest"
-import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@openwork/testkit"
+import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@harness/testkit"
 
 // A real token-runtime HTTP surface and testkit-owned MySQL. Never start local
 // infrastructure or send assertions to Google; the child injects a token witness.
-const local = process.env.OPENWORK_EVAL_DAYTONA !== "1" && !process.env.OPENWORK_EVAL_DEN_API_URL
+const local = process.env.HARNESS_EVAL_DAYTONA !== "1" && !process.env.HARNESS_EVAL_DEN_API_URL
 const mysql = await localMysqlIsRunning()
 const redis = await localRedisIsRunning()
 const title = !local ? "token lifecycle skipped - needs isolated local scratch placement"
@@ -17,11 +17,11 @@ test.skipIf(!local || !mysql || !redis)(title, { timeout: 600_000 }, async ({ pl
   needs({ placement: "local", commands: ["pnpm"] })
   await using den = await server({ place, web: false, org: { name: "Credential token lifecycle" } })
   const databaseUrl = den.database?.url
-  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/openwork_eval_")) throw new Error("Testkit scratch DB required")
+  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/harness_eval_")) throw new Error("Testkit scratch DB required")
   const child = spawn("pnpm", ["exec", "tsx", "test/google-oauth-refresh-server.ts"], {
     cwd: `${fileURLToPath(new URL("../..", import.meta.url))}/ee/apps/gateway`,
     env: { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: databaseUrl, DB_MODE: "mysql",
-      DEN_DB_ENCRYPTION_KEY: "local-dev-db-encryption-key-please-change-1234567890", OPENWORK_DEV_MODE: "1",
+      DEN_DB_ENCRYPTION_KEY: "local-dev-db-encryption-key-please-change-1234567890", HARNESS_DEV_MODE: "1",
       NODE_OPTIONS: "--conditions=development", SENTRY_DSN: "", SENTRY_LOG_LEVEL: "off" },
     stdio: ["ignore", "pipe", "pipe"], detached: true,
   })

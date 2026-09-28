@@ -27,7 +27,7 @@ export type CloudImportedPluginFile = {
   path: string;
   updatedAt: string | null;
   skillName?: string;
-  skillOrigin?: "openwork-connect";
+  skillOrigin?: "harness-connect";
   marketplaceName?: string;
   pluginName?: string;
   connectCapabilityName?: string;

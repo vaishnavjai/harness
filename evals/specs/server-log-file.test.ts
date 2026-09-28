@@ -3,14 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect } from "vitest";
-import { eventually, test } from "@openwork/testkit";
+import { eventually, test } from "@harness/testkit";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const serverDir = join(repoRoot, "apps", "server");
 
 // Rollover reasons, reload triggers, and request timings are emitted by the
-// in-process openwork-server through its logger. The packaged desktop has no
-// visible stdout, so OPENWORK_SERVER_LOG_FILE must persist them as structured
+// in-process harness-server through its logger. The packaged desktop has no
+// visible stdout, so HARNESS_SERVER_LOG_FILE must persist them as structured
 // JSON lines without ever persisting a credential.
 
 type BootedServer = { child: ChildProcess; output: () => string; stop: () => Promise<void> };
@@ -21,7 +21,7 @@ function bootServer(env: NodeJS.ProcessEnv, workspace: string, token?: string, p
     "pnpm",
     [
       "--filter",
-      "openwork-server",
+      "harness-server",
       "exec",
       "bun",
       "--conditions=development",
@@ -58,7 +58,7 @@ function bootServer(env: NodeJS.ProcessEnv, workspace: string, token?: string, p
 }
 
 function listeningPort(output: string): number | null {
-  const match = output.match(/OpenWork server listening on http:\/\/127\.0\.0\.1:(\d+)/);
+  const match = output.match(/Harness server listening on http:\/\/127\.0\.0\.1:(\d+)/);
   return match ? Number(match[1]) : null;
 }
 
@@ -69,14 +69,14 @@ function jsonLines(path: string): Array<Record<string, unknown>> {
     .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
-test("openwork-server persists structured, credential-free logs when OPENWORK_SERVER_LOG_FILE is set", async ({ evidence }) => {
-  const root = mkdtempSync(join(tmpdir(), "openwork-server-log-spec-"));
+test("harness-server persists structured, credential-free logs when HARNESS_SERVER_LOG_FILE is set", async ({ evidence }) => {
+  const root = mkdtempSync(join(tmpdir(), "harness-server-log-spec-"));
   const workspace = join(root, "workspace");
-  const logFile = join(root, "userData", "logs", "openwork-server.log");
+  const logFile = join(root, "userData", "logs", "harness-server.log");
   const token = "client-token-must-not-persist";
   spawnSync("mkdir", ["-p", workspace]);
 
-  const withSink = bootServer({ OPENWORK_SERVER_LOG_FILE: logFile, OPENWORK_LOG_FORMAT: "pretty" }, workspace, token);
+  const withSink = bootServer({ HARNESS_SERVER_LOG_FILE: logFile, HARNESS_LOG_FORMAT: "pretty" }, workspace, token);
   let withoutSink: BootedServer | null = null;
   let generatedSink: BootedServer | null = null;
   try {
@@ -90,10 +90,10 @@ test("openwork-server persists structured, credential-free logs when OPENWORK_SE
       until: (entries) => entries.some((entry) => String(entry.body).includes("GET /health 200")),
     });
 
-    const listening = lines.find((entry) => String(entry.body).startsWith("OpenWork server listening on"));
+    const listening = lines.find((entry) => String(entry.body).startsWith("Harness server listening on"));
     expect(listening, JSON.stringify(lines)).toBeDefined();
     expect(listening?.severityText).toBe("INFO");
-    expect((listening?.resource as Record<string, unknown>)["service.name"]).toBe("openwork-server");
+    expect((listening?.resource as Record<string, unknown>)["service.name"]).toBe("harness-server");
     expect(typeof (listening?.attributes as Record<string, unknown>)["run.id"]).toBe("string");
     expect(typeof (listening?.attributes as Record<string, unknown>)["process.pid"]).toBe("number");
 
@@ -105,7 +105,7 @@ test("openwork-server persists structured, credential-free logs when OPENWORK_SE
     expect(raw).not.toContain(token);
     expect(raw).not.toContain(`${token}-host`);
     // stdout keeps the human format: no JSON envelope leaks into the console.
-    expect(withSink.output()).toContain("OpenWork server listening on");
+    expect(withSink.output()).toContain("Harness server listening on");
     expect(withSink.output()).not.toContain("\"severityText\"");
 
     evidence.recordAssertionEvidence(
@@ -122,8 +122,8 @@ test("openwork-server persists structured, credential-free logs when OPENWORK_SE
     // Generated credentials are intentionally printed to CLI stdout so a
     // person can connect, but the persisted copy must redact those message
     // bodies. Attribute-key redaction alone cannot protect these lines.
-    const generatedLog = join(root, "generated", "openwork-server.log");
-    generatedSink = bootServer({ OPENWORK_SERVER_LOG_FILE: generatedLog, OPENWORK_LOG_FORMAT: "pretty" }, workspace);
+    const generatedLog = join(root, "generated", "harness-server.log");
+    generatedSink = bootServer({ HARNESS_SERVER_LOG_FILE: generatedLog, HARNESS_LOG_FORMAT: "pretty" }, workspace);
     const generatedOutput = await eventually(() => generatedSink?.output() ?? "", {
       within: 60_000,
       intervalMs: 250,
@@ -149,15 +149,15 @@ test("openwork-server persists structured, credential-free logs when OPENWORK_SE
     );
 
     // Negative half: without the env the same server writes no file at all.
-    const otherLog = join(root, "unset", "openwork-server.log");
-    withoutSink = bootServer({ OPENWORK_SERVER_LOG_FILE: "" }, workspace, `${token}-2`);
+    const otherLog = join(root, "unset", "harness-server.log");
+    withoutSink = bootServer({ HARNESS_SERVER_LOG_FILE: "" }, workspace, `${token}-2`);
     const otherPort = await eventually(() => listeningPort(withoutSink?.output() ?? ""), { within: 60_000, intervalMs: 250 });
     expect((await fetch(`http://127.0.0.1:${otherPort}/health`)).status).toBe(200);
     await new Promise((resolve) => setTimeout(resolve, 500));
     expect(existsSync(otherLog)).toBe(false);
     expect(existsSync(join(root, "unset"))).toBe(false);
     evidence.recordAssertionEvidence(
-      "No file sink is created when OPENWORK_SERVER_LOG_FILE is unset",
+      "No file sink is created when HARNESS_SERVER_LOG_FILE is unset",
       "A second server booted without the variable served /health and created neither a log file nor its directory.",
       true,
     );
@@ -174,14 +174,14 @@ for (const { code, stream } of [
   { code: "EIO", stream: "stderr" },
 ]) {
   for (const mode of stream === "stderr" ? ["async"] : ["sync", "async"]) {
-    test(`openwork-server keeps serving requests after ${mode} ${stream} ${code}`, async ({ evidence }) => {
-      const root = mkdtempSync(join(tmpdir(), "openwork-stdout-storage-spec-"));
+    test(`harness-server keeps serving requests after ${mode} ${stream} ${code}`, async ({ evidence }) => {
+      const root = mkdtempSync(join(tmpdir(), "harness-stdout-storage-spec-"));
       const logFile = join(root, "server.log");
       const server = bootServer({
-        OPENWORK_SERVER_LOG_FILE: logFile,
-        OPENWORK_TEST_STDOUT_ERROR: code,
-        OPENWORK_TEST_STDOUT_MODE: mode,
-        OPENWORK_TEST_STDOUT_STREAM: stream,
+        HARNESS_SERVER_LOG_FILE: logFile,
+        HARNESS_TEST_STDOUT_ERROR: code,
+        HARNESS_TEST_STDOUT_MODE: mode,
+        HARNESS_TEST_STDOUT_STREAM: stream,
       }, root, "storage-fault-test-token", join(repoRoot, "evals/packages/labs/src/fixtures/stdout-storage-fault.mjs"));
       try {
         const port = await eventually(() => listeningPort(server.output()), { within: 60_000, intervalMs: 250 });
@@ -219,14 +219,14 @@ for (const { code, stream } of [
 
 for (const outputState of ["healthy", "repeated EIO"]) {
   for (const fatalStream of ["stdout", "stderr"]) {
-    test(`openwork-server retains HTTP error diagnostics and exposes ${fatalStream} exceptions with ${outputState} logging`, async ({ evidence }) => {
-      const root = mkdtempSync(join(tmpdir(), "openwork-log-collateral-spec-"));
+    test(`harness-server retains HTTP error diagnostics and exposes ${fatalStream} exceptions with ${outputState} logging`, async ({ evidence }) => {
+      const root = mkdtempSync(join(tmpdir(), "harness-log-collateral-spec-"));
       const logFile = join(root, "server.log");
       const token = "synthetic-diagnostic-secret";
       const server = bootServer({
-        OPENWORK_SERVER_LOG_FILE: logFile,
-        OPENWORK_LOG_FORMAT: "json",
-        OPENWORK_TEST_STDIO_CONTROL: "1",
+        HARNESS_SERVER_LOG_FILE: logFile,
+        HARNESS_LOG_FORMAT: "json",
+        HARNESS_TEST_STDIO_CONTROL: "1",
       }, root, token, join(repoRoot, "evals/packages/labs/src/fixtures/stdout-storage-fault.mjs"));
       try {
         const port = await eventually(() => listeningPort(server.output()), { within: 60_000, intervalMs: 250 });

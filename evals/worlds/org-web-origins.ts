@@ -1,7 +1,7 @@
-import { denFetch, freshSession, signIn } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import type { Seed } from "@openwork/env";
-import { isRecord } from "./openwork-server-cli.ts";
+import { denFetch, freshSession, signIn } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import type { Seed } from "@harness/env";
+import { isRecord } from "./harness-server-cli.ts";
 
 export const WORKSPACE_ORIGIN = "https://workspace.example.test:8787";
 export const TYPED_ORIGIN = "https://Workspace.Example.test:8787/";
@@ -10,7 +10,7 @@ export const LOOKALIKE_ORIGINS = ["https://workspace.example.test.evil.test", "h
 const ORG_NAME = "Example Workspace Org";
 const OUTSIDE_ORG_NAME = "Outside Example Org";
 const SECOND_ORG_NAME = "Second Example Org";
-const PASSWORD = "OpenWork-origins-4821!proof";
+const PASSWORD = "Harness-origins-4821!proof";
 
 function field(value: unknown, key: string): string {
   const found = isRecord(value) ? value[key] : undefined;
@@ -47,7 +47,7 @@ export async function orgWebOrigins(seed: Seed) {
   const orgs = await seed.api(owner, "/v1/me/orgs");
   const list = isRecord(orgs.body) && Array.isArray(orgs.body.orgs) ? orgs.body.orgs : [];
   const orgId = field(list.find((org) => isRecord(org) && org.name === ORG_NAME), "id");
-  const scope = { "x-openwork-org-id": orgId };
+  const scope = { "x-harness-org-id": orgId };
 
   const roster = await seed.api(owner, "/v1/org", { headers: scope });
   const members = isRecord(roster.body) && Array.isArray(roster.body.members) ? roster.body.members : [];

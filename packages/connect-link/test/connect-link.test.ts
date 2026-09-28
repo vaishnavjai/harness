@@ -20,7 +20,7 @@ const publicKeys = { [KID]: publicKeyPem }
 
 function claims(overrides: Partial<ConnectLinkClaims> = {}): ConnectLinkClaims {
   return {
-    iss: "https://api.openwork.acme.example.com",
+    iss: "https://api.harness.acme.example.com",
     aud: CONNECT_LINK_AUDIENCE,
     iat: NOW,
     exp: NOW + 72 * 3600,
@@ -29,8 +29,8 @@ function claims(overrides: Partial<ConnectLinkClaims> = {}): ConnectLinkClaims {
     org: { name: "Acme Robotics" },
     brand: { appName: "Acme Work", logoUrl: null, iconUrl: null },
     den: {
-      baseUrl: "https://openwork.acme.example.com",
-      apiBaseUrl: "https://api.openwork.acme.example.com",
+      baseUrl: "https://harness.acme.example.com",
+      apiBaseUrl: "https://api.harness.acme.example.com",
     },
     requireSignin: true,
     ...overrides,
@@ -115,8 +115,8 @@ describe("signed desktop connect links", () => {
   })
 
   test("builds only the dedicated connect route", () => {
-    expect(buildConnectDeepLink("abc.def.ghi")).toBe("openwork://connect?token=abc.def.ghi")
+    expect(buildConnectDeepLink("abc.def.ghi")).toBe("harness://connect?token=abc.def.ghi")
     expect(buildConnectExchangeDeepLink("abcdefghijklmnopqrstuvwxyz123456", "https://den.example.com/api/den"))
-      .toBe("openwork://connect?code=abcdefghijklmnopqrstuvwxyz123456&apiBaseUrl=https%3A%2F%2Fden.example.com%2Fapi%2Fden")
+      .toBe("harness://connect?code=abcdefghijklmnopqrstuvwxyz123456&apiBaseUrl=https%3A%2F%2Fden.example.com%2Fapi%2Fden")
   })
 })

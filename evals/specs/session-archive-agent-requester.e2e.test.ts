@@ -1,12 +1,12 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { archiveActiveSessions } from "../worlds/session-shell.ts";
 
 const test = spec.world(archiveActiveSessions, { timeout: 12 * 60_000 });
 
 // The OpenCode plugin delivers every agent command through the server mailbox
 // with `origin` set to the requesting conversation; the desktop answers it via
-// window.__openworkControl.command. This drives that exact path.
+// window.__harnessControl.command. This drives that exact path.
 type Bridged = { status: number; body: unknown; elapsedMs: number };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,24 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { spec, resolveEvalEngine, readTranscriptMessages } from "@openwork/testkit";
+import { spec, resolveEvalEngine, readTranscriptMessages } from "@harness/testkit";
 import { engineLiveDesktop } from "../worlds/engine-live-desktop.ts";
 import { record } from "../worlds/engine-live-parity.ts";
 
 const test = spec.world(engineLiveDesktop, { timeout: 600_000,
   resources: { surfaces: ["desktop"], services: [], nativeReason: "Exercise production first launch without any pre-created workspace or preferences." },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 test(`LIVE-DESKTOP ${resolveEvalEngine()}: ${resolveEvalEngine() === "v2" ? "a blank installation creates its workspace and opens the composer" : "a blank installation creates its workspace and sends to the real starter model"}`, async ({ world, user, probe, step, evidence }) => {
   await step("The app creates its default workspace and opens an empty signed-out conversation", async () => {
     await user.see("composer", { editable: true, timeoutMs: 90_000 });
-    await user.notSee({ text: "Welcome to OpenWork" });
-    expect(await probe.storage("openwork.den.authToken")).toBeNull();
+    await user.notSee({ text: "Welcome to Harness" });
+    expect(await probe.storage("harness.den.authToken")).toBeNull();
     const workspaces = (await world.request("/workspaces")).body;
-    expect(workspaces).toMatchObject({ items: [expect.objectContaining({ path: expect.stringMatching(/OpenWork Chat$/) })] });
+    expect(workspaces).toMatchObject({ items: [expect.objectContaining({ path: expect.stringMatching(/Harness Chat$/) })] });
     await user.screenshot();
   });
   if (world.engine === "v2") {
-    evidence.recordAssertionEvidence("Fresh native v2 workspace and composer", "A blank installation created the workspace and displayed an editable signed-out composer. Existing free-starter inference is outside the v2 migration gate; OpenWork's own free models must be tested before GA. Paid first-send inference is covered by LIVE-ORG.", true);
+    evidence.recordAssertionEvidence("Fresh native v2 workspace and composer", "A blank installation created the workspace and displayed an editable signed-out composer. Existing free-starter inference is outside the v2 migration gate; Harness's own free models must be tested before GA. Paid first-send inference is covered by LIVE-ORG.", true);
     return;
   }
   await step("The first task uses the actual starter service", async () => {

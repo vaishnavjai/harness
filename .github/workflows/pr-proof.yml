@@ -64,10 +64,10 @@ jobs:
       - name: Build local Den dependencies and the review app
         shell: bash
         run: |
-          pnpm --filter @openwork/types build
-          pnpm --filter @openwork-ee/den-db build
-          pnpm --filter @openwork/email build
-          pnpm --filter @openwork/review-app build
+          pnpm --filter @harness/types build
+          pnpm --filter @harness-ee/den-db build
+          pnpm --filter @harness/email build
+          pnpm --filter @harness/review-app build
           pnpm dev:den:mysql
       - name: Run the selected changed spec on the PR head
         timeout-minutes: 20
@@ -76,7 +76,7 @@ jobs:
           # CI runners cannot use Chromium's SUID sandbox (the pnpm-store helper
           # is not root-owned). The testkit's container mode launches Electron
           # with --no-sandbox, as it already does on Daytona.
-          OPENWORK_EVAL_CONTAINER_ELECTRON: "1"
+          HARNESS_EVAL_CONTAINER_ELECTRON: "1"
         run: |
           set -euo pipefail
           test "$(id -u)" -ne 0
@@ -127,15 +127,15 @@ jobs:
       - name: Bundle the server plugins the way packaged builds do
         run: |
           rm -rf packages/types/dist
-          pnpm --filter openwork-server build
+          pnpm --filter @harness/server build
       - name: Run the selected packaged spec against the packaged desktop
         timeout-minutes: 20
         env:
           PROOF_JOURNEY: ${{ matrix.journey }}
-          OPENWORK_PACKAGED_SMOKE_DIR: ${{ runner.temp }}/openwork-packaged-smoke
+          HARNESS_PACKAGED_SMOKE_DIR: ${{ runner.temp }}/harness-packaged-smoke
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           # Same Chromium SUID-sandbox constraint as the proof job above.
-          OPENWORK_EVAL_CONTAINER_ELECTRON: "1"
+          HARNESS_EVAL_CONTAINER_ELECTRON: "1"
         run: |
           set -euo pipefail
           test "$(id -u)" -ne 0
@@ -191,18 +191,18 @@ jobs:
           oauth-handoff: "true"
       - name: Build local app dependencies without live credentials
         run: |
-          pnpm --filter @openwork/types build
-          pnpm --filter @openwork-ee/den-db build
-          pnpm --filter @openwork/email build
-          pnpm --filter @openwork/review-app build
+          pnpm --filter @harness/types build
+          pnpm --filter @harness-ee/den-db build
+          pnpm --filter @harness/email build
+          pnpm --filter @harness/review-app build
           pnpm dev:den:mysql
       - name: Run the whole selected live spec with real inference
         timeout-minutes: 45
         env:
           PROOF_SPEC: ${{ matrix.spec }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENWORK_EVAL_LIVE_OPENAI: "1"
-          OPENWORK_EVAL_OPENAI_MODEL: gpt-5.4
+          HARNESS_EVAL_LIVE_OPENAI: "1"
+          HARNESS_EVAL_OPENAI_MODEL: gpt-5.4
         run: |
           set -euo pipefail
           test "$(id -u)" -ne 0
@@ -215,8 +215,8 @@ jobs:
             exit 1
           fi
           if [ "$PROOF_SPEC" = 'evals/specs/engine-live-chat.e2e.test.ts' ]; then
-            OPENWORK_LIVE_PROVIDER=OpenAI OPENWORK_LIVE_KEY_ENV=OPENAI_API_KEY \
-              OPENWORK_LIVE_MODELS=gpt-5.4,gpt-4.1-mini OPENWORK_EVAL_CONTAINER_ELECTRON=1 \
+            HARNESS_LIVE_PROVIDER=OpenAI HARNESS_LIVE_KEY_ENV=OPENAI_API_KEY \
+              HARNESS_LIVE_MODELS=gpt-5.4,gpt-4.1-mini HARNESS_EVAL_CONTAINER_ELECTRON=1 \
               xvfb-run -a node evals/scripts/run-parity-proof.mjs "$PROOF_SPEC"
           else
             xvfb-run -a node evals/bin/evals.mjs "${PROOF_SPEC#evals/}" --local --engine v1 --surface web
@@ -270,13 +270,13 @@ jobs:
       - uses: ./.github/actions/setup-tests
       - uses: ./.github/actions/setup-browser
       - name: Build this branch's review app
-        run: pnpm --filter @openwork/review-app build
+        run: pnpm --filter @harness/review-app build
       - name: Prepare this branch's isolated web world
         timeout-minutes: 35
         env:
           FREESTYLE_API_KEY: ${{ secrets.FREESTYLE_API_KEY }}
-          OPENWORK_EVIDENCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-          OPENWORK_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
+          HARNESS_EVIDENCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          HARNESS_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/prepare-evidence-web.ts
       # Specs tagged "checkpoints" run here because the Freestyle credential is
       # protected. Their records join this PR's normal evidence report; the shared
@@ -286,8 +286,8 @@ jobs:
         timeout-minutes: 20
         env:
           FREESTYLE_API_KEY: ${{ secrets.FREESTYLE_API_KEY }}
-          OPENWORK_EVIDENCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-          OPENWORK_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
+          HARNESS_EVIDENCE_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+          HARNESS_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
           PROOF_SPEC: ${{ matrix.spec }}
         run: xvfb-run -a node evals/bin/evals.mjs "${PROOF_SPEC#evals/}" --local --engine v1 --surface web --checkpoints
       - name: Save selected native testkit and Vitest records
@@ -353,8 +353,8 @@ jobs:
         timeout-minutes: 40
         env:
           PROOF_SPEC: ${{ matrix.spec }}
-          OPENWORK_EVAL_REF: ${{ github.event.pull_request.head.sha }}
-          OPENWORK_EVAL_MODEL: big-pickle
+          HARNESS_EVAL_REF: ${{ github.event.pull_request.head.sha }}
+          HARNESS_EVAL_MODEL: big-pickle
         run: |
           set -euo pipefail
           test "$PROOF_SPEC" = 'evals/specs/windows-published-preview.e2e.test.ts'

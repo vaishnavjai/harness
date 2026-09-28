@@ -1,5 +1,5 @@
-import type { DesktopConfig, DesktopExecutionPolicy, DesktopPolicyKey } from "@openwork/types/den/desktop-policies";
-import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@openwork/types/den/desktop-policies-runtime";
+import type { DesktopConfig, DesktopExecutionPolicy, DesktopPolicyKey } from "@harness/types/den/desktop-policies";
+import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@harness/types/den/desktop-policies-runtime";
 import { z } from "zod";
 
 export const managedPolicyActionSchema = z.enum([
@@ -101,7 +101,7 @@ export function policyDenial(policy: DesktopConfig, action: ManagedPolicyAction,
   }
   // Native fetch follows redirects inside the engine. Until it exposes a
   // per-hop hook, approved-site browsing must use the intercepted browser.
-  if ((action === "webfetch" || action === "websearch") && execution?.browserOrigins !== undefined) return "Use OpenWork's built-in browser to open approved websites.";
+  if ((action === "webfetch" || action === "websearch") && execution?.browserOrigins !== undefined) return "Use Harness's built-in browser to open approved websites.";
   if (action === "browser" || action === "webfetch") {
     if (action === "browser" && policy.allowBuiltInExtensions === false) return "Built-in extensions are disabled by your organization.";
     const url = typeof input.url === "string" ? input.url : "";

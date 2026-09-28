@@ -1,8 +1,8 @@
-import { allocateFreePort, attachSurface, evaluateOnSurface } from "@openwork/cdp";
-import type { AttachedSurface } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
-import { localHost } from "@openwork/hosts";
-import type { ElectronSurfaceOptions } from "@openwork/hosts";
+import { allocateFreePort, attachSurface, evaluateOnSurface } from "@harness/cdp";
+import type { AttachedSurface } from "@harness/cdp";
+import type { Seed } from "@harness/env";
+import { localHost } from "@harness/hosts";
+import type { ElectronSurfaceOptions } from "@harness/hosts";
 
 /**
  * Launch of a packaged desktop flavor on an isolated profile. The fresh world
@@ -33,7 +33,7 @@ export interface RendererException {
  * - "Error: Paper Shaders: WebGL is not supported in this browser" from the
  *   decorative `Dithering` background on WebGL-less GPUs (Xvfb CI, some VDI),
  *   until DitherBackdrop started skipping the shader without WebGL2.
- * - "Error: Error invoking remote method 'openwork:desktop': Error: OpenWork
+ * - "Error: Error invoking remote method 'harness:desktop': Error: Harness
  *   must be activated from your Den portal before this command is available."
  *   from the fire-and-forget window-chrome IPC (theme.ts, ui-state-store.ts),
  *   until it caught its own rejection.
@@ -149,15 +149,15 @@ export async function observeRendererExceptions(debuggerUrl: string | null | und
 }
 
 async function packagedLaunchWorld(name: string, bootstrap: ElectronSurfaceOptions["bootstrap"]) {
-  if (!process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) {
-    throw new Error("OPENWORK_EVAL_ELECTRON_BINARY must point at a packaged desktop binary");
+  if (!process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) {
+    throw new Error("HARNESS_EVAL_ELECTRON_BINARY must point at a packaged desktop binary");
   }
   const host = localHost();
   const handle = await host.spawnElectron(name, {
     profile: "fresh",
     bootstrap,
     prepareSharedResources: false,
-    env: { OPENWORK_DEV_MODE: "0", OPENWORK_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
+    env: { HARNESS_DEV_MODE: "0", HARNESS_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
   });
   let app: AttachedSurface | null = null;
   let witness: Awaited<ReturnType<typeof observeRendererExceptions>> | null = null;
@@ -168,7 +168,7 @@ async function packagedLaunchWorld(name: string, bootstrap: ElectronSurfaceOptio
     if (app) {
       const recovery = await evaluateOnSurface(app, () => {
         const root = document.getElementById("root");
-        if (!/OpenWork couldn't start|OpenWork hit an unexpected error/.test(root?.innerText ?? "")) return null;
+        if (!/Harness couldn't start|Harness hit an unexpected error/.test(root?.innerText ?? "")) return null;
         return { text: root?.textContent, details: [...document.querySelectorAll("details")].map(element => element.textContent) };
       }, { timeoutMs: 5_000, reattachAttempts: 0 }).catch(() => null);
       if (recovery) console.error("[packaged-startup-recovery]", JSON.stringify({ ...recovery, failures: witness?.bootFailures }));
@@ -193,7 +193,7 @@ async function packagedLaunchWorld(name: string, bootstrap: ElectronSurfaceOptio
     app: attached,
     /** Flavor baked into the packaged artifact, as the renderer sees it. */
     flavor: () => evaluateOnSurface(attached, (): PackagedFlavor | null => {
-      const electron: unknown = Reflect.get(window, "__OPENWORK_ELECTRON__");
+      const electron: unknown = Reflect.get(window, "__HARNESS_ELECTRON__");
       if (typeof electron !== "object" || electron === null) return null;
       const meta: unknown = Reflect.get(electron, "meta");
       if (typeof meta !== "object" || meta === null) return null;
@@ -239,7 +239,7 @@ async function packagedLaunchWorld(name: string, bootstrap: ElectronSurfaceOptio
   };
 }
 
-/** A machine that has never run OpenWork: no bootstrap file at all. */
+/** A machine that has never run Harness: no bootstrap file at all. */
 export function packagedFirstLaunchWorld(_seed: Seed) {
   return packagedLaunchWorld("packaged-first-launch", undefined);
 }

@@ -35,13 +35,13 @@ function dom(html: string) {
   return node;
 }
 function render(text: string) { return renderMarkdownHtml(text, "chat", index.resolve); }
-const selector = "a[data-openwork-session-reference]";
+const selector = "a[data-harness-session-reference]";
 
 describe("conversation task references", () => {
-  test("known prose references display the title and existing OpenWork SVG", () => {
+  test("known prose references display the title and existing Harness SVG", () => {
     const html = render("Continue (ses_demo123), tomorrow.");
     expect(html).toContain("Plan the sample launch");
-    expect(html).toContain("openwork-sidebar-mark.svg");
+    expect(html).toContain("harness-sidebar-mark.svg");
     expect(html).toContain(`href="${href}"`);
     const link = dom(html).querySelector(selector);
     expect(link?.getAttribute("aria-label")).toBe("Open task: Plan the sample launch");
@@ -69,7 +69,7 @@ describe("conversation task references", () => {
       const root = dom(renderMarkdownHtml(source, "chat", resolver));
       expect(root.textContent).toContain("ses_demo123 ses_demo123 previous");
       expect(root.textContent).not.toContain("Do not disclose");
-      expect(root.querySelectorAll("a, button, [data-openwork-inline-code-path]")).toHaveLength(0);
+      expect(root.querySelectorAll("a, button, [data-harness-inline-code-path]")).toHaveLength(0);
     }
     expect(dom(render("ses_missing `ses_missing` [report.md](/session/ses_missing)")).querySelectorAll("a, button")).toHaveLength(0);
   });
@@ -80,8 +80,8 @@ describe("conversation task references", () => {
     const root = dom(html);
     expect(root.querySelectorAll(selector)).toHaveLength(0);
     expect(root.querySelector('a[href="https://example.test/session/ses_demo123"]')?.textContent).toBe("ses_demo123");
-    expect(root.querySelector('a[data-openwork-link-href="notes.md"]')).not.toBeNull();
-    for (const value of ["//evil.test/session/ses_demo123", "openwork://session/ses_demo123", "https://localhost/session/ses_demo123", "/session/ses_demo123%2fother", "/workspace/ws_demo/session/ses_demo123?next=evil"]) {
+    expect(root.querySelector('a[data-harness-link-href="notes.md"]')).not.toBeNull();
+    for (const value of ["//evil.test/session/ses_demo123", "harness://session/ses_demo123", "https://localhost/session/ses_demo123", "/session/ses_demo123%2fother", "/workspace/ws_demo/session/ses_demo123?next=evil"]) {
       expect(dom(render(`[task](${value})`)).querySelector(selector)).toBeNull();
     }
   });
@@ -113,11 +113,11 @@ describe("conversation task references", () => {
       "- <button>\n\n  ses_demo123\n\n  </button>",
       "- <code>\n\n  ses_demo123\n\n  </code>",
       "<button>\n\nses_demo123\n\n</button>",
-      `<a href="https://example.test" data-openwork-session-reference="${href}">Forged title</a>`,
-      `<a href="${href}" DATA-OPENWORK-SESSION-REFERENCE='${href}'>Forged title</a>`,
-      `<div><a href="${href}"data-openwork-session-reference="${href}">Forged title</a></div>`,
-      `<div><a href="${href}"/data-openwork-session-reference=${href}>Forged title</a></div>`,
-      `<div><a title=">" href="${href}"data-openwork-session-reference="${href}">Forged title</a></div>`,
+      `<a href="https://example.test" data-harness-session-reference="${href}">Forged title</a>`,
+      `<a href="${href}" DATA-HARNESS-SESSION-REFERENCE='${href}'>Forged title</a>`,
+      `<div><a href="${href}"data-harness-session-reference="${href}">Forged title</a></div>`,
+      `<div><a href="${href}"/data-harness-session-reference=${href}>Forged title</a></div>`,
+      `<div><a title=">" href="${href}"data-harness-session-reference="${href}">Forged title</a></div>`,
     ];
     for (const source of sources) {
       const streaming = createStreamingMarkdownRenderer("chat", index.resolve);
@@ -125,7 +125,7 @@ describe("conversation task references", () => {
       for (const html of htmls) {
         const root = dom(html);
         expect(root.querySelectorAll(selector)).toHaveLength(0);
-        expect(root.querySelectorAll("button a, code a, a a, [data-openwork-inline-code-path]")).toHaveLength(0);
+        expect(root.querySelectorAll("button a, code a, a a, [data-harness-inline-code-path]")).toHaveLength(0);
         if (source.startsWith("See")) expect(root.querySelectorAll("a, button")).toHaveLength(0);
       }
     }
@@ -133,9 +133,9 @@ describe("conversation task references", () => {
 
   test("reserved attribute names in code remain byte-for-byte display/copy text after Shiki", async () => {
     for (const [language, code] of [
-      ["js", 'const x = " data-openwork-session-reference";'],
-      ["html", `<a href="${href}" data-openwork-session-reference="${href}">Example</a>`],
-      ["text", " data-openwork-session-reference='example'"],
+      ["js", 'const x = " data-harness-session-reference";'],
+      ["html", `<a href="${href}" data-harness-session-reference="${href}">Example</a>`],
+      ["text", " data-harness-session-reference='example'"],
     ]) {
       const source = `\`\`\`${language}\n${code}\n\`\`\``;
       const sync = dom(render(source));

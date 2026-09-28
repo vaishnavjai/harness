@@ -28,7 +28,7 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
 }
 
 test("hold keeps an otherwise idle world alive until SIGTERM", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-hold-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-hold-"));
   const snapshots = join(root, "snapshots");
   const worldPath = join(root, "hold-only.ts");
   const receiptPath = join(snapshots, "hold-only.json");
@@ -44,7 +44,7 @@ test("hold keeps an otherwise idle world alive until SIGTERM", async () => {
 
   const child = spawn(process.execPath, [worldPath], {
     detached: true,
-    env: { ...process.env, OPENWORK_WORLD_SNAPSHOT_DIR: snapshots, [EVENTS_ENV]: eventPath },
+    env: { ...process.env, HARNESS_WORLD_SNAPSHOT_DIR: snapshots, [EVENTS_ENV]: eventPath },
     stdio: "ignore",
   });
   if (child.pid === undefined) throw new Error("child pid unavailable");

@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { seedSyntheticPreactivatedDen } from "../src/app-web-bootstrap.ts";
 
 test("synthetic preactivation defaults off without creating installation state", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-bootstrap-default-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-bootstrap-default-"));
   try {
     assert.deepEqual(await seedSyntheticPreactivatedDen(root), {});
     assert.deepEqual(await readdir(root), []);
@@ -14,14 +14,14 @@ test("synthetic preactivation defaults off without creating installation state",
 });
 
 test("synthetic preactivation writes only the fresh owned config and never overwrites it", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-bootstrap-owned-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-bootstrap-owned-"));
   try {
-    const config = join(root, "config", "openwork");
+    const config = join(root, "config", "harness");
     await mkdir(config, { recursive: true });
     const origin = "https://synthetic-den.example:8443";
     const env = await seedSyntheticPreactivatedDen(root, origin);
     const path = join(config, "desktop-bootstrap.json");
-    assert.deepEqual(env, { OPENWORK_DESKTOP_BOOTSTRAP_PATH: path });
+    assert.deepEqual(env, { HARNESS_DESKTOP_BOOTSTRAP_PATH: path });
     const source = await readFile(path, "utf8");
     const body = JSON.parse(source);
     assert.equal(body.enterpriseActivation.denBaseUrl, origin);
@@ -35,7 +35,7 @@ test("synthetic preactivation writes only the fresh owned config and never overw
 });
 
 test("synthetic preactivation refuses nonexact or insecure origins before writing", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-bootstrap-invalid-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-bootstrap-invalid-"));
   try {
     for (const origin of ["http://synthetic.example", "https://synthetic.example/", "https://synthetic.example/path", "https://synthetic.example?token=no", "https://synthetic.example#fragment", "https://user:password@synthetic.example", "not-a-url"]) {
       await assert.rejects(seedSyntheticPreactivatedDen(root, origin));

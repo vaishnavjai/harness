@@ -1,10 +1,10 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { compatibleReleaseWorld } from "../worlds/first-run.ts";
 
 const test = spec.world(compatibleReleaseWorld);
-const currentArtifact = "https://releases.openwork.test/v2.4.0/OpenWork-darwin-arm64.dmg";
-const previousArtifact = "https://releases.openwork.test/v2.3.1/OpenWork-darwin-arm64.dmg";
+const currentArtifact = "https://releases.harness.test/v2.4.0/Harness-darwin-arm64.dmg";
+const previousArtifact = "https://releases.harness.test/v2.3.1/Harness-darwin-arm64.dmg";
 
 function stringField(value: unknown, key: string): string | null {
   if (typeof value !== "object" || value === null) return null;
@@ -38,7 +38,7 @@ test("recovery offers only recent stable releases with exact compatible artifact
   ]);
   await seed.evalIn(
     world.app,
-    () => (Promise.all([window.__openworkRecoveryControl.select("2.3.0"), window.__openworkRecoveryControl.select("9.9.9")])),
+    () => (Promise.all([window.__harnessRecoveryControl.select("2.3.0"), window.__harnessRecoveryControl.select("9.9.9")])),
     { awaitPromise: true },
   );
   const afterInvalid = await world.snapshot();
@@ -54,7 +54,7 @@ test("recovery offers only recent stable releases with exact compatible artifact
   );
   expect(opened).toEqual([previousArtifact]);
   expect(opened).not.toContain(currentArtifact);
-  expect(opened).not.toContain("https://incompatible.invalid/OpenWork.AppImage");
-  expect(opened).not.toContain("https://wrong-flavor.invalid/OpenWork.dmg");
-  expect(opened).not.toContain("https://prerelease.invalid/OpenWork.dmg");
+  expect(opened).not.toContain("https://incompatible.invalid/Harness.AppImage");
+  expect(opened).not.toContain("https://wrong-flavor.invalid/Harness.dmg");
+  expect(opened).not.toContain("https://prerelease.invalid/Harness.dmg");
 });

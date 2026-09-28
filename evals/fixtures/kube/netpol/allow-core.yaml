@@ -1,12 +1,12 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: openwork-den-allow-core-egress
+  name: harness-den-allow-core-egress
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: openwork-ee
-      app.kubernetes.io/instance: openwork-ee
+      app.kubernetes.io/name: harness-ee
+      app.kubernetes.io/instance: harness-ee
     matchExpressions:
       - key: app.kubernetes.io/component
         operator: In
@@ -31,15 +31,15 @@ spec:
     - to:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: openwork-mysql
+              app.kubernetes.io/name: harness-mysql
       ports:
         - protocol: TCP
           port: 3306
     - to:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: openwork-ee
-              app.kubernetes.io/instance: openwork-ee
+              app.kubernetes.io/name: harness-ee
+              app.kubernetes.io/instance: harness-ee
             matchExpressions:
               - key: app.kubernetes.io/component
                 operator: In

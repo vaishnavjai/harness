@@ -66,7 +66,7 @@ export async function startCloudRuntimeWitness() {
   const directories = new Map<string, string>();
   const scripts = new Map<string, { script: string; mode: string | null; directoryMode: string }>();
   const credentialValues = new Set<string>();
-  const stagingPath = /^\/tmp\/openwork-exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\/script\.sh)?$/;
+  const stagingPath = /^\/tmp\/harness-exec-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}(?:\/script\.sh)?$/;
   const fileEvents: Array<{ sandboxId: string; operation: string; path: string; mode?: string }> = [];
   const commandTransports: Array<{
     sandboxId: string; operation: string; pathOnly: boolean; rawScript: boolean; runAsync: boolean;
@@ -79,7 +79,7 @@ export async function startCloudRuntimeWitness() {
   const listedExtras = new Set<string>();
   let recoveryFailure: { sandboxId: string; workerId: string; replacementAttempted: boolean } | null = null;
   const held = new Set<string>();
-  // Instances whose OpenWork server reports a running session or a waiting
+  // Instances whose Harness server reports a running session or a waiting
   // request, and instances whose `/health` misses while the server still answers.
   const busy = new Map<string, { busySessions: number; waitingRequests: number }>();
   const slowHealth = new Set<string>();
@@ -110,7 +110,7 @@ export async function startCloudRuntimeWitness() {
   }
 
   function scriptCredentials(script: string) {
-    return Array.from(script.matchAll(/\b(OPENWORK_TOKEN|OPENWORK_HOST_TOKEN|DEN_ACTIVITY_HEARTBEAT_TOKEN)='((?:[^']|'"'"')*)'/g), (match) => ({
+    return Array.from(script.matchAll(/\b(HARNESS_TOKEN|HARNESS_HOST_TOKEN|DEN_ACTIVITY_HEARTBEAT_TOKEN)='((?:[^']|'"'"')*)'/g), (match) => ({
       name: match[1], value: match[2].replaceAll("'\"'\"'", "'"),
     }));
   }
@@ -133,7 +133,7 @@ export async function startCloudRuntimeWitness() {
       const items = matches.slice(offset, offset + 1);
       const nextCursor = offset + 1 < matches.length ? String(offset + 1) : null;
       events.push({ sandboxId: "", operation: "list", sandboxIds: items.map((entry) => entry.id), cursor, nextCursor,
-        workerId: typeof labels["openwork.den.worker-id"] === "string" ? labels["openwork.den.worker-id"] : undefined });
+        workerId: typeof labels["harness.den.worker-id"] === "string" ? labels["harness.den.worker-id"] : undefined });
       return json(response, 200, { items: items.map(sandboxDto), nextCursor });
     }
     if (method === "POST" && path === "/sandbox") {
@@ -255,7 +255,7 @@ export async function startCloudRuntimeWitness() {
       if (method === "POST" && path.endsWith("/exec")) {
         const input = await body(request);
         const command = String(input.command);
-        const scriptPath = command.match(/^sh -lc 'exec sh (\/tmp\/openwork-exec-[0-9a-f-]+\/script\.sh)'$/)?.[1];
+        const scriptPath = command.match(/^sh -lc 'exec sh (\/tmp\/harness-exec-[0-9a-f-]+\/script\.sh)'$/)?.[1];
         const staged = scriptPath ? scripts.get(`${sandbox.id}:${scriptPath}`) : undefined;
         if (scriptPath && (!stagingPath.test(scriptPath) || !staged)) throw new Error("Staged script missing at launch");
         if (staged && staged.mode !== "600") throw new Error("Staged script is not private at launch");
@@ -273,7 +273,7 @@ export async function startCloudRuntimeWitness() {
         }
         let operation: string;
         let exitCode: number | null;
-        if (input.runAsync === true && source.includes("openwork-server")) {
+        if (input.runAsync === true && source.includes("harness-server")) {
           operation = "bootstrap";
           exitCode = null;
           const workerId = source.match(/DEN_WORKER_ID=[^a-z0-9]*([a-z0-9_]+)/)?.[1];
@@ -287,7 +287,7 @@ export async function startCloudRuntimeWitness() {
         } else if (sandbox.purpose === "daytona-checkpoint-probe" && command.includes("ckpt-*.tar")) {
           operation = "checkpoint-probe";
           exitCode = checkpoints.has(checkpointKey(sandbox)) ? 0 : 1;
-        } else if (command.includes("test -s") && command.includes(".openwork-restore-marker")) {
+        } else if (command.includes("test -s") && command.includes(".harness-restore-marker")) {
           operation = "restore-verify";
           exitCode = sandbox.restored ? 0 : 1;
         } else if (command.includes("flush_checkpoint") && input.runAsync === false) {
@@ -309,7 +309,7 @@ export async function startCloudRuntimeWitness() {
           sandboxId: sandbox.id, operation, pathOnly: Boolean(scriptPath), runAsync: input.runAsync === true,
           rawScript: Boolean(staged && selfUnlink && source.slice(prefix.length).startsWith("set -u\n")),
           credentialValuesInCommand: Array.from(credentialValues).some((value) => command.includes(value))
-            || /\b(?:OPENWORK_TOKEN|OPENWORK_HOST_TOKEN|DEN_ACTIVITY_HEARTBEAT_TOKEN)=/.test(command),
+            || /\b(?:HARNESS_TOKEN|HARNESS_HOST_TOKEN|DEN_ACTIVITY_HEARTBEAT_TOKEN)=/.test(command),
           credentialNames: scriptCredentials(source).map((credential) => credential.name),
           suppressInputEcho: input.suppressInputEcho === true,
           directoryMode: staged?.directoryMode ?? null, fileMode: staged?.mode ?? null, selfUnlink,
@@ -332,7 +332,7 @@ export async function startCloudRuntimeWitness() {
       if (!healthy || held.has(sandboxId) || sandbox.state !== "started") return json(response, 503, { ready: false });
       if (route === "/health") return json(response, slowHealth.has(sandboxId) ? 503 : 200, { ready: !slowHealth.has(sandboxId) });
       if (method === "GET" && route === "/runtime/activity") {
-        const token = request.headers["x-openwork-host-token"];
+        const token = request.headers["x-harness-host-token"];
         const authenticated = typeof token === "string" && credentialValues.has(token);
         activityProbes.push({ sandboxId, authenticated });
         if (!authenticated) return json(response, 401, { error: "unauthorized" });

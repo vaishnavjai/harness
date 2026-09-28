@@ -8,20 +8,20 @@
 // here: the server reports it while a dispose is still tearing down, and
 // restarting mid-teardown would kill the very sessions being drained.
 import { engineRestart } from "@/app/lib/desktop";
-import { OpenworkServerError, type OpenworkServerClient } from "@/app/lib/openwork-server";
+import { HarnessServerError, type HarnessServerClient } from "@/app/lib/harness-server";
 import { isDesktopRuntime } from "@/app/lib/runtime-env";
 
 const UNREACHABLE_RETRY_DELAY_MS = 1500;
 
 export function canRestartDesktopForReloadError(error: unknown) {
   return (
-    error instanceof OpenworkServerError &&
+    error instanceof HarnessServerError &&
     (error.code === "opencode_engine_unreachable" || error.code === "opencode_unconfigured")
   );
 }
 
 function isEngineUnreachableError(error: unknown) {
-  return error instanceof OpenworkServerError && error.code === "opencode_engine_unreachable";
+  return error instanceof HarnessServerError && error.code === "opencode_engine_unreachable";
 }
 
 /**
@@ -60,7 +60,7 @@ export type ReloadEngineFallbackOptions = {
  * answers the second attempt, no session is disturbed.
  */
 export async function reloadEngineWithDesktopFallback(
-  client: Pick<OpenworkServerClient, "reloadEngine">,
+  client: Pick<HarnessServerClient, "reloadEngine">,
   workspaceId: string,
   options?: ReloadEngineFallbackOptions,
 ): Promise<ReloadEngineFallbackResult> {

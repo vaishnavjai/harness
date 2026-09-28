@@ -1,22 +1,23 @@
 {
-  "name": "openwork-server",
+  "name": "@harness/server",
   "version": "0.0.0-dev",
-  "description": "Filesystem-backed API for OpenWork remote clients",
+  "private": true,
+  "description": "Filesystem-backed API for Harness remote clients",
   "type": "module",
   "bin": {
-    "openwork-server": "bin/openwork-server.mjs"
+    "harness-server": "bin/harness-server.mjs"
   },
   "scripts": {
-    "dev": "OPENWORK_DEV_MODE=1 bun --conditions=development src/cli.ts",
+    "dev": "HARNESS_DEV_MODE=1 bun --conditions=development src/cli.ts",
     "test": "bun --conditions=development test",
     "test:coverage": "bun --conditions=development test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage",
     "test:artifacts": "bun --conditions=development test src/artifact-files.e2e.test.ts src/workspace-init.test.ts src/server.normalizeWorkspaceRelativePath.test.ts",
-    "build:enterprise-mcp-client": "pnpm --filter @openwork/enterprise-mcp-client build",
-    "build": "pnpm --filter @openwork/types build && pnpm build:enterprise-mcp-client && tsc -p tsconfig.json && bun build src/opencode-v2-context-bridge.ts --outfile dist/opencode-v2-context-bridge.js --target node --format esm && bun build src/opencode-plugins/managed-policy-next.ts src/opencode-plugins/managed-policy.ts src/opencode-plugins/openwork-chrome-devtools.ts src/opencode-plugins/openwork-extensions-preview.ts src/opencode-plugins/openwork-capabilities-knowledge.ts src/opencode-plugins/openwork-office-attachments.ts src/opencode-plugins/openwork-spreadsheets.ts src/opencode-plugins/openwork-pdf-attachments.ts src/opencode-plugins/openwork-anthropic-adaptive-thinking.ts src/opencode-plugins/openwork-anthropic-tool-schema.ts src/opencode-plugins/openwork-title-recovery.ts src/opencode-plugins/openwork-gateway-quota.ts src/opencode-plugins/openwork-gateway-quota-v2.ts src/opencode-plugins/openwork-provider-filters-v2.ts src/opencode-plugins/openwork-context-v2.ts --root src/opencode-plugins --outdir dist/opencode-plugins --target node --format esm && node scripts/copy-pdfium-wasm.mjs dist/opencode-plugins",
-    "build:bin": "pnpm --filter @openwork/types build && pnpm build:enterprise-mcp-client && bun build --compile src/cli.ts --outfile dist/bin/openwork-server",
-    "build:bin:all": "pnpm --filter @openwork/types build && pnpm build:enterprise-mcp-client && bun ./script/build.ts --outdir dist/bin --target bun-darwin-arm64 --target bun-darwin-x64 --target bun-linux-x64 --target bun-linux-arm64 --target bun-windows-x64 --target bun-windows-arm64",
-    "build:web-ui": "pnpm --filter @openwork/app build:selfhost",
-    "build:npm-bundle": "pnpm --filter @openwork/types build && pnpm build:enterprise-mcp-client && bun build src/cli.ts --target node --format esm --external bun:sqlite --external drizzle-orm/bun-sqlite --external jsonc-parser --outfile dist/npm-bundle/openwork-server.mjs",
+    "build:enterprise-mcp-client": "pnpm --filter @harness/enterprise-mcp-client build",
+    "build": "pnpm --filter @harness/types build && pnpm build:enterprise-mcp-client && tsc -p tsconfig.json && bun build src/opencode-v2-context-bridge.ts --outfile dist/opencode-v2-context-bridge.js --target node --format esm && bun build src/opencode-plugins/managed-policy-next.ts src/opencode-plugins/managed-policy.ts src/opencode-plugins/harness-chrome-devtools.ts src/opencode-plugins/harness-extensions-preview.ts src/opencode-plugins/harness-capabilities-knowledge.ts src/opencode-plugins/harness-office-attachments.ts src/opencode-plugins/harness-spreadsheets.ts src/opencode-plugins/harness-pdf-attachments.ts src/opencode-plugins/harness-anthropic-adaptive-thinking.ts src/opencode-plugins/harness-anthropic-tool-schema.ts src/opencode-plugins/harness-title-recovery.ts src/opencode-plugins/harness-gateway-quota.ts src/opencode-plugins/harness-gateway-quota-v2.ts src/opencode-plugins/harness-provider-filters-v2.ts src/opencode-plugins/harness-context-v2.ts --root src/opencode-plugins --outdir dist/opencode-plugins --target node --format esm && node scripts/copy-pdfium-wasm.mjs dist/opencode-plugins",
+    "build:bin": "pnpm --filter @harness/types build && pnpm build:enterprise-mcp-client && bun build --compile src/cli.ts --outfile dist/bin/harness-server",
+    "build:bin:all": "pnpm --filter @harness/types build && pnpm build:enterprise-mcp-client && bun ./script/build.ts --outdir dist/bin --target bun-darwin-arm64 --target bun-darwin-x64 --target bun-linux-x64 --target bun-linux-arm64 --target bun-windows-x64 --target bun-windows-arm64",
+    "build:web-ui": "pnpm --filter @harness/app build:selfhost",
+    "build:npm-bundle": "pnpm --filter @harness/types build && pnpm build:enterprise-mcp-client && bun build src/cli.ts --target node --format esm --external bun:sqlite --external drizzle-orm/bun-sqlite --external jsonc-parser --outfile dist/npm-bundle/harness-server.mjs",
     "prepare:npm": "pnpm build && pnpm build:npm-bundle && pnpm build:web-ui && node scripts/publish-npm.mjs --prepare-only",
     "publish:npm": "pnpm build && pnpm build:npm-bundle && pnpm build:web-ui && node scripts/publish-npm.mjs",
     "start": "bun dist/cli.js",
@@ -31,24 +32,21 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/different-ai/openwork.git",
+    "url": "git+https://github.com/vaishnavjai/harness.git",
     "directory": "apps/server"
   },
-  "homepage": "https://github.com/different-ai/openwork/tree/dev/apps/server",
+  "homepage": "https://github.com/vaishnavjai/harness/tree/dev/apps/server",
   "bugs": {
-    "url": "https://github.com/different-ai/openwork/issues"
+    "url": "https://github.com/vaishnavjai/harness/issues"
   },
   "keywords": [
-    "openwork",
+    "harness",
     "server",
     "opencode",
     "headless",
     "cli"
   ],
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "exports": {
     ".": "./src/index.ts"
   },
@@ -57,8 +55,8 @@
     "@modelcontextprotocol/client": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opencode-ai/sdk": "^1.18.15",
-    "@openwork/enterprise-mcp-client": "workspace:*",
-    "@openwork/types": "workspace:*",
+    "@harness/enterprise-mcp-client": "workspace:*",
+    "@harness/types": "workspace:*",
     "better-sqlite3": "^13.0.2",
     "drizzle-orm": "^0.45.2",
     "htmlparser2": "8.0.2",
@@ -70,9 +68,9 @@
   },
   "devDependencies": {
     "@hyzyla/pdfium": "2.1.13",
-    "@openwork/headless-threads": "workspace:*",
-    "@openwork/paths": "workspace:*",
-    "@openwork/workbook": "workspace:*",
+    "@harness/headless-threads": "workspace:*",
+    "@harness/paths": "workspace:*",
+    "@harness/workbook": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
     "@types/minimatch": "^5.1.2",
     "@types/node": "^22.10.2",

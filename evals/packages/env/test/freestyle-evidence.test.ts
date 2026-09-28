@@ -4,7 +4,7 @@ import test from "node:test";
 import { evidenceCdpRelay } from "../src/freestyle-evidence.ts";
 
 test("host CDP relay refuses browser-originated HTTP and WebSocket requests before adding credentials", async () => {
-  await using relay = await evidenceCdpRelay({ cdpOrigin: `https://cdp-${"a".repeat(32)}.preview.openwork.software`, cookie: "__Host-openwork-preview=synthetic" });
+  await using relay = await evidenceCdpRelay({ cdpOrigin: `https://cdp-${"a".repeat(32)}.preview.harness-legacy.invalid`, cookie: "__Host-harness-preview=synthetic" });
   const blockedHeaders: Record<string, string>[] = [{ origin: "https://unrelated.example" }, { "sec-fetch-site": "cross-site" }];
   for (const headers of blockedHeaders) {
     const response = await fetch(`${relay.url}/json/list`, { headers });

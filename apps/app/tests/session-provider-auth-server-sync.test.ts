@@ -5,18 +5,18 @@ import type { ProviderListResponse } from "@opencode-ai/sdk/v2/client";
 import type { CloudImportedProvider } from "../src/app/cloud/import-state";
 import { clearDenSession, DenApiError } from "../src/app/lib/den";
 import { denSessionUpdatedEvent, dispatchDenSessionUpdated } from "../src/app/lib/den-session-events";
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
 import { createClient } from "../src/app/lib/opencode";
 import type { ResolvedWorkspaceEndpoint } from "../src/app/lib/workspace-endpoint";
 import type { ProviderListItem, WorkspaceDisplay } from "../src/app/types";
 import { resolveDenAuthFailureStatus } from "../src/react-app/domains/cloud/den-auth-provider";
-import { createSessionOpenworkServer } from "../src/react-app/domains/connections/provider-auth/session-openwork-server";
+import { createSessionHarnessServer } from "../src/react-app/domains/connections/provider-auth/session-harness-server";
 import { createProviderAuthStore } from "../src/react-app/domains/connections/provider-auth/store";
 
 /**
  * Regression tests for #3671 (org-published LLM providers never reach
  * signed-in desktops): the session route — the app's default surface — used to
- * feed the provider-auth store a fabricated openwork-server snapshot without
+ * feed the provider-auth store a fabricated harness-server snapshot without
  * the `providerSync` capability or host-token auth, so
  * `serverHandlesProviderSync()` was permanently false there. After sign-in
  * the store therefore never PUT the Den session to the local server
@@ -24,7 +24,7 @@ import { createProviderAuthStore } from "../src/react-app/domains/connections/pr
  * import loop against Den.
  *
  * These tests drive the real store through the real session-route snapshot
- * builder (`createSessionOpenworkServer`) and assert the store takes the
+ * builder (`createSessionHarnessServer`) and assert the store takes the
  * server-side path for local endpoints: PUT /den-session with the host token,
  * POST /cloud-provider-sync/run, and zero renderer-side Den provider fetches.
  */
@@ -32,7 +32,7 @@ import { createProviderAuthStore } from "../src/react-app/domains/connections/pr
 const originalWindow = globalThis.window;
 const originalFetch = globalThis.fetch;
 const originalConsoleInfo = console.info;
-const originalDeployment = process.env.VITE_OPENWORK_DEPLOYMENT;
+const originalDeployment = process.env.VITE_HARNESS_DEPLOYMENT;
 
 const LOCAL_SERVER_ORIGIN = "http://127.0.0.1:7899";
 const REMOTE_SERVER_ORIGIN = "https://worker.example";
@@ -89,16 +89,16 @@ function installWindow(): Storage {
       },
       localStorage,
       location: { origin: "https://self-hosted.example" },
-      __OPENWORK_GATEWAY__: undefined,
+      __HARNESS_GATEWAY__: undefined,
     },
   });
   return localStorage;
 }
 
 function installCloudSession(storage: Storage) {
-  storage.setItem("openwork.den.baseUrl", "https://den.example");
-  storage.setItem("openwork.den.authToken", "den-token");
-  storage.setItem("openwork.den.activeOrgId", "org_test");
+  storage.setItem("harness.den.baseUrl", "https://den.example");
+  storage.setItem("harness.den.authToken", "den-token");
+  storage.setItem("harness.den.activeOrgId", "org_test");
 }
 
 function getRequestUrl(input: RequestInfo | URL): string {
@@ -232,7 +232,7 @@ function installFetchMock(
         return options.statusResponse ?? jsonResponse({ hasSession: true, lastRun: null, providers: [] });
       }
       if (url.pathname === "/workspace/ws_1/config" && method === "GET") {
-        return jsonResponse({ opencode: {}, openwork: {} });
+        return jsonResponse({ opencode: {}, harness: {} });
       }
       if (url.pathname === "/workspace/ws_1/config" && method === "PATCH") {
         return jsonResponse({ updatedAt: 1 });
@@ -261,7 +261,7 @@ function installFetchMock(
 }
 
 function makeEndpoint(options: { origin: string; isRemote: boolean; workspaceId?: string }): ResolvedWorkspaceEndpoint {
-  const client = createOpenworkServerClient({ baseUrl: options.origin, token: "client-token" });
+  const client = createHarnessServerClient({ baseUrl: options.origin, token: "client-token" });
   const workspaceId = options.workspaceId ?? "ws_1";
   const mountedBaseUrl = `${options.origin}/workspace/${workspaceId}`;
   return {
@@ -287,7 +287,7 @@ function createSessionRouteStore(options: {
 }) {
   const opencodeClient = createClient("https://engine.example", "/tmp/workspace_test", {
     token: "engine-token",
-    mode: "openwork",
+    mode: "harness",
   });
   const workspace = {
     id: "workspace_test",
@@ -313,7 +313,7 @@ function createSessionRouteStore(options: {
     selectedWorkspaceRoot: () => options.workspaceReady === false ? "" : "/tmp/workspace_test",
     runtimeWorkspaceId: () => options.workspaceReady === false ? null : options.endpoint?.workspaceId ?? "ws_1",
     // The exact snapshot builder the session route mounts.
-    openworkServer: createSessionOpenworkServer({
+    harnessServer: createSessionHarnessServer({
       endpoint: () => options.endpoint,
       hostToken: () => options.hostToken,
       generation: () => options.generation ?? null,
@@ -363,7 +363,7 @@ function logoutProvider(id: string, source: ProviderListItem["source"]): Provide
 
 describe("session-route cloud provider sync wiring", () => {
   beforeEach(() => {
-    process.env.VITE_OPENWORK_DEPLOYMENT = "web";
+    process.env.VITE_HARNESS_DEPLOYMENT = "web";
     console.info = () => undefined;
   });
 
@@ -371,14 +371,14 @@ describe("session-route cloud provider sync wiring", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
     Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
     console.info = originalConsoleInfo;
-    if (originalDeployment === undefined) delete process.env.VITE_OPENWORK_DEPLOYMENT;
-    else process.env.VITE_OPENWORK_DEPLOYMENT = originalDeployment;
+    if (originalDeployment === undefined) delete process.env.VITE_HARNESS_DEPLOYMENT;
+    else process.env.VITE_HARNESS_DEPLOYMENT = originalDeployment;
   });
 
   test("successful first-org sync defers automatic default repair while an explicit gateway selection is pending", async () => {
     const storage = installWindow();
     installCloudSession(storage);
-    storage.setItem("openwork.defaultModel", "opencode/old-default");
+    storage.setItem("harness.defaultModel", "opencode/old-default");
     const provider = logoutProvider("ipr_first_org", "api");
     const base = provider.models["fixture-model"]!;
     const first = "gwm_00000000000000000000000001_00000000000000000000000002_00000000000000000000000003";
@@ -392,10 +392,10 @@ describe("session-route cloud provider sync wiring", () => {
     try {
       await store.runCloudProviderSync("manual");
       expect(store.getProviderState().connected).toContain(provider.id);
-      expect(storage.getItem("openwork.defaultModel")).toBe("opencode/old-default");
+      expect(storage.getItem("harness.defaultModel")).toBe("opencode/old-default");
       release();
       await store.runCloudProviderSync("manual");
-      expect(storage.getItem("openwork.defaultModel")).toBe(`${provider.id}/${first}`);
+      expect(storage.getItem("harness.defaultModel")).toBe(`${provider.id}/${first}`);
     } finally { release(); store.dispose(); }
   });
 
@@ -477,7 +477,7 @@ describe("session-route cloud provider sync wiring", () => {
       const managedId = serverOwned ? "ipr_test" : "team-provider";
       const defaultId = scenario.default === "cloud" ? managedId : scenario.default;
       const savedDefault = `${defaultId}/fixture-model`;
-      storage.setItem("openwork.defaultModel", savedDefault);
+      storage.setItem("harness.defaultModel", savedDefault);
       const personalProviders = [
         logoutProvider("anthropic", "api"),
         logoutProvider("env-provider", "env"),
@@ -528,18 +528,18 @@ describe("session-route cloud provider sync wiring", () => {
           if (path === "/workspace/ws_1/config" && request.method === "GET") {
             return jsonResponse({
               opencode: { provider: Object.fromEntries(runtimeProviders) },
-              openwork: { cloudImports: { providers: imports } },
+              harness: { cloudImports: { providers: imports } },
             });
           }
           if (path === "/workspace/ws_1/config" && request.method === "PATCH") {
             const patch: {
               opencode?: { provider?: Record<string, unknown> };
-              openwork?: { cloudImports?: { providers: Record<string, CloudImportedProvider> } };
+              harness?: { cloudImports?: { providers: Record<string, CloudImportedProvider> } };
             } = JSON.parse(request.body ?? "{}");
             for (const [id, value] of Object.entries(patch.opencode?.provider ?? {})) {
               if (value === null) runtimeProviders.delete(id);
             }
-            if (patch.openwork?.cloudImports) imports = patch.openwork.cloudImports.providers;
+            if (patch.harness?.cloudImports) imports = patch.harness.cloudImports.providers;
             return jsonResponse({ updatedAt: 1 });
           }
         },
@@ -562,8 +562,8 @@ describe("session-route cloud provider sync wiring", () => {
           const status = resolveDenAuthFailureStatus(new DenApiError(401, "session_expired", "Session expired"));
           expect(status).toBe("signed_out");
           if (status === "signed_out") {
-            storage.removeItem("openwork.den.authToken");
-            storage.removeItem("openwork.den.activeOrgId");
+            storage.removeItem("harness.den.authToken");
+            storage.removeItem("harness.den.activeOrgId");
             dispatchDenSessionUpdated({ status, message: "Session expired" });
           }
         }
@@ -577,16 +577,16 @@ describe("session-route cloud provider sync wiring", () => {
         expect([...runtimeProviders.values()]).toEqual(personalProviders);
         expect(store.getProviderState()).toEqual(providerList());
         expect(store.getSnapshot().cloudProviderServerSync).toBeNull();
-        expect(storage.getItem("openwork.den.authToken")).toBeNull();
-        expect(storage.getItem("openwork.den.activeOrgId")).toBeNull();
-        if (scenario.default === "cloud") expect(storage.getItem("openwork.defaultModel")).not.toBe(savedDefault);
-        else expect(storage.getItem("openwork.defaultModel")).toBe(savedDefault);
+        expect(storage.getItem("harness.den.authToken")).toBeNull();
+        expect(storage.getItem("harness.den.activeOrgId")).toBeNull();
+        if (scenario.default === "cloud") expect(storage.getItem("harness.defaultModel")).not.toBe(savedDefault);
+        else expect(storage.getItem("harness.defaultModel")).toBe(savedDefault);
         const authDeletes = requests.filter((request) => request.method === "DELETE" && new URL(request.url).pathname.startsWith("/auth/"));
         expect(authDeletes.map((request) => new URL(request.url).pathname)).toEqual(serverOwned ? [] : [`/auth/${managedId}`]);
         expect(requests.filter((request) => request.method !== "GET" && new URL(request.url).pathname.startsWith("/env"))).toHaveLength(0);
         if (serverOwned) {
           expect(requests.filter((request) => request.method !== "GET")).toEqual([
-            expect.objectContaining({ method: "DELETE", url: `${LOCAL_SERVER_ORIGIN}/den-session`, headers: expect.objectContaining({ "x-openwork-host-token": "host-token-live" }) }),
+            expect.objectContaining({ method: "DELETE", url: `${LOCAL_SERVER_ORIGIN}/den-session`, headers: expect.objectContaining({ "x-harness-host-token": "host-token-live" }) }),
           ]);
         }
       } finally {
@@ -598,12 +598,12 @@ describe("session-route cloud provider sync wiring", () => {
 
   test("signed-out startup delegates persisted cleanup to the server without sweeping personal provider prefixes", async () => {
     const storage = installWindow();
-    storage.setItem("openwork.defaultModel", "lpr_manual/fixture-model");
+    storage.setItem("harness.defaultModel", "lpr_manual/fixture-model");
     const requests: RecordedRequest[] = [];
     const personal = logoutProvider("lpr_manual", "config");
     installFetchMock(requests, {
       respond: (request) => new URL(request.url).pathname === "/workspace/ws_1/config"
-        ? jsonResponse({ opencode: { provider: { lpr_manual: personal } }, openwork: {} })
+        ? jsonResponse({ opencode: { provider: { lpr_manual: personal } }, harness: {} })
         : undefined,
     });
     const store = createSessionRouteStore({
@@ -617,7 +617,7 @@ describe("session-route cloud provider sync wiring", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(requests.filter((request) => request.method !== "GET").map((request) => new URL(request.url).pathname)).toEqual(["/den-session"]);
       expect(store.getProviderState().all).toEqual([personal]);
-      expect(storage.getItem("openwork.defaultModel")).toBe("lpr_manual/fixture-model");
+      expect(storage.getItem("harness.defaultModel")).toBe("lpr_manual/fixture-model");
     } finally {
       store.dispose();
     }
@@ -627,18 +627,18 @@ describe("session-route cloud provider sync wiring", () => {
     test(`a delayed hostless startup import read after logout handles ${transition} without touching personal providers`, async () => {
       const storage = installWindow();
       installCloudSession(storage);
-      storage.setItem("openwork.defaultModel", "anthropic/fixture-model");
+      storage.setItem("harness.defaultModel", "anthropic/fixture-model");
       const requests: RecordedRequest[] = [];
       const delayed = deferredResponse();
       const cleanupRead = deferredResponse();
       let cleanupReadStarted = false;
       const personal = logoutProvider("anthropic", "api");
-      const managed = logoutProvider("openwork", "config");
+      const managed = logoutProvider("harness", "config");
       const runtimeProviders = new Map([[personal.id, personal], [managed.id, managed]]);
       const auth = new Map([[personal.id, "personal-fixture-key"], [managed.id, "old-cloud-fixture-key"]]);
       const imported: CloudImportedProvider = {
-        cloudProviderId: "lpr_delayed", providerId: managed.id, sourceProviderId: "openwork",
-        name: "Cloud provider", source: "openwork", updatedAt: null, importedAt: 1, modelIds: ["fixture-model"],
+        cloudProviderId: "lpr_delayed", providerId: managed.id, sourceProviderId: "harness",
+        name: "Cloud provider", source: "harness", updatedAt: null, importedAt: 1, modelIds: ["fixture-model"],
       };
       let imports: Record<string, CloudImportedProvider> = { [imported.cloudProviderId]: imported };
       let configReads = 0;
@@ -655,18 +655,18 @@ describe("session-route cloud provider sync wiring", () => {
               }
               return jsonResponse({
                 opencode: { provider: Object.fromEntries(runtimeProviders) },
-                openwork: { cloudImports: { providers: imports } },
+                harness: { cloudImports: { providers: imports } },
               });
             }
             if (request.method === "PATCH") {
               const patch: {
                 opencode?: { provider?: Record<string, unknown> };
-                openwork?: { cloudImports?: { providers: Record<string, CloudImportedProvider> } };
+                harness?: { cloudImports?: { providers: Record<string, CloudImportedProvider> } };
               } = JSON.parse(request.body ?? "{}");
               for (const [id, value] of Object.entries(patch.opencode?.provider ?? {})) {
                 if (value === null) runtimeProviders.delete(id);
               }
-              if (patch.openwork?.cloudImports) imports = patch.openwork.cloudImports.providers;
+              if (patch.harness?.cloudImports) imports = patch.harness.cloudImports.providers;
               return jsonResponse({ updatedAt: 1 });
             }
           }
@@ -701,15 +701,15 @@ describe("session-route cloud provider sync wiring", () => {
         const switchContext = async () => {
           if (transition === "new sign-in") {
             installCloudSession(storage);
-            storage.setItem("openwork.den.authToken", "new-den-token");
-            storage.setItem("openwork.den.activeOrgId", "org_replacement");
+            storage.setItem("harness.den.authToken", "new-den-token");
+            storage.setItem("harness.den.activeOrgId", "org_replacement");
           } else {
             options.endpoint = makeEndpoint({ origin: REMOTE_SERVER_ORIGIN, isRemote: true, workspaceId: "ws_2" });
           }
           imports = { lpr_current: { ...imported, cloudProviderId: "lpr_current", importedAt: 2 } };
           auth.set(managed.id, "current-cloud-fixture-key");
           runtimeProviders.set(managed.id, managed);
-          storage.setItem("openwork.defaultModel", "openwork/fixture-model");
+          storage.setItem("harness.defaultModel", "harness/fixture-model");
           await store.refreshImportedCloudProviders();
         };
         if (transition !== "stay signed out" && transition !== "workspace switch during cleanup") await switchContext();
@@ -718,7 +718,7 @@ describe("session-route cloud provider sync wiring", () => {
           auth.set("lpr_untracked", "untracked-personal-fixture-key");
         }
         let writesBeforeRelease = requests.filter((request) => request.method !== "GET").length;
-        const staleConfig = { openwork: { cloudImports: { providers: { [imported.cloudProviderId]: imported } } } };
+        const staleConfig = { harness: { cloudImports: { providers: { [imported.cloudProviderId]: imported } } } };
         delayed.resolve(jsonResponse(staleConfig));
         if (transition === "workspace switch during cleanup") {
           await waitFor(() => cleanupReadStarted);
@@ -739,20 +739,20 @@ describe("session-route cloud provider sync wiring", () => {
           expect(imports).toEqual({});
           expect(store.getSnapshot().importedCloudProviders).toEqual({});
           expect(store.getProviderState()).toEqual({ all: [personal], connected: [personal.id], default: { [personal.id]: "fixture-model" } });
-          expect(storage.getItem("openwork.defaultModel")).toBe("anthropic/fixture-model");
-          expect(requests.filter((request) => request.method === "DELETE").map((request) => new URL(request.url).pathname)).toEqual(["/auth/openwork"]);
+          expect(storage.getItem("harness.defaultModel")).toBe("anthropic/fixture-model");
+          expect(requests.filter((request) => request.method === "DELETE").map((request) => new URL(request.url).pathname)).toEqual(["/auth/harness"]);
         } else {
           expect(auth.get(managed.id)).toBe("current-cloud-fixture-key");
           expect(runtimeProviders.get(managed.id)).toEqual(managed);
           expect(Object.keys(store.getSnapshot().importedCloudProviders)).toEqual(["lpr_current"]);
-          expect(storage.getItem("openwork.defaultModel")).toBe("openwork/fixture-model");
+          expect(storage.getItem("harness.defaultModel")).toBe("harness/fixture-model");
           expect(requests.filter((request) => request.method !== "GET")).toHaveLength(writesBeforeRelease);
         }
       } finally {
         unsubscribe();
         store.dispose();
-        delayed.resolve(jsonResponse({ openwork: {} }));
-        cleanupRead.resolve(jsonResponse({ openwork: {} }));
+        delayed.resolve(jsonResponse({ harness: {} }));
+        cleanupRead.resolve(jsonResponse({ harness: {} }));
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     });
@@ -821,7 +821,7 @@ describe("session-route cloud provider sync wiring", () => {
           expect(sessionPuts(requests)).toHaveLength(0);
           expect(identityPuts(requests)[0]).toMatchObject({
             url: `${LOCAL_SERVER_ORIGIN}/den-session/identity`,
-            headers: { "x-openwork-host-token": "host-token-live" },
+            headers: { "x-harness-host-token": "host-token-live" },
             body: JSON.stringify({ baseUrl: "https://den.example/api/den", token: "den-token", orgId: "org_test" }),
           });
           expect(syncRuns(requests)).toHaveLength(0);
@@ -872,7 +872,7 @@ describe("session-route cloud provider sync wiring", () => {
         expect(sessionPuts(requests).length).toBeGreaterThan(0);
         expect(sessionPuts(requests)[0]).toMatchObject({
           url: `${LOCAL_SERVER_ORIGIN}/den-session`,
-          headers: { "x-openwork-host-token": "host-token-live" },
+          headers: { "x-harness-host-token": "host-token-live" },
         });
         expect(requests.indexOf(sessionPuts(requests)[0]!)).toBeLessThan(requests.indexOf(syncRuns(requests)[0]!));
       } finally {
@@ -883,7 +883,7 @@ describe("session-route cloud provider sync wiring", () => {
     for (const target of ["remote", "hostless", "non-loopback", "gateway"]) {
       test(`${trigger} never delivers desktop credentials to ${target} with a null engine client`, async () => {
         const storage = installWindow();
-        if (target === "gateway") window.__OPENWORK_GATEWAY__ = { version: 1 };
+        if (target === "gateway") window.__HARNESS_GATEWAY__ = { version: 1 };
         const requests: RecordedRequest[] = [];
         installFetchMock(requests);
         let providerStateWrites = 0;
@@ -914,7 +914,7 @@ describe("session-route cloud provider sync wiring", () => {
           expect(requests.filter((request) => request.method !== "GET")).toHaveLength(0);
           expect(providerStateWrites).toBe(0);
           if (target !== "gateway") {
-            expect(requests.every((request) => !request.headers["x-openwork-host-token"])).toBe(true);
+            expect(requests.every((request) => !request.headers["x-harness-host-token"])).toBe(true);
           }
         } finally {
           store.dispose();
@@ -1003,7 +1003,7 @@ describe("session-route cloud provider sync wiring", () => {
         options.engineReady = false;
         if (cancel === "dispose") store.dispose();
         else {
-          if (cancel === "org") storage.setItem("openwork.den.activeOrgId", "org_replacement");
+          if (cancel === "org") storage.setItem("harness.den.activeOrgId", "org_replacement");
           else options.generation = 2;
           store.syncFromOptions();
         }
@@ -1044,7 +1044,7 @@ describe("session-route cloud provider sync wiring", () => {
     );
     expect(sessionPuts).toHaveLength(2);
     expect(new URL(sessionPuts[0]?.url ?? "").origin).toBe(LOCAL_SERVER_ORIGIN);
-    expect(sessionPuts[0]?.headers["x-openwork-host-token"]).toBe("host-token-live");
+    expect(sessionPuts[0]?.headers["x-harness-host-token"]).toBe("host-token-live");
     expect(sessionPuts[0]?.body).toBe(JSON.stringify({
       baseUrl: "https://den.example/api/den",
       token: "den-token",
@@ -1055,7 +1055,7 @@ describe("session-route cloud provider sync wiring", () => {
       (request) => request.method === "POST" && new URL(request.url).pathname === "/cloud-provider-sync/run",
     );
     expect(runPosts).toHaveLength(2);
-    expect(runPosts.every((request) => request.headers["x-openwork-host-token"] === "host-token-live")).toBe(true);
+    expect(runPosts.every((request) => request.headers["x-harness-host-token"] === "host-token-live")).toBe(true);
 
     // Server-side sync means the renderer never fetches Den providers itself.
     expect(requests.filter((request) => request.url.includes("/v1/llm-providers"))).toHaveLength(0);
@@ -1064,7 +1064,7 @@ describe("session-route cloud provider sync wiring", () => {
   test("falls back to the persisted host token for loopback servers when live host info is absent", async () => {
     const storage = installWindow();
     installCloudSession(storage);
-    storage.setItem("openwork.server.hostToken", "host-token-stored");
+    storage.setItem("harness.server.hostToken", "host-token-stored");
     const requests: RecordedRequest[] = [];
     installFetchMock(requests, { runStatuses: [{ status: "no_session" }, { status: "noop" }] });
     const store = createSessionRouteStore({
@@ -1078,7 +1078,7 @@ describe("session-route cloud provider sync wiring", () => {
       (request) => request.method === "PUT" && new URL(request.url).pathname === "/den-session",
     );
     expect(sessionPuts).toHaveLength(2);
-    expect(sessionPuts[0]?.headers["x-openwork-host-token"]).toBe("host-token-stored");
+    expect(sessionPuts[0]?.headers["x-harness-host-token"]).toBe("host-token-stored");
   });
 
   test("the same store redelivers once when only the local runtime generation changes", async () => {
@@ -1160,7 +1160,7 @@ describe("session-route cloud provider sync wiring", () => {
     });
     try {
       await store.runCloudProviderSync("manual");
-      storage.setItem("openwork.den.authToken", "refreshed-den-token");
+      storage.setItem("harness.den.authToken", "refreshed-den-token");
       store.syncFromOptions();
       expect(await store.runCloudProviderSync("settings_cloud_opened")).toBeUndefined();
       expect(sessionPuts(requests)).toHaveLength(4);
@@ -1226,7 +1226,7 @@ describe("session-route cloud provider sync wiring", () => {
         expect(syncRuns(requests)).toHaveLength(0);
         if (cancel === "remote") await store.runCloudProviderSync("manual");
         expect(requests.filter((request) => new URL(request.url).origin === REMOTE_SERVER_ORIGIN).every((request) =>
-          !request.headers["x-openwork-host-token"] && !request.body?.includes("den-token"),
+          !request.headers["x-harness-host-token"] && !request.body?.includes("den-token"),
         )).toBe(true);
       } finally {
         store.dispose();
@@ -1406,18 +1406,18 @@ describe("session-route cloud provider sync wiring", () => {
     test(`a local workspace override at ${origin} stays hostless`, async () => {
       const storage = installWindow();
       installCloudSession(storage);
-      storage.setItem("openwork.server.hostToken", "host-token-stored");
+      storage.setItem("harness.server.hostToken", "host-token-stored");
       const requests: RecordedRequest[] = [];
       installFetchMock(requests);
       const endpoint = makeEndpoint({ origin, isRemote: false });
-      const adapter = createSessionOpenworkServer({
+      const adapter = createSessionHarnessServer({
         endpoint: () => endpoint,
         hostToken: () => "host-token-live",
         generation: () => 2,
       });
-      expect(adapter.getSnapshot().openworkServerCapabilities?.providerSync).not.toBe(true);
-      expect(adapter.getSnapshot().openworkServerAuth?.hostToken).toBeUndefined();
-      expect(adapter.getSnapshot().openworkServerClient).toBe(endpoint.client);
+      expect(adapter.getSnapshot().harnessServerCapabilities?.providerSync).not.toBe(true);
+      expect(adapter.getSnapshot().harnessServerAuth?.hostToken).toBeUndefined();
+      expect(adapter.getSnapshot().harnessServerClient).toBe(endpoint.client);
       const store = createSessionRouteStore({ endpoint, hostToken: "host-token-live", generation: 2 });
       try {
         await store.runCloudProviderSync("sign_in");
@@ -1426,7 +1426,7 @@ describe("session-route cloud provider sync wiring", () => {
         const overrideRequests = requests.filter((request) => new URL(request.url).origin === origin);
         expect(overrideRequests.length).toBeGreaterThan(0);
         expect(overrideRequests.every((request) =>
-          !request.headers["x-openwork-host-token"] && !request.body?.includes("den-token"),
+          !request.headers["x-harness-host-token"] && !request.body?.includes("den-token"),
         )).toBe(true);
         // Config-only reconciliation still works with the endpoint's own token.
         expect(overrideRequests.every((request) => request.headers.authorization === "Bearer client-token")).toBe(true);
@@ -1440,7 +1440,7 @@ describe("session-route cloud provider sync wiring", () => {
     const storage = installWindow();
     installCloudSession(storage);
     // Even a (stale) persisted local host token must not leak to a remote worker.
-    storage.setItem("openwork.server.hostToken", "host-token-stored");
+    storage.setItem("harness.server.hostToken", "host-token-stored");
     const requests: RecordedRequest[] = [];
     installFetchMock(requests);
     const store = createSessionRouteStore({

@@ -34,7 +34,7 @@ const granolaConnection: DenExternalMcpConnection = {
 describe("connector tool identity", () => {
   test("uses only trusted inventory for probe identity even with a valid payload", () => {
     const part: DynamicToolUIPart = {
-      ...completedPart("openwork-cloud_execute_capability", { name: "mcp:emc_granola:*" }),
+      ...completedPart("harness-cloud_execute_capability", { name: "mcp:emc_granola:*" }),
       state: "output-available",
       output: { connectionStatus: {
         schemaVersion: "1",
@@ -63,7 +63,7 @@ describe("connector tool identity", () => {
   test("recognizes native connector capabilities with a first-class local brand icon", () => {
     const identities = buildConnectorToolIdentities({ mcpServers: [], orgConnections: [] });
     const identity = resolveConnectorToolIdentity(
-      completedPart("openwork-cloud_execute_capability", {
+      completedPart("harness-cloud_execute_capability", {
         name: "getCapabilitiesGoogleWorkspaceCalendarEvents",
       }),
       identities,
@@ -79,7 +79,7 @@ describe("connector tool identity", () => {
       orgConnections: [granolaConnection],
     });
     const identity = resolveConnectorToolIdentity(
-      completedPart("openwork-cloud_execute_capability", {
+      completedPart("harness-cloud_execute_capability", {
         name: "mcp:emc_granola:ask_about_meetings",
       }),
       identities,

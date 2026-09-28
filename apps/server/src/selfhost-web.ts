@@ -1,7 +1,7 @@
 /**
- * `openwork-server web`: run the OpenWork web UI and API from one process on
+ * `harness-server web`: run the Harness web UI and API from one process on
  * one origin, with a server-managed OpenCode engine. This is the self-host
- * path (`npm i -g openwork-server && openwork-server web`).
+ * path (`harness-server web`, installed from a checkout; see README.md).
  */
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -9,10 +9,10 @@ import { randomBytes } from "node:crypto";
 import { chmod, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
-import { openworkServerDataDir } from "@openwork/paths";
+import { harnessServerDataDir } from "@harness/paths";
 
 export const OPENCODE_GITHUB_REPO = "anomalyco/opencode";
-const NPM_PACKAGE = "openwork-server";
+const NPM_PACKAGE = "harness-server";
 const UPDATE_CHECK_TIMEOUT_MS = 3_000;
 
 export type SelfhostLogger = (message: string) => void;
@@ -26,15 +26,15 @@ async function isDirectory(path: string): Promise<boolean> {
 }
 
 /**
- * Where the published package lives. The npm launcher (bin/openwork-server.mjs)
+ * Where the published package lives. The npm launcher (bin/harness-server.mjs)
  * passes it explicitly; a compiled binary run directly sits at
- * <root>/dist/bin/openwork-server; in a source checkout there is no package.
+ * <root>/dist/bin/harness-server; in a source checkout there is no package.
  */
 export async function resolvePackageRoot(input: {
   env: NodeJS.ProcessEnv;
   execPath: string;
 }): Promise<string | null> {
-  const explicit = input.env.OPENWORK_PACKAGE_ROOT?.trim();
+  const explicit = input.env.HARNESS_PACKAGE_ROOT?.trim();
   if (explicit && await isDirectory(explicit)) return resolve(explicit);
   const fromBinary = resolve(dirname(input.execPath), "..", "..");
   if (await isFile(join(fromBinary, "package.json")) && await isDirectory(join(fromBinary, "web"))) {
@@ -50,7 +50,7 @@ export async function resolveWebRoot(input: {
   sourceDir: string;
 }): Promise<string | null> {
   const candidates = [
-    input.env.OPENWORK_WEB_ROOT?.trim(),
+    input.env.HARNESS_WEB_ROOT?.trim(),
     input.packageRoot ? join(input.packageRoot, "web") : undefined,
     resolve(input.sourceDir, "..", "..", "app", "dist"),
   ];
@@ -64,7 +64,7 @@ export async function resolveWebRoot(input: {
 export async function resolveBundledPluginDir(packageRoot: string | null): Promise<string | null> {
   if (!packageRoot) return null;
   const dir = join(packageRoot, "dist", "opencode-plugins");
-  return await isFile(join(dir, "openwork-extensions-preview.js")) ? dir : null;
+  return await isFile(join(dir, "harness-extensions-preview.js")) ? dir : null;
 }
 
 export function opencodeReleaseAsset(platform: NodeJS.Platform, arch: string): string | null {
@@ -139,7 +139,7 @@ function extractArchive(archive: string, asset: string, destination: string): vo
 
 /**
  * Make sure the pinned OpenCode version is installed under the data dir and
- * return its path. An explicit OPENWORK_OPENCODE_BIN always wins (bring your
+ * return its path. An explicit HARNESS_OPENCODE_BIN always wins (bring your
  * own engine); otherwise the version the server was released with is
  * downloaded once and reused.
  */
@@ -151,12 +151,12 @@ export async function ensureManagedEngine(input: {
   platform?: NodeJS.Platform;
   arch?: string;
 }): Promise<{ bin: string; installedVersion: string | null; source: "env" | "installed" | "downloaded" }> {
-  const explicit = input.env.OPENWORK_OPENCODE_BIN?.trim();
+  const explicit = input.env.HARNESS_OPENCODE_BIN?.trim();
   if (explicit) {
     return { bin: explicit, installedVersion: readBinaryVersion(explicit), source: "env" };
   }
   const version = input.expectedVersion.replace(/^v/, "");
-  const dataDir = input.dataDir ?? openworkServerDataDir({ env: input.env });
+  const dataDir = input.dataDir ?? harnessServerDataDir({ env: input.env });
   const installDir = engineInstallDir(dataDir, version);
   const binaryName = (input.platform ?? process.platform) === "win32" ? "opencode.exe" : "opencode";
   const bin = join(installDir, binaryName);
@@ -171,13 +171,13 @@ export async function ensureManagedEngine(input: {
   const arch = input.arch ?? process.arch;
   const asset = opencodeReleaseAsset(platform, arch);
   if (!asset) {
-    throw new Error(`No OpenCode release asset for ${platform}-${arch}. Install OpenCode yourself and set OPENWORK_OPENCODE_BIN.`);
+    throw new Error(`No OpenCode release asset for ${platform}-${arch}. Install OpenCode yourself and set HARNESS_OPENCODE_BIN.`);
   }
-  const repo = input.env.OPENWORK_OPENCODE_GITHUB_REPO?.trim() || OPENCODE_GITHUB_REPO;
-  const url = input.env.OPENWORK_OPENCODE_DOWNLOAD_URL?.trim() || opencodeReleaseUrl(version, asset, repo);
+  const repo = input.env.HARNESS_OPENCODE_GITHUB_REPO?.trim() || OPENCODE_GITHUB_REPO;
+  const url = input.env.HARNESS_OPENCODE_DOWNLOAD_URL?.trim() || opencodeReleaseUrl(version, asset, repo);
   input.log(`Downloading OpenCode ${version} (${asset}) from ${url}`);
 
-  const stagingDir = join(tmpdir(), `openwork-engine-${randomBytes(6).toString("hex")}`);
+  const stagingDir = join(tmpdir(), `harness-engine-${randomBytes(6).toString("hex")}`);
   await mkdir(stagingDir, { recursive: true });
   try {
     const response = await fetch(url, { redirect: "follow" });
@@ -226,7 +226,7 @@ export async function loadOrCreateWebTokens(input: {
   env: NodeJS.ProcessEnv;
   dataDir?: string;
 }): Promise<PersistedTokens & { path: string; created: boolean }> {
-  const dataDir = input.dataDir ?? openworkServerDataDir({ env: input.env });
+  const dataDir = input.dataDir ?? harnessServerDataDir({ env: input.env });
   const path = join(dataDir, "web-tokens.json");
   try {
     const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
@@ -266,7 +266,7 @@ export async function checkForUpdate(input: {
   env: NodeJS.ProcessEnv;
   fetchImpl?: FetchLike;
 }): Promise<string | null> {
-  if (input.env.OPENWORK_NO_UPDATE_CHECK === "1" || !isReleaseVersion(input.currentVersion)) return null;
+  if (input.env.HARNESS_NO_UPDATE_CHECK === "1" || !isReleaseVersion(input.currentVersion)) return null;
   try {
     const response = await (input.fetchImpl ?? fetch)(`https://registry.npmjs.org/${NPM_PACKAGE}/latest`, {
       signal: AbortSignal.timeout(UPDATE_CHECK_TIMEOUT_MS),
@@ -283,7 +283,7 @@ export async function checkForUpdate(input: {
 }
 
 export function updateHint(latest: string): string {
-  return `Update available: openwork-server ${latest}. Run: npm i -g ${NPM_PACKAGE}@latest`;
+  return `Update available: harness-server ${latest}. Run: npm i -g ${NPM_PACKAGE}@latest`;
 }
 
 /** Open a URL in the default browser without blocking; failures are ignored. */

@@ -1,4 +1,4 @@
-import { desktopBootstrapPath } from "@openwork/paths";
+import { desktopBootstrapPath } from "@harness/paths";
 
 import { readJsoncFile } from "./jsonc.js";
 

@@ -6,7 +6,7 @@ import type { GatewayModelSelectionHandle } from "../src/react-app/domains/conne
 import { markDisabledModelOptions } from "../src/react-app/domains/connections/provider-auth/assigned-model-options";
 import { captureFavoriteModelTarget, isFavoriteModelTargetCurrent } from "../src/react-app/shell/favorite-model-shortcut";
 import type { WorkbenchSnapshot } from "../src/react-app/domains/session/chat/workbench-store";
-import type { GatewayUsableModel } from "@openwork/types/den/gateway";
+import type { GatewayUsableModel } from "@harness/types/den/gateway";
 import type { ModelOption, ModelRef } from "../src/app/types";
 import { connectGatewayProvider, isGatewayModelReady, pendingGatewayModelOptions, resolveGatewayConnectProviders, type GatewayConnectProvider } from "../src/react-app/domains/connections/provider-auth/cloud-provider-config";
 import { denSessionUpdatedEvent, denSettingsChangedEvent } from "../src/app/lib/den-session-events";
@@ -229,7 +229,7 @@ test("exact alias readiness rejects a different set, deferred reload, pending sk
     gatewayUsageProviderScope: 1,
     importedCloudProviders: { [provider.cloudProviderId]: {
       cloudProviderId: provider.cloudProviderId, providerId: provider.providerId, sourceProviderId: "google-vertex",
-      name: "Assigned", source: "openwork_gateway", modelIds: [model.modelID], updatedAt: null, importedAt: 1,
+      name: "Assigned", source: "harness_gateway", modelIds: [model.modelID], updatedAt: null, importedAt: 1,
     } },
     cloudProviderServerSync: { reloadPending: false, skippedProviders: {} },
   };

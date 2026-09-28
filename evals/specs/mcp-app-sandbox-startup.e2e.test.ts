@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 import { acquireHostedSandboxResources, sandboxStartupFixture, type StartupLoad } from "../worlds/mcp-app-sandbox-startup";
 
 function expectExactlyOneDeliveryPerTile(load: StartupLoad) {
@@ -89,7 +89,7 @@ test("sandbox component integration: HTML timeout Retry recovers only the failed
   }
 });
 
-const hostedEndpoints = process.env.OPENWORK_SANDBOX_DEMO_ENDPOINTS;
+const hostedEndpoints = process.env.HARNESS_SANDBOX_DEMO_ENDPOINTS;
 if (hostedEndpoints) {
   test("sandbox component integration: opt-in hosted demo matrix with anonymous readiness traces", async ({ evidence }) => {
     const resources = await acquireHostedSandboxResources(hostedEndpoints);

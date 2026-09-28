@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { MCP_QUICK_CONNECT } from "../src/app/constants";
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
-import { createOpenworkServerStore } from "../src/react-app/domains/connections/openwork-server-store";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
+import { createHarnessServerStore } from "../src/react-app/domains/connections/harness-server-store";
 import type { McpDirectoryInfo } from "../src/app/constants";
 import { submitMcpEntry } from "../src/react-app/domains/connections/modals/add-mcp-submission";
-import type { OpenworkServerStore } from "../src/react-app/domains/connections/openwork-server-store";
+import type { HarnessServerStore } from "../src/react-app/domains/connections/harness-server-store";
 import { createConnectionsStore } from "../src/react-app/domains/connections/store";
 
 const originalWindow = globalThis.window;
@@ -13,7 +13,7 @@ const originalWindow = globalThis.window;
 function installDesktopWindow() {
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { __OPENWORK_ELECTRON__: {} },
+    value: { __HARNESS_ELECTRON__: {} },
   });
 }
 
@@ -29,29 +29,29 @@ describe("local MCP server recovery", () => {
     installDesktopWindow();
     let recoveryAttempts = 0;
     const stalledRecovery = new Promise<never>(() => undefined);
-    const openworkServer = {
+    const harnessServer = {
       getSnapshot: () => ({
-        openworkServerStatus: "disconnected",
-        openworkServerClient: null,
-        openworkServerCapabilities: null,
+        harnessServerStatus: "disconnected",
+        harnessServerClient: null,
+        harnessServerCapabilities: null,
       }),
-      ensureLocalOpenworkServerClient: () => {
+      ensureLocalHarnessServerClient: () => {
         recoveryAttempts += 1;
         return stalledRecovery;
       },
-    } as unknown as OpenworkServerStore;
+    } as unknown as HarnessServerStore;
     const store = createConnectionsStore({
       checkDesktopAppRestriction: () => false,
       client: () => null,
       setClient: () => undefined,
-      projectDir: () => "/tmp/openwork-mcp-recovery",
+      projectDir: () => "/tmp/harness-mcp-recovery",
       selectedWorkspaceId: () => "workspace_local",
-      selectedWorkspaceRoot: () => "/tmp/openwork-mcp-recovery",
+      selectedWorkspaceRoot: () => "/tmp/harness-mcp-recovery",
       workspaceType: () => "local",
-      openworkServer,
+      harnessServer,
       runtimeWorkspaceId: () => null,
       ensureRuntimeWorkspaceId: async () => "workspace_local",
-      localOpenworkServerRecoveryTimeoutMs: 10,
+      localHarnessServerRecoveryTimeoutMs: 10,
       developerMode: () => false,
     });
     const entry: McpDirectoryInfo = {
@@ -79,25 +79,25 @@ describe("bundled Computer Use setup", () => {
   async function connectWithHelper(command: string[] | null) {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
-      value: { __OPENWORK_ELECTRON__: { invokeDesktop: async (name: string) => name === "getComputerUseMcpCommand" ? command : null } },
+      value: { __HARNESS_ELECTRON__: { invokeDesktop: async (name: string) => name === "getComputerUseMcpCommand" ? command : null } },
     });
-    const server = createOpenworkServerStore({
+    const server = createHarnessServerStore({
       startupPreference: () => "server", documentVisible: () => true, developerMode: () => false,
       runtimeWorkspaceId: () => "setup-workspace", activeClient: () => null,
       selectedWorkspaceDisplay: () => ({ id: "setup-workspace", name: "Setup", path: "/tmp/setup", preset: "starter", workspaceType: "local" }),
       restartLocalServer: async () => false, createRemoteWorkspaceFlow: async () => false,
     });
-    const saved: Array<Parameters<ReturnType<typeof createOpenworkServerClient>["addMcp"]>[1]> = [];
+    const saved: Array<Parameters<ReturnType<typeof createHarnessServerClient>["addMcp"]>[1]> = [];
     const client = {
-      ...createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1" }),
-      addMcp: async (_workspace: string, payload: Parameters<ReturnType<typeof createOpenworkServerClient>["addMcp"]>[1]) => { saved.push(payload); return { items: [] }; },
+      ...createHarnessServerClient({ baseUrl: "http://127.0.0.1:1" }),
+      addMcp: async (_workspace: string, payload: Parameters<ReturnType<typeof createHarnessServerClient>["addMcp"]>[1]) => { saved.push(payload); return { items: [] }; },
       listMcp: async () => ({ items: [] }),
     };
-    const getSnapshot: typeof server.getSnapshot = () => ({ ...server.getSnapshot(), openworkServerStatus: "connected", openworkServerClient: client });
+    const getSnapshot: typeof server.getSnapshot = () => ({ ...server.getSnapshot(), harnessServerStatus: "connected", harnessServerClient: client });
     const store = createConnectionsStore({
       checkDesktopAppRestriction: () => false, client: () => null, setClient: () => {},
       projectDir: () => "/tmp/setup", selectedWorkspaceId: () => "setup-workspace", selectedWorkspaceRoot: () => "/tmp/setup",
-      workspaceType: () => "local", openworkServer: { ...server, getSnapshot }, runtimeWorkspaceId: () => "setup-workspace", developerMode: () => false,
+      workspaceType: () => "local", harnessServer: { ...server, getSnapshot }, runtimeWorkspaceId: () => "setup-workspace", developerMode: () => false,
     });
     const entry = MCP_QUICK_CONNECT.find((entry) => entry.id === "computer-use");
     if (!entry) throw new Error("Computer Use catalog entry missing");
@@ -107,7 +107,7 @@ describe("bundled Computer Use setup", () => {
   }
 
   test("resolves the desktop helper before validating the empty catalog command", async () => {
-    const command = ["/Applications/OpenWork.app/Contents/Resources/helpers/OpenWork Computer Use.app/Contents/MacOS/ComputerUse", "mcp"];
+    const command = ["/Applications/Harness.app/Contents/Resources/helpers/Harness Computer Use.app/Contents/MacOS/ComputerUse", "mcp"];
     const { result, saved } = await connectWithHelper(command);
     expect(result).toEqual({ ok: true });
     expect(saved).toEqual([{ name: "computer-use", config: { type: "local", enabled: true, command } }]);
@@ -115,7 +115,7 @@ describe("bundled Computer Use setup", () => {
 
   test("missing helper returns an actionable error without saving a connection", async () => {
     const { result, saved } = await connectWithHelper(null);
-    expect(result).toEqual({ ok: false, error: "Computer Use requires the bundled OpenWork helper on macOS." });
+    expect(result).toEqual({ ok: false, error: "Computer Use requires the bundled Harness helper on macOS." });
     expect(saved).toEqual([]);
   });
 });

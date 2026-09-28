@@ -11,7 +11,7 @@ import {
   useSessionAgentStore,
 } from "../src/react-app/domains/session/surface/session-mode-memory";
 
-const storageKey = "openwork.sessionAgents.v1";
+const storageKey = "harness.sessionAgents.v1";
 const registeredDom = typeof window === "undefined";
 
 beforeAll(() => {

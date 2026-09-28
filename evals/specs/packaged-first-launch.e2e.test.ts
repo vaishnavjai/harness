@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { sleep, spec } from "@openwork/testkit";
+import { sleep, spec } from "@harness/testkit";
 import {
   KNOWN_LAUNCH_REJECTIONS,
   describeException,
@@ -19,12 +19,12 @@ const test = spec.world(packagedFirstLaunchWorld, { timeout: 180_000 });
  * and is covered by app-smoke.
  */
 const FIRST_LAUNCH_HEADING: Partial<Record<PackagedFlavor, string>> = {
-  cloud: "Welcome to OpenWork",
+  cloud: "Welcome to Harness",
   enterprise: "Link this app to your organization",
 };
 
 /** Heading of the root error boundary's recovery screen (app-error-boundary.tsx). */
-const RECOVERY_HEADING = /OpenWork hit an unexpected error|OpenWork couldn't start/;
+const RECOVERY_HEADING = /Harness hit an unexpected error|Harness couldn't start/;
 
 /** Bounded observation window, not a guarantee against faults after it ends. */
 const REJECTION_SETTLE_MS = 3_000;
@@ -37,7 +37,7 @@ test("a packaged flavor renders its first-launch surface without a render crash"
   });
   if (flavor === null) throw new Error("The packaged desktop did not report its distribution flavor");
   const heading = FIRST_LAUNCH_HEADING[flavor];
-  if (!heading) throw new Error(`The ${flavor} flavor is not covered by this spec; point OPENWORK_EVAL_ELECTRON_BINARY at a cloud or enterprise build`);
+  if (!heading) throw new Error(`The ${flavor} flavor is not covered by this spec; point HARNESS_EVAL_ELECTRON_BINARY at a cloud or enterprise build`);
 
   // A render throw either unmounts the whole tree (empty #root plus an uncaught
   // exception) or, with the root error boundary, mounts the recovery screen.
@@ -73,7 +73,7 @@ test("a packaged flavor renders its first-launch surface without a render crash"
     expect(usable.some((control) => control.tag === "input" && control.testId === "organization-server-input"), "Workspace address must remain visible and enabled").toBe(true);
     expect(usable.some((control) => control.tag === "button" && control.testId === "organization-server-continue"), "Continue must remain visible and enabled").toBe(true);
   } else {
-    expect(usable.some((control) => control.tag === "button" && control.text === "Sign in to OpenWork"), "Sign in must remain visible and enabled").toBe(true);
+    expect(usable.some((control) => control.tag === "button" && control.text === "Sign in to Harness"), "Sign in must remain visible and enabled").toBe(true);
     expect(usable.some((control) => control.tag === "button" && control.text === "Paste sign-in code"), "Sign-in code disclosure must remain visible and enabled").toBe(true);
     expect(final.rootText, "a cloud install let local work start before sign-in").not.toContain("What do you need done?");
   }

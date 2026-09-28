@@ -34,7 +34,7 @@ test("a real local HTTP receipt succeeds and the detached browser process is ter
       assert.equal(new URL(url).pathname, "/browser-hop-proof");
       assert.equal(options.detached, true);
       assert.equal(options.stdio, "inherit");
-      assert.equal(options.env.OPENWORK_PROOF_BROWSER_PROFILE, `${process.env.RUNNER_TEMP}/pr-proof-browser-gate`);
+      assert.equal(options.env.HARNESS_PROOF_BROWSER_PROFILE, `${process.env.RUNNER_TEMP}/pr-proof-browser-gate`);
       const child = spawn(process.execPath, ["--input-type=module", "-e", `
         import { get } from 'node:http';
         setInterval(() => {}, 1000);

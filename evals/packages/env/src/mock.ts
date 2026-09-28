@@ -1,6 +1,6 @@
-import { allocateFreePort } from "@openwork/cdp";
-import { startMockMcp } from "@openwork/labs";
-import type { MockMcpHandle, StartMockMcpOptions } from "@openwork/labs";
+import { allocateFreePort } from "@harness/cdp";
+import { startMockMcp } from "@harness/labs";
+import type { MockMcpHandle, StartMockMcpOptions } from "@harness/labs";
 import type { Place } from "./place.ts";
 
 export type MockHandle = MockMcpHandle;
@@ -37,8 +37,8 @@ function mockEnvKey(name: string): string {
 export function deriveMockEnv(name: string, url: string, mcpUrl: string): Record<string, string> {
   const key = mockEnvKey(name);
   return {
-    [`OPENWORK_EVAL_MOCK_${key}_URL`]: url,
-    [`OPENWORK_EVAL_MOCK_${key}_MCP_URL`]: mcpUrl,
+    [`HARNESS_EVAL_MOCK_${key}_URL`]: url,
+    [`HARNESS_EVAL_MOCK_${key}_MCP_URL`]: mcpUrl,
   };
 }
 

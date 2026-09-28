@@ -1,8 +1,8 @@
 import { expect } from "vitest";
-import { runWorkflow, saveWorkflow } from "@openwork/behaviors";
-import { queryDenDatabase } from "@openwork/env";
-import { defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
-import { spec } from "@openwork/testkit";
+import { runWorkflow, saveWorkflow } from "@harness/behaviors";
+import { queryDenDatabase } from "@harness/env";
+import { defaultDaytonaExec, execInSandbox } from "@harness/hosts";
+import { spec } from "@harness/testkit";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -35,7 +35,7 @@ const test = spec.world(async (seed) => {
     const values = [enabled ? "enterprise" : "free", organizationId];
     if (den.placement?.kind === "daytona") {
       const script = `import { createConnection } from "/workspace/ee/packages/den-db/node_modules/mysql2/promise.js";
-        const connection = await createConnection("mysql://root:password@127.0.0.1:3306/openwork_den");
+        const connection = await createConnection("mysql://root:password@127.0.0.1:3306/harness_den");
         try { await connection.execute(${JSON.stringify(statement)}, ${JSON.stringify(values)}); } finally { await connection.end(); }`;
       const encoded = Buffer.from(script).toString("base64");
       const result = await execInSandbox(defaultDaytonaExec, den.placement.sandboxId, `printf %s ${encoded} | base64 -d | node --input-type=module`, { timeoutMs: 15_000, context: "Arrange isolated workspace plan" });
@@ -46,7 +46,7 @@ const test = spec.world(async (seed) => {
     }
   };
   const token = field((await seed.api(den.admin, "/v1/mcp/token", {
-    method: "POST", headers: { "x-openwork-org-id": organizationId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
+    method: "POST", headers: { "x-harness-org-id": organizationId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   })).body, "token");
   let requestId = 0;
   const execute = async (code: string) => {

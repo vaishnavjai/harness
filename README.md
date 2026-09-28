@@ -1,55 +1,55 @@
-# OpenWork
+# Harness
 
-OpenWork is the free, open-source alternative to Claude Cowork and Codex: a desktop app for macOS, Windows, and Linux where AI agents do real work on your own files. It is built on [OpenCode](https://opencode.ai), works with any model — 50+ providers, your own API keys, or local models via Ollama — and lets teams share skills and MCP servers.
+Harness is the free, open-source alternative to Claude Cowork and Codex: a desktop app for macOS, Windows, and Linux where AI agents do real work on your own files. It is built on [OpenCode](https://opencode.ai), works with any model — 50+ providers, your own API keys, or local models via Ollama — and lets teams share skills and MCP servers.
 
-[**Download OpenWork**](https://openworklabs.com/download) · [GitHub releases](https://github.com/different-ai/openwork/releases) · [Docs](https://openworklabs.com/docs)
+[**Download Harness**](https://github.com/vaishnavjai/harness/releases) · [GitHub releases](https://github.com/vaishnavjai/harness/releases) · [Docs](https://github.com/vaishnavjai/harness/tree/dev/packages/docs)
 
 Read this in: [简体中文](./translated_readmes/README_ZH.md) · [繁體中文](./translated_readmes/README_ZH_hk.md) · [日本語](./translated_readmes/README_JA.md)
 
-Add one OpenWork MCP to Codex, Claude Code, Cursor, or another compatible agent and reuse the same skills, MCPs, and connected services across your tools, teammates, and machines. Create something once, share it with coworkers or friends, or keep it for yourself.
+Add one Harness MCP to Codex, Claude Code, Cursor, or another compatible agent and reuse the same skills, MCPs, and connected services across your tools, teammates, and machines. Create something once, share it with coworkers or friends, or keep it for yourself.
 
-The desktop app is there when you want a dedicated workspace, but it is not required. You can use OpenWork from the agent you already have. For larger organizations, the admin interface lets you publish capabilities, manage access, and configure shared or per-user connections.
+The desktop app is there when you want a dedicated workspace, but it is not required. You can use Harness from the agent you already have. For larger organizations, the admin interface lets you publish capabilities, manage access, and configure shared or per-user connections.
 
-<img width="1481" height="842" alt="OpenWork desktop app" src="https://github.com/user-attachments/assets/66a8dd9b-5260-488c-957d-e54331e78c1c" />
+<img width="1481" height="842" alt="Harness desktop app" src="https://github.com/user-attachments/assets/66a8dd9b-5260-488c-957d-e54331e78c1c" />
 
-## Why OpenWork instead of Claude Cowork
+## Why Harness instead of Claude Cowork
 
-- **Free and open source.** The desktop app is MIT-licensed; no OpenWork account is required to use it locally.
-- **Any model.** Bring your own API key, sign in with ChatGPT, or run local models through Ollama or any OpenAI-compatible server. See [Add a custom LLM](https://openworklabs.com/docs/start-here/connect-your-stack/add-a-custom-llm).
+- **Free and open source.** The desktop app is MIT-licensed; no Harness account is required to use it locally.
+- **Any model.** Bring your own API key, sign in with ChatGPT, or run local models through Ollama or any OpenAI-compatible server. See [Add a custom LLM](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/connect-your-stack/add-a-custom-llm.mdx).
 - **Runs on macOS, Windows, and Linux** as a desktop app — not a CLI.
 - **Your files stay local.** Cloud is optional.
-- **Share skills and MCP servers with your team.** See [Share skills with your team](https://openworklabs.com/docs/start-here/do-work-with-it/share-your-setup) and [Shared MCP connections](https://openworklabs.com/docs/cloud/share-with-your-team/shared-mcp-connections).
-- **Self-host** the team control plane on your own infrastructure. See [Self-host](https://openworklabs.com/docs/start-here/self-host).
-- **Bring your Cowork setup.** Skills, Claude-compatible plugins, and MCP servers carry over. See [Migrate from Claude Cowork](https://openworklabs.com/docs/start-here/migrate-from-claude-cowork).
+- **Share skills and MCP servers with your team.** See [Share skills with your team](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/do-work-with-it/share-your-setup.mdx) and [Shared MCP connections](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/cloud/share-with-your-team/shared-mcp-connections.mdx).
+- **Self-host** the team control plane on your own infrastructure. See [Self-host](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/self-host.mdx).
+- **Bring your Cowork setup.** Skills, Claude-compatible plugins, and MCP servers carry over. See [Migrate from Claude Cowork](https://github.com/vaishnavjai/harness/blob/dev/packages/docs/start-here/migrate-from-claude-cowork.mdx).
 
 ## Install with your AI agent
 
 Already use an AI agent? Copy this prompt and paste it into Claude Code, Cursor, Codex, ChatGPT, or any agent that can run commands on your computer.
 
 ```text
-Install OpenWork on my computer, set up my first workspace, and open it ready to use. Follow the steps in https://openworklabs.com/start.md?v=hero
+Install Harness on my computer, set up my first workspace, and open it ready to use. Follow the steps in https://harness.invalid/start.md?v=hero
 ```
 
-1. Installs OpenWork
+1. Installs Harness
 2. Creates your workspace
 3. Opens it ready to run
 
-## Use OpenWork from any agent
+## Use Harness from any agent
 
-The OpenWork MCP brings your assigned skills, plugins, MCP connections, Google Workspace, and Microsoft 365 capabilities into any compatible agent.
+The Harness MCP brings your assigned skills, plugins, MCP connections, Google Workspace, and Microsoft 365 capabilities into any compatible agent.
 
-It exposes four tools: `search_capabilities` finds what you can use, `execute_capability` runs it, and `list_skills` / `get_skill` list your skills and read one SKILL.md directly. After adding the MCP, your client opens a browser so you can sign in and choose your OpenWork organization.
+It exposes four tools: `search_capabilities` finds what you can use, `execute_capability` runs it, and `list_skills` / `get_skill` list your skills and read one SKILL.md directly. After adding the MCP, your client opens a browser so you can sign in and choose your Harness organization.
 
 ### Codex
 
 ```bash
-codex mcp add openwork --url https://api.openworklabs.com/mcp/agent
+codex mcp add harness --url https://api.harness.invalid/mcp/agent
 ```
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http openwork https://api.openworklabs.com/mcp/agent
+claude mcp add --transport http harness https://api.harness.invalid/mcp/agent
 ```
 
 ### OpenCode
@@ -59,10 +59,10 @@ Add this to `opencode.json`:
 ```json
 {
   "mcp": {
-    "openwork": {
+    "harness": {
       "type": "remote",
       "enabled": true,
-      "url": "https://api.openworklabs.com/mcp/agent",
+      "url": "https://api.harness.invalid/mcp/agent",
       "oauth": {}
     }
   }
@@ -74,33 +74,33 @@ Add this to `opencode.json`:
 Use this remote MCP server URL:
 
 ```text
-https://api.openworklabs.com/mcp/agent
+https://api.harness.invalid/mcp/agent
 ```
 
-## OpenWork Den
+## Harness Den
 
-OpenWork Den is the control plane for managing OpenWork across a team or organization.
+Harness Den is the control plane for managing Harness across a team or organization.
 
 - Provision inference at scale and control which members and teams can use each model provider.
 - Invite teammates, create teams, and manage access from one place.
 - Set desktop policies, restrict local model access, and control which app versions your organization can use.
 - Publish skills and plugins through marketplaces, then assign them to the organization, a team, or specific people.
-- Import Agent Plugins or Anthropic-compatible plugins and make their supported skills and remote MCPs available through the OpenWork MCP.
+- Import Agent Plugins or Anthropic-compatible plugins and make their supported skills and remote MCPs available through the Harness MCP.
 
-<img width="1546" height="915" alt="OpenWork Den organization control plane" src="https://github.com/user-attachments/assets/033dbbfe-5661-4f7c-869c-46278406d6cc" />
+<img width="1546" height="915" alt="Harness Den organization control plane" src="https://github.com/user-attachments/assets/033dbbfe-5661-4f7c-869c-46278406d6cc" />
 
 ## Licensing
 
 This repository uses a directory-split license, similar to GitLab:
 
 - **Everything outside `ee/` is MIT** — the desktop app and core platform are open source, free for any use.
-- **Everything under `ee/` (OpenWork Den — the org control plane) is under the [OpenWork EE License](ee/LICENSE)**, a source-available license. The code is public so you can audit exactly what you deploy. Production use requires an [OpenWork subscription](https://openworklabs.com/pricing), except that it is **free for organizations with up to 5 users**, **free to evaluate for 30 days at any size**, and always free for development and testing. Each `ee/` release additionally converts to MIT two years after publication.
+- **Everything under `ee/` (Harness Den — the org control plane) is under the [Harness EE License](ee/LICENSE)**, a source-available license. The code is public so you can audit exactly what you deploy. Production use requires an [Harness subscription](https://harness.invalid/pricing), except that it is **free for organizations with up to 5 users**, **free to evaluate for 30 days at any size**, and always free for development and testing. Each `ee/` release additionally converts to MIT two years after publication.
 
-Versions released before this license was adopted remain under their original license (FSL-1.1-MIT). See [pricing](https://openworklabs.com/pricing) and the [subscription terms](https://openworklabs.com/terms/subscription).
+Versions released before this license was adopted remain under their original license (FSL-1.1-MIT). See [pricing](https://harness.invalid/pricing) and the [subscription terms](https://harness.invalid/terms/subscription).
 
 ## Documentation
 
-[Read the OpenWork docs.](https://openworklabs.com/docs)
+[Read the Harness docs.](https://github.com/vaishnavjai/harness/tree/dev/packages/docs)
 
 ## Getting started (contributors)
 
@@ -115,8 +115,8 @@ The fastest path from a fresh clone to a running dev build.
 ### First run
 
 ```bash
-git clone https://github.com/different-ai/openwork.git
-cd openwork
+git clone https://github.com/vaishnavjai/harness
+cd harness
 corepack enable
 pnpm install
 pnpm dev   # launches the Electron desktop app with hot reload
@@ -126,10 +126,10 @@ pnpm dev   # launches the Electron desktop app with hot reload
 
 | Path | What lives there |
 | --- | --- |
-| `apps/` | the desktop app: React UI (`apps/app`), Electron shell (`apps/desktop`), and `openwork-server` (`apps/server`) (MIT) |
+| `apps/` | the desktop app: React UI (`apps/app`), Electron shell (`apps/desktop`), and `harness-server` (`apps/server`) (MIT) |
 | `packages/` | shared core packages (MIT) |
-| `ee/` | OpenWork Den — the org control plane, MCP gateway, and inference (EE License, see [Licensing](#licensing)) |
-| `evals/` | executable test specs built on `@openwork/testkit` — see [`evals/README.md`](./evals/README.md) |
+| `ee/` | Harness Den — the org control plane, MCP gateway, and inference (EE License, see [Licensing](#licensing)) |
+| `evals/` | executable test specs built on `@harness/testkit` — see [`evals/README.md`](./evals/README.md) |
 | `worlds/` | declarative dev/test environment definitions for `pnpm world` |
 | `docs/` | operator, feature, and release docs |
 | `.opencode/skills/` | repository agent skills (testing, release, Daytona, and more) |
@@ -163,17 +163,17 @@ To run multiple git worktrees at once, use:
 pnpm dev:worktree
 ```
 
-That sets `OPENWORK_DEV_PROFILE=auto`, derives a stable profile name from the worktree path, lets Electron choose a free CDP port, and asks Vite for a free dev-server port. You can also choose a named profile, for example `OPENWORK_DEV_PROFILE=my-feature OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=0 PORT=0 pnpm dev`.
+That sets `HARNESS_DEV_PROFILE=auto`, derives a stable profile name from the worktree path, lets Electron choose a free CDP port, and asks Vite for a free dev-server port. You can also choose a named profile, for example `HARNESS_DEV_PROFILE=my-feature HARNESS_ELECTRON_REMOTE_DEBUG_PORT=0 PORT=0 pnpm dev`.
 
-`dev:worktree` also defaults `OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN=1`. A brand-new profile has no stored credentials, so on macOS the real keychain prompts as soon as Chromium persists an authenticated cookie, and that modal blocks Electron's main loop until it is dismissed. Set `OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN=0` if you specifically want the system keychain in an isolated profile.
+`dev:worktree` also defaults `HARNESS_ELECTRON_USE_MOCK_KEYCHAIN=1`. A brand-new profile has no stored credentials, so on macOS the real keychain prompts as soon as Chromium persists an authenticated cookie, and that modal blocks Electron's main loop until it is dismissed. Set `HARNESS_ELECTRON_USE_MOCK_KEYCHAIN=0` if you specifically want the system keychain in an isolated profile.
 
-Dev startup prints a banner like `[openwork] dev profile=... cdp=http://127.0.0.1:9823`; use it to find the profile directory and pass the CDP URL to local tooling.
+Dev startup prints a banner like `[harness] dev profile=... cdp=http://127.0.0.1:9823`; use it to find the profile directory and pass the CDP URL to local tooling.
 
 If a second instance cannot get the profile lock it now says so and exits, instead of lingering with an open CDP port and no window.
 
 ### Headless web (no Electron)
 
-To run the OpenWork UI in a browser against a local `openwork-server` (no desktop shell):
+To run the Harness UI in a browser against a local `harness-server` (no desktop shell):
 
 ```bash
 pnpm world up dev-headless --detach
@@ -185,12 +185,12 @@ unless `--detach` is explicit.
 
 This is an isolated launcher:
 
-- Writes `tmp/headless-server.json` and never reads `~/.config/openwork/server.json`
+- Writes `tmp/headless-server.json` and never reads `~/.config/harness/server.json`
 - Authorizes the chosen workspace root automatically, and merges (never rewrites) that config on relaunch, so workspaces you add through the UI survive `--replace`
-- Starts Vite + `openwork-server` with a stable owner bearer forced into the UI. Crash-restarts keep open tabs working. The privileged host token stays on the server process and is never inlined into the Vite bundle.
+- Starts Vite + `harness-server` with a stable owner bearer forced into the UI. Crash-restarts keep open tabs working. The privileged host token stays on the server process and is never inlined into the Vite bundle.
 - Proxies Den Cloud calls same-origin: Vite serves `/api/den` (forwarded to the Den control plane) and the app pins its Den API there via `VITE_DEN_API_BASE_URL`, so Cloud calls are never CORS-blocked and stale `localStorage` base URLs are cleared on load
 - Publishes an owner-only runtime manifest at `tmp/dev-headless-web.json` (`0600`), and allows browser calls to the local server only from the web app's own origins — not every site you visit
-- Uses stable ports by default (web `5178`, server `8778`; falls back to free ports when taken, override with `OPENWORK_WEB_PORT` / `OPENWORK_PORT`)
+- Uses stable ports by default (web `5178`, server `8778`; falls back to free ports when taken, override with `HARNESS_WEB_PORT` / `HARNESS_PORT`)
 - Is single-instance as `dev-headless`; stop it with `pnpm world down dev-headless` before launching it again
 - Keeps Vite and the backend under one script lifecycle, so either sibling exiting stops the other instead of leaving an orphan
 - In detached mode, waits for health, prints non-secret outputs and receipt/log paths, and exits
@@ -210,10 +210,10 @@ Open the printed Web URL. Cloud sign-in in headless web uses the **copy/paste** 
 
 1. Account → Sign in (opens Den; the paste field opens in Settings)
 2. Sign in on Den
-3. Copy the OpenWork link / one-time code Den shows
+3. Copy the Harness link / one-time code Den shows
 4. Paste it under **Paste sign-in code** → Finish sign-in
 
-Point Den at a local stack with `OPENWORK_DEV_DEN_PROXY_TARGET=http://127.0.0.1:3005` while `pnpm dev:web-local` is running. Set `OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY=0` to disable the Den wiring.
+Point Den at a local stack with `HARNESS_DEV_DEN_PROXY_TARGET=http://127.0.0.1:3005` while `pnpm dev:web-local` is running. Set `HARNESS_DEV_HEADLESS_WEB_DEN_PROXY=0` to disable the Den wiring.
 
 The other checked-in scripts include `worlds/headless-prod-live.ts` and
 `worlds/desktop-prod-live.ts`. Both intentionally share installed production

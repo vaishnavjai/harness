@@ -29,7 +29,7 @@ concurrency:
 jobs:
   authorize:
     name: Required verification authorization
-    if: github.event_name == 'workflow_run' && github.repository == 'different-ai/openwork'
+    if: github.event_name == 'workflow_run' && github.repository == 'vaishnavjai/harness'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -66,7 +66,7 @@ jobs:
     needs: authorize
     if: >-
       always() &&
-      github.repository == 'different-ai/openwork' &&
+      github.repository == 'vaishnavjai/harness' &&
       (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' ||
       (needs.authorize.result == 'success' && needs.authorize.outputs.authorized == 'true'))
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -166,10 +166,10 @@ jobs:
         env:
           DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          NIGHTLY_MODEL: ${{ vars.OPENWORK_EVAL_NIGHTLY_MODEL }}
+          NIGHTLY_MODEL: ${{ vars.HARNESS_EVAL_NIGHTLY_MODEL }}
           SPEC_SLUG: ${{ matrix.journey.spec }}
           MODEL_KIND: ${{ matrix.journey.model }}
-          OPENWORK_EVAL_REF: ${{ needs.authorize.outputs.sha || github.sha }}
+          HARNESS_EVAL_REF: ${{ needs.authorize.outputs.sha || github.sha }}
         run: |
           set -euo pipefail
 
@@ -178,7 +178,7 @@ jobs:
           else
             MODEL="big-pickle"
           fi
-          OPENWORK_EVAL_MODEL="${MODEL}" pnpm evals:e2e "${SPEC_SLUG}" --daytona --strict-ref 2>&1 | tee /tmp/daytona-e2e.log
+          HARNESS_EVAL_MODEL="${MODEL}" pnpm evals:e2e "${SPEC_SLUG}" --daytona --strict-ref 2>&1 | tee /tmp/daytona-e2e.log
 
       - name: Judge deferred vision claims
         id: vision
@@ -241,9 +241,9 @@ jobs:
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y xvfb x11-utils libgtk-3-0 libnss3 libasound2t64 libgbm1
-          pnpm --filter @openwork/types build
-          pnpm --filter @openwork-ee/den-db build
-          pnpm --filter @openwork/email build
+          pnpm --filter @harness/types build
+          pnpm --filter @harness-ee/den-db build
+          pnpm --filter @harness/email build
           pnpm dev:den:mysql
       - name: Run user journey
         id: run

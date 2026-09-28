@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import type { Target } from "@openwork/cdp";
-import { spec } from "@openwork/testkit";
+import type { Target } from "@harness/cdp";
+import { spec } from "@harness/testkit";
 import { notificationCenter } from "../worlds/notification-center.ts";
 
 const test = spec.world(notificationCenter);
@@ -8,7 +8,7 @@ const test = spec.world(notificationCenter);
 const bell: Target = { role: "button", label: /^Notifications/ };
 const emptyTitle: Target = { text: "No notifications yet" };
 const emptyHint: Target = { text: /^Background updates show up here: .*Confirmations of your own actions, like archiving a session, appear briefly instead\.$/ };
-const staleHint: Target = { text: /Updates from OpenWork Cloud and your workspaces/ };
+const staleHint: Target = { text: /Updates from Harness Cloud and your workspaces/ };
 const archivedToast: Target = { text: "Session archived" };
 const undoButton: Target = { role: "button", label: "Undo" };
 

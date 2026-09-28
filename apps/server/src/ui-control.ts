@@ -21,7 +21,7 @@ export class UiControlMailbox {
     if (!this.connected()) {
       return Promise.resolve({
         ok: false,
-        error: "No OpenWork window is connected to this server. Open the OpenWork app or its web tab and try again.",
+        error: "No Harness window is connected to this server. Open the Harness app or its web tab and try again.",
       });
     }
 
@@ -38,7 +38,7 @@ export class UiControlMailbox {
         this.requests.delete(id);
         resolve({
           ok: false,
-          error: "The OpenWork window did not answer within 5 seconds. If the command opened a confirmation dialog, only the person can answer it in the app; do not retry.",
+          error: "The Harness window did not answer within 5 seconds. If the command opened a confirmation dialog, only the person can answer it in the app; do not retry.",
         });
       }, REQUEST_TIMEOUT_MS);
 

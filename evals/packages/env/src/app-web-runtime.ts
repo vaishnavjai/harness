@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
-import type { SandboxRepoSourceReceipt } from "@openwork/hosts";
-import { launchHeadlessWeb, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
+import { defaultDaytonaExec, execInSandbox } from "@harness/hosts";
+import type { SandboxRepoSourceReceipt } from "@harness/hosts";
+import { launchHeadlessWeb, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { resolveEvalEngine } from "./eval-engine.ts";
 import { seedSyntheticPreactivatedDen } from "./app-web-bootstrap.ts";
 
@@ -13,7 +13,7 @@ const EXECUTABLE_ENV_KEYS = ["PATH", "PNPM_HOME", "TMPDIR", "SHELL", "SYSTEMROOT
 
 export interface AppWebRuntime {
   webUrl: string;
-  openworkUrl: string;
+  harnessUrl: string;
   runtimeDirectory: string;
   fixtureRoot: string;
   source: SandboxRepoSourceReceipt | null;
@@ -46,36 +46,36 @@ export function isolatedRuntimeEnvironment(root: string): NodeJS.ProcessEnv {
     XDG_CACHE_HOME: join(root, "cache"),
     // Fresh app instances must not rewrite another Vite server's dependency
     // cache while its browser is importing modules.
-    OPENWORK_VITE_CACHE_DIR: join(root, "cache", "vite"),
+    HARNESS_VITE_CACHE_DIR: join(root, "cache", "vite"),
     XDG_CONFIG_HOME: config,
     XDG_DATA_HOME: data,
     XDG_STATE_HOME: join(root, "state"),
-    OPENWORK_DATA_DIR: join(data, "openwork"),
-    OPENWORK_ENV_STORE: join(config, "openwork", "env.json"),
-    OPENWORK_SERVER_STATE_PATH: join(data, "openwork", "server-state.json"),
-    OPENWORK_SERVER_TOKEN_STORE_PATH: join(data, "openwork", "server-tokens.json"),
+    HARNESS_DATA_DIR: join(data, "harness"),
+    HARNESS_ENV_STORE: join(config, "harness", "env.json"),
+    HARNESS_SERVER_STATE_PATH: join(data, "harness", "server-state.json"),
+    HARNESS_SERVER_TOKEN_STORE_PATH: join(data, "harness", "server-tokens.json"),
     OPENCODE_CONFIG_DIR: join(config, "opencode"),
     OPENCODE_DB: join(data, "opencode", "opencode.db"),
-    OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY: "0",
-    OPENWORK_ENGINE_V2_PREVIEW: resolveEvalEngine() === "v2" ? "1" : "0",
-    OPENWORK_PORT: "0",
-    OPENWORK_WEB_PORT: "0",
-    OPENWORK_REMOTE_ACCESS: "0",
+    HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "0",
+    HARNESS_ENGINE_V2_PREVIEW: resolveEvalEngine() === "v2" ? "1" : "0",
+    HARNESS_PORT: "0",
+    HARNESS_WEB_PORT: "0",
+    HARNESS_REMOTE_ACCESS: "0",
     HOST: "127.0.0.1",
     VITE_HOST: "127.0.0.1",
-    VITE_DISABLE_OPENWORK_MODELS: "1",
-    VITE_OPENWORK_POSTHOG_KEY: "",
-    VITE_OPENWORK_SENTRY_DSN: "",
+    VITE_DISABLE_HARNESS_MODELS: "1",
+    VITE_HARNESS_POSTHOG_KEY: "",
+    VITE_HARNESS_SENTRY_DSN: "",
     NO_PROXY: "127.0.0.1,localhost",
   };
 }
 
 function runtimeDirectories(root: string): string[] {
-  return ["home", "cache", "config/openwork", "config/opencode", "data/openwork", "data/opencode", "state"].map((path) => join(root, path));
+  return ["home", "cache", "config/harness", "config/opencode", "data/harness", "data/opencode", "state"].map((path) => join(root, path));
 }
 
 export async function startLocalRuntime(worldName: string, workspaceRoot: string, options: AppWebRuntimeOptions = {}): Promise<AppWebRuntime> {
-  const fixtureRoot = await mkdtemp(join(tmpdir(), "openwork-eval-app-web-"));
+  const fixtureRoot = await mkdtemp(join(tmpdir(), "harness-eval-app-web-"));
   const runtimeDirectory = resolveHeadlessWorldRuntimePaths(REPO_ROOT, worldName).directory;
   try {
     await Promise.all([mkdir(workspaceRoot, { recursive: true }), ...runtimeDirectories(fixtureRoot).map((path) => mkdir(path, { recursive: true }))]);
@@ -89,29 +89,29 @@ export async function startLocalRuntime(worldName: string, workspaceRoot: string
       browserHostSuffix: options.browserHostSuffix,
       env: { ...executableEnvironment(process.env), ...isolatedRuntimeEnvironment(fixtureRoot), ...options.env, ...bootstrapEnv },
     });
-    return { webUrl: runtime.manifest.webUrl, openworkUrl: runtime.manifest.openworkUrl, runtimeDirectory, fixtureRoot, source: null, stop: () => runtime.stop() };
+    return { webUrl: runtime.manifest.webUrl, harnessUrl: runtime.manifest.harnessUrl, runtimeDirectory, fixtureRoot, source: null, stop: () => runtime.stop() };
   } catch (error) {
     await rm(fixtureRoot, { recursive: true, force: true }).catch(() => undefined);
     throw error;
   }
 }
 
-export function parseRemoteRuntime(output: string): Pick<AppWebRuntime, "webUrl" | "openworkUrl"> & { runtimeManifestPath: string } {
+export function parseRemoteRuntime(output: string): Pick<AppWebRuntime, "webUrl" | "harnessUrl"> & { runtimeManifestPath: string } {
   const line = output.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean).at(-1) ?? "";
   let value: unknown;
   try { value = JSON.parse(line); } catch { throw new Error("Remote app-web launcher did not return a JSON receipt."); }
   if (typeof value !== "object" || value === null
     || !("webUrl" in value) || typeof value.webUrl !== "string"
-    || !("openworkUrl" in value) || typeof value.openworkUrl !== "string"
+    || !("harnessUrl" in value) || typeof value.harnessUrl !== "string"
     || !("runtimeManifestPath" in value) || typeof value.runtimeManifestPath !== "string") {
     throw new Error("Remote app-web launcher returned an invalid receipt.");
   }
-  for (const url of [new URL(value.webUrl), new URL(value.openworkUrl)]) {
+  for (const url of [new URL(value.webUrl), new URL(value.harnessUrl)]) {
     if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || !url.port || url.username || url.password) {
       throw new Error("Remote app-web runtime URLs must be sandbox-loopback HTTP URLs.");
     }
   }
-  return { webUrl: value.webUrl, openworkUrl: value.openworkUrl, runtimeManifestPath: value.runtimeManifestPath };
+  return { webUrl: value.webUrl, harnessUrl: value.harnessUrl, runtimeManifestPath: value.runtimeManifestPath };
 }
 
 async function runRemoteModule(sandbox: string, modulePath: string, source: string, payload: unknown, context: string, timeoutMs: number): Promise<string> {
@@ -155,7 +155,7 @@ const handle = await launchHeadlessWeb({
   browserHostSuffix: input.browserHostSuffix, env: { ...executable, ...input.env, ...bootstrapEnv },
 });
 await handle.detach();
-console.log(JSON.stringify({ webUrl: handle.manifest.webUrl, openworkUrl: handle.manifest.openworkUrl, runtimeManifestPath: handle.manifest.runtimeManifestPath }));
+console.log(JSON.stringify({ webUrl: handle.manifest.webUrl, harnessUrl: handle.manifest.harnessUrl, runtimeManifestPath: handle.manifest.runtimeManifestPath }));
 `;
 
 const REMOTE_STOP_SOURCE = `
@@ -170,7 +170,7 @@ await Promise.all(input.remove.map((path) => rm(path, { recursive: true, force: 
 
 export async function startRemoteRuntime(sandbox: string, worldName: string, workspaceRoot: string, source: SandboxRepoSourceReceipt, options: AppWebRuntimeOptions = {}): Promise<AppWebRuntime> {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(worldName)) throw new Error("Unsafe app-web runtime name.");
-  const fixtureRoot = `/tmp/openwork-eval-app-web-${worldName}`;
+  const fixtureRoot = `/tmp/harness-eval-app-web-${worldName}`;
   const runtimeDirectory = posix.join("/workspace", "tmp", "worlds", "runtime", worldName);
   const launchModulePath = `/tmp/${worldName}-launch.mjs`;
   const stopModulePath = `/tmp/${worldName}-stop.mjs`;
@@ -185,7 +185,7 @@ export async function startRemoteRuntime(sandbox: string, worldName: string, wor
   const receipt = parseRemoteRuntime(output);
   if (receipt.runtimeManifestPath !== posix.join(runtimeDirectory, "runtime.json")) throw new Error("Remote app-web runtime manifest mismatch.");
   return {
-    webUrl: receipt.webUrl, openworkUrl: receipt.openworkUrl, runtimeDirectory, fixtureRoot, source,
+    webUrl: receipt.webUrl, harnessUrl: receipt.harnessUrl, runtimeDirectory, fixtureRoot, source,
     stop: async () => {
       await runRemoteModule(sandbox, stopModulePath, REMOTE_STOP_SOURCE, {
         runtimeManifestPath: receipt.runtimeManifestPath,

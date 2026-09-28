@@ -5,9 +5,9 @@ import {
   docShotReceiptSchema,
   reviewSchema,
   summarizeReview,
-} from "@openwork/review";
-import type { ReviewReport } from "@openwork/review";
-import type { ReviewAsset } from "@openwork/review/storage";
+} from "@harness/review";
+import type { ReviewReport } from "@harness/review";
+import type { ReviewAsset } from "@harness/review/storage";
 import { readTestRunDirectory } from "./scan.ts";
 
 const digest = (value: string) =>

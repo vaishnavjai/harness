@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/test-artifacts",
+  "name": "@harness/test-artifacts",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,6 +12,6 @@
     "./review": "./src/review.ts"
   },
   "dependencies": {
-    "@openwork/review": "link:../../../packages/review"
+    "@harness/review": "link:../../../packages/review"
   }
 }

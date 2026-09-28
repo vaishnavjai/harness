@@ -16,11 +16,11 @@ describe("feedback runtime context", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
     const url = new URL(buildFeedbackUrl({
       entrypoint: "status-bar", appVersion: "0.0.0-dev", buildSha: "abc1234",
-      openworkServerVersion: "0.18.1",
+      harnessServerVersion: "0.18.1",
     }));
     expect(url.searchParams.get("deployment")).toBe("web");
     expect(url.searchParams.get("appVersion")).toBe("web@abc1234");
-    expect(url.searchParams.get("openworkServerVersion")).toBe("0.18.1");
+    expect(url.searchParams.get("harnessServerVersion")).toBe("0.18.1");
     expect(url.searchParams.get("entrypoint")).toBe("status-bar");
   });
 
@@ -42,7 +42,7 @@ describe("feedback runtime context", () => {
 
   test("Electron feedback preserves the desktop release version", () => {
     Object.defineProperty(globalThis, "window", {
-      configurable: true, value: { __OPENWORK_ELECTRON__: {} },
+      configurable: true, value: { __HARNESS_ELECTRON__: {} },
     });
     const url = new URL(buildFeedbackUrl({
       entrypoint: "status-bar", appVersion: "0.18.1-beta.2", buildSha: "abc1234",
@@ -59,16 +59,16 @@ describe("feedback runtime context", () => {
   });
 
   test("built feedback code uses the embedded revision with the normal button inputs", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "openwork-feedback-build-"));
+    const directory = await mkdtemp(join(tmpdir(), "harness-feedback-build-"));
     try {
       const build = await Bun.build({
         entrypoints: [join(import.meta.dir, "../src/app/lib/feedback.ts")],
         outdir: directory,
         target: "browser",
         define: {
-          "import.meta.env.VITE_OPENWORK_FEEDBACK_URL": JSON.stringify("https://example.com/feedback"),
-          "import.meta.env.VITE_OPENWORK_APP_VERSION": JSON.stringify("0.0.0-dev"),
-          "import.meta.env.VITE_OPENWORK_BUILD_SHA": JSON.stringify("fedcba9"),
+          "import.meta.env.VITE_HARNESS_FEEDBACK_URL": JSON.stringify("https://example.com/feedback"),
+          "import.meta.env.VITE_HARNESS_APP_VERSION": JSON.stringify("0.0.0-dev"),
+          "import.meta.env.VITE_HARNESS_BUILD_SHA": JSON.stringify("fedcba9"),
         },
       });
       expect(build.success).toBe(true);

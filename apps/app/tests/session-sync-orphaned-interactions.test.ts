@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import type { Part, PermissionRequest, QuestionRequest } from "@opencode-ai/sdk/v2/client";
 import type { UIMessage } from "ai";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import { getReactQueryClient } from "../src/react-app/infra/query-client";
 import { useSessionActivityStore } from "../src/react-app/domains/session/status/session-activity-store";
 import { terminalToolCallIds } from "../src/react-app/domains/session/sync/orphaned-interactions";
@@ -26,7 +26,7 @@ import {
 
 const workspaceId = "workspace-a";
 const sessionId = "session-a";
-const syncInput = { workspaceId, baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+const syncInput = { workspaceId, baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
 const toolLink = { messageID: "msg-assistant", callID: "call-question" };
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -55,7 +55,7 @@ function permission(id: string): PermissionRequest {
   return { id, sessionID: sessionId, permission: "bash", patterns: ["echo ok"], metadata: {}, always: [], tool: toolLink };
 }
 
-function snapshotWithParts(parts: Part[]): OpenworkSessionSnapshot {
+function snapshotWithParts(parts: Part[]): HarnessSessionSnapshot {
   return {
     session: { id: sessionId, title: "Test session", time: { created: 1, updated: 2 }, version: "0" },
     messages: [
@@ -64,7 +64,7 @@ function snapshotWithParts(parts: Part[]): OpenworkSessionSnapshot {
     ],
     todos: [],
     status: { type: "idle" },
-  } as unknown as OpenworkSessionSnapshot;
+  } as unknown as HarnessSessionSnapshot;
 }
 
 const status = () => useSessionActivityStore.getState().getStatus(workspaceId, sessionId);

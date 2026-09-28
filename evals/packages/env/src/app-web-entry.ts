@@ -1,5 +1,5 @@
-import { evaluate, navigate } from "@openwork/cdp";
-import type { CdpClient } from "@openwork/cdp";
+import { evaluate, navigate } from "@harness/cdp";
+import type { CdpClient } from "@harness/cdp";
 
 /**
  * Chrome occasionally fails the cold dev-server entry graph with no failed
@@ -21,11 +21,11 @@ export function reloadOnceIfEntryFails(input: {
     while (!stopped.signal.aborted && !reloaded) {
       await new Promise(resolve => setTimeout(resolve, input.pollMs ?? 500));
       if (stopped.signal.aborted) return;
-      const failed = await evaluate(input.client(), () => (window.__openworkEvalBootErrors ?? [])
+      const failed = await evaluate(input.client(), () => (window.__harnessEvalBootErrors ?? [])
         .some(error => error.endsWith("(/src/index.react.tsx)")), { timeoutMs: 5_000 }).catch(() => false);
       if (failed !== true) continue;
       reloaded = true;
-      log(`[openwork/testkit] App-web entry module graph failed before any app code ran; reloading once. ${input.describe()}`);
+      log(`[harness/testkit] App-web entry module graph failed before any app code ran; reloading once. ${input.describe()}`);
       await navigate(input.client(), input.url).catch(() => undefined);
     }
   })();

@@ -25,8 +25,8 @@ This is a demonstrated failure mechanism, **not proof that the installed app's i
 
 References are relative to this worktree. Investigation baseline is `c67ba51ed`; `v0.18.47` has identical sandbox renderer/proxy source to that baseline. The reported `0.18.47-alpha` label was not independently mapped to an installed binary SHA.
 
-1. **One existing OpenWork HTTP server, not one listener per tile.** `apps/server/src/server.ts:1071–1097` awaits `serve` and records its bound port. Static unauthenticated routes `/mcp-apps/sandbox.html`, `.js`, `.css` are registered at `server.ts:3535–3549`, with `Cache-Control: no-store`. MCP discovery or provider tool execution is not in these route handlers. `mcp-app-host.ts` resolves provider resources/launch leases; it does not allocate the outer proxy port per tile.
-2. `apps/app/src/app/lib/openwork-server.ts:2033–2046` derives the proxy URL and expected origin from the selected server endpoint plus CSP/host-origin query parameters. The provider's `ui://` URI is not a browser navigation URL. Tiles using one endpoint share its origin/HTTP connection resources, not an app-specific server.
+1. **One existing Harness HTTP server, not one listener per tile.** `apps/server/src/server.ts:1071–1097` awaits `serve` and records its bound port. Static unauthenticated routes `/mcp-apps/sandbox.html`, `.js`, `.css` are registered at `server.ts:3535–3549`, with `Cache-Control: no-store`. MCP discovery or provider tool execution is not in these route handlers. `mcp-app-host.ts` resolves provider resources/launch leases; it does not allocate the outer proxy port per tile.
+2. `apps/app/src/app/lib/harness-server.ts:2033–2046` derives the proxy URL and expected origin from the selected server endpoint plus CSP/host-origin query parameters. The provider's `ui://` URI is not a browser navigation URL. Tiles using one endpoint share its origin/HTTP connection resources, not an app-specific server.
 3. `apps/app/src/components/chat/mcp-app-frame.tsx:336–380` begins its effect only with resolved resource bytes. `:636–653` installs both parent message listeners **before** the startup queue assigns `iframe.src`. The shared queue at `:36–70` already admits two startups. The 10-second timer begins at navigation, not during queue wait or provider discovery.
 4. **Pre-fix bottleneck: `apps/server/src/mcp-app-sandbox.ts:223` at the baseline** emits an external stylesheet followed by an external classic script. A pending stylesheet prevents that script from executing. Ready is a one-shot `postMessage` at script line 219, after validation of the host origin and registration of the proxy relay. An 11-second delay on CSS alone therefore gives `sandbox-navigation-started` with no `sandbox-proxy-ready`, even with downloaded JS.
 5. The parent's ready handler (`mcp-app-frame.tsx:548–608`) accepts only that iframe's `contentWindow`, expected origin and ready method. It then connects AppBridge and sends secured HTML. No base64 decoding, provider HTML parsing, `srcdoc` assignment or provider initialization is required for **outer proxy ready**.
@@ -76,15 +76,15 @@ Run from the worktree root, with the requested mise binaries on PATH:
 export PATH="$HOME/.local/share/mise/installs/pnpm/11.4.0:$HOME/.local/share/mise/installs/bun/1.4.0/bin:$HOME/.local/share/mise/installs/node/24.20.0/bin:$PATH"
 pnpm install --frozen-lockfile
 pnpm --dir evals install --frozen-lockfile
-OPENWORK_EVAL_HOST=local pnpm --dir evals run test:e2e specs/mcp-app-sandbox-startup.e2e.test.ts
-pnpm --filter openwork-server test src/mcp-app-sandbox.test.ts
-pnpm --filter @openwork/app exec bun test --isolate tests/mcp-app-frame.test.ts
+HARNESS_EVAL_HOST=local pnpm --dir evals run test:e2e specs/mcp-app-sandbox-startup.e2e.test.ts
+pnpm --filter @harness/server test src/mcp-app-sandbox.test.ts
+pnpm --filter @harness/app exec bun test --isolate tests/mcp-app-frame.test.ts
 pnpm --dir evals typecheck
 ```
 
 Deterministic browser verdict: 3 passed, 0 failed, 0 skipped. Supplementary server suite: 19 passed / 159 expectations; renderer suite: 60 passed / 1,073 expectations. The browser tests are component integration, not a signed-in dashboard E2E. Unrelated chat card imports are isolated from the fixture; the sandbox/bridge/client/proxy modules are real. The loopback fixture uses the production proxy exports and CSP with an HTTP delay injector; it does not exercise the full Bun server dispatch stack (covered separately by the server suite).
 
-Opt-in fourth test: supply `OPENWORK_SANDBOX_DEMO_ENDPOINTS` as a JSON array of the **two** explicitly authorized shared-mode static demo MCP endpoints, then run the same command. URLs and credentials are deliberately not committed. Read-only synthetic demo/input-only schema gates prevent live/private action calls. The original three-provider attempt failed with `provider-3: tools/call failed (HTTP_401)`; audit confirmed member OAuth is required and excluded calendar. No further calendar calls or authentication changes were made.
+Opt-in fourth test: supply `HARNESS_SANDBOX_DEMO_ENDPOINTS` as a JSON array of the **two** explicitly authorized shared-mode static demo MCP endpoints, then run the same command. URLs and credentials are deliberately not committed. Read-only synthetic demo/input-only schema gates prevent live/private action calls. The original three-provider attempt failed with `provider-3: tools/call failed (HTTP_401)`; audit confirmed member OAuth is required and excluded calendar. No further calendar calls or authentication changes were made.
 
 Before/after procedure: temporarily restore only `apps/app/src/components/chat/mcp-app-frame.tsx` and `apps/server/src/mcp-app-sandbox.ts` from `c67ba51ed`, run the corrected hosted spec with `-t 'opt-in hosted'`, then restore both files to fixed HEAD and run the complete spec. Before: exit 0, 1 passed / 3 filtered-skipped, 12 rotating single and 12 six-tile loads, 84/84 receipts. After: exit 0, **4 passed / 0 failed / 0 skipped**, including the same 84 hosted receipts. No naturally occurring timeout was observed in either hosted run; this does not establish the production trigger. Corrected before receipt: `evals/results/test-runs/2026-09-15T22-30-27-614Z-sandbox-component-integration-opt-in-hosted-demo-matrix-with-anonymous-readiness/test-run.json`. This historical receipt records the fixed branch SHA plus a deliberate baseline product-file override; it is not final-head proof. Final-head after receipts are published separately.
 
@@ -93,7 +93,7 @@ Observer qualification: root-page init scripts do not automatically instrument o
 Revert-fails control: restore only the baseline external `<link>`/`<script src>` HTML constant, keep the regression tests and Retry, then run:
 
 ```sh
-OPENWORK_EVAL_HOST=local pnpm --dir evals run test:e2e specs/mcp-app-sandbox-startup.e2e.test.ts -t 'inline proxy ignores'
+HARNESS_EVAL_HOST=local pnpm --dir evals run test:e2e specs/mcp-app-sandbox-startup.e2e.test.ts -t 'inline proxy ignores'
 ```
 
 Observed exit 1, 1 failed, 2 filtered/skipped, expected 6 deliveries but received 0. Trace `evals/results/mcp-app-sandbox-startup/1789509253288-45838/inline-css-6.json`; failure receipt starts `2026-09-15T21-54-13-267Z`. Restore the fixed constant before the full passing run. Filtered tests are not passed claims.

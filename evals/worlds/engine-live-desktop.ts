@@ -1,11 +1,11 @@
-import { resolveEvalEngine, type Seed } from "@openwork/env";
-import { createPluginWithSkill, readAvailableModels, selectModel, signInDesktopAs } from "@openwork/behaviors";
+import { resolveEvalEngine, type Seed } from "@harness/env";
+import { createPluginWithSkill, readAvailableModels, selectModel, signInDesktopAs } from "@harness/behaviors";
 import { record } from "./engine-live-parity.ts";
 import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { execFileSync } from "node:child_process";
-import { trackResource } from "@openwork/world";
+import { trackResource } from "@harness/world";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { configuredLiveProvider } from "./installed-live-gateway.ts";
@@ -15,7 +15,7 @@ export async function engineLiveDesktop(seed: Seed) {
   const engine = resolveEvalEngine();
   // Restore can reset the entire enclosing Git project. Profiles and workspaces
   // must live outside the checkout, including when no workspace is pre-created.
-  const profileDir = await realpath(await mkdtemp(join(tmpdir(), "openwork-live-parity-")));
+  const profileDir = await realpath(await mkdtemp(join(tmpdir(), "harness-live-parity-")));
   await trackResource({ kind: "tmpdir", id: profileDir, label: "live-parity-profile" });
   const proofPath = join(profileDir, "live-proof.txt");
   const witnessPath = join(profileDir, "live-mcp-calls.jsonl");
@@ -24,15 +24,15 @@ export async function engineLiveDesktop(seed: Seed) {
   // A blank Electron profile. No workspace, model, credentials or onboarding
   // preference is arranged; production startup must create its default folder.
   const app = await seed.desktop({ name: "live-fresh-desktop", profileDir, signIn: false, env: {
-    OPENWORK_DESKTOP_DISTRIBUTION: "public", OPENWORK_EVAL_MODEL: "",
+    HARNESS_DESKTOP_DISTRIBUTION: "public", HARNESS_EVAL_MODEL: "",
     OPENCODE_CONFIG: "", OPENCODE_CONFIG_CONTENT: "",
     OPENAI_API_KEY: "", ANTHROPIC_AUTH_TOKEN: "", ANTHROPIC_API_KEY: "",
     AI_GATEWAY_API_KEY: "", VERCEL_AI_GATEWAY_API_KEY: "",
-    OPENWORK_ELECTRON_SKIP_SHARED_PREPARE: "1",
-    ...(process.env.OPENWORK_OPENCODE_BIN ? { OPENWORK_OPENCODE_BIN: process.env.OPENWORK_OPENCODE_BIN } : {}),
-    ...(process.env.OPENWORK_OPENCODE2_BIN ? { OPENWORK_OPENCODE2_BIN: process.env.OPENWORK_OPENCODE2_BIN } : {}),
+    HARNESS_ELECTRON_SKIP_SHARED_PREPARE: "1",
+    ...(process.env.HARNESS_OPENCODE_BIN ? { HARNESS_OPENCODE_BIN: process.env.HARNESS_OPENCODE_BIN } : {}),
+    ...(process.env.HARNESS_OPENCODE2_BIN ? { HARNESS_OPENCODE2_BIN: process.env.HARNESS_OPENCODE2_BIN } : {}),
   } });
-  const info = await seed.evalIn(app, async () => window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo"), { awaitPromise: true });
+  const info = await seed.evalIn(app, async () => window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo"), { awaitPromise: true });
   const interactiveMs = performance.now() - bootStarted;
   const request = async (path: string, method = "GET", body?: unknown) => {
     const response = await fetch(`${info.baseUrl}${path}`, { method,
@@ -75,7 +75,7 @@ export async function engineLiveDesktop(seed: Seed) {
       return { session, pages, mutations: log.split("\n").filter(line => /revert|interrupt|fork/.test(line)).slice(-15) };
     },
     async openProviderSettings() {
-      await seed.evalIn(app, () => window.__openworkControl.execute("route.settings.providers"), { awaitPromise: true });
+      await seed.evalIn(app, () => window.__harnessControl.execute("route.settings.providers"), { awaitPromise: true });
     },
     async signInOrganization() {
       const den = await seed.den({ web: true, org: { name: "Cold send parity" } });
@@ -98,12 +98,12 @@ export async function engineLiveDesktop(seed: Seed) {
       const org = await seed.api(den.admin, "/v1/org");
       const orgId = record(org.body) && record(org.body.organization) ? org.body.organization.id : undefined;
       if (typeof orgId !== "string") throw new Error("Missing skill organization");
-      const issued = await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) });
+      const issued = await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) });
       const token = record(issued.body) ? issued.body.token : undefined;
       if (!issued.response.ok || typeof token !== "string") throw new Error("Missing skill MCP token");
       const workspace = /\/workspace\/([^/]+)/.exec(await seed.evalIn(app, () => location.hash || location.pathname))?.[1];
       if (!workspace) throw new Error("Missing skill workspace");
-      const connected = await request(`/workspace/${workspace}/mcp/openwork-cloud/reconcile`, "POST", {
+      const connected = await request(`/workspace/${workspace}/mcp/harness-cloud/reconcile`, "POST", {
         config: { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false, headers: { Authorization: `Bearer ${token}` } }, trigger: "live-parity-fixture",
       });
       if (connected.status !== 200) throw new Error(`Skill reconciliation failed: ${connected.status}`);
@@ -135,13 +135,13 @@ export async function engineLiveDesktop(seed: Seed) {
       const org = await seed.api(den.admin, "/v1/org");
       const orgId = record(org.body) && record(org.body.organization) ? org.body.organization.id : undefined;
       if (typeof orgId !== "string") throw new Error("Missing connector organization");
-      const issued = await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) });
+      const issued = await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) });
       const token = record(issued.body) ? issued.body.token : undefined;
       if (!issued.response.ok || typeof token !== "string") throw new Error("Missing connector MCP token");
       const route = await seed.evalIn(app, () => location.hash || location.pathname);
       const workspace = /\/workspace\/([^/]+)/.exec(route)?.[1];
       if (!workspace) throw new Error("Missing connector workspace");
-      const connected = await request(`/workspace/${workspace}/mcp/openwork-cloud/reconcile`, "POST", {
+      const connected = await request(`/workspace/${workspace}/mcp/harness-cloud/reconcile`, "POST", {
         config: { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false, headers: { Authorization: `Bearer ${token}` } }, trigger: "live-parity-fixture",
       });
       if (connected.status !== 200) throw new Error(`Connector reconciliation failed: ${connected.status}`);

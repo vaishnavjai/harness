@@ -1,8 +1,8 @@
 import { createServer } from "node:http";
 import { afterEach, expect, vi } from "vitest";
-import { test } from "@openwork/testkit";
-import { openworkCatalogModels } from "@openwork/types/openwork-affordance";
-import { OpenWorkExtensionsPreview } from "../../apps/server/src/opencode-plugins/openwork-extensions-preview";
+import { test } from "@harness/testkit";
+import { harnessCatalogModels } from "@harness/types/harness-affordance";
+import { HarnessExtensionsPreview } from "../../apps/server/src/opencode-plugins/harness-extensions-preview";
 import { listControlSessions, type ListControlSessionsState } from "../../apps/app/src/react-app/domains/session/control/list-control-sessions";
 
 const PROVIDER = "ipr_fixture_01";
@@ -17,7 +17,7 @@ const workspaces = [
   { id: "ws_two", name: "Two", path: "/tmp/model-alias-fixture/two" },
 ];
 
-function catalog(name = NAME): Parameters<typeof openworkCatalogModels>[0] {
+function catalog(name = NAME): Parameters<typeof harnessCatalogModels>[0] {
   return {
     connected: [PROVIDER, OTHER_PROVIDER],
     all: [
@@ -109,7 +109,7 @@ async function witness() {
           const value = workspace ? catalogs.get(workspace.id) : undefined;
           if (!workspace || !value) return json(200, { ok: false, id: "models.list", code: "invalid-args", error: "Workspace missing" });
           if (unavailable.has(workspace.id)) return json(200, { ok: false, id: "models.list", code: "unavailable", error: "Fixture catalog unavailable" });
-          const models = host.denied.has(workspace.id) ? [] : openworkCatalogModels(value);
+          const models = host.denied.has(workspace.id) ? [] : harnessCatalogModels(value);
           return json(200, { ok: true, id: "models.list", effects: { data: "read", ui: "none", external: false },
             result: { ok: true, workspaceId: workspace.id, models: models.map((model) => ({ ...model, available: true })) } });
         }
@@ -164,16 +164,16 @@ async function witness() {
   });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Fixture failed to bind");
-  vi.stubEnv("OPENWORK_SERVER_URL", `http://127.0.0.1:${address.port}`);
-  vi.stubEnv("OPENWORK_SERVER_TOKEN", "fixture-token");
-  const plugin = await OpenWorkExtensionsPreview({ directory: workspaces[0]?.path });
+  vi.stubEnv("HARNESS_SERVER_URL", `http://127.0.0.1:${address.port}`);
+  vi.stubEnv("HARNESS_SERVER_TOKEN", "fixture-token");
+  const plugin = await HarnessExtensionsPreview({ directory: workspaces[0]?.path });
   return {
     requests, catalogs, sessions, transcripts, unavailable, host,
     hostQueries: () => requests.filter((request) => isRecord(request.body) && request.body.kind === "query"),
     writes: () => requests.filter((request) => request.method !== "GET" && !(isRecord(request.body) && request.body.kind === "query")),
-    query: (id: string, args: Record<string, unknown>) => plugin.tool.openwork_query.execute({ id, args }),
-    create: (args: Record<string, unknown>) => plugin.tool.openwork_execute.execute({ id: "session.create", args }, {}),
-    read: async (sessionId: string, args: Record<string, unknown> = {}) => resultOf(await plugin.tool.openwork_query.execute({
+    query: (id: string, args: Record<string, unknown>) => plugin.tool.harness_query.execute({ id, args }),
+    create: (args: Record<string, unknown>) => plugin.tool.harness_execute.execute({ id: "session.create", args }, {}),
+    read: async (sessionId: string, args: Record<string, unknown> = {}) => resultOf(await plugin.tool.harness_query.execute({
       id: "session.read", args: { workspaceId: "ws_one", sessionId, ...args },
     }), "session.read"),
   };
@@ -428,7 +428,7 @@ modelCase("renderer session inventory uses each workspace catalog without changi
       ],
       ws_two: [{ id: "ses_two", model: { providerID: PROVIDER, id: MODEL, variant: "default" } }],
     },
-    modelCatalogByWorkspaceId: { ws_one: openworkCatalogModels(catalog()), ws_two: openworkCatalogModels(catalog("Workspace Two Luna")) },
+    modelCatalogByWorkspaceId: { ws_one: harnessCatalogModels(catalog()), ws_two: harnessCatalogModels(catalog("Workspace Two Luna")) },
     pinnedIds: [],
     statusFor: () => "idle",
   };

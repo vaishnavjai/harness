@@ -1,6 +1,6 @@
 if (process.versions.electron && process.type === "browser") {
   const delegate = globalThis.fetch.bind(globalThis);
-  const control = "http://127.0.0.1/__openwork_permission_test_control";
+  const control = "http://127.0.0.1/__harness_permission_test_control";
   let origin = "";
   let mount = "";
   const requests = [];

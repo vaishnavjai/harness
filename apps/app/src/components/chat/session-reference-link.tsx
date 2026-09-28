@@ -30,7 +30,7 @@ export function SessionReferenceLink({ reference, openReference, children, class
       onMouseDown={(event) => { if (event.button === 1) event.preventDefault() }}
     >
       <img
-        src={resolveExtensionIconSrc("/openwork-sidebar-mark.svg")}
+        src={resolveExtensionIconSrc("/harness-sidebar-mark.svg")}
         alt=""
         aria-hidden="true"
         className="size-4 shrink-0 object-contain dark:invert"

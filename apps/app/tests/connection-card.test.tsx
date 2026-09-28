@@ -15,10 +15,10 @@ import type { ChatConnectionDecisionBinding, ChatConnectionDecisionResponse } fr
 const payload = {
   schemaVersion: "1", connectionId: "connection-1", connectionName: "Research Vault",
   state: "needs_connection", actor: "member", message: "Sign-in required",
-  action: { type: "connect", surface: "openwork_your_connections", label: "Connect your account" },
+  action: { type: "connect", surface: "harness_your_connections", label: "Connect your account" },
 }
 const part: DynamicToolUIPart = {
-  type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "call-1",
+  type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "call-1",
   state: "output-available", input: {}, output: payload,
 }
 const request = { requestId: "request-1", owner: "owner-1", sessionId: "session-1", turnId: "turn-1", toolCallId: "call-1", connectionId: "connection-1" }
@@ -206,13 +206,13 @@ describe("connection card states", () => {
     connectionId: "emc_01kxh1ns3cesjax0x2zz6ekvxm", connectionName: "Stripe",
   }
   const stripePayload = {
-    version: 1, kind: "connection_action", source: "openwork-cloud", layer: "downstream_provider",
+    version: 1, kind: "connection_action", source: "harness-cloud", layer: "downstream_provider",
     ...stripe, authType: "oauth", credentialMode: "per_member",
     state: "needs_connection", errorCode: "not_connected", message: "You haven't connected your Stripe account yet.", actor: "member",
-    action: { type: "connect", label: "Connect Stripe", surface: "openwork_your_connections", retry: "search_capabilities", url: "https://app.openworklabs.com/x" },
+    action: { type: "connect", label: "Connect Stripe", surface: "harness_your_connections", retry: "search_capabilities", url: "https://app.harness.invalid/x" },
   }
   const stripePart: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "call_stripe_status",
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "call_stripe_status",
     state: "output-available", input: { name: "mcp:emc_01kxh1ns3cesjax0x2zz6ekvxm:*" }, output: stripePayload,
   }
   const owner = "account/session"
@@ -373,7 +373,7 @@ describe("connection card states", () => {
     const adminPart: DynamicToolUIPart = {
       ...stripePart,
       output: { ...stripePayload, authType: "apikey", credentialMode: "shared", actor: "organization_admin",
-        action: { type: "update_credentials", label: "Rotate the key", surface: "openwork_organization_connections", retry: "search_capabilities" } },
+        action: { type: "update_credentials", label: "Rotate the key", surface: "harness_organization_connections", retry: "search_capabilities" } },
     }
     const view = await mount(card(null, adminPart))
     try {

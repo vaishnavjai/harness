@@ -18,7 +18,7 @@ function allowedPath(decision) {
 }
 
 async function fixture() {
-  const base = await mkdtemp(path.join(os.tmpdir(), "openwork-file-access-"));
+  const base = await mkdtemp(path.join(os.tmpdir(), "harness-file-access-"));
   const workspace = path.join(base, "workspace");
   const outside = path.join(base, "outside");
   await mkdir(path.join(workspace, "reports"), { recursive: true });

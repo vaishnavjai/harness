@@ -21,7 +21,7 @@ import {
 const ELECTRON_UPDATER_CHANNEL_FILENAME = "electron-updater-channel.v1.json";
 
 // In dev mode, app.getVersion() returns the Electron framework version
-// (e.g. "35.7.5") instead of the OpenWork app version. Read from
+// (e.g. "35.7.5") instead of the Harness app version. Read from
 // package.json so the UI always shows the correct version.
 const __updater_dirname = path.dirname(fileURLToPath(import.meta.url));
 let _cachedAppVersion = null;
@@ -44,8 +44,8 @@ function resolveAppVersion(app) {
   return _cachedAppVersion;
 }
 const ELECTRON_UPDATER_FEEDS = Object.freeze({
-  stable: "https://github.com/different-ai/openwork/releases/latest/download",
-  alpha: "https://github.com/different-ai/openwork/releases/download/alpha-macos-latest",
+  stable: "https://github.com/vaishnavjai/harness/releases/latest/download",
+  alpha: "https://github.com/vaishnavjai/harness/releases/download/alpha-macos-latest",
 });
 
 function normalizeElectronUpdaterChannel(value, manifestChannel = "latest") {
@@ -176,7 +176,7 @@ export function targetedStableUpdaterFeed(currentVersion, targetVersion, allowOl
       ? "Recovery target version must differ from the installed version."
       : "Target update version must be newer than the installed version.");
   }
-  return `https://github.com/different-ai/openwork/releases/download/v${normalizedTarget}`;
+  return `https://github.com/vaishnavjai/harness/releases/download/v${normalizedTarget}`;
 }
 
 function updaterChannelState(app, channel, targetVersion = null, manifestChannel = "latest") {
@@ -245,7 +245,7 @@ function runDefaults(args) {
 
 // Squirrel.Mac's `ShipIt` helper (which swaps the .app on macOS) reads its
 // options from this NSUserDefaults domain.
-const SHIP_IT_DEFAULTS_DOMAIN = "com.differentai.openwork.ShipIt";
+const SHIP_IT_DEFAULTS_DOMAIN = "com.vaishnavjai.harness.ShipIt";
 
 // Squirrel.Mac defaults to moving the *entire* app bundle through a temp
 // directory. On repeat installs that move can leave the staged bundle missing,
@@ -389,7 +389,7 @@ export function registerUpdaterIpc({
             // Forward download progress to the renderer so the UI can show
             // incremental bytes instead of staying stuck at 0.
             autoUpdaterInstance.on("download-progress", (info) => {
-              sendToRenderer("openwork:updater:download-progress", {
+              sendToRenderer("harness:updater:download-progress", {
                 bytesPerSecond: info.bytesPerSecond ?? 0,
                 percent: info.percent ?? 0,
                 transferred: info.transferred ?? 0,
@@ -465,7 +465,7 @@ export function registerUpdaterIpc({
   async function resolveRecoveryArtifact(version) {
     if (!electronNet?.fetch) return null;
     try {
-      const manifestUrl = `https://github.com/different-ai/openwork/releases/download/v${version}/${recoveryManifestName(platform, arch, distribution)}`;
+      const manifestUrl = `https://github.com/vaishnavjai/harness/releases/download/v${version}/${recoveryManifestName(platform, arch, distribution)}`;
       const response = await electronNet.fetch(manifestUrl, { headers: { Accept: "text/yaml, text/plain, */*" } });
       if (!response.ok) return null;
       return selectRecoveryArtifact(parseRecoveryManifest(await response.text()), {
@@ -498,13 +498,13 @@ export function registerUpdaterIpc({
   }
 
   function evalRecoveryReleases() {
-    if (typeof env.OPENWORK_EVAL_RECOVERY_RELEASES === "string") {
+    if (typeof env.HARNESS_EVAL_RECOVERY_RELEASES === "string") {
       try {
-        const target = String(env.OPENWORK_EVAL_RECOVERY_TARGET ?? "").split("-");
+        const target = String(env.HARNESS_EVAL_RECOVERY_TARGET ?? "").split("-");
         const targetPlatform = target[0];
         const targetArch = target[1];
         const targetDistribution = target.slice(2).join("-");
-        const raw = JSON.parse(env.OPENWORK_EVAL_RECOVERY_RELEASES);
+        const raw = JSON.parse(env.HARNESS_EVAL_RECOVERY_RELEASES);
         const stable = Array.isArray(raw) ? raw.filter((release) =>
           stableVersion(release?.version)
           && release?.channel === "stable"
@@ -525,9 +525,9 @@ export function registerUpdaterIpc({
         return [];
       }
     }
-    if (typeof env.OPENWORK_EVAL_RECOVERY_CANDIDATES === "string") {
+    if (typeof env.HARNESS_EVAL_RECOVERY_CANDIDATES === "string") {
       try {
-        const raw = JSON.parse(env.OPENWORK_EVAL_RECOVERY_CANDIDATES);
+        const raw = JSON.parse(env.HARNESS_EVAL_RECOVERY_CANDIDATES);
         return Array.isArray(raw) ? raw.filter((candidate) =>
           candidate?.verified === true
           && stableVersion(candidate?.version)
@@ -547,11 +547,11 @@ export function registerUpdaterIpc({
     return null;
   }
 
-  ipcMain.handle("openwork:recovery:recordHealthy", async () => {
+  ipcMain.handle("harness:recovery:recordHealthy", async () => {
     return recordHealthyVersion(app, distribution, resolveAppVersion(app));
   });
 
-  ipcMain.handle("openwork:recovery:list", async (_event, policy = {}) => {
+  ipcMain.handle("harness:recovery:list", async (_event, policy = {}) => {
     const evalReleases = evalRecoveryReleases();
     if (evalReleases) {
       recoveryReleases = evalReleases;
@@ -594,7 +594,7 @@ export function registerUpdaterIpc({
     const release = id ? recoveryReleases.find((candidate) => candidate.id === id) : null;
     if (!release) return { ok: false, reason: "That recovery version is no longer available. Retry the release list." };
     if (release.eval) {
-      if (env.OPENWORK_EVAL_RECOVERY_CANDIDATES) {
+      if (env.HARNESS_EVAL_RECOVERY_CANDIDATES) {
         recoveryWitness.installRequests.push({ version: release.version, artifactUrl: release.artifact.url });
       } else {
         recoveryWitness.openedArtifactUrls.push(release.artifact.url);
@@ -659,26 +659,26 @@ export function registerUpdaterIpc({
     }
   }
 
-  ipcMain.handle("openwork:recovery:use", async (_event, id) =>
+  ipcMain.handle("harness:recovery:use", async (_event, id) =>
     queueUpdaterOperation(() => useRecoveryRelease(id)));
-  ipcMain.handle("openwork:recovery:restorePrevious", async () => {
+  ipcMain.handle("harness:recovery:restorePrevious", async () => {
     return queueUpdaterOperation(() => {
       const previous = recoveryReleases.find((release) => release.marking === "previous");
       return previous ? useRecoveryRelease(previous.id) : { ok: false, reason: "No verified previous version is available." };
     });
   });
-  ipcMain.handle("openwork:recovery:evalSnapshot", async () => ({
+  ipcMain.handle("harness:recovery:evalSnapshot", async () => ({
     candidates: recoveryReleases,
     releases: recoveryReleases,
     ...recoveryWitness,
   }));
 
-  ipcMain.handle("openwork:updater:getChannel", async () => queueUpdaterOperation(async () => {
+  ipcMain.handle("harness:updater:getChannel", async () => queueUpdaterOperation(async () => {
     const channel = await readElectronUpdaterChannel(app, manifestChannel);
     return updaterChannelState(app, channel, null, manifestChannel);
   }));
 
-  ipcMain.handle("openwork:updater:setChannel", async (_event, rawChannel) => queueUpdaterOperation(async () => {
+  ipcMain.handle("harness:updater:setChannel", async (_event, rawChannel) => queueUpdaterOperation(async () => {
     const channel = await writeElectronUpdaterChannel(app, rawChannel, manifestChannel);
     checkedUpdateVersion = null;
     checkedUpdateTargetVersion = null;
@@ -695,7 +695,7 @@ export function registerUpdaterIpc({
     return updaterChannelState(app, channel, null, manifestChannel);
   }));
 
-  ipcMain.handle("openwork:updater:check", async (_event, rawChannel, rawTargetVersion, options) => queueUpdaterOperation(async () => {
+  ipcMain.handle("harness:updater:check", async (_event, rawChannel, rawTargetVersion, options) => queueUpdaterOperation(async () => {
     assertActivation();
     // A check selects a feed for this operation only. The persisted preference
     // belongs exclusively to setChannel so a stale check cannot undo a choice.
@@ -773,7 +773,7 @@ export function registerUpdaterIpc({
     }
   }));
 
-  ipcMain.handle("openwork:updater:download", async () => queueUpdaterOperation(async () => {
+  ipcMain.handle("harness:updater:download", async () => queueUpdaterOperation(async () => {
     assertActivation();
     const updater = await ensureAutoUpdater();
     if (!updater) return { ok: false, reason: "unavailable" };
@@ -819,7 +819,7 @@ export function registerUpdaterIpc({
     }
   }));
 
-  ipcMain.handle("openwork:updater:installAndRestart", async () => queueUpdaterOperation(async () => {
+  ipcMain.handle("harness:updater:installAndRestart", async () => queueUpdaterOperation(async () => {
     assertActivation();
     if (!updateDownloaded) return { ok: false, reason: "update-not-downloaded" };
     const updater = await ensureAutoUpdater();

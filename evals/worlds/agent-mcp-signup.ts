@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { denFetch } from "@openwork/behaviors";
-import { personDefaults, queryDenDatabase, type Seed } from "@openwork/env";
-import { close, isRecord, listen } from "./openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import { personDefaults, queryDenDatabase, type Seed } from "@harness/env";
+import { close, isRecord, listen } from "./harness-server-cli.ts";
 
 type TokenExchange = { status: number; accessToken: string; scope: string; organizationId: string };
 
@@ -25,7 +25,7 @@ export async function agentMcpSignup(seed: Seed) {
     org: { name: `Agent signup witness ${runId}`, members: {} },
     mocks: { tools: seed.mock({ allowUnauthenticatedMcp: true }) },
     env: {
-      DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "true", OPENWORK_DEV_MODE: "1",
+      DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "true", HARNESS_DEV_MODE: "1",
       RESEND_API_KEY: "", SMTP_HOST: "",
     },
   });
@@ -56,7 +56,7 @@ export async function agentMcpSignup(seed: Seed) {
       });
     }
     response.writeHead(200, { "content-type": "text/html", "cache-control": "no-store" });
-    response.end("<!doctype html><title>Agent connected</title><h1>Your agent is connected to OpenWork</h1>");
+    response.end("<!doctype html><title>Agent connected</title><h1>Your agent is connected to Harness</h1>");
   });
   const callbackOrigin = await listen(callback);
 

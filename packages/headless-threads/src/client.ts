@@ -1,7 +1,7 @@
 /**
- * A function-driven client for native OpenWork threads.
+ * A function-driven client for native Harness threads.
  *
- * Every call uses the OpenCode SDK through OpenWork's workspace-scoped mount:
+ * Every call uses the OpenCode SDK through Harness's workspace-scoped mount:
  *
  * - `POST /workspace/:id/opencode/session` creates a thread
  * - native session reads provide messages, todos, and status
@@ -125,7 +125,7 @@ export function createHeadlessThreadClient(options: HeadlessThreadClientOptions)
     baseUrl: `${baseUrl}${opencodePath}`,
     headers: {
       Authorization: `Bearer ${options.token}`,
-      ...(options.hostToken === undefined ? {} : { "X-OpenWork-Host-Token": options.hostToken }),
+      ...(options.hostToken === undefined ? {} : { "X-Harness-Host-Token": options.hostToken }),
     },
     redirect: "error",
     fetch: Object.assign(sdkFetch, { preconnect: () => {} }),
@@ -145,8 +145,8 @@ export function createHeadlessThreadClient(options: HeadlessThreadClientOptions)
       message: detail.success && detail.data.message !== undefined
         ? detail.data.message
         : result.response
-          ? `OpenWork returned ${result.response.status} for ${method} ${path}`
-          : `OpenWork request failed for ${method} ${path}`,
+          ? `Harness returned ${result.response.status} for ${method} ${path}`
+          : `Harness request failed for ${method} ${path}`,
       method,
       path,
       ...(result.response === undefined ? {} : { status: result.response.status }),
@@ -159,7 +159,7 @@ export function createHeadlessThreadClient(options: HeadlessThreadClientOptions)
     if (parsed.success) return parsed.data;
     throw new HeadlessThreadError({
       code: "invalid_response",
-      message: `OpenWork returned an unexpected payload for ${method} ${path}`,
+      message: `Harness returned an unexpected payload for ${method} ${path}`,
       method,
       path,
       ...(result.response === undefined ? {} : { status: result.response.status }),

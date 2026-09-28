@@ -1,19 +1,19 @@
 import { createServer } from "node:http";
 import { request } from "node:https";
 import type { Duplex } from "node:stream";
-import { attachSurface } from "@openwork/cdp";
-import { trackResource } from "@openwork/world";
-import { ensureEvidenceSnapshot } from "@openwork/freestyle/evidence-builder";
-import { client, execChecked } from "@openwork/freestyle";
+import { attachSurface } from "@harness/cdp";
+import { trackResource } from "@harness/world";
+import { ensureEvidenceSnapshot } from "@harness/freestyle/evidence-builder";
+import { client, execChecked } from "@harness/freestyle";
 import { setTimeout as delay } from "node:timers/promises";
-import { deleteEvidenceVm, launchEvidenceWorld, continueEvidenceStream, startEvidenceCheckpoint } from "@openwork/freestyle/checkpoints";
-import type { EvidenceSession } from "@openwork/freestyle/checkpoints";
+import { deleteEvidenceVm, launchEvidenceWorld, continueEvidenceStream, startEvidenceCheckpoint } from "@harness/freestyle/checkpoints";
+import type { EvidenceSession } from "@harness/freestyle/checkpoints";
 import { checkpointCapability, type CheckpointCapability } from "./checkpoint-capability.ts";
 
 /** Host-only relay: keeps the provider cookie out of CDP URLs and evidence logs. */
 export async function evidenceCdpRelay(session: Pick<EvidenceSession, "cdpOrigin" | "cookie">) {
   const remote = new URL(session.cdpOrigin);
-  if (remote.protocol !== "https:" || !/^cdp-[a-f0-9]{32}\.preview\.openwork\.software$/.test(remote.hostname)) throw new Error("Invalid evidence CDP origin");
+  if (remote.protocol !== "https:" || !/^cdp-[a-f0-9]{32}\.preview\.harness\.software$/.test(remote.hostname)) throw new Error("Invalid evidence CDP origin");
   const peers = new Set<Duplex>();
   const server = createServer((req, res) => {
     // This loopback endpoint is for the Node controller, not arbitrary websites.
@@ -97,7 +97,7 @@ export async function freestyleEvidenceWeb(sourceSha: string) {
       [checkpointCapability]: capability,
       continueStream: () => continueEvidenceStream(session.id),
       async streamState() {
-        const text = await execChecked(client().vms.ref(session.id), "node /opt/openwork-preview/evidence-control.mjs state");
+        const text = await execChecked(client().vms.ref(session.id), "node /opt/harness-preview/evidence-control.mjs state");
         const value: unknown = JSON.parse(text);
         if (typeof value !== "object" || value === null || !("held" in value) || typeof value.held !== "boolean"
           || !("complete" in value) || typeof value.complete !== "boolean" || !("streamCount" in value) || typeof value.streamCount !== "number") throw new Error("Invalid stream witness");

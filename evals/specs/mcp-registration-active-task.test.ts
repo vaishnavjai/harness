@@ -1,9 +1,9 @@
 import { expect } from "vitest";
-import { eventually, spec } from "@openwork/testkit";
+import { eventually, spec } from "@harness/testkit";
 import { mcpRegistration } from "../worlds/mcp-registration.ts";
 
 // New boundary journey: an active task must retain its MCP client while
-// OpenWork delivers runtime configuration to the real managed engine.
+// Harness delivers runtime configuration to the real managed engine.
 const test = spec.world(mcpRegistration, { needs: { commands: ["bun"] }, timeout: 180_000 });
 
 function isRecord(value: unknown): value is Record<string, unknown> {

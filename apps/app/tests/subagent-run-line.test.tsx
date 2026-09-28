@@ -15,7 +15,7 @@ function taskPart(state: "input-streaming" | "output-available", childSessionId?
     subagent_type: "executor-deep",
   };
 
-  const callProviderMetadata = childSessionId ? { openwork: { childSessionId } } : undefined;
+  const callProviderMetadata = childSessionId ? { harness: { childSessionId } } : undefined;
 
   return state === "output-available"
     ? {

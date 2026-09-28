@@ -9,8 +9,8 @@ import type { DesktopRelease, ElectronStartupObservation } from "./types.ts";
 
 const SNAPSHOT = "windows-medium";
 const INSTALLER = "C:\\ow\\release.exe";
-const BINARY = "C:\\Users\\Administrator\\AppData\\Local\\Programs\\@openworkdesktop\\OpenWork.exe";
-const PROFILE = "C:\\Users\\Administrator\\AppData\\Roaming\\com.differentai.openwork";
+const BINARY = "C:\\Users\\Administrator\\AppData\\Local\\Programs\\@harnessdesktop\\Harness.exe";
+const PROFILE = "C:\\Users\\Administrator\\AppData\\Roaming\\com.vaishnavjai.harness";
 const LOG = "C:\\ow\\desktop.log";
 const CDP_PORT = 9223; // The packaged app overrides the requested 9222 port with 9223.
 const POLL_MS = 5_000;
@@ -108,7 +108,7 @@ export async function provisionWindowsReleaseSandbox(options: {
   if (!Number.isSafeInteger(options.lifetimeMinutes) || options.lifetimeMinutes < 0 || options.lifetimeMinutes > 1410) {
     throw new Error("Windows world lifetime must be 0-1410 minutes (30 minutes reserved for startup and provider cleanup).");
   }
-  const name = `openwork-world-win-${randomBytes(8).toString("hex")}`;
+  const name = `harness-world-win-${randomBytes(8).toString("hex")}`;
   let sandbox = name;
   let created = false;
   try {
@@ -151,24 +151,24 @@ export async function provisionWindowsReleaseSandbox(options: {
     const installCmd = "C:\\ow\\install.cmd";
     await stage(step, "win-install", "Install as the signed-in Administrator", async () => {
     await runPowerShell(exec, sandbox,
-      `${commandFile(installCmd, ["@echo off", `"${INSTALLER}" /S`])}\n${task("OpenWorkWorldInstall", installCmd)}`,
+      `${commandFile(installCmd, ["@echo off", `"${INSTALLER}" /S`])}\n${task("HarnessWorldInstall", installCmd)}`,
       "install Windows release as interactive Administrator");
     await pollWindowsUntil(async () => {
       const result = await runPowerShell(exec, sandbox,
-        `if ((Test-Path -LiteralPath ${literal(BINARY)}) -and ((& schtasks.exe /query /tn OpenWorkWorldInstall /fo list /v | Out-String) -match 'Status:\\s+Ready')) { Write-Output 'INSTALLED' }`,
+        `if ((Test-Path -LiteralPath ${literal(BINARY)}) -and ((& schtasks.exe /query /tn HarnessWorldInstall /fo list /v | Out-String) -match 'Status:\\s+Ready')) { Write-Output 'INSTALLED' }`,
         "Windows interactive installer status", 30_000);
       return result.includes("INSTALLED") ? true : undefined;
     }, 300_000, "Windows interactive installer");
     });
 
     const launchCmd = "C:\\ow\\launch.cmd";
-    await stage(step, "win-launch", "Launch OpenWork in the desktop session", async () => {
+    await stage(step, "win-launch", "Launch Harness in the desktop session", async () => {
     await runPowerShell(exec, sandbox,
-      `${commandFile(launchCmd, ["@echo off", `"${BINARY}" --no-sandbox --remote-debugging-port=9222 > "${LOG}" 2>&1`])}\n${task("OpenWorkWorldLaunch", launchCmd)}`,
+      `${commandFile(launchCmd, ["@echo off", `"${BINARY}" --no-sandbox --remote-debugging-port=9222 > "${LOG}" 2>&1`])}\n${task("HarnessWorldLaunch", launchCmd)}`,
       "launch Windows release as interactive Administrator");
     const observed = await pollWindowsUntil(async () => {
       const output = await runPowerShell(exec, sandbox,
-        `$p = Get-CimInstance Win32_Process -Filter \"name='OpenWork.exe'\" | Where-Object { $_.CommandLine -notmatch '--type=' -and $_.SessionId -eq 1 }\n` +
+        `$p = Get-CimInstance Win32_Process -Filter \"name='Harness.exe'\" | Where-Object { $_.CommandLine -notmatch '--type=' -and $_.SessionId -eq 1 }\n` +
         `if ($p) { Write-Output 'GUI_SESSION_1' }`, "Windows interactive session witness", 30_000);
       return output.includes("GUI_SESSION_1") ? true : undefined;
     }, 120_000, "Windows GUI session");
@@ -191,13 +191,13 @@ export async function provisionWindowsReleaseSandbox(options: {
       await pollWindowsUntil(async () => {
         const response = await runPowerShell(exec, sandbox,
           `& curl.exe --fail --silent --max-time 4 http://127.0.0.1:${CDP_PORT}/json/version`, "Windows release CDP probe", 15_000);
-        return response.includes(`OpenWork/${release.version}`) ? true : undefined;
+        return response.includes(`Harness/${release.version}`) ? true : undefined;
       }, options.startupTimeoutMs ?? 180_000, "Windows release CDP");
       const privateCdp = await privateWebPreview(sandbox, CDP_PORT, exec, expiresInSeconds);
       const response = await (options.request ?? fetch)(new URL("/json/version", privateCdp.browserOrigin), { signal: AbortSignal.timeout(10_000) });
-      if (!response.ok || !(await response.text()).includes(`OpenWork/${release.version}`)) throw new Error("Windows CDP is not reachable through the signed private preview.");
+      if (!response.ok || !(await response.text()).includes(`Harness/${release.version}`)) throw new Error("Windows CDP is not reachable through the signed private preview.");
       cdpUrl = privateCdp.browserOrigin;
-      await cdpStep?.ok(`OpenWork/${release.version}`);
+      await cdpStep?.ok(`Harness/${release.version}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await cdpStep?.fail(`not responsive; viewer kept for inspection — ${message}`);

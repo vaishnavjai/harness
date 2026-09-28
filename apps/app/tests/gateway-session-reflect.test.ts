@@ -38,11 +38,11 @@ function installGatewayWindow() {
   Object.defineProperty(globalThis, "window", {
     configurable: true,
     value: {
-      __OPENWORK_GATEWAY__: { version: 1 },
+      __HARNESS_GATEWAY__: { version: 1 },
       addEventListener: () => undefined,
       dispatchEvent: () => true,
       localStorage: memoryStorage(),
-      location: { origin: "https://web.openworklabs.com" },
+      location: { origin: "https://web.harness.invalid" },
       removeEventListener: () => undefined,
     },
   });
@@ -61,7 +61,7 @@ describe("gateway Den session reflection", () => {
     await initializeDenBootstrapConfig();
 
     writeDenSettings({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       authToken: "tok_gateway_session",
       activeOrgId: null,
       activeOrgSlug: null,
@@ -133,7 +133,7 @@ describe("gateway Den session reflection", () => {
     expect(second).toBe(first);
 
     writeDenSettings({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       authToken: "tok_gateway_session",
       activeOrgId: null,
       activeOrgSlug: null,
@@ -143,6 +143,6 @@ describe("gateway Den session reflection", () => {
     const afterToken = readDenBootstrapConfig();
     expect(afterToken).toBe(first);
     expect(readDenSettings().authToken).toBe("tok_gateway_session");
-    expect(readDenSettings().apiBaseUrl).toBe("https://web.openworklabs.com/api/den");
+    expect(readDenSettings().apiBaseUrl).toBe("https://web.harness.invalid/api/den");
   });
 });

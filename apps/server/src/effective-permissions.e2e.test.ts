@@ -13,7 +13,7 @@ const CLIENT_TOKEN = "owt_effective_permissions";
 const HOST_TOKEN = "owt_effective_permissions_host";
 const stops: Array<() => void | Promise<void>> = [];
 const roots: string[] = [];
-const priorEnv = { dataDir: process.env.OPENWORK_DATA_DIR, tokenStore: process.env.OPENWORK_TOKEN_STORE };
+const priorEnv = { dataDir: process.env.HARNESS_DATA_DIR, tokenStore: process.env.HARNESS_TOKEN_STORE };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -25,7 +25,7 @@ function fakeEngine(agents: unknown[]) {
     port: 0,
     fetch(request) {
       const url = new URL(request.url);
-      if (url.pathname === "/config") return Response.json({ default_agent: "openwork" });
+      if (url.pathname === "/config") return Response.json({ default_agent: "harness" });
       if (url.pathname === "/agent") return Response.json(agents);
       return Response.json({ error: "not_found" }, { status: 404 });
     },
@@ -37,24 +37,24 @@ function fakeEngine(agents: unknown[]) {
 afterEach(async () => {
   while (stops.length) await stops.pop()?.();
   while (roots.length) await rm(roots.pop()!, { recursive: true, force: true });
-  if (priorEnv.dataDir === undefined) delete process.env.OPENWORK_DATA_DIR;
-  else process.env.OPENWORK_DATA_DIR = priorEnv.dataDir;
-  if (priorEnv.tokenStore === undefined) delete process.env.OPENWORK_TOKEN_STORE;
-  else process.env.OPENWORK_TOKEN_STORE = priorEnv.tokenStore;
+  if (priorEnv.dataDir === undefined) delete process.env.HARNESS_DATA_DIR;
+  else process.env.HARNESS_DATA_DIR = priorEnv.dataDir;
+  if (priorEnv.tokenStore === undefined) delete process.env.HARNESS_TOKEN_STORE;
+  else process.env.HARNESS_TOKEN_STORE = priorEnv.tokenStore;
 });
 
 describe("effective permissions route", () => {
   test("summarises the governing agent's ruleset and attributes each row to its layer", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openwork-effective-permissions-"));
+    const root = await mkdtemp(join(tmpdir(), "harness-effective-permissions-"));
     roots.push(root);
-    process.env.OPENWORK_DATA_DIR = join(root, "data");
-    process.env.OPENWORK_TOKEN_STORE = join(root, "tokens.json");
+    process.env.HARNESS_DATA_DIR = join(root, "data");
+    process.env.HARNESS_TOKEN_STORE = join(root, "tokens.json");
     // The workspace file denies edits; the stand-in engine's ruleset reflects that merge.
     await writeFile(join(root, "opencode.json"), JSON.stringify({ permission: { edit: "deny" } }), "utf8");
     const engineUrl = fakeEngine([
       { name: "build", mode: "primary", hidden: false, permission: [{ permission: "*", pattern: "*", action: "allow" }] },
       {
-        name: "openwork",
+        name: "harness",
         mode: "primary",
         hidden: false,
         permission: [
@@ -99,7 +99,7 @@ describe("effective permissions route", () => {
     expect(response.status).toBe(200);
     const body: unknown = await response.json();
     if (!isRecord(body) || !Array.isArray(body.rows)) throw new Error(`unexpected body ${JSON.stringify(body)}`);
-    expect(body.agent).toBe("openwork");
+    expect(body.agent).toBe("harness");
     const rows = Object.fromEntries(body.rows.map((row) => [isRecord(row) ? String(row.key) : "", row]));
     expect(rows.shell).toMatchObject({ action: "allow", source: "engine", exceptions: 0 });
     expect(rows.edit).toMatchObject({ action: "deny", source: "workspace" });

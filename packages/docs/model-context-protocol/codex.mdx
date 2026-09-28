@@ -1,16 +1,16 @@
 ---
 title: "Connect Codex"
 sidebarTitle: "Codex"
-description: "Add OpenWork MCP to Codex with one command: codex mcp add openwork --url https://api.openworklabs.com/mcp/agent, then codex mcp login openwork."
+description: "Add Harness MCP to Codex with one command: codex mcp add harness --url https://api.harness.invalid/mcp/agent, then codex mcp login harness."
 ---
 
-Give Codex your organization's OpenWork skills, plugins, and connections.
+Give Codex your organization's Harness skills, plugins, and connections.
 
 <Steps>
 <Step title="Add the server">
 
 ```sh
-codex mcp add openwork --url https://api.openworklabs.com/mcp/agent
+codex mcp add harness --url https://api.harness.invalid/mcp/agent
 ```
 
 In the Codex desktop app, paste the URL in `codex://settings/connections` instead.
@@ -19,14 +19,14 @@ In the Codex desktop app, paste the URL in `codex://settings/connections` instea
 <Step title="Sign in">
 
 ```sh
-codex mcp login openwork
+codex mcp login harness
 ```
 
-Sign in to OpenWork in the browser and pick your organization.
+Sign in to Harness in the browser and pick your organization.
 
 </Step>
 <Step title="Try it">
-Ask: "Which OpenWork organization am I connected to?"
+Ask: "Which Harness organization am I connected to?"
 </Step>
 </Steps>
 
@@ -34,12 +34,12 @@ Ask: "Which OpenWork organization am I connected to?"
   <Accordion title="Switch organizations">
 
 ```sh
-codex mcp logout openwork
-codex mcp login openwork
+codex mcp logout harness
+codex mcp login harness
 ```
 
   </Accordion>
   <Accordion title="Support status">
-    Setup only: these steps follow OpenWork's OAuth profile, but native end-to-end proof is not complete. See the [MCP Gateway reference](/cloud/run-in-the-cloud/cloud-mcp#reference).
+    Setup only: these steps follow Harness's OAuth profile, but native end-to-end proof is not complete. See the [MCP Gateway reference](/cloud/run-in-the-cloud/cloud-mcp#reference).
   </Accordion>
 </AccordionGroup>

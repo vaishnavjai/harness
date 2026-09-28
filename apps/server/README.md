@@ -1,50 +1,59 @@
-# OpenWork Server
+# Harness Server
 
-Filesystem-backed API for OpenWork remote clients. This package provides the OpenWork server layer described in `apps/app/pr/openwork-server.md` and is intentionally independent from the desktop app.
+Filesystem-backed API for Harness remote clients. This package provides the Harness server layer described in `apps/app/pr/harness-server.md` and is intentionally independent from the desktop app.
 
 ## Quick start
 
 ```bash
-npm install -g openwork-server
-openwork-server --workspace /path/to/workspace --approval auto
+git clone https://github.com/vaishnavjai/harness.git && cd harness
+pnpm install --frozen-lockfile
+pnpm --filter @harness/server prepare:npm
+npm install -g ./apps/server/dist/npm
 ```
 
-The npm package runs on Node.js 22.13 or newer on macOS, Linux, and Windows (arm64 or x64); Bun is not required at runtime.
+Then:
+
+```bash
+harness-server --workspace /path/to/workspace --approval auto
+```
+
+Harness is not published to npm: the `harness-server` name and the `@harness`
+scope on the public registry belong to other projects. Always install from a
+checkout of this repository.
+
+The staged package runs on Node.js 22.13 or newer on macOS, Linux, and Windows (arm64 or x64); Bun is not required at runtime.
 
 ### Self-hosted web UI
 
 ```bash
-npm install -g openwork-server
 cd /path/to/workspace
-openwork-server web --open
+harness-server web --open
 ```
 
-`openwork-server web` serves the OpenWork web UI and API from one origin and
+`harness-server web` serves the Harness web UI and API from one origin and
 runs a server-managed OpenCode engine. The npm package bundles the UI and the
 OpenCode plugins; on first run it downloads the exact OpenCode version this
-release was tested with into `~/.openwork/openwork-server/engines/` and reuses
-it afterwards. Updating is `npm i -g openwork-server@latest`; the server prints
-a hint on boot when a newer release exists (`OPENWORK_NO_UPDATE_CHECK=1` to
-silence).
+release was tested with into `~/.harness/harness-server/engines/` and reuses
+it afterwards. To update, pull the checkout and repeat the install steps above.
 
 Defaults in `web` mode: bind `127.0.0.1`, approval `auto`, workspace = current
 directory, and the browser is signed in automatically via a bootstrap token
 (pass `--no-bootstrap-token` to require pasting the client token). Tokens are
-persisted in `~/.openwork/openwork-server/web-tokens.json` so they survive
-restarts; `--token`/`--host-token` or `OPENWORK_TOKEN`/`OPENWORK_HOST_TOKEN`
+persisted in `~/.harness/harness-server/web-tokens.json` so they survive
+restarts; `--token`/`--host-token` or `HARNESS_TOKEN`/`HARNESS_HOST_TOKEN`
 override them.
 
 To reach it from other machines, keep the server on `127.0.0.1` and put a TLS
 proxy in front (e.g. `tailscale serve --bg --https=8787 http://127.0.0.1:8787`).
 Browsers require a secure context for the UI on any non-localhost origin.
-Set `OPENWORK_OPENCODE_BIN` to use your own OpenCode install instead of the
+Set `HARNESS_OPENCODE_BIN` to use your own OpenCode install instead of the
 managed download; `/health` reports both the pinned `opencodeVersion` and the
 `opencodeInstalledVersion` actually running.
 
 Or from source:
 
 ```bash
-pnpm --filter openwork-server dev -- \
+pnpm --filter @harness/server dev -- \
   --workspace /path/to/workspace \
   --approval auto
 ```
@@ -87,7 +96,7 @@ This prevents duplicate recovery admissions, not exactly-once execution of exter
 tools; uncertain earlier effects must be inspected or clarified before continuing.
 
 Desktop Automation and remote-command requests opt out with
-`x-openwork-task-recovery: off`; their existing execution ownership is unchanged.
+`x-harness-task-recovery: off`; their existing execution ownership is unchanged.
 Runtime journey verification for actual Electron restarts on both engines remains
 separate from the focused coordinator and mocked-proxy tests.
 
@@ -122,7 +131,7 @@ generation, and local managed gateway connection/credential/registration
 revisions. Named-entry generations are process-local, like the leases, and track
 host runtime writes including removal/restoration. Unrelated provider, plugin,
 and other MCP edits do not invalidate a lease. Private Connect hosts track the
-`openwork-cloud` runtime entry as well as their private authorization generation.
+`harness-cloud` runtime entry as well as their private authorization generation.
 File-backed configuration is compared by its
 observed values; edits restored between observations are not observable history.
 Provider-side account changes that leave all host-visible credentials and
@@ -145,7 +154,7 @@ conversation lease; omitting the guard fails closed.
 
 ## Config file
 
-Defaults to `~/.config/openwork/server.json` (override with `OPENWORK_SERVER_CONFIG` or `--config`).
+Defaults to `~/.config/harness/server.json` (override with `HARNESS_SERVER_CONFIG` or `--config`).
 
 ```json
 {
@@ -167,33 +176,33 @@ Defaults to `~/.config/openwork/server.json` (override with `OPENWORK_SERVER_CON
 
 ## Environment variables
 
-- `OPENWORK_SERVER_CONFIG` path to config JSON
-- `OPENWORK_HOST` / `OPENWORK_PORT`
-- `OPENWORK_TOKEN` client bearer token
-- `OPENWORK_HOST_TOKEN` host approval token
-- `OPENWORK_APPROVAL_MODE` (`manual` | `auto`)
-- `OPENWORK_APPROVAL_TIMEOUT_MS`
-- `OPENWORK_WORKSPACES` (JSON array or comma-separated list of paths)
-- `OPENWORK_CORS_ORIGINS` (comma-separated list or `*`)
-- `OPENWORK_OPENCODE_BASE_URL`
-- `OPENWORK_OPENCODE_DIRECTORY`
-- `OPENWORK_OPENCODE_USERNAME`
-- `OPENWORK_OPENCODE_PASSWORD`
+- `HARNESS_SERVER_CONFIG` path to config JSON
+- `HARNESS_HOST` / `HARNESS_PORT`
+- `HARNESS_TOKEN` client bearer token
+- `HARNESS_HOST_TOKEN` host approval token
+- `HARNESS_APPROVAL_MODE` (`manual` | `auto`)
+- `HARNESS_APPROVAL_TIMEOUT_MS`
+- `HARNESS_WORKSPACES` (JSON array or comma-separated list of paths)
+- `HARNESS_CORS_ORIGINS` (comma-separated list or `*`)
+- `HARNESS_OPENCODE_BASE_URL`
+- `HARNESS_OPENCODE_DIRECTORY`
+- `HARNESS_OPENCODE_USERNAME`
+- `HARNESS_OPENCODE_PASSWORD`
 
 Token management (scoped tokens):
 
-- `OPENWORK_TOKEN_STORE` path to token store JSON (default: alongside `server.json`)
+- `HARNESS_TOKEN_STORE` path to token store JSON (default: alongside `server.json`)
 
 File injection / artifacts:
 
-- `OPENWORK_INBOX_ENABLED` (`1` | `0`)
-- `OPENWORK_INBOX_MAX_BYTES` (default: 50MB, capped)
-- `OPENWORK_OUTBOX_ENABLED` (`1` | `0`)
+- `HARNESS_INBOX_ENABLED` (`1` | `0`)
+- `HARNESS_INBOX_MAX_BYTES` (default: 50MB, capped)
+- `HARNESS_OUTBOX_ENABLED` (`1` | `0`)
 
 Sandbox advertisement (for capability discovery):
 
-- `OPENWORK_SANDBOX_ENABLED` (`1` | `0`)
-- `OPENWORK_SANDBOX_BACKEND` (`docker` | `container` | `none`)
+- `HARNESS_SANDBOX_ENABLED` (`1` | `0`)
+- `HARNESS_SANDBOX_BACKEND` (`docker` | `container` | `none`)
 
 ## Endpoints
 
@@ -228,7 +237,7 @@ Token management (collaborator or owner bearer token):
 
 Inbox/outbox:
 
-- `POST /workspace/:id/inbox` (multipart upload into `.opencode/openwork/inbox/`)
+- `POST /workspace/:id/inbox` (multipart upload into `.opencode/harness/inbox/`)
 - `GET /workspace/:id/artifacts`
 - `GET /workspace/:id/artifacts/:artifactId`
 - `POST /workspace/:id/files/sessions`
@@ -259,7 +268,7 @@ All writes are gated by host approval.
 
 Host APIs accept either:
 
-- `X-OpenWork-Host-Token: <token>` (legacy host token), or
+- `X-Harness-Host-Token: <token>` (legacy host token), or
 - `Authorization: Bearer <token>` where the token scope is `owner`.
 
 Approvals endpoints:
@@ -267,7 +276,7 @@ Approvals endpoints:
 - `GET /approvals`
 - `POST /approvals/:id` with `{ "reply": "allow" | "deny" }`
 
-Set `OPENWORK_APPROVAL_MODE=auto` to auto-approve during local development.
+Set `HARNESS_APPROVAL_MODE=auto` to auto-approve during local development.
 
 ## Automatic title recovery
 
@@ -280,7 +289,7 @@ model, credentials, conversation content, and normal chat options stay intact.
 Access, quota, transport, and unrelated request errors do not trigger an added
 recovery request. The engine's own transport retry policy still applies.
 
-Engine log records with service `openwork.title` / message `Automatic title
+Engine log records with service `harness.title` / message `Automatic title
 generation` contain only session/provider/model IDs, outcome, recovery attempt,
 HTTP status, and the rejected parameter name. `accepted_after_recovery` means
 the provider accepted the retry; `title_available` separately confirms a real

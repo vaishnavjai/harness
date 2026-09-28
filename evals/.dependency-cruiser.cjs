@@ -12,14 +12,14 @@ module.exports = {
       name: "env-is-framework-free",
       severity: "error",
       from: { path: "^packages/env(?:/|$)" },
-      to: { path: "^(?:vitest|@openwork/(?:test-evidence|testkit))(?:/|$)" },
+      to: { path: "^(?:vitest|@harness/(?:test-evidence|testkit))(?:/|$)" },
     },
     // Layers below fixtures must not depend on fixture or test-framework packages.
     {
       name: "layers-below-fixtures",
       severity: "error",
       from: { path: "^packages/(?:behaviors|matchers|cdp|labs|hosts|timeline)(?:/|$)" },
-      to: { path: "^(?:vitest|@openwork/(?:testkit|env|test-evidence))(?:/|$)" },
+      to: { path: "^(?:vitest|@harness/(?:testkit|env|test-evidence))(?:/|$)" },
     },
     // Eval primitives stay independent of the shared world shell; env is the
     // single adapter boundary that supplies Den/desktop orchestration.
@@ -27,7 +27,7 @@ module.exports = {
       name: "world-shell-through-env",
       severity: "error",
       from: { path: "^packages/(?:behaviors|matchers|cdp|labs|hosts|timeline)(?:/|$)" },
-      to: { path: "^@openwork/world(?:/|$)" },
+      to: { path: "^@harness/world(?:/|$)" },
     },
     // Reusable packages must not depend on runner implementation modules.
     {
@@ -41,14 +41,14 @@ module.exports = {
       name: "specs-use-testkit-only",
       severity: "error",
       from: { path: "^(?:specs/.*\\.e2e\\.test\\.ts|\\.\\./scenarios/.*/e2e\\.test\\.ts)$" },
-      to: { path: "^@openwork/(?:hosts|cdp|behaviors|test-evidence|labs|env)(?:/|$)" },
+      to: { path: "^@harness/(?:hosts|cdp|behaviors|test-evidence|labs|env)(?:/|$)" },
     },
     // Imperative worlds stay framework-free and arrange only through lower layers.
     {
       name: "worlds-use-seed-layer",
       severity: "error",
       from: { path: "^worlds(?:/|$)" },
-      to: { path: "^(?:vitest|@openwork/(?:testkit|test-evidence))(?:/|$)" },
+      to: { path: "^(?:vitest|@harness/(?:testkit|test-evidence))(?:/|$)" },
     },
   ],
   options: {

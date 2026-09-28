@@ -16,7 +16,7 @@ test("resolves the same v1 database within the active development profile", () =
 });
 
 test("snapshot includes uncheckpointed WAL writes without changing the original", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-history-snapshot-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-history-snapshot-"));
   const source = join(root, "v1.db");
   const db = new Database(source);
   try {
@@ -30,7 +30,7 @@ test("snapshot includes uncheckpointed WAL writes without changing the original"
 });
 
 test("missing history reports failure without importing or creating a v1 database", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-history-missing-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-history-missing-"));
   const updates: EngineV2MigrationStatus[] = [];
   try {
     await migrateOpencodeV1History({ source: join(root, "missing.db"), storageDir: root, bin: "unused",
@@ -40,16 +40,16 @@ test("missing history reports failure without importing or creating a v1 databas
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-const live = process.env.OPENWORK_MIGRATION_LIVE_TEST === "1";
+const live = process.env.HARNESS_MIGRATION_LIVE_TEST === "1";
 test.skipIf(!live)("pinned v2 converts real v1 history, imports parents first, preserves existing chats, and safely retries", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-history-native-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-history-native-"));
   const workspace = join(root, "workspace");
   const home = join(root, "home");
   await mkdir(workspace); await mkdir(home);
   const source = join(root, "v1.db");
   const env = { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: join(home, "config"), XDG_DATA_HOME: join(home, "data"),
     XDG_CACHE_HOME: join(home, "cache"), XDG_STATE_HOME: join(home, "state"), OPENCODE_DISABLE_MODELS_FETCH: "1", OPENCODE_DB: source };
-  const v1 = await createManagedOpencodeServer({ bin: process.env.OPENWORK_MIGRATION_V1_BIN, cwd: workspace, env });
+  const v1 = await createManagedOpencodeServer({ bin: process.env.HARNESS_MIGRATION_V1_BIN, cwd: workspace, env });
   let target: Awaited<ReturnType<typeof createManagedOpencodeV2Server>> | undefined;
   try {
     const headers = { Authorization: `Basic ${Buffer.from(`${v1.username}:${v1.password}`).toString("base64")}`, "Content-Type": "application/json" };
@@ -65,8 +65,8 @@ test.skipIf(!live)("pinned v2 converts real v1 history, imports parents first, p
     db.close();
     const hash = () => readFile(source).then((bytes) => createHash("sha256").update(bytes).digest("hex"));
     const before = await hash();
-    const bin = process.env.OPENWORK_OPENCODE2_BIN;
-    if (!bin) throw new Error("OPENWORK_OPENCODE2_BIN is required for the live migration test");
+    const bin = process.env.HARNESS_OPENCODE2_BIN;
+    if (!bin) throw new Error("HARNESS_OPENCODE2_BIN is required for the live migration test");
     target = await createManagedOpencodeV2Server({ bin, rootDir: join(root, "v2"), env });
     const existing = await target.fetchJson("/api/session", { method: "POST", directory: workspace, body: { title: "Existing v2 fixture" } });
     expect(existing.status).toBe(200);

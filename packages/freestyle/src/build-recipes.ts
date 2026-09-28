@@ -3,7 +3,7 @@ import { browserRecipe } from "./browser-recipe.ts";
 
 export function toolsRecipe(world: PreviewWorld): string {
   return `${world === "desktop" ? `node -e 'if (Number(process.versions.node.split(".")[0]) < 24) throw new Error("Desktop previews require Node 24 or newer")'
-export COREPACK_HOME=/opt/openwork-preview/corepack
+export COREPACK_HOME=/opt/harness-preview/corepack
 ` : ""}corepack enable
 corepack prepare pnpm@11.4.0 --activate${world === "desktop" ? "\ncorepack prepare pnpm@10.27.0" : ""}
 ${world !== "app-web" ? `apt-get update
@@ -11,20 +11,20 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y ${world === "acme-web" ? "mysq
 # A real Linux desktop (as in Daytona previews): panel, window frames, terminal, files.
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends xfce4-session xfwm4 xfce4-panel xfdesktop4 xfce4-settings xfce4-terminal thunar
 ${browserRecipe()}
-printf '<!doctype html><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=1&amp;resize=scale&amp;reconnect=1&amp;reconnect_delay=2000"><title>OpenWork desktop</title>' > /usr/share/novnc/index.html
+printf '<!doctype html><meta http-equiv="refresh" content="0; url=vnc.html?autoconnect=1&amp;resize=scale&amp;reconnect=1&amp;reconnect_delay=2000"><title>Harness desktop</title>' > /usr/share/novnc/index.html
 ${world === "acme-web" ? `systemctl enable --now mysql redis-server
 mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password'; FLUSH PRIVILEGES;"` : ""}` : ""}
-mkdir -p /opt/openwork-preview/tools
-printf 'allowBuilds:\\n  opencode-ai: true\\n${world === "desktop" ? "  bun: true\\n" : ""}' > /opt/openwork-preview/tools/pnpm-workspace.yaml
-pnpm --dir /opt/openwork-preview/tools add opencode-ai@1.18.15${world === "desktop" ? " bun@1.3.14" : ""}
-node /opt/openwork-preview/tools/node_modules/opencode-ai/postinstall.mjs
-/opt/openwork-preview/tools/node_modules/.bin/opencode --version${world === "desktop" ? "\nnode /opt/openwork-preview/tools/node_modules/bun/install.js\n/opt/openwork-preview/tools/node_modules/.bin/bun --version" : ""}`;
+mkdir -p /opt/harness-preview/tools
+printf 'allowBuilds:\\n  opencode-ai: true\\n${world === "desktop" ? "  bun: true\\n" : ""}' > /opt/harness-preview/tools/pnpm-workspace.yaml
+pnpm --dir /opt/harness-preview/tools add opencode-ai@1.18.15${world === "desktop" ? " bun@1.3.14" : ""}
+node /opt/harness-preview/tools/node_modules/opencode-ai/postinstall.mjs
+/opt/harness-preview/tools/node_modules/.bin/opencode --version${world === "desktop" ? "\nnode /opt/harness-preview/tools/node_modules/bun/install.js\n/opt/harness-preview/tools/node_modules/.bin/bun --version" : ""}`;
 }
 
 export function dependencyRecipe(world: PreviewWorld): string {
-  return `${world === "desktop" ? "export COREPACK_HOME=/opt/openwork-preview/corepack\n" : ""}# Only manifests/config/patches remain when we install this reusable layer.
+  return `${world === "desktop" ? "export COREPACK_HOME=/opt/harness-preview/corepack\n" : ""}# Only manifests/config/patches remain when we install this reusable layer.
 # No application lifecycle scripts or pnpm hooks may mutate the shared cache.
-pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --filter @openwork/app... --filter openwork-server... ${world === "desktop" ? "--filter @openwork/desktop..." : "--filter @openwork/world..."} ${world === "acme-web" ? "--filter @openwork-ee/den-api... --filter @openwork-ee/den-web... --filter @openwork-ee/gateway... --filter @openwork/desktop..." : ""}
+pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --filter @harness/app... --filter @harness/server... ${world === "desktop" ? "--filter @harness/desktop..." : "--filter @harness/world..."} ${world === "acme-web" ? "--filter @harness-ee/den-api... --filter @harness-ee/den-web... --filter @harness-ee/gateway... --filter @harness/desktop..." : ""}
 pnpm --config.ignore-pnpmfile=true rebuild esbuild better-sqlite3 sharp node-pty electron @sentry/cli @whiskeysockets/baileys protobufjs
 ${world === "acme-web" ? "pnpm --dir evals install --frozen-lockfile --ignore-scripts --ignore-pnpmfile" : ""}`;
 }
@@ -35,7 +35,7 @@ export function checkoutRecipe(sha: string): string {
 cd /workspace
 git config core.hooksPath /dev/null
 git remote remove origin 2>/dev/null || true
-git remote add origin https://github.com/different-ai/openwork.git
+git remote add origin https://github.com/vaishnavjai/harness
 git fetch --depth=1 origin ${sha}
 git checkout --force --detach FETCH_HEAD
 git clean -ffdx -e node_modules/
@@ -43,17 +43,17 @@ test "$(git rev-parse HEAD)" = "${sha}"`;
 }
 
 export function compiledRecipe(world: PreviewWorld): string {
-  return `${world === "desktop" ? `export COREPACK_HOME=/opt/openwork-preview/corepack
-export PATH="/opt/openwork-preview/tools/node_modules/.bin:$PATH"
+  return `${world === "desktop" ? `export COREPACK_HOME=/opt/harness-preview/corepack
+export PATH="/opt/harness-preview/tools/node_modules/.bin:$PATH"
 node --input-type=module -e 'await import("./evals/packages/cdp/src/index.ts")'
 ` : ""}${world !== "app-web" ? `
 (node apps/desktop/scripts/prepare-sidecar.mjs --force --outdir apps/desktop/resources/sidecars && node apps/desktop/scripts/prepare-computer-use-helper.mjs --force --outdir apps/desktop/resources/helpers) &
 DESKTOP_BUILD=$!
-${world === "acme-web" ? "pnpm --filter @openwork-ee/den-api run build:workspace-dependencies" : "pnpm --filter @openwork/headless-threads build"}
-pnpm --filter openwork-server build
+${world === "acme-web" ? "pnpm --filter @harness-ee/den-api run build:workspace-dependencies" : "pnpm --filter @harness/headless-threads build"}
+pnpm --filter @harness/server build
 wait "$DESKTOP_BUILD"
-` : "pnpm --filter @openwork/types build\npnpm --filter @openwork/enterprise-mcp-client build"}
-pnpm --filter @openwork/sdk build${world === "desktop" ? "\npnpm --filter @openwork/desktop rebuild:electron-native" : ""}
+` : "pnpm --filter @harness/types build\npnpm --filter @harness/enterprise-mcp-client build"}
+pnpm --filter @harness/sdk build${world === "desktop" ? "\npnpm --filter @harness/desktop rebuild:electron-native" : ""}
 # Archive generated workspace output only; runtime databases and credentials do not exist yet.
 node --input-type=module - <<'NODE'
 import { readdirSync, existsSync, writeFileSync } from 'node:fs';
@@ -67,7 +67,7 @@ for (const root of ['packages', 'ee/packages', 'apps', 'ee/apps']) {
 for (const path of ['apps/desktop/resources/sidecars', 'apps/desktop/resources/helpers']) {
   if (existsSync(path)) paths.push(path);
 }
-writeFileSync('/opt/openwork-preview/compiled-files', paths.join('\\0') + '\\0');
+writeFileSync('/opt/harness-preview/compiled-files', paths.join('\\0') + '\\0');
 NODE
-tar --null -T /opt/openwork-preview/compiled-files -cf /opt/openwork-preview/compiled.tar`;
+tar --null -T /opt/harness-preview/compiled-files -cf /opt/harness-preview/compiled.tar`;
 }

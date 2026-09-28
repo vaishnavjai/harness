@@ -4,7 +4,7 @@ Warden runs two skills: new security regressions and public-repository
 confidentiality. It does not review design, provenance, or Desktop/Den parity
 automatically. Those skill files remain available for optional local use.
 
-GitHub's existing `openwork-admin-reviewers` approval rule owns merge approval,
+GitHub's existing `harness-admin-reviewers` approval rule owns merge approval,
 including changes to `.github/`, CI, and Warden itself. Warden has no separate
 path veto, approval bot, request-changes review, or unresolved review threads.
 Security findings are advisory in the run summary; incomplete analysis fails

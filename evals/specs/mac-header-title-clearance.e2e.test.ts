@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { browserScript, spec, type Probe } from "@openwork/testkit";
+import { browserScript, spec, type Probe } from "@harness/testkit";
 import { macSidebar } from "../worlds/session-shell.ts";
 
 const test = spec.world(macSidebar);
@@ -11,7 +11,7 @@ const test = spec.world(macSidebar);
  * sheet below the desktop breakpoint — the header must reserve the room those
  * controls occupy, or the first word of the title is drawn under them.
  *
- * The `mac:` variant is CSS-only (`html.openwork-electron.openwork-platform-mac`),
+ * The `mac:` variant is CSS-only (`html.harness-electron.harness-platform-mac`),
  * so the titlebar layout is exercised by adding those classes even when the
  * desktop host is Linux.
  */
@@ -79,8 +79,8 @@ test("the macOS session title stays clear of the titlebar controls in every side
   const platformClasses = await seed.evalIn(world.app, () => document.documentElement.className);
   if (typeof platformClasses !== "string") throw new Error("Desktop platform classes were not readable.");
   await seed.evalIn(world.app, () => {
-    document.documentElement.classList.remove('openwork-platform-linux', 'openwork-platform-windows');
-    document.documentElement.classList.add('openwork-electron', 'openwork-platform-mac');
+    document.documentElement.classList.remove('harness-platform-linux', 'harness-platform-windows');
+    document.documentElement.classList.add('harness-electron', 'harness-platform-mac');
   });
   // TODO(primitive): user.resizeViewport should set a desktop surface's width.
   const resize = (width: number) => world.app.client.send("Emulation.setDeviceMetricsOverride", {
@@ -143,7 +143,7 @@ test("the macOS session title stays clear of the titlebar controls in every side
 
   await seed.evalIn(world.app, browserScript((classes: string) => { document.documentElement.className = classes; }, [platformClasses]));
 
-  if (platformClasses.includes("openwork-platform-mac")) {
+  if (platformClasses.includes("harness-platform-mac")) {
     await step("native macOS fullscreen removes traffic-light clearance and shortens the titlebar", async () => {
       await world.clearViewport();
       await world.fullscreen(true);

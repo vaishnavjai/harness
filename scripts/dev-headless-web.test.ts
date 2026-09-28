@@ -6,7 +6,7 @@ import {
   buildHeadlessCorsOrigins,
   buildHeadlessRuntimeManifest,
   buildHeadlessServerLaunch,
-  buildOpenworkServerArgs,
+  buildHarnessServerArgs,
   isHeadlessStackCommand,
   mergeHeadlessServerConfig,
   normalizeDenTarget,
@@ -17,7 +17,7 @@ import {
 
 describe("dev-headless-web helpers", () => {
   test("isolates server config under tmp by default", () => {
-    const cwd = "/repo/openwork";
+    const cwd = "/repo/harness";
     expect(resolveHeadlessServerConfigPath(cwd)).toBe(
       path.join(cwd, "tmp", "headless-server.json"),
     );
@@ -100,7 +100,7 @@ describe("dev-headless-web helpers", () => {
   });
 
   test("server args use --config only, never --workspace (would drop persisted workspaces)", () => {
-    const args = buildOpenworkServerArgs({
+    const args = buildHarnessServerArgs({
       host: "127.0.0.1",
       port: 8787,
       configPath: "/repo/tmp/headless-server.json",
@@ -116,11 +116,11 @@ describe("dev-headless-web helpers", () => {
   });
 
   test("server launch always uses current source instead of compiled output", () => {
-    expect(buildHeadlessServerLaunch("/repo/openwork", ["--port", "8787"])).toEqual({
+    expect(buildHeadlessServerLaunch("/repo/harness", ["--port", "8787"])).toEqual({
       command: "bun",
       args: [
         "--conditions=development",
-        path.join("/repo/openwork", "apps/server/src/cli.ts"),
+        path.join("/repo/harness", "apps/server/src/cli.ts"),
         "--port",
         "8787",
       ],
@@ -145,7 +145,7 @@ describe("dev-headless-web helpers", () => {
       "http://localhost:5178",
     ]);
 
-    const args = buildOpenworkServerArgs({
+    const args = buildHarnessServerArgs({
       host: "127.0.0.1",
       port: 8787,
       configPath: "/repo/tmp/headless-server.json",
@@ -160,7 +160,7 @@ describe("dev-headless-web helpers", () => {
   test("runtime manifest carries agent-facing local-server fields", () => {
     const manifest = buildHeadlessRuntimeManifest({
       webUrl: "http://127.0.0.1:5178",
-      openworkUrl: "http://127.0.0.1:8778",
+      harnessUrl: "http://127.0.0.1:8778",
       workspace: "/Users/me/project",
       token: "client-token",
       hostToken: "host-token",
@@ -168,27 +168,27 @@ describe("dev-headless-web helpers", () => {
       runtimeManifestPath: "/repo/tmp/dev-headless-web.json",
       webLogPath: "/repo/tmp/dev-web.log",
       headlessLogPath: "/repo/tmp/dev-headless.log",
-      denTarget: "https://app.openworklabs.com",
+      denTarget: "https://app.harness.invalid",
       pid: 42,
       webPid: 43,
-      openworkServerPid: 44,
+      harnessServerPid: 44,
       startedAt: "2026-08-12T00:00:00.000Z",
     });
 
     expect(manifest.mode).toBe("local-server");
     expect(manifest.healthUrl).toBe("http://127.0.0.1:8778/health");
-    expect(manifest.denTarget).toBe("https://app.openworklabs.com");
+    expect(manifest.denTarget).toBe("https://app.harness.invalid");
     expect(manifest.denApiUrl).toBe("http://127.0.0.1:5178/api/den");
     expect(manifest.token).toBe("client-token");
     expect(manifest.notes).toContain("same-origin");
     expect(manifest.pid).toBe(42);
-    expect(manifest.pids).toEqual({ launcher: 42, web: 43, openworkServer: 44 });
+    expect(manifest.pids).toEqual({ launcher: 42, web: 43, harnessServer: 44 });
   });
 
   test("manifest omits Den fields when the Den wiring is disabled", () => {
     const manifest = buildHeadlessRuntimeManifest({
       webUrl: "http://127.0.0.1:5178",
-      openworkUrl: "http://127.0.0.1:8778",
+      harnessUrl: "http://127.0.0.1:8778",
       workspace: "/Users/me/project",
       token: "t",
       hostToken: "h",
@@ -203,13 +203,13 @@ describe("dev-headless-web helpers", () => {
   });
 
   test("normalizes Den targets to origins", () => {
-    expect(normalizeDenTarget("https://app.openworklabs.com/api/den")).toBe(
-      "https://app.openworklabs.com",
+    expect(normalizeDenTarget("https://app.harness.invalid/api/den")).toBe(
+      "https://app.harness.invalid",
     );
     expect(normalizeDenTarget("http://127.0.0.1:3005")).toBe(
       "http://127.0.0.1:3005",
     );
-    expect(normalizeDenTarget(undefined)).toBe("https://app.openworklabs.com");
+    expect(normalizeDenTarget(undefined)).toBe("https://app.harness.invalid");
   });
 
   test("detached respawn forwards args except --detach", () => {
@@ -223,7 +223,7 @@ describe("dev-headless-web helpers", () => {
   test("stale-pid cleanup only targets processes from this stack", () => {
     expect(isHeadlessStackCommand("bun scripts/dev-headless-web.ts")).toBe(true);
     expect(
-      isHeadlessStackCommand("/repo/apps/server/dist/bin/openwork-server --config tmp/headless-server.json"),
+      isHeadlessStackCommand("/repo/apps/server/dist/bin/harness-server --config tmp/headless-server.json"),
     ).toBe(true);
     expect(
       isHeadlessStackCommand("bun --conditions=development /repo/apps/server/src/cli.ts --config tmp/headless-server.json"),

@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { expect } from "vitest"
-import { test } from "@openwork/testkit"
+import { test } from "@harness/testkit"
 
 // Launch a real HTTP gateway with in-memory persistence and a local upstream.
 // No product-source imports, external providers, or database prerequisites.
@@ -24,9 +24,9 @@ async function readState(url: string): Promise<FixtureState> {
 async function fixture(config: Record<string, unknown> = {}, timeoutMs = 30_000, overrides: Record<string, string> = {}) {
   // Do not inherit operator credentials/policy into an isolated witness.
   const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GATEWAY_") && !key.startsWith("INFERENCE_")))
-  const child = spawn("pnpm", ["--filter", "@openwork-ee/gateway", "exec", "tsx", "test/helpers/transport-server.ts"], {
+  const child = spawn("pnpm", ["--filter", "@harness-ee/gateway", "exec", "tsx", "test/helpers/transport-server.ts"], {
     cwd: root,
-    env: { ...inherited, OPENWORK_DEV_MODE: "1", DATABASE_URL: "mysql://fixture:fixture@127.0.0.1:1/gateway_transport_fixture", DB_MODE: "mysql", SENTRY_DSN: "", SENTRY_LOG_LEVEL: "off", NODE_OPTIONS: "--conditions=development", INFERENCE_UPSTREAM_TIMEOUT_MS: String(timeoutMs), ...overrides },
+    env: { ...inherited, HARNESS_DEV_MODE: "1", DATABASE_URL: "mysql://fixture:fixture@127.0.0.1:1/gateway_transport_fixture", DB_MODE: "mysql", SENTRY_DSN: "", SENTRY_LOG_LEVEL: "off", NODE_OPTIONS: "--conditions=development", INFERENCE_UPSTREAM_TIMEOUT_MS: String(timeoutMs), ...overrides },
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
   })
@@ -51,7 +51,7 @@ async function fixture(config: Record<string, unknown> = {}, timeoutMs = 30_000,
       const body = path.startsWith("/models/") ? '{"contents":[]}' : path.startsWith("/model/") ? '{"messages":[]}' : path.startsWith("/chat/") ? '{"model":"x","messages":[]}' : '{"model":"x","input":"inline text"}'
       return fetch(`${url}${gatewayPath}${path}`, { method: "POST", headers: { "x-goog-api-key": gatewayKey, "content-type": "application/json" }, body, signal: AbortSignal.timeout(10_000), ...init })
     },
-    async openwork(init: RequestInit = {}) {
+    async harness(init: RequestInit = {}) {
       return fetch(`${url}/api/v1/chat/completions`, { method: "POST", headers: { authorization: "Bearer ow_inf_fixture", "content-type": "application/json" }, body: '{"model":"z-ai/glm-5.2","messages":[]}', signal: AbortSignal.timeout(10_000), ...init })
     },
     async state() { return readState(url) },
@@ -93,7 +93,7 @@ test("native Google/Azure headers authenticate Gateway keys; conflicting credent
   for (const headers of conflictingHeaders) {
     const response = await f.request("/responses", { body, headers: { "content-type": "application/json", ...headers } })
     expect(response.status).toBe(401)
-    expect(response.headers.get("x-openwork-request-id")).toMatch(/^[a-f0-9]{32}$/)
+    expect(response.headers.get("x-harness-request-id")).toMatch(/^[a-f0-9]{32}$/)
     expect(await response.json()).toMatchObject({ error: { code: "invalid_api_key" } })
   }
   const duplicateQuery = await f.request(`/responses?key=${gatewayKey}&key=other`, { body, headers: { "content-type": "application/json", "x-goog-api-key": gatewayKey } })
@@ -188,23 +188,23 @@ test("credential retry yields a correlated 503 without forwarding tokens or aski
     const response = await f.request("/models/gemini:generateContent")
     expect(response.status).toBe(503)
     expect(response.headers.get("retry-after")).toBe("5")
-    expect(response.headers.get("x-openwork-request-id")).toMatch(/^[a-f0-9]{32}$/)
-    expect(response.headers.has("x-openwork-auth-required")).toBe(false)
+    expect(response.headers.get("x-harness-request-id")).toMatch(/^[a-f0-9]{32}$/)
+    expect(response.headers.has("x-harness-auth-required")).toBe(false)
     expect(await response.json()).toMatchObject({ error: { code: "provider_credential_retry" } })
     const state = await f.waitFor((s) => Boolean(s.rows[0]?.completed_at))
     expect(state.requests).toHaveLength(0)
     expect(state.upstreamReads).toBe(0)
     expect(state.rows[0]).toMatchObject({ status: 503, outcome: "rejected", error_code: retryReason })
-    expect(f.output + JSON.stringify(state.reports)).not.toMatch(/EXPIRED_TOKEN_NEVER_FORWARD|REFRESH_TOKEN_NEVER_FORWARD|openwork_auth_required/)
+    expect(f.output + JSON.stringify(state.reports)).not.toMatch(/EXPIRED_TOKEN_NEVER_FORWARD|REFRESH_TOKEN_NEVER_FORWARD|harness_auth_required/)
   }
 })
 
 test("both routes record semantic stream errors; Models sanitizes the provider error while Gateway preserves native bytes", async () => {
-  for (const route of ["gateway", "openwork"]) {
+  for (const route of ["gateway", "harness"]) {
     await using f = await fixture({ mode: "semantic-error" })
     const response = await (route === "gateway"
       ? f.request("/chat/completions", { headers: { "api-key": gatewayKey, "content-type": "application/json" }, body: '{"model":"x","stream":true}' })
-      : f.openwork({ body: '{"model":"z-ai/glm-5.2","messages":[],"stream":true}' }))
+      : f.harness({ body: '{"model":"z-ai/glm-5.2","messages":[],"stream":true}' }))
     expect(response.status).toBe(200)
     const text = await response.text()
     if (route === "gateway") expect(text).toBe('data: {"id":"body-request-id","error":{"message":"redacted-provider-error"}}\n\n')
@@ -350,7 +350,7 @@ test("JSON body read failures preserve headers and finalize an error row without
   await using f = await fixture({ mode: "json-failure" })
   const response = await f.request("/chat/completions")
   expect(response.status).toBe(201)
-  expect(response.headers.get("x-openwork-request-id")).toMatch(/^[a-f0-9]{32}$/)
+  expect(response.headers.get("x-harness-request-id")).toMatch(/^[a-f0-9]{32}$/)
   const reader = response.body!.getReader()
   expect((await reader.read()).done).toBe(false)
   await f.release()
@@ -380,9 +380,9 @@ test("operator upstream timeout also stops a provider that never sends headers",
 })
 
 test("error responses are not buffered for logging and response cancellation closes the provider", async () => {
-  for (const route of ["gateway", "openwork"]) {
+  for (const route of ["gateway", "harness"]) {
     await using f = await fixture({ mode: "error-hang" })
-    const response = await (route === "gateway" ? f.request() : f.openwork())
+    const response = await (route === "gateway" ? f.request() : f.harness())
     expect(response.status).toBe(429)
     if (route === "gateway") {
       const reader = response.body!.getReader()
@@ -411,14 +411,14 @@ test("invalid UTF-8 JSON and malformed event-stream responses retain every origi
   await binary.waitFor((s) => Boolean(s.rows[0]?.completed_at))
 })
 
-test("OpenWork rejects bodyless or broken completions and supports cancellation before headers", async () => {
+test("Harness rejects bodyless or broken completions and supports cancellation before headers", async () => {
   await using bodyless = await fixture({ mode: "bodyless" })
-  const empty = await bodyless.openwork()
+  const empty = await bodyless.harness()
   expect(empty.status).toBe(502)
   expect(await empty.json()).toMatchObject({ error: { code: "upstream_malformed_response" } })
   await bodyless.waitFor((s) => Boolean(s.rows[0]?.completed_at))
   await using broken = await fixture({ mode: "json-failure" })
-  const pendingResponse = broken.openwork()
+  const pendingResponse = broken.harness()
   await broken.waitFor((s) => s.requests.length === 1)
   await broken.release()
   const response = await pendingResponse
@@ -427,7 +427,7 @@ test("OpenWork rejects bodyless or broken completions and supports cancellation 
   expect((await broken.waitFor((s) => Boolean(s.rows[0]?.completed_at))).rows[0].outcome).toBe("upstream_error")
   await using waiting = await fixture({ mode: "headers-hang" })
   const abort = new AbortController()
-  const pending = waiting.openwork({ signal: abort.signal }).catch(() => null)
+  const pending = waiting.harness({ signal: abort.signal }).catch(() => null)
   await waiting.waitFor((s) => s.requests.length === 1)
   abort.abort()
   expect(await pending).toBeNull()
@@ -470,12 +470,12 @@ test("access logs and reporters omit query secrets, prompts and free-text transp
   expect((await failedLog.state()).requests).toHaveLength(0)
 })
 
-test("OpenWork Models requires enabled metadata independently of bucket gating; org providers do not require a tier", async () => {
+test("Harness Models requires enabled metadata independently of bucket gating; org providers do not require a tier", async () => {
   for (const config of [{ enabled: false }, { enabled: true, noTier: true }, { enabled: true }]) {
     await using f = await fixture({ ...config, mode: "managed-json" })
     const response = await fetch(`${f.url}/api/v1/chat/completions`, { method: "POST", headers: { authorization: "Bearer ow_inf_fixture", "content-type": "application/json" }, body: '{"model":"z-ai/glm-5.2","messages":[]}' })
     expect(response.status).toBe(config.enabled === false ? 403 : "noTier" in config ? 429 : 200)
-    expect(response.headers.get("x-openwork-request-id")).toMatch(/^[a-f0-9]{32}$/)
+    expect(response.headers.get("x-harness-request-id")).toMatch(/^[a-f0-9]{32}$/)
     await response.arrayBuffer()
     expect((await f.state()).buckets).toBe(config.enabled === false ? 0 : 1)
     const orgProvider = await f.request()

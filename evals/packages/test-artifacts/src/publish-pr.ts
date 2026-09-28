@@ -4,7 +4,7 @@ import { lstat, realpath } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { renderPrMarkdown } from "./render.ts";
 import { readTestRunDirectory } from "./scan.ts";
-import type { uploadReview } from "@openwork/review/storage";
+import type { uploadReview } from "@harness/review/storage";
 
 const MARKER = "<!-- test-evidence -->";
 const LEGACY_MARKERS = ["<!-- photo-roll -->", "<!-- fraimz -->"];
@@ -177,7 +177,7 @@ export async function publishPr(
   options: PublishPrOptions,
   dependencies: PublishDependencies = {},
 ): Promise<PublishPrResult> {
-  if (process.env.OPENWORK_REVIEW_URL && !options.force) {
+  if (process.env.HARNESS_REVIEW_URL && !options.force) {
     return publishReviewPr({ ...options, testRunDirs: [options.testRunDir] }, dependencies);
   }
   const stored = await readTestRunDirectory(options.testRunDir);
@@ -274,8 +274,8 @@ export async function publishReviewPr(
     throw new Error("Publishing requires --pr <n>.");
   const pr = String(options.pr);
   const exec = dependencies.exec ?? commandRunner;
-  const base = options.reviewUrl ?? process.env.OPENWORK_REVIEW_URL;
-  if (!base) throw new Error("Set OPENWORK_REVIEW_URL to the review app URL.");
+  const base = options.reviewUrl ?? process.env.HARNESS_REVIEW_URL;
+  if (!base) throw new Error("Set HARNESS_REVIEW_URL to the review app URL.");
   const url = new URL(base);
   if (
     url.username ||
@@ -311,7 +311,7 @@ export async function publishReviewPr(
   requireSuccess(current, "Reading current evidence");
   const preserved = protectedReport(current.stdout);
   if (preserved) return { markdown: preserved, posted: false, updated: false, urls: {} };
-  const upload = dependencies.upload ?? (await import("@openwork/review/storage")).uploadReview;
+  const upload = dependencies.upload ?? (await import("@harness/review/storage")).uploadReview;
   const id = await upload(report, assets);
   const reportUrl = new URL(`/r/${id}`, url).href;
   // A push while media was uploading must not replace current evidence with an older report.
@@ -323,7 +323,7 @@ export async function publishReviewPr(
   if (concurrentSelection) return { markdown: concurrentSelection, posted: false, updated: false, urls: {} };
   requireCurrentHead();
   if (options.presentation === "native") {
-    const { summarizeReview } = await import("@openwork/review");
+    const { summarizeReview } = await import("@harness/review");
     return { markdown, posted: true, updated: false, urls: { report: reportUrl },
       evidence: { gitSha: report.gitSha, ...summarizeReview(report) } };
   }

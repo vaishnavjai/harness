@@ -1,16 +1,16 @@
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 import { signupWorkspace } from "../../evals/worlds/signup-workspace.ts";
 
 export async function onboardingWorld(seed: Seed) {
   const directory =
-    process.env.OPENWORK_EVAL_FILM_DIR || seed.tmpPath("onboarding-film");
+    process.env.HARNESS_EVAL_FILM_DIR || seed.tmpPath("onboarding-film");
   const world = await signupWorkspace(seed, {
     filmDirectory: directory,
     viewport: { width: 1600, height: 940 },
   });
   world.owner.name = "Alex";
-  world.owner.email = "alex@openwork.test";
-  world.owner.password = "OpenWork-demo-9274!";
+  world.owner.email = "alex@harness.test";
+  world.owner.password = "Harness-demo-9274!";
   return { ...world, directory };
 }
 
@@ -53,7 +53,7 @@ export async function desktopOnboardingWorld(seed: Seed) {
         if (url.origin === new URL(world.den.ref.webUrl).origin) requests.push({ method: request.method, path: url.pathname });
       }
     }
-    if (message.method === "Page.frameRequestedNavigation" && typeof params.url === "string" && params.url.startsWith("openwork://")) {
+    if (message.method === "Page.frameRequestedNavigation" && typeof params.url === "string" && params.url.startsWith("harness://")) {
       // Mock only OS dispatch: retain the browser-issued URL, never mint a test grant.
       returns.push(params.url);
       socket.send(JSON.stringify({ id: 3, method: "Page.stopLoading" }));

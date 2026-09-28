@@ -38,10 +38,10 @@ test('neutral and failed publication use explicit distinct states', () => {
 
 test('previous metadata rejects foreign origins, credentials, queries and invalid identities', () => {
   for (const override of [{ url: 'https://other.example/r/' + 'b'.repeat(32) }, { url: input.reportUrl + '?token=secret' }, { url: input.reportUrl.replace('https://', 'https://user:secret@') }, { sha: 'invalid' }, { publishedAt: 'invalid' }]) {
-    const body = `<!-- openwork-evidence-report:${JSON.stringify({ url: input.reportUrl, sha: input.sha, publishedAt: input.now, ...override })} -->`;
+    const body = `<!-- harness-evidence-report:${JSON.stringify({ url: input.reportUrl, sha: input.sha, publishedAt: input.now, ...override })} -->`;
     assert.equal(previousPreview(body, input.reviewUrl), undefined);
   }
-  assert.equal(previousPreview('<!-- openwork-evidence-report:{bad} -->', input.reviewUrl), undefined);
+  assert.equal(previousPreview('<!-- harness-evidence-report:{bad} -->', input.reviewUrl), undefined);
 });
 
 test('updates only authenticated bot card found on a later page', async () => {

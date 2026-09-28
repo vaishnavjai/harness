@@ -1,6 +1,6 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { commandPaletteSearch } from "../worlds/session-shell.ts";
 
 const test = spec.world(commandPaletteSearch, {
@@ -113,7 +113,7 @@ test("command palette searches settings by alias, navigates, records recents, an
     await user.see({ text: "Recent" });
     await user.see({ role: "option", label: /^Permissions/ });
     await user.see({ role: "option", label: /^Models/ });
-    const storedRecents = stringArray(await probe.storage("openwork.react.command-palette.recents"));
+    const storedRecents = stringArray(await probe.storage("harness.react.command-palette.recents"));
     expect(storedRecents).toEqual(["settings:permissions", "models"]);
     expect(storedRecents).not.toContain("settings:appearance");
     await user.looks([
@@ -146,7 +146,7 @@ test("command palette searches settings by alias, navigates, records recents, an
   });
 
   await step("> restricts the palette to actions", async () => {
-    await user.see({ text: /Adjust how OpenWork looks/ });
+    await user.see({ text: /Adjust how Harness looks/ });
     // Settings closes route-owned overlays just after navigation; let that
     // transition settle before reopening the palette.
     await new Promise((resolve) => setTimeout(resolve, 1_500));

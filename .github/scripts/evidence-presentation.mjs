@@ -46,7 +46,7 @@ export async function presentEvidence({ repo, runId, runAttempt, phase, receipt,
   if (!Array.isArray(deployments)) throw new Error("Invalid deployment history");
   for (const deployment of deployments) {
     const previous = deployment.payload;
-    if (deployment.creator?.login !== "github-actions[bot]" || previous?.kind !== "openwork-evidence-v1"
+    if (deployment.creator?.login !== "github-actions[bot]" || previous?.kind !== "harness-evidence-v1"
       || previous.pr !== stub.number || !validId(previous.runId) || !validId(previous.runAttempt)
       || !(previous.runId < source.id || (previous.runId === source.id && previous.runAttempt < source.run_attempt))) continue;
     if (!await current()) return { skipped: true };
@@ -103,7 +103,7 @@ export async function presentEvidence({ repo, runId, runAttempt, phase, receipt,
   // Commit statuses render independently of GitHub Actions' dynamic check-suite
   // grouping, which can put custom checks under an unrelated CodeQL heading.
   await api(`${root}/statuses/${sha}`, "POST", {
-    context: "OpenWork Evidence",
+    context: "Harness Evidence",
     state: status !== "completed" ? "pending" : ["success", "neutral"].includes(conclusion) ? "success" : "failure",
     description: title.slice(0, 140), target_url: detailsUrl,
   });
@@ -115,7 +115,7 @@ export async function presentEvidence({ repo, runId, runAttempt, phase, receipt,
     ref: sha, auto_merge: false, required_contexts: [], environment,
     transient_environment: false, production_environment: false,
     description: `Evidence for ${sha.slice(0, 7)} (run ${source.id}, attempt ${source.run_attempt})`,
-    payload: { kind: "openwork-evidence-v1", runId: source.id, runAttempt: source.run_attempt, sha, pr: stub.number },
+    payload: { kind: "harness-evidence-v1", runId: source.id, runAttempt: source.run_attempt, sha, pr: stub.number },
   });
   if (!validId(deployment.id)) throw new Error("Invalid evidence deployment");
   const active = await current();
@@ -134,7 +134,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     try { receipt = JSON.parse(await readFile(process.env.EVIDENCE_RECEIPT_PATH, "utf8")); } catch { /* Missing publication is a failure, never a pass. */ }
   }
   const input = { repo: process.env.GITHUB_REPOSITORY, runId: process.env.REVIEW_RUN_ID,
-    runAttempt: process.env.REVIEW_RUN_ATTEMPT, phase: process.argv[2], receipt, reviewUrl: process.env.OPENWORK_REVIEW_URL };
+    runAttempt: process.env.REVIEW_RUN_ATTEMPT, phase: process.argv[2], receipt, reviewUrl: process.env.HARNESS_REVIEW_URL };
   try { await presentEvidence(input); }
   catch {
     // A malformed receipt or failed deployment must not leave a green result.

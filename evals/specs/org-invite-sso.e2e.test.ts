@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { ssoInvite } from "../worlds/den.ts";
 import { invitationWitnesses, invitationsFor, membersFor, rows } from "../worlds/org-invite.ts";
 
@@ -14,7 +14,7 @@ for (const mismatch of [false, true]) {
     const otpBefore = await witnesses.emails("verification", world.invitee);
 
     await step("the invite routes through the organization's registered and enabled IdP", async () => {
-      const configured = await witnesses.api("/v1/sso", { headers: { "x-openwork-org-id": world.organizationId } });
+      const configured = await witnesses.api("/v1/sso", { headers: { "x-harness-org-id": world.organizationId } });
       expect(configured.response.ok, configured.text).toBe(true);
       expect(configured.body).toHaveProperty("connection.status", "enabled");
       await user.navigate(world.joinUrl);

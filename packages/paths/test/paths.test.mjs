@@ -10,15 +10,18 @@ import {
   MAX_CONFIG_ROOT_LENGTH,
   normalizeWorkspaceRootPath,
   opencodeDbCandidates,
-  openworkEnvStorePath,
-  openworkServerConfigPath,
+  harnessAuditLogPath,
+  harnessEnvStorePath,
+  harnessLocalDataDir,
+  harnessMemoryDataDir,
+  harnessServerConfigPath,
   resolveGlobalOpencodeConfigPath,
   resolveWorkspaceOpencodeConfigPath,
   workspaceOpencodeConfigCandidates,
 } from "../index.mjs";
 
 async function withTempDir(callback) {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-paths-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-paths-"));
   try {
     await callback(root);
   } finally {
@@ -51,10 +54,10 @@ describe("workspace root paths", () => {
   test("rejects Win32 device namespace roots", () => {
     const opts = { platform: "win32" };
     for (const value of [
-      "\\\\.\\pipe\\openwork",
-      "//./PIPE/openwork",
+      "\\\\.\\pipe\\harness",
+      "//./PIPE/harness",
       "\\\\.\\PhysicalDrive0",
-      "\\\\?\\UNC\\.\\pipe\\openwork",
+      "\\\\?\\UNC\\.\\pipe\\harness",
       "\\\\?\\UNC\\?\\PhysicalDrive0",
     ]) {
       expect(() => normalizeWorkspaceRootPath(value, opts)).toThrow("Invalid Windows workspace root");
@@ -103,57 +106,57 @@ describe("OpenCode database paths", () => {
   });
 });
 
-describe("openwork server config paths", () => {
+describe("harness server config paths", () => {
   test("uses APPDATA on Windows", () => {
-    expect(openworkServerConfigPath({
+    expect(harnessServerConfigPath({
       env: { APPDATA: "C:\\Users\\Ada\\AppData\\Roaming" },
       homeDir: "C:\\Users\\Ada",
       platform: "win32",
-    })).toBe("C:\\Users\\Ada\\AppData\\Roaming\\openwork\\server.json");
+    })).toBe("C:\\Users\\Ada\\AppData\\Roaming\\harness\\server.json");
   });
 
   test("uses XDG_CONFIG_HOME on Unix", () => {
-    expect(openworkServerConfigPath({
+    expect(harnessServerConfigPath({
       env: { XDG_CONFIG_HOME: "/tmp/xdg" },
       homeDir: "/home/ada",
       platform: "linux",
-    })).toBe("/tmp/xdg/openwork/server.json");
+    })).toBe("/tmp/xdg/harness/server.json");
   });
 
   test("falls back to ~/.config", () => {
-    expect(openworkServerConfigPath({ env: {}, homeDir: "/home/ada", platform: "linux" }))
-      .toBe("/home/ada/.config/openwork/server.json");
+    expect(harnessServerConfigPath({ env: {}, homeDir: "/home/ada", platform: "linux" }))
+      .toBe("/home/ada/.config/harness/server.json");
   });
 
-  test("honors OPENWORK_SERVER_CONFIG", () => {
-    expect(openworkServerConfigPath({
-      env: { OPENWORK_SERVER_CONFIG: "/tmp/openwork/server.json" },
+  test("honors HARNESS_SERVER_CONFIG", () => {
+    expect(harnessServerConfigPath({
+      env: { HARNESS_SERVER_CONFIG: "/tmp/harness/server.json" },
       homeDir: "/home/ada",
       platform: "linux",
-    })).toBe("/tmp/openwork/server.json");
+    })).toBe("/tmp/harness/server.json");
   });
 });
 
-describe("openwork env store and desktop bootstrap paths", () => {
-  test("honors OPENWORK_ENV_STORE", () => {
-    expect(openworkEnvStorePath({
-      env: { OPENWORK_ENV_STORE: "/tmp/openwork/env.json" },
+describe("harness env store and desktop bootstrap paths", () => {
+  test("honors HARNESS_ENV_STORE", () => {
+    expect(harnessEnvStorePath({
+      env: { HARNESS_ENV_STORE: "/tmp/harness/env.json" },
       homeDir: "/home/ada",
       platform: "linux",
-    })).toBe("/tmp/openwork/env.json");
+    })).toBe("/tmp/harness/env.json");
   });
 
-  test("uses the same openwork config layout for env.json", () => {
-    expect(openworkEnvStorePath({
+  test("uses the same harness config layout for env.json", () => {
+    expect(harnessEnvStorePath({
       env: { XDG_CONFIG_HOME: "/tmp/xdg" },
       homeDir: "/home/ada",
       platform: "linux",
-    })).toBe("/tmp/xdg/openwork/env.json");
+    })).toBe("/tmp/xdg/harness/env.json");
   });
 
-  test("honors OPENWORK_DESKTOP_BOOTSTRAP_PATH", () => {
+  test("honors HARNESS_DESKTOP_BOOTSTRAP_PATH", () => {
     expect(desktopBootstrapPath({
-      env: { OPENWORK_DESKTOP_BOOTSTRAP_PATH: "/tmp/bootstrap.json" },
+      env: { HARNESS_DESKTOP_BOOTSTRAP_PATH: "/tmp/bootstrap.json" },
       homeDir: "/home/ada",
       platform: "linux",
     })).toBe("/tmp/bootstrap.json");
@@ -161,16 +164,16 @@ describe("openwork env store and desktop bootstrap paths", () => {
 
   test("preserves dev-data desktop bootstrap path when userDataDir is injected", () => {
     expect(desktopBootstrapPath({
-      env: { OPENWORK_DEV_MODE: "1" },
+      env: { HARNESS_DEV_MODE: "1" },
       homeDir: "/Users/ada",
       platform: "darwin",
-      userDataDir: "/tmp/openwork-userdata",
-    })).toBe("/tmp/openwork-userdata/openwork-dev-data/home/.config/openwork/desktop-bootstrap.json");
+      userDataDir: "/tmp/harness-userdata",
+    })).toBe("/tmp/harness-userdata/harness-dev-data/home/.config/harness/desktop-bootstrap.json");
   });
 
   test("resolves the legacy desktop bootstrap path from the chosen home", () => {
     expect(legacyDesktopBootstrapPath({ env: {}, homeDir: "/Users/ada", platform: "darwin" }))
-      .toBe("/Users/ada/.config/openwork/desktop-bootstrap.json");
+      .toBe("/Users/ada/.config/harness/desktop-bootstrap.json");
   });
 });
 
@@ -256,5 +259,34 @@ describe("workspace OpenCode config paths", () => {
       await writeFile(hiddenJsonc, "{}", "utf8");
       expect(resolveWorkspaceOpencodeConfigPath(root)).toBe(hiddenJsonc);
     });
+  });
+});
+
+describe("harness local data and audit paths", () => {
+  test("live under ~/.config/harness on POSIX, honoring XDG_CONFIG_HOME", () => {
+    const opts = { platform: "linux", env: {}, homeDir: "/home/alex" };
+    expect(harnessLocalDataDir(opts)).toBe("/home/alex/.config/harness/data");
+    expect(harnessMemoryDataDir(opts)).toBe("/home/alex/.config/harness/data/hindsight");
+    expect(harnessAuditLogPath(opts)).toBe("/home/alex/.config/harness/audit.log");
+    const xdg = { platform: "darwin", env: { XDG_CONFIG_HOME: "/tmp/xdg" }, homeDir: "/Users/alex" };
+    expect(harnessLocalDataDir(xdg)).toBe("/tmp/xdg/harness/data");
+    expect(harnessAuditLogPath(xdg)).toBe("/tmp/xdg/harness/audit.log");
+  });
+
+  test("use %APPDATA%\\harness on Windows", () => {
+    const opts = { platform: "win32", env: { APPDATA: "C:\\Users\\alex\\AppData\\Roaming" }, homeDir: "C:\\Users\\alex" };
+    expect(harnessLocalDataDir(opts)).toBe("C:\\Users\\alex\\AppData\\Roaming\\harness\\data");
+    expect(harnessAuditLogPath(opts)).toBe("C:\\Users\\alex\\AppData\\Roaming\\harness\\audit.log");
+  });
+
+  test("accept explicit overrides", () => {
+    const opts = {
+      platform: "linux",
+      env: { HARNESS_LOCAL_DATA_DIR: "~/portable/data", HARNESS_AUDIT_LOG: "/var/tmp/audit.log" },
+      homeDir: "/home/alex",
+    };
+    expect(harnessLocalDataDir(opts)).toBe("/home/alex/portable/data");
+    expect(harnessMemoryDataDir(opts)).toBe("/home/alex/portable/data/hindsight");
+    expect(harnessAuditLogPath(opts)).toBe("/var/tmp/audit.log");
   });
 });

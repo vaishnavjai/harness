@@ -1,4 +1,4 @@
-import { clickButton, denFetch } from "@openwork/behaviors";
+import { clickButton, denFetch } from "@harness/behaviors";
 import { provider } from "../ctx.ts";
 import { inPage } from "../inpage.ts";
 import { org } from "../seed.ts";
@@ -26,7 +26,7 @@ const legacyProvider = provider(async (ctx) => {
   const route = "/v1/llm-providers";
   const created = await denFetch(admin, route, {
     method: "POST",
-    headers: { authorization: `Bearer ${admin.token}`, "x-openwork-org-id": organization.orgId },
+    headers: { authorization: `Bearer ${admin.token}`, "x-harness-org-id": organization.orgId },
     body: JSON.stringify({
       name: PROVIDER_NAME,
       source: "custom",

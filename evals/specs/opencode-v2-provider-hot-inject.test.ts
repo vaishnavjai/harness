@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eventually, mcpMock, needs, test } from "@openwork/testkit";
+import { eventually, mcpMock, needs, test } from "@harness/testkit";
 import { expect } from "vitest";
 
 import {
@@ -26,14 +26,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 
 async function resolveOpencodeV2Bin(): Promise<string> {
-  const override = process.env.OPENWORK_EVAL_OPENCODE2_BIN;
+  const override = process.env.HARNESS_EVAL_OPENCODE2_BIN;
   if (typeof override === "string" && override.trim() !== "") return override;
 
   const constants: unknown = JSON.parse(await readFile(join(import.meta.dirname, "../../constants.json"), "utf8"));
   if (!isRecord(constants) || typeof constants.opencodeV2Version !== "string") {
     throw new Error("constants.json must define a string opencodeV2Version");
   }
-  return installOpencodeV2Binary(join(tmpdir(), "openwork-opencode-v2-verified"), constants.opencodeV2Version);
+  return installOpencodeV2Binary(join(tmpdir(), "harness-opencode-v2-verified"), constants.opencodeV2Version);
 }
 
 async function readRequestBody(request: IncomingMessage): Promise<unknown> {
@@ -51,8 +51,8 @@ function sessionId(payload: unknown): string | undefined {
 // Complements the real HTTP proxy + fake readiness cases in opencode-proxy.e2e:
 // this crosses the pinned native engine's storage boundary, not the proxy gate.
 test("V2-STORED-01: cold stored reads survive pending catalog and MCP readiness", { timeout: 60_000 }, async ({ evidence, place }) => {
-  needs({ placement: "local", env: ["OPENWORK_EVAL_OPENCODE2_BIN"] });
-  const binary = process.env.OPENWORK_EVAL_OPENCODE2_BIN;
+  needs({ placement: "local", env: ["HARNESS_EVAL_OPENCODE2_BIN"] });
+  const binary = process.env.HARNESS_EVAL_OPENCODE2_BIN;
   if (!binary) throw new Error("A pre-cached native-v2 binary is required; this case never installs one");
   expect((await stat(binary)).isFile()).toBe(true);
   const rootDir = await mkdtemp(join(tmpdir(), "oc2-stored-reads-"));
@@ -301,7 +301,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
   const directory = join(rootDir, "workspace");
   await mkdir(directory);
   const baseConfig = join(rootDir, "opencode.json");
-  await writeFile(baseConfig, `${JSON.stringify({ agent: { openwork: { mode: "primary" } }, default_agent: "openwork" })}\n`);
+  await writeFile(baseConfig, `${JSON.stringify({ agent: { harness: { mode: "primary" } }, default_agent: "harness" })}\n`);
   let server: ManagedOpencodeV2Server | undefined;
 
   try {
@@ -330,9 +330,9 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
       rootDir,
       env: {
         OPENCODE_CONFIG: baseConfig, OPENCODE_MODELS_URL: opencodeModelsUrl,
-        OPENWORK_ENCRYPTION_KEY: "fixture-server-only", OPENWORK_TOKEN: "fixture-server-only",
-        OPENWORK_HOST_TOKEN: "fixture-server-only", OPENWORK_SERVER_TOKEN: "fixture-server-only",
-        OPENWORK_POLICY_TOKEN: "fixture-server-only",
+        HARNESS_ENCRYPTION_KEY: "fixture-server-only", HARNESS_TOKEN: "fixture-server-only",
+        HARNESS_HOST_TOKEN: "fixture-server-only", HARNESS_SERVER_TOKEN: "fixture-server-only",
+        HARNESS_POLICY_TOKEN: "fixture-server-only",
         OPENAI_API_KEY: "fixture-server-only", ANTHROPIC_API_KEY: "fixture-server-only",
         AWS_SECRET_ACCESS_KEY: "fixture-server-only", GITHUB_TOKEN: "fixture-server-only",
         DATABASE_URL: "fixture-server-only", CUSTOM_SERVICE_SECRET: "fixture-server-only",
@@ -346,7 +346,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
     if (process.platform === "linux") {
       const environment = await readFile(`/proc/${pid0}/environ`, "utf8");
       const names = environment.split("\0").map((entry) => entry.split("=")[0]);
-      expect(names.filter((name) => name?.startsWith("OPENWORK_"))).toEqual([]);
+      expect(names.filter((name) => name?.startsWith("HARNESS_"))).toEqual([]);
       for (const name of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "DATABASE_URL", "CUSTOM_SERVICE_SECRET"]) {
         expect(names).not.toContain(name);
       }
@@ -371,8 +371,8 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
     const catalogReadinessMs = Date.now() - catalogStartedAt;
     const baselineText = JSON.stringify(baseline.json);
     expect(baseline.status).toBe(200);
-    expect(baselineText).not.toContain("openwork-witness-a");
-    expect(baselineText).not.toContain("openwork-witness-b");
+    expect(baselineText).not.toContain("harness-witness-a");
+    expect(baselineText).not.toContain("harness-witness-b");
     console.info(`[opencode-v2-spec] cold catalog readiness: ${catalogReadinessMs}ms`);
     evidence.recordAssertionEvidence(
       "C1 positive baseline and negative provider absence",
@@ -382,7 +382,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
 
     const injectionStartedAt = Date.now();
     await server.injectProvider({
-      id: "openwork-witness-a",
+      id: "harness-witness-a",
       name: "Witness A",
       baseUrl: `${witnessUrl}/v1`,
       apiKey: "witness-key-a",
@@ -394,7 +394,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
         within: 15_000,
         intervalMs: 250,
         label: "provider A to appear in the model list",
-        until: (result) => result !== undefined && JSON.stringify(result.json).includes("openwork-witness-a"),
+        until: (result) => result !== undefined && JSON.stringify(result.json).includes("harness-witness-a"),
       },
     );
     if (process.platform !== "win32") {
@@ -408,7 +408,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
       );
     }
     const injectionLatencyMs = Date.now() - injectionStartedAt;
-    expect(JSON.stringify(modelsAfterA?.json)).toContain("openwork-witness-a");
+    expect(JSON.stringify(modelsAfterA?.json)).toContain("harness-witness-a");
     console.info(`[opencode-v2-spec] provider A injection latency: ${injectionLatencyMs}ms`);
     evidence.recordAssertionEvidence(
       "C2 positive hot injection and negative bounded-wait failure",
@@ -419,14 +419,14 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
     const sessionA = await server.fetchJson("/api/session", {
       method: "POST",
       directory,
-      body: { model: { providerID: "openwork-witness-a", id: "witness-model-a" } },
+      body: { model: { providerID: "harness-witness-a", id: "witness-model-a" } },
     });
     expect(sessionA.status).toBe(200);
     const idA = sessionId(sessionA.json);
     expect(idA).toBeTypeOf("string");
     if (idA === undefined) throw new Error("Provider A session response did not contain data.id");
     const shellProbe = join(directory, "policy-boundary.cjs");
-    await writeFile(shellProbe, `console.log(JSON.stringify({ policy: Object.hasOwn(process.env, "OPENWORK_POLICY_TOKEN"), client: Object.hasOwn(process.env, "OPENWORK_SERVER_TOKEN"), ipc: typeof process.send === "function" }));\n`);
+    await writeFile(shellProbe, `console.log(JSON.stringify({ policy: Object.hasOwn(process.env, "HARNESS_POLICY_TOKEN"), client: Object.hasOwn(process.env, "HARNESS_SERVER_TOKEN"), ipc: typeof process.send === "function" }));\n`);
     // The engine's login shell can replace PATH. Use the test runner's Node,
     // rather than an unrelated system install, for this presence-only probe.
     const command = `${JSON.stringify(process.execPath)} ${JSON.stringify(shellProbe)}`;
@@ -466,7 +466,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
       true,
     );
     await server.injectProvider({
-      id: "openwork-witness-b",
+      id: "harness-witness-b",
       name: "Witness B",
       baseUrl: `${witnessUrl}/v1`,
       apiKey: "witness-key-b",
@@ -480,7 +480,7 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
         intervalMs: 250,
         label: "provider B to appear in the model list",
         until: (result) => {
-          if (result === undefined || !JSON.stringify(result.json).includes("openwork-witness-b")) {
+          if (result === undefined || !JSON.stringify(result.json).includes("harness-witness-b")) {
             providerBFirstSeenAt = undefined;
             return false;
           }
@@ -490,13 +490,13 @@ test("opencode v2 injects providers at runtime without an engine reload", { time
       },
     );
     const modelsAfterBText = JSON.stringify(modelsAfterB?.json);
-    expect(modelsAfterBText).toContain("openwork-witness-a");
-    expect(modelsAfterBText).toContain("openwork-witness-b");
+    expect(modelsAfterBText).toContain("harness-witness-a");
+    expect(modelsAfterBText).toContain("harness-witness-b");
 
     const sessionB = await server.fetchJson("/api/session", {
       method: "POST",
       directory,
-      body: { model: { providerID: "openwork-witness-b", id: "witness-model-b" } },
+      body: { model: { providerID: "harness-witness-b", id: "witness-model-b" } },
     });
     expect(sessionB.status).toBe(200);
     const idB = sessionId(sessionB.json);

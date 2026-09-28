@@ -12,7 +12,7 @@ function fixtures(t: test.TestContext) {
   return (name: string, source: string) => {
     const file = join(root, name);
     mkdirSync(join(file, ".."), { recursive: true });
-    writeFileSync(file, `import { spec } from "@openwork/testkit";\n${source}`);
+    writeFileSync(file, `import { spec } from "@harness/testkit";\n${source}`);
     return file;
   };
 }
@@ -52,7 +52,7 @@ test("global setup uses Vitest's project paths, effective name pattern and seque
     };
     project.vitest.getModuleSpecifications = file => [{ moduleId: file, project: file === ${JSON.stringify(otherProject)} ? {} : project }];
     await setup(project);
-  `], { encoding: "utf8", env: { ...process.env, OPENWORK_EVAL_APP_SURFACE: "web" } });
+  `], { encoding: "utf8", env: { ...process.env, HARNESS_EVAL_APP_SURFACE: "web" } });
   assert.match(output, /scenarios\/example\/e2e.test.ts/);
   assert.match(output, /surfaces=\[appWeb\]; services=\[mock\]/);
   assert.doesNotMatch(output, /pr.test.ts|other-shard|nativeReason/);
@@ -108,8 +108,8 @@ test("worker limits and selection option handling preserve placement concurrency
   assert.equal(parallelSuite([...argv, "specs/b.e2e.test.ts"]), true);
   assert.equal(parallelSuite(["vitest", "specs/*.e2e.test.ts"]), true);
   assert.equal(parallelSuite(["vitest"]), true);
-  assert.equal(suiteWorkerCount(argv, { OPENWORK_EVAL_DAYTONA: "1" }), 1);
-  assert.equal(suiteWorkerCount(["vitest"], { OPENWORK_EVAL_DAYTONA: "1" }), 2);
+  assert.equal(suiteWorkerCount(argv, { HARNESS_EVAL_DAYTONA: "1" }), 1);
+  assert.equal(suiteWorkerCount(["vitest"], { HARNESS_EVAL_DAYTONA: "1" }), 2);
   assert.equal(suiteWorkerCount(["vitest"], {}), 3);
-  assert.equal(suiteWorkerCount(["vitest"], { OPENWORK_EVAL_MAX_WORKERS: "4" }), 4);
+  assert.equal(suiteWorkerCount(["vitest"], { HARNESS_EVAL_MAX_WORKERS: "4" }), 4);
 });

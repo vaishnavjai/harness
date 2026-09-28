@@ -2,14 +2,14 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect } from "vitest";
-import { eventually, needs, test } from "@openwork/testkit";
+import { eventually, needs, test } from "@harness/testkit";
 import { createManagedOpencodeV2Server, type OpencodeV2ProviderSpec } from "../../apps/server/src/managed-opencode-v2";
 
 const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object";
 
 test("V2-MODEL-FILTERS: remove, restore and block models without restarting the native engine", { timeout: 120_000 }, async ({ evidence }) => {
-  needs({ placement: "local", env: ["OPENWORK_OPENCODE2_BIN"] });
-  const bin = process.env.OPENWORK_OPENCODE2_BIN;
+  needs({ placement: "local", env: ["HARNESS_OPENCODE2_BIN"] });
+  const bin = process.env.HARNESS_OPENCODE2_BIN;
   if (!bin) throw new Error("The pinned native v2 binary is required");
   const rootDir = await mkdtemp(join(tmpdir(), "native-model-filters-"));
   const directory = join(rootDir, "workspace");
@@ -47,8 +47,8 @@ test("V2-MODEL-FILTERS: remove, restore and block models without restarting the 
 });
 
 test("V2-DISABLED-PROVIDERS: Disconnect hides built-in OpenCode Zen in the native engine and Enable restores it", { timeout: 120_000 }, async ({ evidence }) => {
-  needs({ placement: "local", env: ["OPENWORK_OPENCODE2_BIN"] });
-  const bin = process.env.OPENWORK_OPENCODE2_BIN;
+  needs({ placement: "local", env: ["HARNESS_OPENCODE2_BIN"] });
+  const bin = process.env.HARNESS_OPENCODE2_BIN;
   if (!bin) throw new Error("The pinned native v2 binary is required");
   const rootDir = await mkdtemp(join(tmpdir(), "native-disabled-providers-"));
   const directory = join(rootDir, "workspace");

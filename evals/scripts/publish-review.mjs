@@ -111,7 +111,7 @@ export async function publishCompletedEvidence({ repo, runId, runAttempt }, depe
     for (const name of expected.keys())
       if (artifacts.artifacts.filter(artifact => artifact.name === name).length !== 1)
         return skip("required proof artifact is missing or duplicated");
-    const directory = await mkdtemp(join(tmpdir(), "openwork-pr-proof-"));
+    const directory = await mkdtemp(join(tmpdir(), "harness-pr-proof-"));
     try {
       const testRunDirs = [];
       for (const [name, spec] of expected) {
@@ -160,7 +160,7 @@ export async function publishCompletedEvidence({ repo, runId, runAttempt }, depe
       if (page * 100 >= result.total_count) break;
     }
   }
-  const directory = await mkdtemp(join(tmpdir(), "openwork-review-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-review-"));
   try {
     const testRunDirs = [];
     async function visit(path, depth = 0) {
@@ -212,8 +212,8 @@ export async function publicationJob(env, dependencies = {}) {
   const summary = dependencies.summary ?? (text => env.GITHUB_STEP_SUMMARY
     ? appendFile(env.GITHUB_STEP_SUMMARY, text) : Promise.resolve());
   try {
-    if (!env.OPENWORK_REVIEW_URL || !env.BLOB_READ_WRITE_TOKEN) {
-      await summary("## Evidence publication: unavailable\n\nConfigure repository variable `OPENWORK_REVIEW_URL` and secret `OPENWORK_REVIEW_BLOB_TOKEN`. No report was published.\n");
+    if (!env.HARNESS_REVIEW_URL || !env.BLOB_READ_WRITE_TOKEN) {
+      await summary("## Evidence publication: unavailable\n\nConfigure repository variable `HARNESS_REVIEW_URL` and secret `HARNESS_REVIEW_BLOB_TOKEN`. No report was published.\n");
       return { state: "unavailable", exitCode: 1 };
     }
     const result = await publish({ repo: env.GITHUB_REPOSITORY, runId: env.REVIEW_RUN_ID, runAttempt: env.REVIEW_RUN_ATTEMPT });
@@ -229,7 +229,7 @@ export async function publicationJob(env, dependencies = {}) {
     }
     // Only link to this deployment's report route, never an artifact-supplied URL.
     const reportUrl = new URL(result.urls.report);
-    if (reportUrl.origin !== new URL(env.OPENWORK_REVIEW_URL).origin ||
+    if (reportUrl.origin !== new URL(env.HARNESS_REVIEW_URL).origin ||
         !/^\/r\/[a-f0-9]{32}$/.test(reportUrl.pathname) || reportUrl.search || reportUrl.hash || reportUrl.username || reportUrl.password)
       throw new Error("Invalid published report URL");
     await summary(`## Evidence publication: published\n\n[Open private review report](${reportUrl.href})\n\nPublication succeeded; this is not a test verdict or human approval. The report shows the selected evidence and its limitations.\n`);

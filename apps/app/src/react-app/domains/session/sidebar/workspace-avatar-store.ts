@@ -46,7 +46,7 @@ export const useWorkspaceAvatarStore = create<WorkspaceAvatarStore>()(
         }),
     }),
     {
-      name: "openwork.workspaceAvatars.v1",
+      name: "harness.workspaceAvatars.v1",
       storage: createJSONStorage(() => localStorage),
     },
   ),

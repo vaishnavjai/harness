@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { UIMessage } from "ai";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import { applyHistorySourceChanges, deriveRenderedSessionMessages, mergeHistoryWindow, projectHistoryRead, reconcileHistoryRead, type LatestSessionHistory } from "../src/react-app/domains/session/surface/session-render-state";
 import { resolveForkBoundaryId } from "../src/react-app/domains/session/sync/transcript-reconcile";
 import {
@@ -9,7 +9,7 @@ import {
   mergeSnapshotIntoCachedMessages,
 } from "../src/react-app/domains/session/sync/message-merge";
 
-function snapshotWithHistory(): OpenworkSessionSnapshot {
+function snapshotWithHistory(): HarnessSessionSnapshot {
   const sessionId = "session-render-cycle";
   return {
     session: {
@@ -38,7 +38,7 @@ function snapshotWithHistory(): OpenworkSessionSnapshot {
     })),
     todos: [],
     status: { type: "idle" },
-  } as unknown as OpenworkSessionSnapshot;
+  } as unknown as HarnessSessionSnapshot;
 }
 
 function message(id: string, role: "user" | "assistant", text: string, created: number): UIMessage {

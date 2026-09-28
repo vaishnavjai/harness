@@ -3,10 +3,10 @@ import type { ComposerAttachment, WorkspacePreset } from "../../../app/types";
 export type CreateWorkspaceScreen = "chooser" | "local" | "remote";
 
 export type RemoteWorkspaceInput = {
-  openworkHostUrl?: string | null;
-  openworkToken?: string | null;
-  openworkClientToken?: string | null;
-  openworkHostToken?: string | null;
+  harnessHostUrl?: string | null;
+  harnessToken?: string | null;
+  harnessClientToken?: string | null;
+  harnessHostToken?: string | null;
   directory?: string | null;
   displayName?: string | null;
   closeModal?: boolean;
@@ -72,14 +72,14 @@ export type CreateRemoteWorkspaceModalProps = {
   open: boolean;
   onClose: () => void;
   onConfirm: (input: {
-    openworkHostUrl?: string | null;
-    openworkToken?: string | null;
+    harnessHostUrl?: string | null;
+    harnessToken?: string | null;
     directory?: string | null;
     displayName?: string | null;
   }) => void;
   initialValues?: {
-    openworkHostUrl?: string | null;
-    openworkToken?: string | null;
+    harnessHostUrl?: string | null;
+    harnessToken?: string | null;
     directory?: string | null;
     displayName?: string | null;
   };

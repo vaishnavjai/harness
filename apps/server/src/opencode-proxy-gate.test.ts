@@ -17,7 +17,7 @@ const PERMISSION_REPLY_PATH = "/opencode/permission/req_123/reply";
 describe("assertOpencodeProxyAllowed", () => {
   test("collaborators can reply to permission requests (#1918)", () => {
     // The SPA's only credential is the collaborator-scoped client token
-    // (OPENWORK_TOKEN); an owner-only gate made every permission dialog
+    // (HARNESS_TOKEN); an owner-only gate made every permission dialog
     // un-answerable.
     expect(() =>
       assertOpencodeProxyAllowed(actor("collaborator"), "POST", PERMISSION_REPLY_PATH),
@@ -107,7 +107,7 @@ describe("proxyOpencodeRequest read-only guard", () => {
   const workspace: WorkspaceInfo = {
     id: "ws_ro",
     name: "Read-only workspace",
-    path: "/tmp/openwork-proxy-gate-ro",
+    path: "/tmp/harness-proxy-gate-ro",
     preset: "starter",
     workspaceType: "local",
   };
@@ -131,7 +131,7 @@ describe("proxyOpencodeRequest read-only guard", () => {
 
   const proxy = (method: string) => {
     const proxyPath = "/session";
-    const url = new URL(`http://openwork.invalid/opencode${proxyPath}`);
+    const url = new URL(`http://harness.invalid/opencode${proxyPath}`);
     return proxyOpencodeRequest({
       config: readOnlyConfig,
       workspace,
@@ -143,7 +143,7 @@ describe("proxyOpencodeRequest read-only guard", () => {
 
   test("native Cloud catalog reads expose metadata, not private bodies or paths, to shared clients", async () => {
     const cloud = {
-      id: "openwork-cloud-0123456789abcdef", name: "briefing", description: "Prepare a briefing", slash: true,
+      id: "harness-cloud-0123456789abcdef", name: "briefing", description: "Prepare a briefing", slash: true,
       content: "OWNER_PRIVATE_INSTRUCTIONS", location: "/private/cloud-skills/scope/SKILL.md",
       futurePrivateField: "OWNER_PRIVATE_INSTRUCTIONS",
     };
@@ -159,7 +159,7 @@ describe("proxyOpencodeRequest read-only guard", () => {
       for (const scope of ["viewer", "collaborator", undefined, "owner"] as const) {
         for (const suffix of ["/api/skill", "/api/skill/", "/api/%73kill", `/api/skill/${cloud.id}`]) {
           const proxyPath = `/opencode2${suffix}`;
-          const url = new URL(`http://openwork.invalid/workspace/ws_ro${proxyPath}`);
+          const url = new URL(`http://harness.invalid/workspace/ws_ro${proxyPath}`);
           const response = await proxyOpencodeV2Request({
             actor: actor(scope), config: readOnlyConfig, workspace, proxyPath, url,
             request: new Request(url),

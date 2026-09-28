@@ -5,9 +5,9 @@ import { ACME_MODEL, ACME_REPLY, record } from "./acme-gateway.ts";
 export async function probeAcmeGateway(world: AcmeWebWorld) {
   const { manifest } = world.web;
   const client = { authorization: `Bearer ${manifest.token}`, "content-type": "application/json" };
-  const host = { "x-openwork-host-token": manifest.hostToken, "content-type": "application/json" };
+  const host = { "x-harness-host-token": manifest.hostToken, "content-type": "application/json" };
   async function request(path: string, method = "GET", body?: unknown, headers = client): Promise<unknown> {
-    const response = await fetch(`${manifest.openworkUrl}${path}`, {
+    const response = await fetch(`${manifest.harnessUrl}${path}`, {
       method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(120_000),
     });
     if (!response.ok) throw new Error(`Acme probe ${method} ${path}: HTTP ${response.status}`);

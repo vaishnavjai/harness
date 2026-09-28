@@ -22,7 +22,7 @@ rules:
   # failing the build on the two tuple schemas.
   array-items: warn
 
-  # ---- OpenWork house rules ---------------------------------------------------
+  # ---- Harness house rules ---------------------------------------------------
 
   # Every operation states how it is authenticated. `security: []` is the
   # explicit marker for a public route; omitting the key is not allowed even

@@ -4,7 +4,7 @@ import type { createOpencodeClient, McpStatus, ToolIds, ToolList } from "@openco
 import { ApiError } from "./errors.js";
 import type { ConnectMcpCatalogDiagnostic } from "./connect-mcp-server-catalog.js";
 import { diagnoseMcpToolDenies, type McpToolDeny } from "./mcp.js";
-import { openworkPluginPath } from "./openwork-extensions-plugin-path.js";
+import { harnessPluginPath } from "./harness-extensions-plugin-path.js";
 import { sanitizeDiagnosticString, sanitizeDiagnosticValue } from "./diagnostic-sanitizer.js";
 import {
   ENGINE_GLOBAL_RUNTIME_CONFIG_ID,
@@ -20,23 +20,23 @@ import { externalFetch } from "./server-fetch.js";
 import type { ServerConfig, WorkspaceInfo } from "./types.js";
 import { validateMcpConfig } from "./validators.js";
 
-export const OPENWORK_CLOUD_MCP_NAME = "openwork-cloud";
-export const OPENWORK_CLOUD_EXPECTED_TOOLS = [
-  "openwork-cloud_search_capabilities",
-  "openwork-cloud_execute_capability",
+export const HARNESS_CLOUD_MCP_NAME = "harness-cloud";
+export const HARNESS_CLOUD_EXPECTED_TOOLS = [
+  "harness-cloud_search_capabilities",
+  "harness-cloud_execute_capability",
 ] satisfies string[];
-const OPENWORK_CLOUD_DIRECT_TOOL_NAMES = [
+const HARNESS_CLOUD_DIRECT_TOOL_NAMES = [
   "search_capabilities",
   "execute_capability",
 ] satisfies string[];
-export const OPENWORK_CLOUD_PLUGIN_CANARIES = [
-  "openwork_docs_search",
-  "openwork_query",
+export const HARNESS_CLOUD_PLUGIN_CANARIES = [
+  "harness_docs_search",
+  "harness_query",
 ] satisfies string[];
 
 const POLL_DELAYS_MS = [0, 250, 750, 1500, 3000];
 function engineProbeTimeoutMs(): number {
-  return Number(process.env.OPENWORK_CLOUD_MCP_PROBE_TIMEOUT_MS ?? "") || 5_000;
+  return Number(process.env.HARNESS_CLOUD_MCP_PROBE_TIMEOUT_MS ?? "") || 5_000;
 }
 
 type WorkspaceOpencodeClient = ReturnType<typeof createOpencodeClient>;
@@ -86,14 +86,14 @@ export type CloudMcpFailureCode =
   | "opencode_unreachable"
   | "cloud_status_missing"
   | "cloud_disabled"
-  | "openwork_cloud_auth_required"
-  | "openwork_cloud_auth_invalid"
-  | "openwork_cloud_token_expired"
-  | "openwork_cloud_membership_required"
-  | "openwork_cloud_scope_missing"
-  | "openwork_cloud_resource_forbidden"
-  | "openwork_cloud_resource_not_found"
-  | "openwork_cloud_client_registration_required"
+  | "harness_cloud_auth_required"
+  | "harness_cloud_auth_invalid"
+  | "harness_cloud_token_expired"
+  | "harness_cloud_membership_required"
+  | "harness_cloud_scope_missing"
+  | "harness_cloud_resource_forbidden"
+  | "harness_cloud_resource_not_found"
+  | "harness_cloud_client_registration_required"
   | "cloud_connection_failed"
   | "cloud_registration_failed"
   | "cloud_tools_denied"
@@ -170,7 +170,7 @@ export type CloudMcpServerMetadata = {
 };
 
 export type CloudMcpCompatibilitySnapshot = {
-  openwork: {
+  harness: {
     serverVersion: string | null;
     app: Record<string, string | number | boolean | null> | null;
   };
@@ -240,7 +240,7 @@ export type CloudMcpHealth = {
   };
   desired: {
     present: boolean;
-    name: typeof OPENWORK_CLOUD_MCP_NAME;
+    name: typeof HARNESS_CLOUD_MCP_NAME;
     revision: string | null;
     config: RedactedCloudMcpConfig | null;
     token: CloudMcpTokenHealth;
@@ -380,7 +380,7 @@ export type CloudMcpEngineServerStatus = {
 /**
  * The engine's own view of every MCP server it tracks, read over the OpenCode
  * SDK. Support triage needs the siblings: "everything failed" points at the
- * engine host's network path, "only openwork-cloud failed" points at the Cloud
+ * engine host's network path, "only harness-cloud failed" points at the Cloud
  * endpoint or token, and an absent entry means the dynamic registration was
  * lost (e.g. after an engine state rebuild) and must be re-applied.
  */
@@ -423,7 +423,7 @@ type DirectCloudToolsSnapshot = {
 
 const directCloudToolsProbeFlights = new Map<string, Promise<DirectCloudToolsSnapshot>>();
 
-export function clearOpenworkCloudMcpProbeFlights(): void {
+export function clearHarnessCloudMcpProbeFlights(): void {
   directCloudToolsProbeFlights.clear();
 }
 
@@ -692,8 +692,8 @@ function normalizeCloudEndpointUrl(value: string): string | null {
     if (url.search || url.hash) return null;
     const normalizedPath = url.pathname.replace(/\/+$/, "") || "/";
     if (!normalizedPath.endsWith("/mcp/agent")) return null;
-    if (url.protocol === "https:" && url.hostname.toLowerCase() === "app.openworklabs.com" && normalizedPath === "/api/den/mcp/agent") {
-      url.hostname = "api.app.openworklabs.com";
+    if (url.protocol === "https:" && url.hostname.toLowerCase() === "app.harness.invalid" && normalizedPath === "/api/den/mcp/agent") {
+      url.hostname = "api.app.harness.invalid";
       url.pathname = "/mcp/agent";
       return url.toString();
     }
@@ -711,8 +711,8 @@ function canonicalizeCloudMcpConfig(config: Record<string, unknown>): Record<str
 }
 
 const BUILT_IN_CLOUD_MCP_ORIGINS = new Set([
-  "https://api.openworklabs.com",
-  "https://api.app.openworklabs.com",
+  "https://api.harness.invalid",
+  "https://api.app.harness.invalid",
 ]);
 
 function isLoopbackHostname(hostname: string): boolean {
@@ -721,11 +721,11 @@ function isLoopbackHostname(hostname: string): boolean {
 }
 
 /**
- * Whether a proposed openwork-cloud endpoint may be persisted as the
+ * Whether a proposed harness-cloud endpoint may be persisted as the
  * account-global desired config by a collaborator-scoped client.
  *
  * The desired config is global: one write reconfigures Connect for every
- * workspace this server hosts. Built-in OpenWork Cloud origins, the
+ * workspace this server hosts. Built-in Harness Cloud origins, the
  * administrator-activated enterprise Den origin, and loopback (local
  * development Dens) are trusted; anything else requires owner scope so a
  * collaborator on one shared workspace cannot silently redirect every other
@@ -777,8 +777,8 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       code: "cloud_endpoint_invalid",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud must be configured as a remote MCP endpoint.",
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud must be configured as a remote MCP endpoint.",
       details: { type: typeof config.type === "string" ? config.type : null },
     };
   }
@@ -789,7 +789,7 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       stage: "desired_config",
       retryable: false,
       recommendedAction: "Enable Agent access in Settings → Connect",
-      message: "openwork-cloud desired config is disabled.",
+      message: "harness-cloud desired config is disabled.",
       aliases: ["cloud_disabled"],
       details: { enabled: config.enabled ?? null },
     };
@@ -802,8 +802,8 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       code: "cloud_endpoint_invalid",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud URL must be a valid http(s) endpoint at /mcp/agent.",
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud URL must be a valid http(s) endpoint at /mcp/agent.",
       details: { url: typeof config.url === "string" ? sanitizeDiagnosticString(config.url) : null },
     };
   }
@@ -814,9 +814,9 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       code: "invalid_mcp_token",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud desired config is missing an Authorization header.",
-      aliases: ["openwork_cloud_auth_required"],
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud desired config is missing an Authorization header.",
+      aliases: ["harness_cloud_auth_required"],
     };
   }
 
@@ -825,9 +825,9 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       code: "invalid_mcp_token",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud desired config must use the minted bearer token, not OAuth.",
-      aliases: ["openwork_cloud_auth_invalid"],
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud desired config must use the minted bearer token, not OAuth.",
+      aliases: ["harness_cloud_auth_invalid"],
       details: { oauth: config.oauth === undefined ? "missing" : "configured" },
     };
   }
@@ -840,7 +840,7 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       stage: "desired_config",
       retryable: false,
       recommendedAction: "Choose the matching organization, then Repair and test",
-      message: "openwork-cloud token organization does not match the active organization.",
+      message: "harness-cloud token organization does not match the active organization.",
       details: { tokenOrganizationId, activeOrganizationId },
     };
   }
@@ -852,8 +852,8 @@ function strictCloudMcpDesiredConfigProblem(config: Record<string, unknown>, met
       code: "cloud_endpoint_invalid",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud desired config is not a valid remote MCP config.",
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud desired config is not a valid remote MCP config.",
       details: { error: error instanceof Error ? error.message : String(error) },
     };
   }
@@ -953,23 +953,23 @@ async function readPersistedDesiredConfig(
   config: ServerConfig,
   workspaceId: string,
 ): Promise<Record<string, unknown> | undefined> {
-  const globalEntry = runtimeMcpMap(await readGlobalRuntimeOpencodeConfig(config))[OPENWORK_CLOUD_MCP_NAME];
+  const globalEntry = runtimeMcpMap(await readGlobalRuntimeOpencodeConfig(config))[HARNESS_CLOUD_MCP_NAME];
   if (globalEntry) return globalEntry;
-  return runtimeMcpMap(await readRuntimeOpencodeConfig(config, workspaceId))[OPENWORK_CLOUD_MCP_NAME];
+  return runtimeMcpMap(await readRuntimeOpencodeConfig(config, workspaceId))[HARNESS_CLOUD_MCP_NAME];
 }
 
-export async function migrateOpenworkCloudMcpRuntimeConfig(
+export async function migrateHarnessCloudMcpRuntimeConfig(
   config: ServerConfig,
 ): Promise<{ config: Record<string, unknown> | null; changed: boolean }> {
   const rows = await listRuntimeOpencodeConfigRows(config);
   const globalRow = rows.find((row) => row.workspaceId === ENGINE_GLOBAL_RUNTIME_CONFIG_ID);
   const globalEntry = globalRow
-    ? runtimeMcpMap(globalRow.value)[OPENWORK_CLOUD_MCP_NAME]
+    ? runtimeMcpMap(globalRow.value)[HARNESS_CLOUD_MCP_NAME]
     : undefined;
   const legacyCandidates: Array<{ config: Record<string, unknown>; updatedAt: number; workspaceId: string }> = [];
   for (const row of rows) {
     if (row.workspaceId === ENGINE_GLOBAL_RUNTIME_CONFIG_ID) continue;
-    const entry = runtimeMcpMap(row.value)[OPENWORK_CLOUD_MCP_NAME];
+    const entry = runtimeMcpMap(row.value)[HARNESS_CLOUD_MCP_NAME];
     if (!entry || !isRecord(entry)) continue;
     const normalized = canonicalizeCloudMcpConfig(entry);
     const metadata = defaultDesiredMetadata(normalized, true);
@@ -991,19 +991,19 @@ export async function migrateOpenworkCloudMcpRuntimeConfig(
   if (!globalEntry) {
     const result = await writeGlobalRuntimeOpencodeConfig(config, (current) => ({
       ...current,
-      mcp: { ...runtimeMcpMap(current), [OPENWORK_CLOUD_MCP_NAME]: selected },
+      mcp: { ...runtimeMcpMap(current), [HARNESS_CLOUD_MCP_NAME]: selected },
     }));
     changed = result.changed;
   }
   for (const row of rows) {
     if (
       row.workspaceId === ENGINE_GLOBAL_RUNTIME_CONFIG_ID
-      || !Object.hasOwn(runtimeMcpMap(row.value), OPENWORK_CLOUD_MCP_NAME)
+      || !Object.hasOwn(runtimeMcpMap(row.value), HARNESS_CLOUD_MCP_NAME)
     ) continue;
     const result = await writeRuntimeOpencodeConfig(config, row.workspaceId, (current) => ({
       ...current,
       mcp: Object.fromEntries(Object.entries(runtimeMcpMap(current))
-        .filter(([name]) => name !== OPENWORK_CLOUD_MCP_NAME)),
+        .filter(([name]) => name !== HARNESS_CLOUD_MCP_NAME)),
     }));
     changed = result.changed || changed;
   }
@@ -1011,17 +1011,17 @@ export async function migrateOpenworkCloudMcpRuntimeConfig(
 }
 
 /**
- * Removes the `openwork-cloud` entry everywhere, together with every directly
+ * Removes the `harness-cloud` entry everywhere, together with every directly
  * exposed connection entry: those carry the same member credential and have no
  * meaning once the member is signed out. Returns the runtime names removed so
  * the caller can disconnect them from the engine.
  */
-export async function removeOpenworkCloudMcpDesiredConfig(
+export async function removeHarnessCloudMcpDesiredConfig(
   config: ServerConfig,
 ): Promise<{ changed: boolean; removedNames: string[] }> {
   const { CONNECT_DIRECT_MCP_SERVER_NAME_PREFIX } = await import("./connect-mcp-server-catalog.js");
   const ownedByCloud = (name: string) =>
-    name === OPENWORK_CLOUD_MCP_NAME || name.startsWith(CONNECT_DIRECT_MCP_SERVER_NAME_PREFIX);
+    name === HARNESS_CLOUD_MCP_NAME || name.startsWith(CONNECT_DIRECT_MCP_SERVER_NAME_PREFIX);
   let changed = false;
   const removedNames = new Set<string>();
   for (const row of await listRuntimeOpencodeConfigRows(config)) {
@@ -1047,19 +1047,19 @@ function locationParams(directory: string | null): { directory?: string } {
 }
 
 function expectedTools(): string[] {
-  return [...OPENWORK_CLOUD_EXPECTED_TOOLS];
+  return [...HARNESS_CLOUD_EXPECTED_TOOLS];
 }
 
 function expectedDirectToolNames(): string[] {
-  return [...OPENWORK_CLOUD_DIRECT_TOOL_NAMES];
+  return [...HARNESS_CLOUD_DIRECT_TOOL_NAMES];
 }
 
 function prefixedCloudToolId(name: string): string {
-  return `${OPENWORK_CLOUD_MCP_NAME}_${name}`;
+  return `${HARNESS_CLOUD_MCP_NAME}_${name}`;
 }
 
 function expectedCanaries(): string[] {
-  return [...OPENWORK_CLOUD_PLUGIN_CANARIES];
+  return [...HARNESS_CLOUD_PLUGIN_CANARIES];
 }
 
 function splitPresentMissing(ids: string[], expected: string[]): ToolSnapshot {
@@ -1144,7 +1144,7 @@ function opencodeRequestFailure(stage: CloudMcpFailureStage, path: string, respo
       code: "opencode_tool_ids_unsupported",
       stage,
       retryable: false,
-      recommendedAction: "Update OpenWork",
+      recommendedAction: "Update Harness",
       message: "OpenCode does not support listing tool IDs.",
       details: { path, status: response.status, error },
     });
@@ -1153,8 +1153,8 @@ function opencodeRequestFailure(stage: CloudMcpFailureStage, path: string, respo
     code: stage === "provider_projection" ? "provider_tool_projection_missing" : "opencode_tool_ids_unavailable",
     stage,
     retryable: response.status >= 500,
-    recommendedAction: response.status >= 500 ? "Retry after OpenCode is healthy" : "Update OpenWork",
-    message: "OpenCode request failed while checking openwork-cloud MCP readiness.",
+    recommendedAction: response.status >= 500 ? "Retry after OpenCode is healthy" : "Update Harness",
+    message: "OpenCode request failed while checking harness-cloud MCP readiness.",
     aliases: stage === "provider_projection" ? ["provider_projection_unavailable"] : undefined,
     details: { path, status: response.status, error },
   });
@@ -1262,7 +1262,7 @@ function directCloudToolsFailure(input: {
     code: "cloud_tools_missing",
     stage: "tool_registration",
     retryable: input.retryable,
-    recommendedAction: "Reconnect OpenWork Cloud or contact OpenWork support",
+    recommendedAction: "Reconnect Harness Cloud or contact Harness support",
     message: input.message,
     details: input.details,
   });
@@ -1274,9 +1274,9 @@ function directCloudAuthFailure(response: Response, payload: unknown, endpoint: 
       code: "invalid_mcp_token",
       stage: "transport_auth",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "The OpenWork Cloud MCP endpoint rejected the persisted Authorization header.",
-      aliases: ["openwork_cloud_auth_invalid"],
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "The Harness Cloud MCP endpoint rejected the persisted Authorization header.",
+      aliases: ["harness_cloud_auth_invalid"],
       details: { endpoint, status: response.status, response: payload },
     });
   }
@@ -1286,8 +1286,8 @@ function directCloudAuthFailure(response: Response, payload: unknown, endpoint: 
       stage: "transport_auth",
       retryable: false,
       recommendedAction: "Check organization policy and resource access",
-      message: "The OpenWork Cloud MCP endpoint denied access to this resource.",
-      aliases: ["openwork_cloud_resource_forbidden"],
+      message: "The Harness Cloud MCP endpoint denied access to this resource.",
+      aliases: ["harness_cloud_resource_forbidden"],
       details: { endpoint, status: response.status, response: payload },
     });
   }
@@ -1313,7 +1313,7 @@ function directToolsFromNames(names: string[]): DirectCloudToolsSnapshot {
   const failureResult = split.missing.length
     ? directCloudToolsFailure({
         retryable: false,
-        message: "The OpenWork Cloud MCP endpoint tools/list is missing required unprefixed tools.",
+        message: "The Harness Cloud MCP endpoint tools/list is missing required unprefixed tools.",
         details: { expected: split.expected, present: split.present, missing: split.missing },
       })
     : undefined;
@@ -1415,7 +1415,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
   if (!url || !authorization) {
     const failureResult = directCloudToolsFailure({
       retryable: false,
-      message: "The persisted OpenWork Cloud MCP config cannot be used for direct tools/list verification.",
+      message: "The persisted Harness Cloud MCP config cannot be used for direct tools/list verification.",
       details: { endpoint, authorizationPresent: Boolean(authorization) },
     });
     return { ...directToolsNotChecked(), checked: true, missing: expectedDirectToolNames(), trace: trace(), error: failureResult.details, failure: failureResult };
@@ -1438,7 +1438,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
           method: "initialize",
           params: {
             capabilities: {},
-            clientInfo: { name: "openwork-server-cloud-mcp-health", version: "1.0.0" },
+            clientInfo: { name: "harness-server-cloud-mcp-health", version: "1.0.0" },
             protocolVersion: "2025-06-18",
           },
         },
@@ -1450,7 +1450,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
       const authFailure = directCloudAuthFailure(initialized.response, initialized.payload, endpoint ?? "unknown");
       const failureResult = authFailure ?? directCloudToolsFailure({
         retryable: initialized.response.status >= 500,
-        message: "The OpenWork Cloud MCP endpoint initialize request failed during direct verification.",
+        message: "The Harness Cloud MCP endpoint initialize request failed during direct verification.",
         details: { endpoint, status: initialized.response.status, response: initialized.payload },
       });
       return { ...directToolsNotChecked(), checked: true, missing: expectedDirectToolNames(), trace: trace(), error: failureResult.details, failure: failureResult };
@@ -1500,7 +1500,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
       const authFailure = directCloudAuthFailure(listed.response, listed.payload, endpoint ?? "unknown");
       const failureResult = authFailure ?? directCloudToolsFailure({
         retryable: listed.response.status >= 500,
-        message: "The OpenWork Cloud MCP endpoint tools/list request failed during direct verification.",
+        message: "The Harness Cloud MCP endpoint tools/list request failed during direct verification.",
         details: { endpoint, status: listed.response.status, response: listed.payload },
       });
       return { ...directToolsNotChecked(), checked: true, missing: expectedDirectToolNames(), trace: trace(), error: failureResult.details, failure: failureResult };
@@ -1509,7 +1509,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
     if (!toolNames.names) {
       const failureResult = directCloudToolsFailure({
         retryable: false,
-        message: "The OpenWork Cloud MCP endpoint tools/list response could not be parsed.",
+        message: "The Harness Cloud MCP endpoint tools/list response could not be parsed.",
         details: { endpoint, error: toolNames.error },
       });
       return { ...directToolsNotChecked(), checked: true, missing: expectedDirectToolNames(), trace: trace(), error: failureResult.details, failure: failureResult };
@@ -1524,7 +1524,7 @@ async function readDirectCloudTools(config: Record<string, unknown>): Promise<Di
       stage: "tool_registration",
       retryable: true,
       recommendedAction: "Check this machine's network path (proxy/TLS trust) to the Cloud MCP endpoint. The engine's own MCP connection is authoritative.",
-      message: "The OpenWork server could not reach the Cloud MCP endpoint for direct verification (transport error before any HTTP response). This does not indicate missing tools.",
+      message: "The Harness server could not reach the Cloud MCP endpoint for direct verification (transport error before any HTTP response). This does not indicate missing tools.",
       details: { endpoint, error: error instanceof Error ? error.message : String(error), transport: describeTransportError(error) },
     });
     return { ...directToolsNotChecked(), checked: false, missing: [], trace: trace(), error: failureResult.details, failure: failureResult };
@@ -1578,9 +1578,9 @@ async function readMcpStatus(
       for (const entry of payload.data) {
         if (!isRecord(entry) || typeof entry.name !== "string" || !isRecord(entry.status)) throw new Error("Invalid native MCP status");
         const status = entry.status.status;
-        if (entry.name === OPENWORK_CLOUD_MCP_NAME && status === "pending") {
+        if (entry.name === HARNESS_CLOUD_MCP_NAME && status === "pending") {
           return { failure: failure({ code: "cloud_connection_failed", stage: "engine_delivery", retryable: true,
-            recommendedAction: "Wait for OpenWork Connect to finish connecting", message: "OpenCode v2 is still connecting to OpenWork Connect." }) };
+            recommendedAction: "Wait for Harness Connect to finish connecting", message: "OpenCode v2 is still connecting to Harness Connect." }) };
         }
         if (status === "connected" || status === "disabled" || status === "needs_auth") data[entry.name] = { status };
         else if (status === "failed" || status === "needs_client_registration") data[entry.name] = { status, error: typeof entry.status.error === "string" ? entry.status.error : "MCP connection failed" };
@@ -1679,7 +1679,7 @@ async function readProviderCapability(input: {
         limitation: "Using the active OpenCode v2 model catalog's native tool capability; v1 plugin canaries and experimental tool lists do not apply.",
         ...(!toolCalling ? { failure: failure({
           code: "provider_tool_projection_missing", stage: "provider_projection", retryable: false,
-          recommendedAction: "Choose a model that can use OpenWork Cloud tools",
+          recommendedAction: "Choose a model that can use Harness Cloud tools",
           message: model ? "The selected provider/model does not support tool calling." : "The selected provider/model was not found in the active OpenCode v2 model catalog.",
           details: { ...input.providerModel, source: "native_v2_model", modelExists: Boolean(model), toolCalling },
         }) } : {}),
@@ -1712,7 +1712,7 @@ async function readProviderCapability(input: {
           code: "provider_tool_projection_missing",
           stage: "provider_projection",
           retryable: false,
-          recommendedAction: "Choose a model that can use OpenWork Cloud tools",
+          recommendedAction: "Choose a model that can use Harness Cloud tools",
           message: modelExists ? "The selected provider/model does not support tool calling." : "The selected provider/model was not found in OpenCode provider catalog.",
           aliases: ["provider_projection_missing"],
           details: {
@@ -1762,8 +1762,8 @@ function statusFailure(status: McpStatus | undefined): CloudMcpFailure {
       code: "cloud_mcp_missing",
       stage: "engine_delivery",
       retryable: true,
-      recommendedAction: "Run reconcile to register openwork-cloud with OpenCode",
-      message: "OpenCode does not report an openwork-cloud MCP status.",
+      recommendedAction: "Run reconcile to register harness-cloud with OpenCode",
+      message: "OpenCode does not report a harness-cloud MCP status.",
       aliases: ["cloud_status_missing"],
     });
   }
@@ -1772,8 +1772,8 @@ function statusFailure(status: McpStatus | undefined): CloudMcpFailure {
       code: "cloud_mcp_disabled",
       stage: "engine_delivery",
       retryable: false,
-      recommendedAction: "Enable the openwork-cloud MCP entry",
-      message: "openwork-cloud MCP is disabled.",
+      recommendedAction: "Enable the harness-cloud MCP entry",
+      message: "harness-cloud MCP is disabled.",
       aliases: ["cloud_disabled"],
     });
   }
@@ -1782,9 +1782,9 @@ function statusFailure(status: McpStatus | undefined): CloudMcpFailure {
       code: "cloud_mcp_needs_auth",
       stage: "transport_auth",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud",
-      message: "openwork-cloud MCP needs authentication.",
-      aliases: ["openwork_cloud_auth_required"],
+      recommendedAction: "Reconnect Harness Cloud",
+      message: "harness-cloud MCP needs authentication.",
+      aliases: ["harness_cloud_auth_required"],
     });
   }
   if (status.status === "needs_client_registration") {
@@ -1792,9 +1792,9 @@ function statusFailure(status: McpStatus | undefined): CloudMcpFailure {
       code: "opencode_mcp_sync_failed",
       stage: "engine_delivery",
       retryable: false,
-      recommendedAction: "Reconnect OpenWork Cloud or update OpenWork",
-      message: "openwork-cloud MCP needs OAuth client registration.",
-      aliases: ["openwork_cloud_client_registration_required"],
+      recommendedAction: "Reconnect Harness Cloud or update Harness",
+      message: "harness-cloud MCP needs OAuth client registration.",
+      aliases: ["harness_cloud_client_registration_required"],
       details: { error: status.error },
     });
   }
@@ -1806,7 +1806,7 @@ function statusFailure(status: McpStatus | undefined): CloudMcpFailure {
     stage: "engine_delivery",
     retryable: true,
     recommendedAction: "Retry reconcile",
-    message: "openwork-cloud MCP is not connected.",
+    message: "harness-cloud MCP is not connected.",
     aliases: ["cloud_connection_failed"],
   });
 }
@@ -1827,38 +1827,38 @@ function inferFailedStatus(error: string): CloudMcpFailure {
     lower.includes("self signed") ||
     lower.includes("self-signed");
   if (!certTransport && lower.includes("expired")) {
-    return failure({ code: "invalid_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect OpenWork Cloud", message: "openwork-cloud token is expired.", aliases: ["openwork_cloud_token_expired"], details: { error } });
+    return failure({ code: "invalid_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect Harness Cloud", message: "harness-cloud token is expired.", aliases: ["harness_cloud_token_expired"], details: { error } });
   }
   if (!certTransport && (lower.includes("missing_mcp_token") || lower.includes("missing mcp token") || lower.includes("provide a bearer token"))) {
-    return failure({ code: "missing_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Refresh OpenWork Cloud authentication", message: "openwork-cloud token is missing.", aliases: ["openwork_cloud_auth_required"], details: { error } });
+    return failure({ code: "missing_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Refresh Harness Cloud authentication", message: "harness-cloud token is missing.", aliases: ["harness_cloud_auth_required"], details: { error } });
   }
   if (!certTransport && (lower.includes("invalid_token") || lower.includes("unauthorized") || lower.includes("401") || lower.includes("auth"))) {
-    return failure({ code: "invalid_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect OpenWork Cloud", message: "openwork-cloud authentication failed.", aliases: ["openwork_cloud_auth_invalid"], details: { error } });
+    return failure({ code: "invalid_mcp_token", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect Harness Cloud", message: "harness-cloud authentication failed.", aliases: ["harness_cloud_auth_invalid"], details: { error } });
   }
   if (!certTransport && (lower.includes("invalid_grant") || lower.includes("session") || lower.includes("revoked"))) {
-    return failure({ code: "mcp_session_revoked", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect OpenWork Cloud", message: "openwork-cloud session was revoked.", details: { error } });
+    return failure({ code: "mcp_session_revoked", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect Harness Cloud", message: "harness-cloud session was revoked.", details: { error } });
   }
   if (lower.includes("membership") || lower.includes("member")) {
-    return failure({ code: "mcp_membership_revoked", stage: "transport_auth", retryable: false, recommendedAction: "Ask an organization admin to grant access", message: "OpenWork Cloud membership is required.", aliases: ["openwork_cloud_membership_required"], details: { error } });
+    return failure({ code: "mcp_membership_revoked", stage: "transport_auth", retryable: false, recommendedAction: "Ask an organization admin to grant access", message: "Harness Cloud membership is required.", aliases: ["harness_cloud_membership_required"], details: { error } });
   }
   if (lower.includes("insufficient_scope") || lower.includes("scope")) {
-    return failure({ code: "insufficient_mcp_scope", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect OpenWork Cloud with the required scopes", message: "openwork-cloud token is missing required scopes.", aliases: ["openwork_cloud_scope_missing"], details: { error } });
+    return failure({ code: "insufficient_mcp_scope", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect Harness Cloud with the required scopes", message: "harness-cloud token is missing required scopes.", aliases: ["harness_cloud_scope_missing"], details: { error } });
   }
   if (lower.includes("forbidden") || lower.includes("403") || lower.includes("policy")) {
-    return failure({ code: "wrong_mcp_resource", stage: "transport_auth", retryable: false, recommendedAction: "Check organization policy and resource access", message: "OpenWork Cloud denied access to this resource.", aliases: ["openwork_cloud_resource_forbidden"], details: { error } });
+    return failure({ code: "wrong_mcp_resource", stage: "transport_auth", retryable: false, recommendedAction: "Check organization policy and resource access", message: "Harness Cloud denied access to this resource.", aliases: ["harness_cloud_resource_forbidden"], details: { error } });
   }
   if (lower.includes("not found") || lower.includes("404") || lower.includes("resource")) {
-    return failure({ code: "wrong_mcp_resource", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect OpenWork Cloud or choose an accessible organization", message: "OpenWork Cloud resource was not found.", aliases: ["openwork_cloud_resource_not_found"], details: { error } });
+    return failure({ code: "wrong_mcp_resource", stage: "transport_auth", retryable: false, recommendedAction: "Reconnect Harness Cloud or choose an accessible organization", message: "Harness Cloud resource was not found.", aliases: ["harness_cloud_resource_not_found"], details: { error } });
   }
   if (lower.includes("client registration")) {
-    return failure({ code: "opencode_mcp_sync_failed", stage: "engine_delivery", retryable: false, recommendedAction: "Reconnect OpenWork Cloud or update OpenWork", message: "openwork-cloud needs client registration.", aliases: ["openwork_cloud_client_registration_required"], details: { error } });
+    return failure({ code: "opencode_mcp_sync_failed", stage: "engine_delivery", retryable: false, recommendedAction: "Reconnect Harness Cloud or update Harness", message: "harness-cloud needs client registration.", aliases: ["harness_cloud_client_registration_required"], details: { error } });
   }
   return failure({
     code: "opencode_mcp_sync_failed",
     stage: "engine_delivery",
     retryable: true,
-    recommendedAction: "Retry reconcile or reconnect OpenWork Cloud",
-    message: "openwork-cloud MCP connection failed.",
+    recommendedAction: "Retry reconcile or reconnect Harness Cloud",
+    message: "harness-cloud MCP connection failed.",
     aliases: ["cloud_connection_failed"],
     details: { error },
   });
@@ -1887,7 +1887,7 @@ function engineInspectionFromStatuses(statuses: Record<string, McpStatus>): Clou
     .slice(0, 50);
   return {
     checked: true,
-    cloudPresent: Boolean(statuses[OPENWORK_CLOUD_MCP_NAME]),
+    cloudPresent: Boolean(statuses[HARNESS_CLOUD_MCP_NAME]),
     serverCount: Object.keys(statuses).length,
     servers,
   };
@@ -1920,7 +1920,7 @@ async function readOpencodeVersion(opencode: WorkspaceOpencodeClient): Promise<C
   }
 }
 
-async function inspectOpenworkCloud(input: {
+async function inspectHarnessCloud(input: {
   opencode: WorkspaceOpencodeClient;
   nativeEngine?: CloudMcpNativeEngine;
   config: ServerConfig;
@@ -1960,12 +1960,12 @@ async function inspectOpenworkCloud(input: {
   }
 
   const engineInspection = engineInspectionFromStatuses(statusResult.data ?? {});
-  const cloudStatus = statusResult.data?.[OPENWORK_CLOUD_MCP_NAME];
+  const cloudStatus = statusResult.data?.[HARNESS_CLOUD_MCP_NAME];
   if (cloudStatus && !input.nativeEngine) {
     input.refreshRegistrationFromLiveStatus?.(
       input.config,
       input.workspace,
-      OPENWORK_CLOUD_MCP_NAME,
+      HARNESS_CLOUD_MCP_NAME,
       input.desiredConfig,
       cloudStatus.status,
       "error" in cloudStatus && typeof cloudStatus.error === "string" ? cloudStatus.error : null,
@@ -2049,8 +2049,8 @@ async function inspectOpenworkCloud(input: {
       code: "extensions_plugin_missing",
       stage: "plugin_load",
       retryable: true,
-      recommendedAction: "Reload the OpenCode engine so OpenWork extensions are loaded",
-      message: "OpenWork extension plugin canary tools are missing.",
+      recommendedAction: "Reload the OpenCode engine so Harness extensions are loaded",
+      message: "Harness extension plugin canary tools are missing.",
       details: { missing: pluginCanaries.missing },
     }));
   }
@@ -2143,11 +2143,11 @@ function phaseFromFailure(firstFailure: CloudMcpFailure | null): CloudMcpHealthP
     firstFailure.code === "mcp_membership_revoked" ||
     firstFailure.code === "insufficient_mcp_scope" ||
     firstFailure.code === "wrong_mcp_resource" ||
-    firstFailure.code === "openwork_cloud_auth_required" ||
-    firstFailure.code === "openwork_cloud_auth_invalid" ||
-    firstFailure.code === "openwork_cloud_token_expired"
+    firstFailure.code === "harness_cloud_auth_required" ||
+    firstFailure.code === "harness_cloud_auth_invalid" ||
+    firstFailure.code === "harness_cloud_token_expired"
   ) return "engine_needs_auth";
-  if (firstFailure.code === "openwork_cloud_client_registration_required") return "engine_needs_client_registration";
+  if (firstFailure.code === "harness_cloud_client_registration_required") return "engine_needs_client_registration";
   if (firstFailure.code === "opencode_mcp_sync_failed" || firstFailure.code === "cloud_registration_failed") return "registration_failed";
   if (firstFailure.code === "cloud_tools_denied") return "denied_by_tools";
   if (firstFailure.code === "opencode_tool_ids_unsupported") return "tool_ids_unsupported";
@@ -2163,8 +2163,8 @@ function firstFailureFromDenies(denies: McpToolDeny[]): CloudMcpFailure | null {
     code: "cloud_tools_denied",
     stage: "prerequisites",
     retryable: false,
-    recommendedAction: "Remove project/global OpenCode tool denies for openwork-cloud tools",
-    message: "OpenCode configuration denies one or more openwork-cloud tools.",
+    recommendedAction: "Remove project/global OpenCode tool denies for harness-cloud tools",
+    message: "OpenCode configuration denies one or more harness-cloud tools.",
     details: { denies },
   });
 }
@@ -2185,10 +2185,10 @@ function baseUrlConfigured(config: ServerConfig, workspace: WorkspaceInfo): bool
 }
 
 async function pluginFileHashes(): Promise<CloudMcpCompatibilitySnapshot["pluginFileHashes"]> {
-  const names = ["openwork-extensions-preview", "openwork-capabilities-knowledge"];
+  const names = ["harness-extensions-preview", "harness-capabilities-knowledge"];
   return Promise.all(names.map(async (name) => {
     try {
-      return { name, sha256: hashString(await readFile(openworkPluginPath(name), "utf8")) };
+      return { name, sha256: hashString(await readFile(harnessPluginPath(name), "utf8")) };
     } catch (error) {
       const lastError = error instanceof Error ? error.message : String(error);
       return { name, sha256: null, error: sanitizeDiagnosticString(lastError) };
@@ -2207,7 +2207,7 @@ async function compatibilitySnapshot(input: {
     expectedVersion: input.inspection.opencodeVersion.expectedVersion ?? input.serverMetadata?.expectedOpencodeVersion ?? null,
   };
   return {
-    openwork: {
+    harness: {
       serverVersion: input.serverMetadata?.serverVersion ?? null,
       app: input.appMetadata ?? null,
     },
@@ -2225,7 +2225,7 @@ async function compatibilitySnapshot(input: {
   };
 }
 
-type ReadOpenworkCloudMcpHealthInput = {
+type ReadHarnessCloudMcpHealthInput = {
   config: ServerConfig;
   workspace: WorkspaceInfo;
   directory: string | null;
@@ -2242,8 +2242,8 @@ type DirectProbeReuse = {
   value: CloudMcpHealth["tools"]["direct"];
 };
 
-async function readOpenworkCloudMcpHealthInternal(
-  input: ReadOpenworkCloudMcpHealthInput & { directProbeReuse?: DirectProbeReuse },
+async function readHarnessCloudMcpHealthInternal(
+  input: ReadHarnessCloudMcpHealthInput & { directProbeReuse?: DirectProbeReuse },
 ): Promise<CloudMcpHealth> {
   const checkedAt = new Date().toISOString();
   const startedAtMs = Date.now();
@@ -2251,15 +2251,15 @@ async function readOpenworkCloudMcpHealthInternal(
   let appHostAuthorizationReady: boolean | null = null;
   if (desired.config && !desired.validationProblem) {
     try {
-      const { readOpenWorkConnectMcpAppHostAuthorizationReady } = await import("./connect-mcp-server-catalog.js");
-      appHostAuthorizationReady = await readOpenWorkConnectMcpAppHostAuthorizationReady(input.config, input.workspace.id, desired.config);
+      const { readHarnessConnectMcpAppHostAuthorizationReady } = await import("./connect-mcp-server-catalog.js");
+      appHostAuthorizationReady = await readHarnessConnectMcpAppHostAuthorizationReady(input.config, input.workspace.id, desired.config);
     } catch {
       appHostAuthorizationReady = null;
     }
   }
   let delivery = cloudMcpDeliveryState.snapshot(input.workspace, input.directory, desired.revision);
   const toolDenies = desired.present
-    ? await diagnoseMcpToolDenies(input.workspace.path, OPENWORK_CLOUD_MCP_NAME, expectedTools())
+    ? await diagnoseMcpToolDenies(input.workspace.path, HARNESS_CLOUD_MCP_NAME, expectedTools())
     : [];
   const failures: CloudMcpFailure[] = [];
 
@@ -2268,8 +2268,8 @@ async function readOpenworkCloudMcpHealthInternal(
       code: "cloud_mcp_missing",
       stage: "desired_config",
       retryable: false,
-      recommendedAction: "Connect OpenWork Cloud",
-      message: "No global openwork-cloud MCP desired config is persisted.",
+      recommendedAction: "Connect Harness Cloud",
+      message: "No global harness-cloud MCP desired config is persisted.",
       aliases: ["cloud_desired_missing"],
     }));
   }
@@ -2310,7 +2310,7 @@ async function readOpenworkCloudMcpHealthInternal(
     failures: [],
   };
   if (desired.present && desired.config && desired.revision && !desired.validationProblem && input.directory && baseUrlConfigured(input.config, input.workspace)) {
-    inspection = await inspectOpenworkCloud({
+    inspection = await inspectHarnessCloud({
       opencode: input.createWorkspaceOpencodeClient(input.config, input.workspace),
       nativeEngine: input.nativeEngineForWorkspace?.(input.workspace),
       config: input.config,
@@ -2359,7 +2359,7 @@ async function readOpenworkCloudMcpHealthInternal(
     },
     desired: {
       present: desired.present,
-      name: OPENWORK_CLOUD_MCP_NAME,
+      name: HARNESS_CLOUD_MCP_NAME,
       revision: desired.revision,
       config: desired.redactedConfig,
       token: desired.metadata.token,
@@ -2406,17 +2406,17 @@ async function readOpenworkCloudMcpHealthInternal(
   };
 }
 
-export async function readOpenworkCloudMcpHealth(input: ReadOpenworkCloudMcpHealthInput): Promise<CloudMcpHealth> {
-  return readOpenworkCloudMcpHealthInternal(input);
+export async function readHarnessCloudMcpHealth(input: ReadHarnessCloudMcpHealthInput): Promise<CloudMcpHealth> {
+  return readHarnessCloudMcpHealthInternal(input);
 }
 
 async function persistDesiredConfig(config: ServerConfig, desiredConfig: Record<string, unknown>): Promise<{ changed: boolean }> {
-  const migrated = await migrateOpenworkCloudMcpRuntimeConfig(config);
+  const migrated = await migrateHarnessCloudMcpRuntimeConfig(config);
   const written = await writeGlobalRuntimeOpencodeConfig(config, (current) => ({
     ...current,
     mcp: {
       ...runtimeMcpMap(current),
-      [OPENWORK_CLOUD_MCP_NAME]: desiredConfig,
+      [HARNESS_CLOUD_MCP_NAME]: desiredConfig,
     },
   }));
   // Connect is server/account-scoped: keep a host-level copy for catalog + skill injection.
@@ -2432,7 +2432,7 @@ function registrationFailure(failures: CloudMcpRuntimeRegistrationFailure[]): Cl
     stage: "engine_delivery",
     retryable: failures.some((item) => item.status === undefined || item.status >= 500),
     recommendedAction: "Retry reconcile after OpenCode is reachable",
-    message: "Failed to dynamically register openwork-cloud with OpenCode.",
+    message: "Failed to dynamically register harness-cloud with OpenCode.",
     aliases: ["cloud_registration_failed"],
     details: { failures },
   });
@@ -2460,12 +2460,12 @@ async function pollConnected(input: {
       lastFailure = statusResult.failure;
       continue;
     }
-    const cloudStatus = statusResult.data?.[OPENWORK_CLOUD_MCP_NAME];
+    const cloudStatus = statusResult.data?.[HARNESS_CLOUD_MCP_NAME];
     if (cloudStatus && !input.nativeEngine) {
       input.refreshRegistrationFromLiveStatus?.(
         input.config,
         input.workspace,
-        OPENWORK_CLOUD_MCP_NAME,
+        HARNESS_CLOUD_MCP_NAME,
         input.desiredConfig,
         cloudStatus.status,
       );
@@ -2501,10 +2501,10 @@ async function reconcileConnectMcpCatalog(input: {
   directory: string;
   cloudMcp: Record<string, unknown>;
   appHostAuthorization?: string;
-  createWorkspaceOpencodeClient: ReadOpenworkCloudMcpHealthInput["createWorkspaceOpencodeClient"];
+  createWorkspaceOpencodeClient: ReadHarnessCloudMcpHealthInput["createWorkspaceOpencodeClient"];
 }) {
-  const { reconcileOpenWorkConnectMcpServers } = await import("./connect-mcp-server-catalog.js");
-  const servers = await reconcileOpenWorkConnectMcpServers(input).catch((): {
+  const { reconcileHarnessConnectMcpServers } = await import("./connect-mcp-server-catalog.js");
+  const servers = await reconcileHarnessConnectMcpServers(input).catch((): {
     diagnostic: ConnectMcpCatalogDiagnostic; directNames: string[]; removedNames: string[];
   } => ({ diagnostic: "discovery_unavailable", directNames: [], removedNames: [] }));
   const opencode = input.createWorkspaceOpencodeClient(input.config, input.workspace);
@@ -2514,10 +2514,10 @@ async function reconcileConnectMcpCatalog(input: {
   return servers;
 }
 
-export async function refreshOpenworkCloudMcpCatalog(input: ReadOpenworkCloudMcpHealthInput & {
+export async function refreshHarnessCloudMcpCatalog(input: ReadHarnessCloudMcpHealthInput & {
   registerRuntimeMcp: CloudMcpRuntimeRegistrar;
 }): Promise<CloudMcpHealth> {
-  const health = await readOpenworkCloudMcpHealth(input);
+  const health = await readHarnessCloudMcpHealth(input);
   if (input.config.readOnly || !input.directory || !health.usable || health.appHostAuthorizationReady !== true) return health;
   const cloudMcp = await readPersistedDesiredConfig(input.config, input.workspace.id);
   if (!cloudMcp || cloudMcp.enabled === false) return health;
@@ -2530,7 +2530,7 @@ export async function refreshOpenworkCloudMcpCatalog(input: ReadOpenworkCloudMcp
   return { ...health, connectCatalogDiagnostic: servers.diagnostic };
 }
 
-export async function reconcileOpenworkCloudMcp(input: {
+export async function reconcileHarnessCloudMcp(input: {
   config: ServerConfig;
   workspace: WorkspaceInfo;
   directory: string | null;
@@ -2545,7 +2545,7 @@ export async function reconcileOpenworkCloudMcp(input: {
 }): Promise<CloudMcpHealth> {
   let connectCatalogDiagnostic: ConnectMcpCatalogDiagnostic | undefined;
   const readHealth = async (directProbeReuse?: DirectProbeReuse): Promise<CloudMcpHealth> => ({
-    ...await readOpenworkCloudMcpHealthInternal({
+    ...await readHarnessCloudMcpHealthInternal({
       config: input.config,
       workspace: input.workspace,
       directory: input.directory,
@@ -2580,10 +2580,10 @@ export async function reconcileOpenworkCloudMcp(input: {
         const directory = workspace.workspaceType === "local" ? workspace.path : workspace.directory ?? null;
         if (!directory) return;
         await input.createWorkspaceOpencodeClient(input.config, workspace).mcp.disconnect({
-          name: OPENWORK_CLOUD_MCP_NAME,
+          name: HARNESS_CLOUD_MCP_NAME,
           ...locationParams(directory),
         }).catch(() => undefined);
-        await input.registerRuntimeMcp(input.config, workspace, [OPENWORK_CLOUD_MCP_NAME], { throwOnFailure: false })
+        await input.registerRuntimeMcp(input.config, workspace, [HARNESS_CLOUD_MCP_NAME], { throwOnFailure: false })
           .catch(() => undefined);
       }));
   }
@@ -2627,7 +2627,7 @@ export async function reconcileOpenworkCloudMcp(input: {
   const opencode = input.createWorkspaceOpencodeClient(input.config, input.workspace);
 
   cloudMcpDeliveryState.markRegistering(input.workspace, input.directory, desiredRevision);
-  const registration = await input.registerRuntimeMcp(input.config, input.workspace, [OPENWORK_CLOUD_MCP_NAME], { throwOnFailure: false });
+  const registration = await input.registerRuntimeMcp(input.config, input.workspace, [HARNESS_CLOUD_MCP_NAME], { throwOnFailure: false });
   if (registration.failures.length > 0) {
     const registrationError = registrationFailure(registration.failures);
     cloudMcpDeliveryState.markFailed(input.workspace, input.directory, desiredRevision, registrationError);
@@ -2666,7 +2666,7 @@ export async function reconcileOpenworkCloudMcp(input: {
   return readHealth(directProbeReuse);
 }
 
-export async function reconcilePersistedOpenworkCloudMcp(input: {
+export async function reconcilePersistedHarnessCloudMcp(input: {
   config: ServerConfig;
   workspace: WorkspaceInfo;
   directory: string | null;
@@ -2678,13 +2678,13 @@ export async function reconcilePersistedOpenworkCloudMcp(input: {
   refreshRegistrationFromLiveStatus?: CloudMcpLiveStatusObserver;
   trigger?: string;
 }): Promise<CloudMcpHealth> {
-  const migrated = await migrateOpenworkCloudMcpRuntimeConfig(input.config);
-  if (input.config.readOnly) return readOpenworkCloudMcpHealth(input);
+  const migrated = await migrateHarnessCloudMcpRuntimeConfig(input.config);
+  if (input.config.readOnly) return readHarnessCloudMcpHealth(input);
   const desiredConfig = migrated.config ?? await readPersistedDesiredConfig(input.config, input.workspace.id);
   if (!desiredConfig) {
-    return readOpenworkCloudMcpHealth(input);
+    return readHarnessCloudMcpHealth(input);
   }
-  return reconcileOpenworkCloudMcp({
+  return reconcileHarnessCloudMcp({
     ...input,
     body: {
       config: desiredConfig,
@@ -2694,7 +2694,7 @@ export async function reconcilePersistedOpenworkCloudMcp(input: {
   });
 }
 
-export function markOpenworkCloudMcpStale(workspace: WorkspaceInfo, directory: string | null): void {
+export function markHarnessCloudMcpStale(workspace: WorkspaceInfo, directory: string | null): void {
   cloudMcpDeliveryState.markWorkspaceStale(workspace, directory);
 }
 
@@ -2724,7 +2724,7 @@ export type CloudMcpEngineRefreshResult = {
 // something external re-drives it. This refresh closes any wedged client
 // first (disconnect), then re-runs the persisted reconcile, which re-POSTs
 // /mcp — an unconditional fresh connect attempt on the engine side.
-export async function refreshOpenworkCloudMcpEngine(input: {
+export async function refreshHarnessCloudMcpEngine(input: {
   config: ServerConfig;
   workspace: WorkspaceInfo;
   directory: string | null;
@@ -2753,7 +2753,7 @@ export async function refreshOpenworkCloudMcpEngine(input: {
 
   const desiredConfig = await readPersistedDesiredConfig(input.config, input.workspace.id);
   if (!desiredConfig) {
-    return finish(false, await readOpenworkCloudMcpHealth({ ...input, probe: true }), "desired_missing");
+    return finish(false, await readHarnessCloudMcpHealth({ ...input, probe: true }), "desired_missing");
   }
 
   const disconnectStarted = Date.now();
@@ -2761,9 +2761,9 @@ export async function refreshOpenworkCloudMcpEngine(input: {
     const opencode = input.createWorkspaceOpencodeClient(input.config, input.workspace);
     const nativeEngine = input.nativeEngineForWorkspace?.(input.workspace);
     const result = nativeEngine
-      ? await nativeEngine.request(`/api/mcp/${OPENWORK_CLOUD_MCP_NAME}/disconnect`, input.directory, "POST").then(() => ({ error: undefined, response: undefined }))
+      ? await nativeEngine.request(`/api/mcp/${HARNESS_CLOUD_MCP_NAME}/disconnect`, input.directory, "POST").then(() => ({ error: undefined, response: undefined }))
       : await withEngineProbeTimeout(() => opencode.mcp.disconnect({
-          name: OPENWORK_CLOUD_MCP_NAME, ...locationParams(input.directory),
+          name: HARNESS_CLOUD_MCP_NAME, ...locationParams(input.directory),
         }));
     steps.push({
       step: "engine_disconnect",
@@ -2786,7 +2786,7 @@ export async function refreshOpenworkCloudMcpEngine(input: {
   }
 
   const reapplyStarted = Date.now();
-  const health = await reconcilePersistedOpenworkCloudMcp({
+  const health = await reconcilePersistedHarnessCloudMcp({
     config: input.config,
     workspace: input.workspace,
     directory: input.directory,

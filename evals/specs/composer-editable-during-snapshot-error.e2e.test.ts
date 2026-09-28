@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { snapshotFailure } from "../worlds/chat.ts";
 
 const test = spec.world(snapshotFailure);

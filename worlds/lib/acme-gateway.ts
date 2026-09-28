@@ -105,7 +105,7 @@ export async function gatewayEnvironment(upstreamUrl: string) {
 export async function startAcmeGateway(stack: AsyncDisposableStack, databaseUrl: string, settings: Awaited<ReturnType<typeof gatewayEnvironment>>) {
   const child = spawn(process.execPath, ["--conditions=development", "--import", "tsx", "src/server.ts"], {
     cwd: fileURLToPath(new URL("../../ee/apps/gateway", import.meta.url)),
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", OPENWORK_DEV_MODE: "1",
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", HARNESS_DEV_MODE: "1",
       DB_MODE: "mysql", DATABASE_URL: databaseUrl, ...settings.env, SENTRY_DSN: "", SENTRY_LOG_LEVEL: "off" },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -188,7 +188,7 @@ export async function bootAcmeGatewayOnDaytona(stack: AsyncDisposableStack, plac
 
 /** One real message through the gateway with the member's issued key; proves routing, auth translation, and the fixed reply. */
 export async function probeAcmeGatewayDirect(admin: DenSession, world: AcmeGatewayStack) {
-  const orgHeaders = { authorization: `Bearer ${admin.token}`, "x-openwork-org-id": world.model.orgId };
+  const orgHeaders = { authorization: `Bearer ${admin.token}`, "x-harness-org-id": world.model.orgId };
   const connected = await denFetch(admin, `/v1/inference-providers/${world.model.providerId}/connect`, { headers: orgHeaders });
   const provider = record(connected.body) && record(connected.body.inferenceProvider) ? connected.body.inferenceProvider : undefined;
   const apiKey = typeof provider?.apiKey === "string" ? provider.apiKey : "";
@@ -214,7 +214,7 @@ export async function seedAcmeGateway(admin: DenSession, upstream: { key: string
   const org = record(orgs.body) && Array.isArray(orgs.body.orgs) ? orgs.body.orgs.find(record) : undefined;
   if (!orgs.response.ok || !org || typeof org.id !== "string") throw new Error("Acme organization missing.");
   const orgId = org.id;
-  const orgHeaders = { ...headers, "x-openwork-org-id": orgId };
+  const orgHeaders = { ...headers, "x-harness-org-id": orgId };
   const created = await denFetch(admin, "/v1/inference-providers", {
     method: "POST", headers: orgHeaders,
     body: JSON.stringify({ name: "Acme AI Gateway", providerId: "anthropic", modelIds: [ACME_MODEL],

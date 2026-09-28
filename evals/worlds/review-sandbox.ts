@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
-import { chrome, localHost } from "@openwork/hosts";
-import { setViewport } from "@openwork/cdp";
-import type { Place, Seed } from "@openwork/env";
+import { chrome, localHost } from "@harness/hosts";
+import { setViewport } from "@harness/cdp";
+import type { Place, Seed } from "@harness/env";
 import { reviewWorld } from "./evidence-review.ts";
 
 /** Production UI with a local launch-response fixture. No provider calls or VMs. */

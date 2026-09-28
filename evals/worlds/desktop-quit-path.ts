@@ -1,12 +1,12 @@
 import { readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { allocateFreePort, attachSurface } from "@openwork/cdp";
-import type { AttachedSurface, SurfaceExit, SurfaceHandle } from "@openwork/cdp";
-import { SkipError } from "@openwork/env";
-import type { Seed } from "@openwork/env";
-import { localHost } from "@openwork/hosts";
-import type { ElectronSurfaceOptions } from "@openwork/hosts";
+import { allocateFreePort, attachSurface } from "@harness/cdp";
+import type { AttachedSurface, SurfaceExit, SurfaceHandle } from "@harness/cdp";
+import { SkipError } from "@harness/env";
+import type { Seed } from "@harness/env";
+import { localHost } from "@harness/hosts";
+import type { ElectronSurfaceOptions } from "@harness/hosts";
 
 /**
  * A packaged enterprise desktop that is asked to quit. Two stimuli match what
@@ -40,7 +40,7 @@ async function newCrashReports(since: number): Promise<string[]> {
   const names = await readdir(DIAGNOSTIC_REPORTS_DIR).catch(() => []);
   const reports: string[] = [];
   for (const name of names) {
-    if (!name.startsWith("OpenWork") || !name.endsWith(".ips")) continue;
+    if (!name.startsWith("Harness") || !name.endsWith(".ips")) continue;
     const info = await stat(join(DIAGNOSTIC_REPORTS_DIR, name)).catch(() => null);
     if (info && info.mtimeMs >= since) reports.push(name);
   }
@@ -48,15 +48,15 @@ async function newCrashReports(since: number): Promise<string[]> {
 }
 
 async function launchPackagedEnterprise(name: string, bootstrap?: ElectronSurfaceOptions["bootstrap"]) {
-  if (!process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) {
-    throw new SkipError("OPENWORK_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
+  if (!process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) {
+    throw new SkipError("HARNESS_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
   }
   const host = localHost();
   const launchedAt = Date.now();
   const handle: SurfaceHandle = await host.spawnElectron(name, {
     profile: "fresh",
     prepareSharedResources: false,
-    env: { OPENWORK_DEV_MODE: "0", OPENWORK_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
+    env: { HARNESS_DEV_MODE: "0", HARNESS_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
     ...(bootstrap ? { bootstrap } : {}),
   });
   const pid = handle.pid;

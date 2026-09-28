@@ -1,17 +1,17 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { clickText, createAndSelectWorkspace, evalIn, waitFor } from "@openwork/behaviors";
-import { app, needs, server, test } from "@openwork/testkit";
+import { clickText, createAndSelectWorkspace, evalIn, waitFor } from "@harness/behaviors";
+import { app, needs, server, test } from "@harness/testkit";
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
-const enabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
+const enabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
 const title = enabled
   ? "signed-in Library stays rendered without provider refresh storms"
-  : "signed-in Library stability skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1";
+  : "signed-in Library stability skipped — needs: set HARNESS_EVAL_E2E_TESTS=1";
 
 test.skipIf(!enabled)(title, { timeout: 10 * 60_000 }, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
   await using den = await server({
     place,
     org: {
@@ -35,7 +35,7 @@ test.skipIf(!enabled)(title, { timeout: 10 * 60_000 }, async ({ evidence, place 
       window.__libraryStability.requests.push(String(target));
       return originalFetch.apply(this, args);
     };
-    window.addEventListener("openwork-den-settings-changed", () => {
+    window.addEventListener("harness-den-settings-changed", () => {
       window.__libraryStability.denEvents += 1;
     });
     location.hash = value;
@@ -50,7 +50,7 @@ test.skipIf(!enabled)(title, { timeout: 10 * 60_000 }, async ({ evidence, place 
   );
 
   // The repository workspace ships skills under .opencode/skills, so Skills is
-  // the deterministic card inventory for a fresh member. OpenWork's own
+  // the deterministic card inventory for a fresh member. Harness's own
   // runtimes (Browser, Computer Use) are no longer Library cards. The
   // regression this spec guards against fires on the Library route itself:
   // repeated Den settings echoes retrigger provider sync and remove/re-add
@@ -60,7 +60,7 @@ test.skipIf(!enabled)(title, { timeout: 10 * 60_000 }, async ({ evidence, place 
     desktopApp,
     () => (document.body.innerText.includes("browser-automation")
       && document.body.innerText.includes("create-plugin")
-      && !document.body.innerText.includes("OpenWork Browser")
+      && !document.body.innerText.includes("Harness Browser")
       && !document.body.innerText.includes("Computer Use")),
     { timeoutMs: 120_000, label: "signed-in Library inventory" },
   );

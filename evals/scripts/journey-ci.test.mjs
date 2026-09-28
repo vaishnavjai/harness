@@ -11,7 +11,7 @@ import { notification, deliver, validateReport, findStateRun } from './notify-jo
 const summary = { command: 'evals:e2e', verdict: 'passed', passed: 1, failed: 0, skipped: 0 };
 const entry = { spec: 'permissions.e2e.test.ts', name: 'Apply permissions', critical: true, placement: 'daytona' };
 const plan = { suite: 'Full regression', entries: [entry], manual: [] };
-const run = { name: 'Product journeys', run_number: 10, run_attempt: 1, html_url: 'https://github.com/different-ai/openwork/actions/runs/10' };
+const run = { name: 'Product journeys', run_number: 10, run_attempt: 1, html_url: 'https://github.com/vaishnavjai/harness/actions/runs/10' };
 const report = status => validateReport({ entries: [{ ...entry, status }] });
 
 test('incident state survives more than 100 newer unrelated alert runs', async () => {
@@ -64,19 +64,19 @@ test('journeys needing a packaged binary, macOS, or paid live consent are skippe
   const excluded = entries.filter(entry => entry.placement !== 'manual' && unmetLaneNeeds(entry).length > 0);
   assert.deepEqual(excluded.map(entry => [entry.spec, unmetLaneNeeds(entry).join(', ')]), [
     ['computer-use-window-scope.e2e.test.ts', 'run on darwin'],
-    ['desktop-quit-path.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
-    ['live-stream-continuity.e2e.test.ts', 'set OPENAI_API_KEY, set OPENWORK_EVAL_LIVE_OPENAI=1'],
-    ['packaged-activated-launch.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
-    ['packaged-first-launch.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
-    ['packaged-preactivation-egress.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
-    ['packaged-preactivation-updater.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
-    ['released-enterprise-activated.e2e.test.ts', 'set OPENWORK_EVAL_ELECTRON_BINARY'],
+    ['desktop-quit-path.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
+    ['live-stream-continuity.e2e.test.ts', 'set OPENAI_API_KEY, set HARNESS_EVAL_LIVE_OPENAI=1'],
+    ['packaged-activated-launch.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
+    ['packaged-first-launch.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
+    ['packaged-preactivation-egress.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
+    ['packaged-preactivation-updater.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
+    ['released-enterprise-activated.e2e.test.ts', 'set HARNESS_EVAL_ELECTRON_BINARY'],
   ]);
   assert(excluded.every(entry => entry.placement === 'local'));
   assert(excluded.every(entry => !entry.critical));
   // A lane that packages the enterprise desktop would schedule the packaged journeys again; released-enterprise-activated's
-  // update case still skips itself there without OPENWORK_EVAL_RELEASED_BASELINE_BINARY, which the verdict counts as not tested.
-  const packagedLane = { ...ciLane, env: ['OPENWORK_EVAL_ELECTRON_BINARY'] };
+  // update case still skips itself there without HARNESS_EVAL_RELEASED_BASELINE_BINARY, which the verdict counts as not tested.
+  const packagedLane = { ...ciLane, env: ['HARNESS_EVAL_ELECTRON_BINARY'] };
   assert.deepEqual(excluded.filter(entry => unmetLaneNeeds(entry, packagedLane).length > 0).map(entry => entry.spec), [
     'computer-use-window-scope.e2e.test.ts', 'live-stream-continuity.e2e.test.ts',
   ]);
@@ -122,22 +122,22 @@ test('catalog needs match the whole-file prerequisites each spec and its worlds 
     assert.deepEqual({ env: [...(entry.needs.env ?? [])].sort(), platform: entry.needs.platform }, await guardedPrerequisites(entry.spec), `${entry.spec}: catalog needs drifted from the spec/world guards`);
   }
   // The released spec's update case alone needs the baseline binary; that is not a whole-file blocker.
-  assert.deepEqual(await guardedPrerequisites('released-enterprise-activated.e2e.test.ts'), { env: ['OPENWORK_EVAL_ELECTRON_BINARY'], platform: undefined });
+  assert.deepEqual(await guardedPrerequisites('released-enterprise-activated.e2e.test.ts'), { env: ['HARNESS_EVAL_ELECTRON_BINARY'], platform: undefined });
   assert.deepEqual(await guardedPrerequisites('computer-use-window-scope.e2e.test.ts'), { env: [], platform: 'darwin' });
   assert.deepEqual(await guardedPrerequisites('mcp-oauth-start-unreadable-response.e2e.test.ts'), { env: [], platform: undefined });
 });
 
 test('mixed-world specs: a prerequisite one case declares is never promoted to the whole file; world-body guards always are', () => {
-  const mixed = `const launch = spec.world(w, { needs: { env: ["OPENWORK_EVAL_A"] } });\nconst update = spec.world(w, { needs: { env: ["OPENWORK_EVAL_A", "OPENWORK_EVAL_B"], platform: "darwin" } });`;
-  const world = `export async function w() {\n  const binary = process.env.OPENWORK_EVAL_C?.trim();\n  if (!binary) throw new SkipError("set it");\n  if (process.platform !== "linux") throw new SkipError("linux only");\n}`;
-  assert.deepEqual(wholeFileBlockers(mixed, [world]), { env: ['OPENWORK_EVAL_A', 'OPENWORK_EVAL_C'], platform: 'linux' });
+  const mixed = `const launch = spec.world(w, { needs: { env: ["HARNESS_EVAL_A"] } });\nconst update = spec.world(w, { needs: { env: ["HARNESS_EVAL_A", "HARNESS_EVAL_B"], platform: "darwin" } });`;
+  const world = `export async function w() {\n  const binary = process.env.HARNESS_EVAL_C?.trim();\n  if (!binary) throw new SkipError("set it");\n  if (process.platform !== "linux") throw new SkipError("linux only");\n}`;
+  assert.deepEqual(wholeFileBlockers(mixed, [world]), { env: ['HARNESS_EVAL_A', 'HARNESS_EVAL_C'], platform: 'linux' });
   // A world that hard-errors on a missing prerequisite (not a skip) still declares a whole-file blocker.
-  const strict = `if (!process.env.OPENWORK_EVAL_D?.trim()) {\n  throw new Error("OPENWORK_EVAL_D must point at a packaged desktop binary");\n}`;
-  assert.deepEqual(wholeFileBlockers('', [strict]), { env: ['OPENWORK_EVAL_D'], platform: undefined });
-  assert.deepEqual(wholeFileBlockers(mixed, []), { env: ['OPENWORK_EVAL_A'], platform: undefined });
+  const strict = `if (!process.env.HARNESS_EVAL_D?.trim()) {\n  throw new Error("HARNESS_EVAL_D must point at a packaged desktop binary");\n}`;
+  assert.deepEqual(wholeFileBlockers('', [strict]), { env: ['HARNESS_EVAL_D'], platform: undefined });
+  assert.deepEqual(wholeFileBlockers(mixed, []), { env: ['HARNESS_EVAL_A'], platform: undefined });
   assert.deepEqual(wholeFileBlockers('spec.world(w, { timeout: 1, needs: { platform: "darwin" } });', []), { env: [], platform: 'darwin' });
   // An env read that is not followed by a SkipError (optional pin) is not a blocker.
-  assert.deepEqual(wholeFileBlockers('', ['const v = process.env.OPENWORK_EVAL_OPTIONAL?.trim() || null;\nreturn v;']), { env: [], platform: undefined });
+  assert.deepEqual(wholeFileBlockers('', ['const v = process.env.HARNESS_EVAL_OPTIONAL?.trim() || null;\nreturn v;']), { env: [], platform: undefined });
 });
 
 test('registered case metadata names exact files, supported execution axes, and defaults', async () => {
@@ -224,12 +224,12 @@ test('live continuity is isolated, local, v1-only and never scheduled from a pro
   assert.equal(live.placement, 'local');
   assert.equal(live.model, 'live');
   assert.equal(live.critical, false);
-  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, env: ['OPENAI_API_KEY'] }), ['set OPENWORK_EVAL_LIVE_OPENAI=1']);
-  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, optIns: ['OPENWORK_EVAL_LIVE_OPENAI'] }), ['set OPENAI_API_KEY']);
-  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, env: ['OPENAI_API_KEY'], optIns: ['OPENWORK_EVAL_LIVE_OPENAI'] }), []);
+  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, env: ['OPENAI_API_KEY'] }), ['set HARNESS_EVAL_LIVE_OPENAI=1']);
+  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, optIns: ['HARNESS_EVAL_LIVE_OPENAI'] }), ['set OPENAI_API_KEY']);
+  assert.deepEqual(unmetLaneNeeds(live, { ...ciLane, env: ['OPENAI_API_KEY'], optIns: ['HARNESS_EVAL_LIVE_OPENAI'] }), []);
   for (const registered of live.cases) {
     assert.deepEqual(registered.engines, ['v1']);
-    assert.deepEqual(registered.optIns, ['OPENWORK_EVAL_E2E_TESTS', 'OPENWORK_EVAL_LIVE_OPENAI']);
+    assert.deepEqual(registered.optIns, ['HARNESS_EVAL_E2E_TESTS', 'HARNESS_EVAL_LIVE_OPENAI']);
     assert.equal(registered.example.placement, '--local');
   }
   const mock = entries.find(entry => entry.spec === 'streamed-markdown-answer.e2e.test.ts');
@@ -237,7 +237,7 @@ test('live continuity is isolated, local, v1-only and never scheduled from a pro
   assert.equal(mock.needs, undefined);
   assert.deepEqual(mock.cases.map(entry => entry.id), ['CONT-01']);
   const source = await readFile(new URL('../specs/live-stream-continuity.e2e.test.ts', import.meta.url), 'utf8');
-  assert.match(source, /needs:\s*\{\s*placement:\s*"local",\s*optIn:\s*\["OPENWORK_EVAL_LIVE_OPENAI"\]/);
+  assert.match(source, /needs:\s*\{\s*placement:\s*"local",\s*optIn:\s*\["HARNESS_EVAL_LIVE_OPENAI"\]/);
 });
 
 test('skips, no tests, missing summaries, setup and judging failures never pass', () => {
@@ -264,14 +264,14 @@ test('missing or duplicate result cannot turn a selected journey green', () => {
 });
 
 test('skipped journeys (prerequisites unmet) are listed with their reason in every report and never decide the verdict', () => {
-  const quit = { spec: 'desktop-quit-path.e2e.test.ts', name: 'Quit an enterprise install cleanly', critical: false, placement: 'local', reason: 'set OPENWORK_EVAL_ELECTRON_BINARY' };
+  const quit = { spec: 'desktop-quit-path.e2e.test.ts', name: 'Quit an enterprise install cleanly', critical: false, placement: 'local', reason: 'set HARNESS_EVAL_ELECTRON_BINARY' };
   const output = aggregate({ ...plan, excluded: [quit] }, [{ spec: entry.spec, status: 'passed' }]);
   assert.equal(output.ok, true);
   assert.deepEqual(output.counts, { passed: 1, failed: 0, 'not tested': 0 });
   assert.deepEqual(output.excluded, [quit]);
   const text = markdown(output);
   assert.match(text, /1 passed · 0 failed · 0 not tested · 1 skipped \(prerequisites unmet\)/);
-  assert.match(text, new RegExp(`\\| Quit an enterprise install cleanly \\| ${EXCLUDED_LABEL} — needs: set OPENWORK_EVAL_ELECTRON_BINARY \\|`));
+  assert.match(text, new RegExp(`\\| Quit an enterprise install cleanly \\| ${EXCLUDED_LABEL} — needs: set HARNESS_EVAL_ELECTRON_BINARY \\|`));
   assert.match(text, /1 journeys skipped \(prerequisites unmet\): desktop-quit-path\.e2e\.test\.ts\./);
   assert.doesNotMatch(text, /not applicable/);
   // A stray result for an excluded journey cannot count as coverage, and a plan without the field still reports.

@@ -23,7 +23,7 @@ const LAYER_IDLE = 24 * HOUR;
 const CHECKPOINT_MAX_AGE = 26 * HOUR;
 
 const WORLDS: PreviewWorld[] = ["app-web", "acme-web", "desktop"];
-const PREVIEW = /^openwork-[a-z-]+-v\d+-[0-9a-f]{40}$|^openwork-web-v\d+-[0-9a-f]{40}$/;
+const PREVIEW = /^harness-[a-z-]+-v\d+-[0-9a-f]{40}$|^harness-web-v\d+-[0-9a-f]{40}$/;
 const LAYER = /^ow-(tools|deps|build|warm)-v1-(app-web|acme-web|desktop)-[0-9a-f]{40}$|^ow-evidence-(tools|deps)-v1-[0-9a-f]{40}$/;
 const TEMPLATE = /^ow-evidence-web-v\d+-[0-9a-f]{40}$/;
 const CHECKPOINT = /^ow-evidence-v1-[0-9a-f]{32}$|^ow-checkpoint-probe-[a-z0-9-]+$/;

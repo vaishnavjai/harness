@@ -21,7 +21,7 @@ Routes hosted MCP Apps through the credential-bound Den gateway and hardens clou
 - Fixed Den callback routing, API-origin derivation, and cookie forwarding so hosted sign-in remains on the correct domain.
 - Workspace switches preserve live agent runs under load, while stale tool activity and scrolling no longer disrupt the active transcript.
 - Desktop update channel selection stays stable, Automation control-plane traffic is bounded, and standalone MCP requests stop retrying indefinitely.
-- Clarified the difference between local setup, managed OpenWork Cloud, OpenCode models, and OpenWork-managed models.
+- Clarified the difference between local setup, managed Harness Cloud, OpenCode models, and Harness-managed models.
 
 #### Lines of code changed since previous release
 125650 lines changed since `v0.18.35` (13432 insertions, 112218 deletions).
@@ -37,7 +37,7 @@ True
 
 #### Major improvement details
 - Rendered hosted MCP Apps through the credential-bound Den gateway.
-- Clarified local, managed Cloud, OpenCode, and OpenWork model setup.
+- Clarified local, managed Cloud, OpenCode, and Harness model setup.
 
 #### Major bugs resolved
 True

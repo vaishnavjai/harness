@@ -15,15 +15,15 @@ import type { ServerConfig } from "./types.js";
 import * as managedV2 from "./managed-opencode-v2.js";
 import * as localAuth from "./opencode-v2-local-auth.js";
 import * as runtimeConfig from "./runtime-opencode-config-store.js";
-import { buildOpenWorkV2Instructions } from "./opencode-v2-instructions.js";
+import { buildHarnessV2Instructions } from "./opencode-v2-instructions.js";
 
 test("v2 app guidance fits the native entry limit and uses the current native tools", () => {
   for (const connected of [true, false]) {
-    const value = buildOpenWorkV2Instructions(connected);
+    const value = buildHarnessV2Instructions(connected);
     expect(Buffer.byteLength(JSON.stringify(value), "utf8")).toBeLessThanOrEqual(7 * 1024);
-    expect(value.operatingInstructions).not.toContain("openwork-cloud_search_capabilities");
-    expect(value.operatingInstructions).not.toContain("openwork-cloud_execute_capability");
-    expect(value.operatingInstructions).toStartWith("You are OpenWork.");
+    expect(value.operatingInstructions).not.toContain("harness-cloud_search_capabilities");
+    expect(value.operatingInstructions).not.toContain("harness-cloud_execute_capability");
+    expect(value.operatingInstructions).toStartWith("You are Harness.");
     expect(value.connect.includes("not connected")).toBe(!connected);
   }
 });
@@ -46,7 +46,7 @@ function testConfig(root: string): ServerConfig {
     port: 0,
     token: "client-token",
     hostToken: "host-token",
-    configPath: join(root, "openwork-server.json"),
+    configPath: join(root, "harness-server.json"),
     approval: { mode: "manual", timeoutMs: 1_000 },
     corsOrigins: [],
     workspaces: [],
@@ -67,7 +67,7 @@ test("keeps persisted engine v2 preview state when the override is unset", () =>
 
 test("enables engine v2 preview and chat routing when the override is 1", () => {
   expect(resolveInitialEngineV2PreviewState(
-    { OPENWORK_ENGINE_V2_PREVIEW: "1" },
+    { HARNESS_ENGINE_V2_PREVIEW: "1" },
     { enabled: false, chatRouting: false },
   )).toEqual({ enabled: true, chatRouting: true });
 });
@@ -75,13 +75,13 @@ test("enables engine v2 preview and chat routing when the override is 1", () => 
 test("keeps persisted engine v2 preview state for an invalid override", () => {
   const persisted = { enabled: false, chatRouting: true };
   expect(resolveInitialEngineV2PreviewState(
-    { OPENWORK_ENGINE_V2_PREVIEW: "invalid" },
+    { HARNESS_ENGINE_V2_PREVIEW: "invalid" },
     persisted,
   )).toEqual(persisted);
 });
 
 test("round trips enabled and chat routing state and defaults corrupt state", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-engine-v2-preview-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-engine-v2-preview-"));
   const config = testConfig(root);
   try {
     await writeEngineV2PreviewState(config, { enabled: true, chatRouting: true });
@@ -95,7 +95,7 @@ test("round trips enabled and chat routing state and defaults corrupt state", as
 });
 
 test("persists chat routing and includes it in preview status without starting the engine", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-engine-v2-preview-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-engine-v2-preview-"));
   const config = testConfig(root);
   const preview = createEngineV2Preview({ config });
   try {
@@ -152,7 +152,7 @@ test("maps providers without an API key using the preview sentinel", () => {
     id: "noKey",
     name: "noKey",
     baseUrl: "https://example.test/v1",
-    apiKey: "openwork-engine-v2-preview-unset",
+    apiKey: "harness-engine-v2-preview-unset",
     models: [],
   }]);
 });
@@ -248,7 +248,7 @@ async function withFakeSidecar(
   },
   run: (preview: ReturnType<typeof createEngineV2Preview>, root: string, calls: string[]) => Promise<void>,
 ) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-v2-upkeep-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-v2-upkeep-"));
   const calls: string[] = [];
   const fake = {
     url: "http://127.0.0.1:1", username: "opencode", password: "fixture", childPid: 1, exitCode: null, stdout: "", stderr: "",
@@ -271,8 +271,8 @@ async function withFakeSidecar(
     }),
     spyOn(runtimeConfig, "readEffectiveRuntimeOpencodeConfig").mockResolvedValue({ mcp: input.mcp ?? {} }),
   ];
-  const previousBin = process.env.OPENWORK_OPENCODE2_BIN;
-  process.env.OPENWORK_OPENCODE2_BIN = "opencode2-fixture";
+  const previousBin = process.env.HARNESS_OPENCODE2_BIN;
+  process.env.HARNESS_OPENCODE2_BIN = "opencode2-fixture";
   const preview = createEngineV2Preview({ config: testConfig(root), deferStart: true, waits: input.waits });
   try {
     await preview.setEnabled(true);
@@ -282,8 +282,8 @@ async function withFakeSidecar(
   } finally {
     await preview.stop();
     for (const spy of spies) spy.mockRestore();
-    if (previousBin === undefined) delete process.env.OPENWORK_OPENCODE2_BIN;
-    else process.env.OPENWORK_OPENCODE2_BIN = previousBin;
+    if (previousBin === undefined) delete process.env.HARNESS_OPENCODE2_BIN;
+    else process.env.HARNESS_OPENCODE2_BIN = previousBin;
     await rm(root, { recursive: true, force: true });
   }
 }

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { archiveSessionsInLinkedWorkspace } from "../worlds/session-shell.ts";
 
 const test = spec.world(archiveSessionsInLinkedWorkspace, {

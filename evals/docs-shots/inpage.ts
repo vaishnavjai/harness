@@ -1,6 +1,6 @@
-import { browserScript } from "@openwork/cdp";
-import { evalIn } from "@openwork/behaviors";
-import type { Surface, EvaluateOptions } from "@openwork/cdp";
+import { browserScript } from "@harness/cdp";
+import { evalIn } from "@harness/behaviors";
+import type { Surface, EvaluateOptions } from "@harness/cdp";
 export type InPageOptions = EvaluateOptions;
 
 /** Execute a checked browser callback with one explicit argument. */

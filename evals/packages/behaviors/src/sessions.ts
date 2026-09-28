@@ -1,4 +1,4 @@
-import type { Surface } from "@openwork/cdp";
+import type { Surface } from "@harness/cdp";
 import { control } from "./desktop.ts";
 
 const FIRST_CREATE_TIMEOUT_MS = 60_000;

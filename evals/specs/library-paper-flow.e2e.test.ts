@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { needs, spec, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { needs, spec, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 import { libraryPaperFlow } from "../worlds/library.ts";
 
 const test = spec.world(libraryPaperFlow, {
@@ -11,7 +11,7 @@ const test = spec.world(libraryPaperFlow, {
   },
 });
 
-const requirements: TestNeeds = { optIn: ["OPENWORK_EVAL_E2E_TESTS"] };
+const requirements: TestNeeds = { optIn: ["HARNESS_EVAL_E2E_TESTS"] };
 const missingRequirements = unmetNeeds(requirements, process.env);
 const title = missingRequirements.length > 0
   ? `Library Paper flow skipped — needs: ${missingRequirements.join(", ")}`
@@ -53,7 +53,7 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     const lockedSection = await texts('[data-library-section="locked"]', signedOutProbe);
     await signedOutUser.notSee({ role: "tab", label: /Ready to use/ });
     // Adding needs Cloud, so signing in is the one action; no header button that ignores clicks.
-    await signedOutUser.see({ role: "button", label: "Sign in to OpenWork Cloud" });
+    await signedOutUser.see({ role: "button", label: "Sign in to Harness Cloud" });
     await signedOutUser.notSee({ role: "button", label: "Add to library" });
     await signedOutUser.screenshot();
     evidence.recordAssertionEvidence(
@@ -76,11 +76,11 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     const google = await chip("Google Workspace");
     const linear = await chip("Linear");
     const wikiReady = (await probe.dom('[data-library-row="Team wiki"] [data-library-ready]')).elements.length === 1;
-    const openwork = await sectionMeta("openwork");
+    const harness = await sectionMeta("harness");
     await shot();
     evidence.recordAssertionEvidence(
       "One list: connectors from the organization carry their next step",
-      `filters=${filters.join(" / ")}; From OpenWork "${openwork}"; Google Workspace chip=${google}; Linear chip=${linear}; Team wiki ready=${wikiReady}`,
+      `filters=${filters.join(" / ")}; From Harness "${harness}"; Google Workspace chip=${google}; Linear chip=${linear}; Team wiki ready=${wikiReady}`,
       google === "Sign in" && linear === "Sign in" && wikiReady,
     );
     expect(google).toBe("Sign in");
@@ -182,12 +182,12 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     await user.click({ role: "button", label: "Add Slack" });
     await user.see({ role: "heading", label: "Set up Slack" });
     await user.see({ text: "What your AI can do" });
-    await user.see({ text: "You sign in with your own Slack next. OpenWork only sees what you can see." });
+    await user.see({ text: "You sign in with your own Slack next. Harness only sees what you can see." });
     await user.see({ role: "button", label: "Sign in with Slack" });
     await shot();
     evidence.recordAssertionEvidence(
       "Setting up a connector explains the access in plain words before sign-in",
-      "\"What your AI can do\" → read what you can already see, act as you only when you ask; note \"You sign in with your own Slack next. OpenWork only sees what you can see.\"; button \"Sign in with Slack\"",
+      "\"What your AI can do\" → read what you can already see, act as you only when you ask; note \"You sign in with your own Slack next. Harness only sees what you can see.\"; button \"Sign in with Slack\"",
       true,
     );
   });
@@ -219,7 +219,7 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     });
     await shot();
     evidence.recordAssertionEvidence(
-      "Sign in happens on the service's own page, not inside OpenWork",
+      "Sign in happens on the service's own page, not inside Harness",
       `opened ${url.origin}${url.pathname} (the Slack fixture's authorize page, client_id=${url.searchParams.get("client_id") ? "set" : "missing"}); Slack row caption "${slackCaption}", chip "${slackChip}"`,
       url.origin === world.slackOrigin && url.pathname.endsWith("/authorize") && slackChip === "Sign in",
     );
@@ -246,7 +246,7 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     expect(ways).toEqual(["With my account", "With a key", "No sign-in"]);
   });
 
-  await step("before adding it, OpenWork checks the MCP server and ticks off each check", async () => {
+  await step("before adding it, Harness checks the MCP server and ticks off each check", async () => {
     await user.type({ label: "Name" }, "Team notes");
     await user.type({ placeholder: "https://mcp.example.com/mcp" }, world.slackMcpUrl);
     await user.click({ role: "button", label: "Add and sign in" });
@@ -455,7 +455,7 @@ test(title, async ({ evidence, world, user, probe, step }) => {
     }, { within: 60_000, label: "Customer briefing arrives in Alex's Library through Support", until: (value) => value.includes("Support") });
     await new Promise((resolve) => setTimeout(resolve, 400));
     await alex.screenshot();
-    const library = await probe.api(world.alex, "/v1/me/library", { headers: { "x-openwork-org-id": world.organizationId } });
+    const library = await probe.api(world.alex, "/v1/me/library", { headers: { "x-harness-org-id": world.organizationId } });
     const body: unknown = library.body;
     const items = typeof body === "object" && body !== null && "items" in body && Array.isArray(body.items) ? body.items : [];
     const item: unknown = items.find((entry: unknown) => typeof entry === "object" && entry !== null && "name" in entry && entry.name === "Customer briefing");

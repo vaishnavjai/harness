@@ -22,7 +22,7 @@ async function replaceProtectedKey(filePath, encrypted) {
 }
 
 /**
- * Compact filename-safe UTC timestamp mirroring the `*.openwork-backup-<ts>`
+ * Compact filename-safe UTC timestamp mirroring the `*.harness-backup-<ts>`
  * naming used by the server legacy-config sweep.
  *
  * @param {Date} date
@@ -45,14 +45,14 @@ function backupTimestamp(date) {
 function decodeKey(encoded) {
   const key = Buffer.from(encoded, "base64");
   if (key.byteLength !== KEY_BYTES) {
-    throw new Error("The protected OpenWork credential key is invalid.");
+    throw new Error("The protected Harness credential key is invalid.");
   }
   return key;
 }
 
 /**
  * Creates a lazy key provider so Electron does not initialize secure storage
- * until a user opts into OpenWork-managed OAuth.
+ * until a user opts into Harness-managed OAuth.
  *
  * @param {{
  *   filePath: string;
@@ -71,10 +71,10 @@ export function createDesktopVaultKeyProvider({
   async function loadKey() {
     const safeStorage = loadSafeStorage();
     if (!safeStorage || !(await safeStorage.isAsyncEncryptionAvailable())) {
-      throw new Error("Operating-system secure storage is unavailable for OpenWork-managed OAuth.");
+      throw new Error("Operating-system secure storage is unavailable for Harness-managed OAuth.");
     }
     if (platform === "linux" && safeStorage.getSelectedStorageBackend() === "basic_text") {
-      throw new Error("A secure Linux password store is required for OpenWork-managed OAuth.");
+      throw new Error("A secure Linux password store is required for Harness-managed OAuth.");
     }
 
     /** @type {Buffer | undefined} */
@@ -97,7 +97,7 @@ export function createDesktopVaultKeyProvider({
         // Secure storage is available but can no longer decrypt the blob (for
         // example the OS keychain secret changed), so quarantine the original
         // bytes and mint a fresh key instead of failing on every launch.
-        await rename(filePath, `${filePath}.openwork-backup-${backupTimestamp(new Date())}`);
+        await rename(filePath, `${filePath}.harness-backup-${backupTimestamp(new Date())}`);
       }
       if (decrypted && key) {
         if (decrypted.shouldReEncrypt) {

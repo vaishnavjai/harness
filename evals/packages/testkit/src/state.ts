@@ -1,9 +1,9 @@
-import { browserScript } from "@openwork/cdp";
+import { browserScript } from "@harness/cdp";
 import { readFile } from "node:fs/promises";
 import { join, posix } from "node:path";
-import { evalIn } from "@openwork/behaviors";
-import { defaultDaytonaExec, electronProfilePaths, execInSandbox } from "@openwork/hosts";
-import type { Surface } from "@openwork/cdp";
+import { evalIn } from "@harness/behaviors";
+import { defaultDaytonaExec, electronProfilePaths, execInSandbox } from "@harness/hosts";
+import type { Surface } from "@harness/cdp";
 
 export interface DenClientState {
   authTokenPresent: boolean;
@@ -52,10 +52,10 @@ function errorCode(error: unknown): string | null {
 
 export async function readDenClientState(app: Surface): Promise<DenClientState> {
   const value = await evalIn(app, () => ((() => ({
-    authTokenPresent: Boolean((localStorage.getItem("openwork.den.authToken") ?? "").trim()),
-    activeOrgId: (localStorage.getItem("openwork.den.activeOrgId") ?? "").trim() || null,
-    activeOrgSlug: (localStorage.getItem("openwork.den.activeOrgSlug") ?? "").trim() || null,
-    activeOrgName: (localStorage.getItem("openwork.den.activeOrgName") ?? "").trim() || null,
+    authTokenPresent: Boolean((localStorage.getItem("harness.den.authToken") ?? "").trim()),
+    activeOrgId: (localStorage.getItem("harness.den.activeOrgId") ?? "").trim() || null,
+    activeOrgSlug: (localStorage.getItem("harness.den.activeOrgSlug") ?? "").trim() || null,
+    activeOrgName: (localStorage.getItem("harness.den.activeOrgName") ?? "").trim() || null,
   }))()));
   if (!isRecord(value)) throw new Error("The desktop returned an invalid Den client state.");
   return {
@@ -74,9 +74,9 @@ export async function readConnectState(app: Surface): Promise<ConnectState> {
     let baseUrl = "";
     let token = "";
     try {
-      const invokeDesktop = window.__OPENWORK_ELECTRON__ && window.__OPENWORK_ELECTRON__.invokeDesktop;
+      const invokeDesktop = window.__HARNESS_ELECTRON__ && window.__HARNESS_ELECTRON__.invokeDesktop;
       if (invokeDesktop) {
-        const info = await invokeDesktop("openworkServerInfo");
+        const info = await invokeDesktop("harnessServerInfo");
         if (info && info.running === true) {
           baseUrl = String(info.baseUrl ?? info.connectUrl ?? "").trim().replace(/\/+$/, "");
           token = String(info.ownerToken ?? info.clientToken ?? "").trim();
@@ -84,9 +84,9 @@ export async function readConnectState(app: Surface): Promise<ConnectState> {
       }
     } catch {}
     if (!baseUrl || !token) {
-      const port = (localStorage.getItem("openwork.server.port") ?? "").trim();
+      const port = (localStorage.getItem("harness.server.port") ?? "").trim();
       baseUrl = port ? "http://127.0.0.1:" + port : baseUrl;
-      token = token || (localStorage.getItem("openwork.server.token") ?? "").trim();
+      token = token || (localStorage.getItem("harness.server.token") ?? "").trim();
     }
     if (!baseUrl || !token) {
       return { ok: false, status: null, connectEnabled: null, raw: { error: "Local server credentials are unavailable." } };
@@ -142,9 +142,9 @@ export async function readCloudMcpHealth(
     let baseUrl = "";
     let token = "";
     try {
-      const invokeDesktop = window.__OPENWORK_ELECTRON__ && window.__OPENWORK_ELECTRON__.invokeDesktop;
+      const invokeDesktop = window.__HARNESS_ELECTRON__ && window.__HARNESS_ELECTRON__.invokeDesktop;
       if (invokeDesktop) {
-        const info = await invokeDesktop("openworkServerInfo");
+        const info = await invokeDesktop("harnessServerInfo");
         if (info && info.running === true) {
           baseUrl = String(info.baseUrl ?? info.connectUrl ?? "").trim().replace(/\/+$/, "");
           token = String(info.ownerToken ?? info.clientToken ?? "").trim();
@@ -152,16 +152,16 @@ export async function readCloudMcpHealth(
       }
     } catch {}
     if (!baseUrl || !token) {
-      const port = (localStorage.getItem("openwork.server.port") ?? "").trim();
+      const port = (localStorage.getItem("harness.server.port") ?? "").trim();
       baseUrl = port ? "http://127.0.0.1:" + port : baseUrl;
-      token = token || (localStorage.getItem("openwork.server.token") ?? "").trim();
+      token = token || (localStorage.getItem("harness.server.token") ?? "").trim();
     }
     if (!baseUrl || !token) {
       return { ok: false, raw: { error: "Local server credentials are unavailable." } };
     }
     try {
       const response = await fetch(
-        baseUrl + "/workspace/" + encodeURIComponent(workspaceId) + "/mcp/openwork-cloud/health" + value,
+        baseUrl + "/workspace/" + encodeURIComponent(workspaceId) + "/mcp/harness-cloud/health" + value,
         { headers: { Authorization: "Bearer " + token } },
       );
       const text = await response.text();
@@ -210,15 +210,15 @@ export async function readConnectStateFile(
   }
   if (!app.handle.profileDir) throw new Error(`The ${app.handle.hostKind} app did not expose its profile directory.`);
   // The local server persists runtime state next to its config file
-  // (`openworkConfigDir()`). The dev-mode desktop redirects that XDG config
-  // root under its Electron userData dir (`<userData>/openwork-dev-data/xdg/config`),
+  // (`harnessConfigDir()`). The dev-mode desktop redirects that XDG config
+  // root under its Electron userData dir (`<userData>/harness-dev-data/xdg/config`),
   // so probe the known layouts in order.
   const paths = electronProfilePaths(app.handle.profileDir);
   const pathJoin = app.handle.hostKind === "daytona" ? posix.join : join;
   const candidates = [
-    pathJoin(paths.userDataDir, "openwork-dev-data", "xdg", "config", "openwork", "connect-state.json"),
-    pathJoin(paths.configHome, "openwork", "connect-state.json"),
-    pathJoin(paths.homeDir, ".config", "openwork", "connect-state.json"),
+    pathJoin(paths.userDataDir, "harness-dev-data", "xdg", "config", "harness", "connect-state.json"),
+    pathJoin(paths.configHome, "harness", "connect-state.json"),
+    pathJoin(paths.homeDir, ".config", "harness", "connect-state.json"),
   ];
   let text: string | null = null;
   if (app.handle.hostKind === "daytona") {
@@ -235,8 +235,8 @@ export async function readConnectStateFile(
       if (!/^\/[A-Za-z0-9._/-]+$/.test(path)) {
         throw new Error(`Unsafe connect-state path ${JSON.stringify(path)}: only absolute paths containing letters, digits and . _ / - are allowed.`);
       }
-      const output = await exec(sandbox, `if [ -f "${path}" ]; then cat "${path}"; else echo __OPENWORK_TESTKIT_MISSING__; fi`);
-      if (output.trim() !== "__OPENWORK_TESTKIT_MISSING__") {
+      const output = await exec(sandbox, `if [ -f "${path}" ]; then cat "${path}"; else echo __HARNESS_TESTKIT_MISSING__; fi`);
+      if (output.trim() !== "__HARNESS_TESTKIT_MISSING__") {
         text = output;
         break;
       }

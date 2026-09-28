@@ -1,10 +1,10 @@
 import { basename } from "node:path";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { assertWitnessModel, reloadRenderer, restartedThreadWorld, slowUncappedHistoryReads, type RestartMode } from "../worlds/thread-restart.ts";
 
 /**
- * A person restarts OpenWork (crash, force quit, or a normal quit) while a
+ * A person restarts Harness (crash, force quit, or a normal quit) while a
  * thread is still working, reopens that thread, and types the next message.
  * Whatever state the interrupted turn was left in, and however slowly the
  * cold engine returns the thread's complete history, the typed message must be

@@ -1,18 +1,18 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import type { GatewayAuthorizationRequest, GatewayDesktopOauthStartResponse, GatewayUsableModel } from "@openwork/types/den/gateway";
-import { catalogModelVariants, CLOUD_MODEL_CONFIG_VERSION } from "@openwork/types/cloud-model-fast";
+import type { GatewayAuthorizationRequest, GatewayDesktopOauthStartResponse, GatewayUsableModel } from "@harness/types/den/gateway";
+import { catalogModelVariants, CLOUD_MODEL_CONFIG_VERSION } from "@harness/types/cloud-model-fast";
 
 import { enginePoolForConfig, rolloverOutcomeApplied, type RolloverOutcome } from "./engine-pool.js";
 import type { EnvService } from "./env-file.js";
 import { ApiError } from "./errors.js";
 import { selectPrimaryCredentialEnvName, syncManagedProviderAuth } from "./managed-provider-auth.js";
-import { writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
+import { writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
 import {
-  hasOpenworkWorkspaceConfig,
-  readOpenworkWorkspaceConfig,
-  writeOpenworkWorkspaceConfig,
-} from "./openwork-workspace-config-store.js";
+  hasHarnessWorkspaceConfig,
+  readHarnessWorkspaceConfig,
+  writeHarnessWorkspaceConfig,
+} from "./harness-workspace-config-store.js";
 import {
   mergeRuntimeProviderUpdate,
   readGlobalRuntimeOpencodeConfig,
@@ -22,7 +22,7 @@ import {
   writeRuntimeOpencodeConfig,
 } from "./runtime-opencode-config-store.js";
 import type { ServerConfig } from "./types.js";
-import { openworkConfigPath } from "./workspace-files.js";
+import { harnessConfigPath } from "./workspace-files.js";
 import { findManagedEngineWorkspace } from "./workspaces.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -162,7 +162,7 @@ type DenProviderConnection = DenProvider & {
   authorizationRequests?: GatewayAuthorizationRequest[];
 };
 
-const gatewayProviderSource = "openwork_gateway";
+const gatewayProviderSource = "harness_gateway";
 
 type EnvEntry = {
   key: string;
@@ -397,7 +397,7 @@ function parseCredentialStatus(value: unknown): DenInferenceProviderSummary["cre
 }
 
 // Gateway rows (`ipr_*`) are a distinct Den resource: one runtime provider per
-// row, `source` pinned to "openwork_gateway" so the desktop can badge them.
+// row, `source` pinned to "harness_gateway" so the desktop can badge them.
 function parseInferenceProvider(value: unknown): DenInferenceProviderSummary | null {
   const provider = parseProvider(value, /^ipr_/i);
   if (!provider || !isRecord(value)) return null;
@@ -509,8 +509,8 @@ async function requestJson(
       headers: {
         Accept: "application/json",
         Authorization: `Bearer ${session.token}`,
-        "x-openwork-legacy-org-id": session.orgId,
-        "x-openwork-org-id": session.orgId,
+        "x-harness-legacy-org-id": session.orgId,
+        "x-harness-org-id": session.orgId,
       },
       signal: AbortSignal.any([signal, AbortSignal.timeout(requestTimeoutMs)]),
       redirect: "error",
@@ -610,7 +610,7 @@ function hashString(value: string): string {
 }
 
 function runtimeProviderId(provider: DenProvider): string {
-  return provider.source === "openwork" ? "openwork" : provider.id;
+  return provider.source === "harness" ? "harness" : provider.id;
 }
 
 function readProviderEnvNames(providerConfig: JsonRecord): string[] {
@@ -626,7 +626,7 @@ function upsertEnvEntry(entries: EnvEntry[], key: string, value: string): void {
   else entries.push({ key: trimmedKey, value: trimmedValue });
 }
 
-function readOpenWorkInferenceBaseUrl(providerConfig: JsonRecord): string | null {
+function readHarnessInferenceBaseUrl(providerConfig: JsonRecord): string | null {
   const options = providerConfig.options;
   if (isRecord(options)) {
     const baseUrl = readRequiredString(options.baseURL);
@@ -652,10 +652,10 @@ function providerEnvEntries(provider: DenProviderConnection): EnvEntry[] {
   if (provider.apiKey && envNames[0]) upsertEnvEntry(entries, envNames[0], provider.apiKey);
 
   const primaryCredential = provider.apiKey?.trim() || entries[0]?.value || "";
-  if (provider.source === "openwork" && primaryCredential) {
-    upsertEnvEntry(entries, "OPENWORK_API_KEY", primaryCredential);
-    const baseUrl = readOpenWorkInferenceBaseUrl(provider.providerConfig);
-    if (baseUrl) upsertEnvEntry(entries, "OPENWORK_INFERENCE_BASE_URL", baseUrl);
+  if (provider.source === "harness" && primaryCredential) {
+    upsertEnvEntry(entries, "HARNESS_API_KEY", primaryCredential);
+    const baseUrl = readHarnessInferenceBaseUrl(provider.providerConfig);
+    if (baseUrl) upsertEnvEntry(entries, "HARNESS_INFERENCE_BASE_URL", baseUrl);
   }
   return entries;
 }
@@ -687,7 +687,7 @@ function buildProviderConfig(provider: DenProviderConnection): JsonRecord {
     name: provider.name,
     env: readProviderEnvNames(provider.providerConfig),
   };
-  if (Object.keys(models).length > 0 || provider.source !== "openwork") config.models = models;
+  if (Object.keys(models).length > 0 || provider.source !== "harness") config.models = models;
 
   const npm = readRequiredString(provider.providerConfig.npm);
   if (npm) config.npm = npm;
@@ -816,19 +816,19 @@ function managedProviderMap(providers: Record<string, Record<string, unknown>>, 
   return Object.fromEntries(Object.entries(providers).filter(([providerId]) => ownedIds.has(providerId)));
 }
 
-function removeCloudProviderImportBaselines(openwork: JsonRecord): JsonRecord | null {
-  if (!isRecord(openwork.cloudImports) || !isRecord(openwork.cloudImports.providers)) return null;
-  if (Object.keys(openwork.cloudImports.providers).length === 0) return null;
+function removeCloudProviderImportBaselines(harness: JsonRecord): JsonRecord | null {
+  if (!isRecord(harness.cloudImports) || !isRecord(harness.cloudImports.providers)) return null;
+  if (Object.keys(harness.cloudImports.providers).length === 0) return null;
   return {
-    ...openwork,
+    ...harness,
     cloudImports: {
-      ...openwork.cloudImports,
+      ...harness.cloudImports,
       providers: {},
     },
   };
 }
 
-async function readLegacyOpenworkConfig(path: string): Promise<JsonRecord | null> {
+async function readLegacyHarnessConfig(path: string): Promise<JsonRecord | null> {
   try {
     const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
     return isRecord(parsed) ? parsed : null;
@@ -838,12 +838,12 @@ async function readLegacyOpenworkConfig(path: string): Promise<JsonRecord | null
 }
 
 function configuredIntervalMs(): number {
-  const configured = Number(process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS ?? "");
+  const configured = Number(process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS ?? "");
   return Number.isFinite(configured) && configured > 0 ? configured : defaultIntervalMs;
 }
 
 function configuredReloadRetryMs(): number {
-  const configured = Number(process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS ?? "");
+  const configured = Number(process.env.HARNESS_ENGINE_RELOAD_RETRY_MS ?? "");
   return Number.isFinite(configured) && configured > 0 ? configured : 15_000;
 }
 
@@ -1031,7 +1031,7 @@ export class CloudProviderSync {
     if (credentialSetId !== undefined && !/^gcs_[0-7][0-9a-hjkmnp-tv-z]{25}$/.test(credentialSetId)) throw new ApiError(400, "invalid_credential_set", "A credential set ID is required");
     const session = this.session;
     const generation = this.contextGeneration;
-    if (!session) throw new ApiError(401, "no_session", "Sign in to OpenWork first");
+    if (!session) throw new ApiError(401, "no_session", "Sign in to Harness first");
     if (session.orgId !== orgId) throw new ApiError(403, "organization_mismatch", "The active organization changed");
     const query = credentialSetId ? `?credentialSetId=${encodeURIComponent(credentialSetId)}` : "";
     const payload = await requestJson(this.fetchImpl, session, `/v1/inference-providers/${providerId}/oauth/start${query}`, this.providerFetchController.signal);
@@ -1284,7 +1284,7 @@ export class CloudProviderSync {
       for (const entry of envEntries) {
         const previous = storedEnv.get(entry.key);
         if (previous?.startsWith("ow_inf_") && (!this.managedProviderIds.has(provider.id) || this.ownedEnvKeys.get(entry.key) !== hashString(previous))) {
-          throw new Error("gateway_credential_ownership_conflict: Existing key is not a proven Gateway-owned binding; reconnect this provider without changing OpenWork Models credentials.");
+          throw new Error("gateway_credential_ownership_conflict: Existing key is not a proven Gateway-owned binding; reconnect this provider without changing Harness Models credentials.");
         }
       }
     }
@@ -1326,7 +1326,7 @@ export class CloudProviderSync {
     const workspaceCleanup = await this.cleanupWorkspaceTakeovers();
     const engineAvailable = this.engineAvailable();
     const runtimeFileChanged = engineAvailable
-      ? (await writeOpenworkRuntimeConfigFile(this.config)).changed
+      ? (await writeHarnessRuntimeConfigFile(this.config)).changed
       : false;
     // Deliver credentials before disposing the current provider instances.
     // OpenCode constructs and caches SDK clients from config + auth together;
@@ -1432,16 +1432,16 @@ export class CloudProviderSync {
         runtimeChanged = runtimeChanged || result.changed;
       }
 
-      const hasStoredConfig = await hasOpenworkWorkspaceConfig(this.config, workspace.id);
-      const openwork = hasStoredConfig
-        ? await readOpenworkWorkspaceConfig(this.config, workspace.id)
+      const hasStoredConfig = await hasHarnessWorkspaceConfig(this.config, workspace.id);
+      const harness = hasStoredConfig
+        ? await readHarnessWorkspaceConfig(this.config, workspace.id)
         : workspace.workspaceType !== "remote" && workspace.path.trim().length > 0
-          ? await readLegacyOpenworkConfig(openworkConfigPath(workspace.path))
+          ? await readLegacyHarnessConfig(harnessConfigPath(workspace.path))
           : null;
-      if (!openwork) continue;
-      const next = removeCloudProviderImportBaselines(openwork);
+      if (!harness) continue;
+      const next = removeCloudProviderImportBaselines(harness);
       if (!next) continue;
-      await writeOpenworkWorkspaceConfig(this.config, workspace.id, () => next);
+      await writeHarnessWorkspaceConfig(this.config, workspace.id, () => next);
       changed = true;
     }
     return { changed, runtimeChanged };
@@ -1489,7 +1489,7 @@ export class CloudProviderSync {
     await this.cleanupWorkspaceTakeovers();
 
     if (this.engineAvailable()) {
-      const fileResult = await writeOpenworkRuntimeConfigFile(this.config);
+      const fileResult = await writeHarnessRuntimeConfigFile(this.config);
       this.reloadPending = this.reloadPending || providerChanged || fileResult.changed;
     }
     const authResult = await syncManagedProviderAuth({
@@ -1524,7 +1524,7 @@ export class CloudProviderSync {
   }
 
   private async persistOwnership(): Promise<void> {
-    await writeOpenworkWorkspaceConfig(this.config, "__cloud_provider_ownership__", () => ({
+    await writeHarnessWorkspaceConfig(this.config, "__cloud_provider_ownership__", () => ({
       envHashes: Object.fromEntries(this.ownedEnvKeys),
       providerIds: [...this.managedProviderIds],
       ...(this.managedProviderIds.size > 0 && this.materializationContextHash !== null
@@ -1534,7 +1534,7 @@ export class CloudProviderSync {
   }
 
   private async restoreOwnership(): Promise<void> {
-    const saved = await readOpenworkWorkspaceConfig(this.config, "__cloud_provider_ownership__");
+    const saved = await readHarnessWorkspaceConfig(this.config, "__cloud_provider_ownership__");
     this.materializationContextHash = typeof saved.materializationContextHash === "string"
       && /^[a-f0-9]{64}$/.test(saved.materializationContextHash)
       ? saved.materializationContextHash

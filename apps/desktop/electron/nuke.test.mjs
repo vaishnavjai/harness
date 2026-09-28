@@ -17,10 +17,10 @@ import {
 } from "./nuke.mjs";
 import { runNukeCleanupWorker } from "./nuke-worker.mjs";
 
-const LEGACY_ORCHESTRATOR_DIR_NAME = ["openwork", "orchestrator"].join("-");
+const LEGACY_ORCHESTRATOR_DIR_NAME = ["harness", "orchestrator"].join("-");
 
 function legacyOrchestratorPath(home) {
-  return path.join(home, ".openwork", LEGACY_ORCHESTRATOR_DIR_NAME);
+  return path.join(home, ".harness", LEGACY_ORCHESTRATOR_DIR_NAME);
 }
 
 async function exists(targetPath) {
@@ -33,7 +33,7 @@ async function exists(targetPath) {
 }
 
 async function withTempDir(fn) {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-nuke-test-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-nuke-test-"));
   try {
     await fn(root);
   } finally {
@@ -51,7 +51,7 @@ function pendingNukeInput(root) {
 }
 
 function pendingNukePath(root) {
-  return path.join(root, "xdg", "openwork", ".nuke-pending.json");
+  return path.join(root, "xdg", "harness", ".nuke-pending.json");
 }
 
 async function writePendingNuke(root, pending) {
@@ -80,7 +80,7 @@ function fakeRuntimeManager() {
   return {
     dispose: async () => {},
     prepareFreshRuntime: async () => {},
-    sandboxCleanupOpenworkContainers: async () => ({ candidates: [], removed: [], errors: [] }),
+    sandboxCleanupHarnessContainers: async () => ({ candidates: [], removed: [], errors: [] }),
   };
 }
 
@@ -112,21 +112,21 @@ async function tinyDelay(ms = 140) {
 
 test("buildNukeManifest includes default macOS state roots and preserves bootstrap", () => {
   const home = "/Users/alice";
-  const userDataPath = "/Users/alice/Library/Application Support/com.differentai.openwork";
+  const userDataPath = "/Users/alice/Library/Application Support/com.vaishnavjai.harness";
   const manifest = buildNukeManifest({ env: {}, homedir: home, platform: "darwin", userDataPath });
 
-  assert.equal(manifest.bootstrapPath, "/Users/alice/.config/openwork/desktop-bootstrap.json");
-  assert.equal(manifest.preserveBootstrapPath, "/Users/alice/.config/openwork/desktop-bootstrap.json");
-  assert.deepEqual(manifest.partitions, ["default", "persist:openwork-browser"]);
+  assert.equal(manifest.bootstrapPath, "/Users/alice/.config/harness/desktop-bootstrap.json");
+  assert.equal(manifest.preserveBootstrapPath, "/Users/alice/.config/harness/desktop-bootstrap.json");
+  assert.deepEqual(manifest.partitions, ["default", "persist:harness-browser"]);
   assert.ok(manifest.deletePaths.includes(userDataPath));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/server.json"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/runtime.sqlite"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/runtime.sqlite-wal"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/runtime.sqlite-shm"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/runtime-opencode-config.json"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/engine-instances.json"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/tokens.json"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/openwork/env.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/server.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/runtime.sqlite"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/runtime.sqlite-wal"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/runtime.sqlite-shm"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/runtime-opencode-config.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/engine-instances.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/tokens.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.config/harness/env.json"));
   assert.ok(manifest.deletePaths.includes("/Users/alice/.local/share/opencode"));
   assert.ok(manifest.deletePaths.includes("/Users/alice/Library/Application Support/opencode"));
   assert.ok(manifest.deletePaths.includes("/Users/alice/.config/opencode"));
@@ -138,7 +138,7 @@ test("buildNukeManifest includes default macOS state roots and preserves bootstr
 
 test("buildNukeManifest wipes session state, server audit data, and workspace registries", () => {
   const home = "/Users/alice";
-  const userDataPath = "/Users/alice/Library/Application Support/com.differentai.openwork";
+  const userDataPath = "/Users/alice/Library/Application Support/com.vaishnavjai.harness";
   const manifest = buildNukeManifest({
     env: {},
     homedir: home,
@@ -148,25 +148,25 @@ test("buildNukeManifest wipes session state, server audit data, and workspace re
   });
 
   assert.ok(manifest.deletePaths.includes("/Users/alice/.local/state/opencode"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/.openwork/openwork-server"));
-  assert.ok(manifest.deletePaths.includes(`${userDataPath}/openwork-workspaces.json`));
-  assert.ok(manifest.deletePaths.includes(`${userDataPath}/openwork-server-tokens.json`));
-  assert.ok(manifest.deletePaths.includes(`${userDataPath}/openwork-server-state.json`));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/project/.opencode/openwork"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/project/.opencode/openwork.json"));
-  assert.ok(manifest.deletePaths.includes("/Users/alice/other/.opencode/openwork"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/.harness/harness-server"));
+  assert.ok(manifest.deletePaths.includes(`${userDataPath}/harness-workspaces.json`));
+  assert.ok(manifest.deletePaths.includes(`${userDataPath}/harness-server-tokens.json`));
+  assert.ok(manifest.deletePaths.includes(`${userDataPath}/harness-server-state.json`));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/project/.opencode/harness"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/project/.opencode/harness.json"));
+  assert.ok(manifest.deletePaths.includes("/Users/alice/other/.opencode/harness"));
   assert.ok(!manifest.deletePaths.includes("/Users/alice/project/.opencode"));
   assert.ok(!manifest.deletePaths.includes("/Users/alice/project"));
 });
 
 test("buildNukeManifest can include the bootstrap file in the wipe", () => {
-  const bootstrapPath = "/Users/alice/.config/openwork/desktop-bootstrap.json";
+  const bootstrapPath = "/Users/alice/.config/harness/desktop-bootstrap.json";
   const manifest = buildNukeManifest({
     env: {},
     homedir: "/Users/alice",
     platform: "darwin",
     preserveBootstrap: false,
-    userDataPath: "/Users/alice/Library/Application Support/com.differentai.openwork",
+    userDataPath: "/Users/alice/Library/Application Support/com.vaishnavjai.harness",
   });
 
   assert.equal(manifest.bootstrapPath, bootstrapPath);
@@ -179,11 +179,11 @@ test("buildNukeManifest includes default Linux state roots", () => {
     env: {},
     homedir: "/home/alice",
     platform: "linux",
-    userDataPath: "/home/alice/.config/com.differentai.openwork",
+    userDataPath: "/home/alice/.config/com.vaishnavjai.harness",
   });
 
-  assert.equal(manifest.preserveBootstrapPath, "/home/alice/.config/openwork/desktop-bootstrap.json");
-  assert.ok(manifest.deletePaths.includes("/home/alice/.config/com.differentai.openwork"));
+  assert.equal(manifest.preserveBootstrapPath, "/home/alice/.config/harness/desktop-bootstrap.json");
+  assert.ok(manifest.deletePaths.includes("/home/alice/.config/com.vaishnavjai.harness"));
   assert.ok(manifest.deletePaths.includes("/home/alice/.local/share/opencode"));
   assert.ok(manifest.deletePaths.includes("/home/alice/.config/opencode"));
   assert.ok(manifest.deletePaths.includes("/home/alice/.cache/opencode"));
@@ -199,56 +199,56 @@ test("buildNukeManifest includes Windows path shapes", () => {
     env,
     homedir: "C:\\Users\\Alice",
     platform: "win32",
-    userDataPath: "C:\\Users\\Alice\\AppData\\Roaming\\com.differentai.openwork",
+    userDataPath: "C:\\Users\\Alice\\AppData\\Roaming\\com.vaishnavjai.harness",
   });
 
-  assert.equal(manifest.preserveBootstrapPath, "C:\\Users\\Alice\\AppData\\Local\\openwork\\desktop-bootstrap.json");
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\com.differentai.openwork"));
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\openwork\\server.json"));
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\openwork\\runtime.sqlite"));
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\openwork\\tokens.json"));
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\openwork\\env.json"));
+  assert.equal(manifest.preserveBootstrapPath, "C:\\Users\\Alice\\AppData\\Local\\harness\\desktop-bootstrap.json");
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\com.vaishnavjai.harness"));
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\harness\\server.json"));
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\harness\\runtime.sqlite"));
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\harness\\tokens.json"));
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\harness\\env.json"));
   assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\opencode"));
   assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\AppData\\Roaming\\opencode"));
   assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\.cache\\opencode"));
-  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\.config\\openwork\\desktop-bootstrap.json"));
+  assert.ok(manifest.deletePaths.includes("C:\\Users\\Alice\\.config\\harness\\desktop-bootstrap.json"));
 });
 
-test("buildNukeManifest honors OPENWORK_ELECTRON_USERDATA override", () => {
+test("buildNukeManifest honors HARNESS_ELECTRON_USERDATA override", () => {
   const manifest = buildNukeManifest({
-    env: { OPENWORK_ELECTRON_USERDATA: "/tmp/openwork-userdata" },
+    env: { HARNESS_ELECTRON_USERDATA: "/tmp/harness-userdata" },
     homedir: "/Users/alice",
     platform: "darwin",
-    userDataPath: "/Users/alice/Library/Application Support/com.differentai.openwork",
+    userDataPath: "/Users/alice/Library/Application Support/com.vaishnavjai.harness",
   });
 
-  assert.ok(manifest.deletePaths.includes("/tmp/openwork-userdata"));
-  assert.ok(!manifest.deletePaths.includes("/Users/alice/Library/Application Support/com.differentai.openwork"));
+  assert.ok(manifest.deletePaths.includes("/tmp/harness-userdata"));
+  assert.ok(!manifest.deletePaths.includes("/Users/alice/Library/Application Support/com.vaishnavjai.harness"));
 });
 
 test("buildNukeManifest redirects HOME/XDG paths in dev mode", () => {
   const manifest = buildNukeManifest({
-    env: { OPENWORK_DEV_MODE: "1" },
+    env: { HARNESS_DEV_MODE: "1" },
     homedir: "/Users/alice",
     platform: "darwin",
-    userDataPath: "/tmp/openwork-dev-userdata",
+    userDataPath: "/tmp/harness-dev-userdata",
   });
 
   assert.equal(
     manifest.preserveBootstrapPath,
-    "/tmp/openwork-dev-userdata/openwork-dev-data/home/.config/openwork/desktop-bootstrap.json",
+    "/tmp/harness-dev-userdata/harness-dev-data/home/.config/harness/desktop-bootstrap.json",
   );
-  assert.ok(manifest.deletePaths.includes("/tmp/openwork-dev-userdata"));
-  assert.ok(manifest.deletePaths.includes("/tmp/openwork-dev-userdata/openwork-dev-data/xdg/data/opencode"));
-  assert.ok(manifest.deletePaths.includes("/tmp/openwork-dev-userdata/openwork-dev-data/config/opencode"));
-  assert.ok(manifest.deletePaths.includes("/tmp/openwork-dev-userdata/openwork-dev-data/xdg/cache/opencode"));
+  assert.ok(manifest.deletePaths.includes("/tmp/harness-dev-userdata"));
+  assert.ok(manifest.deletePaths.includes("/tmp/harness-dev-userdata/harness-dev-data/xdg/data/opencode"));
+  assert.ok(manifest.deletePaths.includes("/tmp/harness-dev-userdata/harness-dev-data/config/opencode"));
+  assert.ok(manifest.deletePaths.includes("/tmp/harness-dev-userdata/harness-dev-data/xdg/cache/opencode"));
   assert.ok(!manifest.deletePaths.some((targetPath) => targetPath.startsWith("/Users/alice/")));
 });
 
 test("buildNukeManifest never reaches production state from a non-dev isolated profile", () => {
-  const userDataPath = "/Users/alice/Library/Application Support/com.differentai.openwork.dev.wt2";
+  const userDataPath = "/Users/alice/Library/Application Support/com.vaishnavjai.harness.dev.wt2";
   const manifest = buildNukeManifest({
-    env: { OPENWORK_ELECTRON_APP_IDENTIFIER: "com.differentai.openwork.dev.wt2" },
+    env: { HARNESS_ELECTRON_APP_IDENTIFIER: "com.vaishnavjai.harness.dev.wt2" },
     homedir: "/Users/alice",
     platform: "darwin",
     userDataPath,
@@ -256,15 +256,15 @@ test("buildNukeManifest never reaches production state from a non-dev isolated p
 
   assert.ok(manifest.deletePaths.includes(userDataPath));
   for (const productionPath of [
-    "/Users/alice/.config/openwork",
-    "/Users/alice/.config/openwork/tokens.json",
-    "/Users/alice/.config/openwork/runtime.sqlite",
+    "/Users/alice/.config/harness",
+    "/Users/alice/.config/harness/tokens.json",
+    "/Users/alice/.config/harness/runtime.sqlite",
     "/Users/alice/.config/opencode",
     "/Users/alice/.cache/opencode",
     "/Users/alice/.local/share/opencode",
     "/Users/alice/Library/Application Support/opencode",
     legacyOrchestratorPath("/Users/alice"),
-    "/Users/alice/Library/Caches/com.differentai.openwork.ShipIt",
+    "/Users/alice/Library/Caches/com.vaishnavjai.harness.ShipIt",
   ]) {
     assert.ok(!manifest.deletePaths.includes(productionPath), `must not delete ${productionPath}`);
   }
@@ -273,10 +273,10 @@ test("buildNukeManifest never reaches production state from a non-dev isolated p
 test("buildNukeManifest still wipes a dev profile's own orchestrator data dir", () => {
   const devOrchestratorPath = `${legacyOrchestratorPath("/Users/alice")}-dev`;
   const manifest = buildNukeManifest({
-    env: { OPENWORK_DEV_MODE: "1", OPENWORK_DATA_DIR: devOrchestratorPath },
+    env: { HARNESS_DEV_MODE: "1", HARNESS_DATA_DIR: devOrchestratorPath },
     homedir: "/Users/alice",
     platform: "darwin",
-    userDataPath: "/tmp/openwork-dev-userdata",
+    userDataPath: "/tmp/harness-dev-userdata",
   });
 
   assert.ok(manifest.deletePaths.includes(devOrchestratorPath));
@@ -285,10 +285,10 @@ test("buildNukeManifest still wipes a dev profile's own orchestrator data dir", 
 
 test("buildNukeManifest ignores an inherited XDG_CONFIG_HOME pointing at production config", () => {
   const manifest = buildNukeManifest({
-    env: { OPENWORK_DEV_MODE: "1", XDG_CONFIG_HOME: "/Users/alice/.config" },
+    env: { HARNESS_DEV_MODE: "1", XDG_CONFIG_HOME: "/Users/alice/.config" },
     homedir: "/Users/alice",
     platform: "darwin",
-    userDataPath: "/tmp/openwork-dev-userdata",
+    userDataPath: "/tmp/harness-dev-userdata",
   });
 
   assert.ok(!manifest.deletePaths.some((targetPath) => targetPath.startsWith("/Users/alice/")));
@@ -299,7 +299,7 @@ test("buildNukeManifest excludes paths that would remove ~/.opencode/bin", () =>
     env: { OPENCODE_CONFIG_DIR: "/Users/alice/.opencode" },
     homedir: "/Users/alice",
     platform: "darwin",
-    userDataPath: "/tmp/openwork-userdata",
+    userDataPath: "/tmp/harness-userdata",
   });
 
   assert.ok(!manifest.deletePaths.includes("/Users/alice/.opencode"));
@@ -312,7 +312,7 @@ test("sanitizeDesktopBootstrapConfig strips secrets and keeps deployment fields"
     baseUrl: " https://den.example.com ",
     apiBaseUrl: " https://api.den.example.com ",
     requireSignin: true,
-    brandAppName: " Acme OpenWork ",
+    brandAppName: " Acme Harness ",
     brandLogoUrl: " https://cdn.example.com/logo.png ",
     brandIconUrl: " https://cdn.example.com/icon.png ",
     handoff: { grant: "secret", denBaseUrl: "https://den.example.com" },
@@ -324,7 +324,7 @@ test("sanitizeDesktopBootstrapConfig strips secrets and keeps deployment fields"
     baseUrl: "https://den.example.com",
     apiBaseUrl: "https://api.den.example.com",
     requireSignin: true,
-    brandAppName: "Acme OpenWork",
+    brandAppName: "Acme Harness",
     brandLogoUrl: "https://cdn.example.com/logo.png",
     brandIconUrl: "https://cdn.example.com/icon.png",
     writtenAt,
@@ -416,7 +416,7 @@ test("runPendingNukeCleanup removes the sentinel after all pending paths are gon
 test("runPendingNukeCleanup retains the choice to remove bootstrap state", async () => {
   await withTempDir(async (root) => {
     const input = pendingNukeInput(root);
-    const bootstrapPath = path.join(input.env.XDG_CONFIG_HOME, "openwork", "desktop-bootstrap.json");
+    const bootstrapPath = path.join(input.env.XDG_CONFIG_HOME, "harness", "desktop-bootstrap.json");
     await mkdir(path.dirname(bootstrapPath), { recursive: true });
     await writeFile(bootstrapPath, JSON.stringify({ baseUrl: "https://den.example.com" }), "utf8");
     await writePendingNuke(root, {
@@ -476,8 +476,8 @@ test("runPendingNukeCleanup rewrites only failed paths and removes them on the n
 test("runPendingNukeCleanup refuses replayed paths outside an isolated profile", async () => {
   await withTempDir(async (root) => {
     const userDataPath = path.join(root, "userData");
-    const productionPath = path.join(root, "home", ".config", "openwork", "tokens.json");
-    const profilePath = path.join(userDataPath, "openwork-server-tokens.json");
+    const productionPath = path.join(root, "home", ".config", "harness", "tokens.json");
+    const profilePath = path.join(userDataPath, "harness-server-tokens.json");
     await mkdir(path.dirname(productionPath), { recursive: true });
     await mkdir(userDataPath, { recursive: true });
     await writeFile(productionPath, "production secrets", "utf8");
@@ -487,7 +487,7 @@ test("runPendingNukeCleanup refuses replayed paths outside an isolated profile",
     await writeFile(pendingPath, `${JSON.stringify({ paths: [productionPath, profilePath] })}\n`, "utf8");
 
     const result = await runPendingNukeCleanup({
-      env: { OPENWORK_ELECTRON_APP_IDENTIFIER: "com.differentai.openwork.dev.wt2" },
+      env: { HARNESS_ELECTRON_APP_IDENTIFIER: "com.vaishnavjai.harness.dev.wt2" },
       homedir: path.join(root, "home"),
       platform: process.platform === "win32" ? "win32" : "darwin",
       userDataPath,
@@ -527,10 +527,10 @@ test("nuke worker payload only serializes safe path inputs", () => {
   const nukeInput = buildNukeWorkerNukeInput({
     env: {
       APPDATA: "C:\\Users\\Alice\\AppData\\Roaming",
-      OPENWORK_API_KEY: "secret-api-key",
-      OPENWORK_TOKEN: "secret-token",
-      OPENWORK_ELECTRON_REMOTE_DEBUG_PORT: "9888",
-      OPENWORK_TOKEN_STORE: "C:\\Users\\Alice\\AppData\\Roaming\\openwork\\tokens.json",
+      HARNESS_API_KEY: "secret-api-key",
+      HARNESS_TOKEN: "secret-token",
+      HARNESS_ELECTRON_REMOTE_DEBUG_PORT: "9888",
+      HARNESS_TOKEN_STORE: "C:\\Users\\Alice\\AppData\\Roaming\\harness\\tokens.json",
       XDG_CONFIG_HOME: "/tmp/config",
     },
     homedir: "/tmp/home",
@@ -543,14 +543,14 @@ test("nuke worker payload only serializes safe path inputs", () => {
     nukeInput,
     appExecutablePath: process.execPath,
     appArgv: ["--remote-debugging-port=9888", "--remote-debugging-address=0.0.0.0", "--secret=token"],
-    pendingPath: "/tmp/config/openwork/.nuke-pending.json",
+    pendingPath: "/tmp/config/harness/.nuke-pending.json",
     nowMs: 1_000,
   });
   const serialized = JSON.stringify(payload);
 
   assert.equal(payload.nukeInput.env.APPDATA, "C:\\Users\\Alice\\AppData\\Roaming");
   assert.equal(payload.nukeInput.env.XDG_CONFIG_HOME, "/tmp/config");
-  assert.equal(payload.nukeInput.env.OPENWORK_TOKEN_STORE, "C:\\Users\\Alice\\AppData\\Roaming\\openwork\\tokens.json");
+  assert.equal(payload.nukeInput.env.HARNESS_TOKEN_STORE, "C:\\Users\\Alice\\AppData\\Roaming\\harness\\tokens.json");
   assert.equal(payload.nukeInput.preserveBootstrap, false);
   assert.deepEqual(payload.appArgv, []);
   assert.equal(serialized.includes("secret-api-key"), false);
@@ -558,16 +558,16 @@ test("nuke worker payload only serializes safe path inputs", () => {
   assert.equal(serialized.includes("--secret"), false);
   assert.equal(serialized.includes("0.0.0.0"), false);
   assert.equal(serialized.includes("9888"), false);
-  assert.equal(serialized.includes("OPENWORK_ELECTRON_REMOTE_DEBUG_PORT"), false);
-  assert.equal(serialized.includes("OPENWORK_API_KEY"), false);
-  assert.equal(serialized.includes("OPENWORK_TOKEN\""), false);
+  assert.equal(serialized.includes("HARNESS_ELECTRON_REMOTE_DEBUG_PORT"), false);
+  assert.equal(serialized.includes("HARNESS_API_KEY"), false);
+  assert.equal(serialized.includes("HARNESS_TOKEN\""), false);
 
   const devPayload = buildNukeWorkerPayload({
     parentPid: 123,
     nukeInput,
     appExecutablePath: process.execPath,
     appArgv: ["/repo/apps/desktop/electron/main.mjs", "--remote-debugging-port=9888"],
-    pendingPath: "/tmp/config/openwork/.nuke-pending.json",
+    pendingPath: "/tmp/config/harness/.nuke-pending.json",
     nowMs: 1_000,
   });
   assert.deepEqual(devPayload.appArgv, ["/repo/apps/desktop/electron/main.mjs"]);
@@ -576,7 +576,7 @@ test("nuke worker payload only serializes safe path inputs", () => {
 test("scheduleNukeCleanupWorker launches Electron as Node with a detached safe payload", async () => {
   await withTempDir(async (root) => {
     const input = pendingNukeInput(root);
-    input.env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT = "9888";
+    input.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT = "9888";
     const plan = {
       pendingPath: pendingNukePath(root),
     };
@@ -592,7 +592,7 @@ test("scheduleNukeCleanupWorker launches Electron as Node with a detached safe p
       plan,
       execPath: process.execPath,
       argv: [process.execPath, "--remote-debugging-port=9888", "--remote-debugging-address=0.0.0.0", "--ignored"],
-      env: { SECRET_TOKEN: "do-not-write", XDG_CONFIG_HOME: input.env.XDG_CONFIG_HOME, OPENWORK_ELECTRON_REMOTE_DEBUG_PORT: "9888" },
+      env: { SECRET_TOKEN: "do-not-write", XDG_CONFIG_HOME: input.env.XDG_CONFIG_HOME, HARNESS_ELECTRON_REMOTE_DEBUG_PORT: "9888" },
       spawnFn: (command, args, options) => {
         spawnCommand = command;
         spawnArgs = args;
@@ -611,8 +611,8 @@ test("scheduleNukeCleanupWorker launches Electron as Node with a detached safe p
     assert.equal(spawnOptions.stdio, "ignore");
     assert.equal(spawnOptions.shell, undefined);
     assert.equal(spawnOptions.env.ELECTRON_RUN_AS_NODE, "1");
-    assert.equal(spawnOptions.env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT, undefined);
-    assert.equal(payload.nukeInput.env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT, undefined);
+    assert.equal(spawnOptions.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT, undefined);
+    assert.equal(payload.nukeInput.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT, undefined);
     assert.deepEqual(payload.appArgv, []);
     assert.equal(JSON.stringify(payload).includes("do-not-write"), false);
 
@@ -647,7 +647,7 @@ test("nuke cleanup worker waits for parent exit, clears pending path, removes pa
     let launchEnv = {};
 
     const result = await runNukeCleanupWorker(payloadPath, {
-      env: { ELECTRON_RUN_AS_NODE: "1", OPENWORK_ELECTRON_REMOTE_DEBUG_PORT: "9888" },
+      env: { ELECTRON_RUN_AS_NODE: "1", HARNESS_ELECTRON_REMOTE_DEBUG_PORT: "9888" },
       relaunchHandleGraceMs: 0,
       spawnApp: (_command, args, options) => {
         launchedAfterParentExit = parent.exitCode !== null;
@@ -661,7 +661,7 @@ test("nuke cleanup worker waits for parent exit, clears pending path, removes pa
     assert.equal(launchedAfterParentExit, true);
     assert.deepEqual(launchedArgs, []);
     assert.equal(launchEnv.ELECTRON_RUN_AS_NODE, undefined);
-    assert.equal(launchEnv.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT, undefined);
+    assert.equal(launchEnv.HARNESS_ELECTRON_REMOTE_DEBUG_PORT, undefined);
     assert.equal(await exists(targetPath), false);
     assert.equal(await exists(pendingPath), false);
     assert.equal(await exists(payloadPath), false);
@@ -705,11 +705,11 @@ test("executeNukeFreshStart skips host-wide container cleanup on an isolated pro
   await withTempDir(async (root) => {
     const runtimeManager = fakeRuntimeManager();
     let cleanedContainers = 0;
-    runtimeManager.sandboxCleanupOpenworkContainers = async () => {
+    runtimeManager.sandboxCleanupHarnessContainers = async () => {
       cleanedContainers += 1;
       return { candidates: [], removed: [], errors: [] };
     };
-    const input = { ...pendingNukeInput(root), env: { OPENWORK_DEV_MODE: "1" } };
+    const input = { ...pendingNukeInput(root), env: { HARNESS_DEV_MODE: "1" } };
     await mkdir(input.userDataPath, { recursive: true });
 
     await executeNukeFreshStart({
@@ -729,7 +729,7 @@ test("executeNukeFreshStart still cleans containers on the default profile", asy
   await withTempDir(async (root) => {
     const runtimeManager = fakeRuntimeManager();
     let cleanedContainers = 0;
-    runtimeManager.sandboxCleanupOpenworkContainers = async () => {
+    runtimeManager.sandboxCleanupHarnessContainers = async () => {
       cleanedContainers += 1;
       return { candidates: [], removed: [], errors: [] };
     };
@@ -847,7 +847,7 @@ test("executeNukeFreshStart relaunches directly when no paths remain pending", a
 test("executeNukeFreshStart removes the bootstrap when preservation is disabled", async () => {
   await withTempDir(async (root) => {
     const input = { ...pendingNukeInput(root), preserveBootstrap: false };
-    const bootstrapPath = path.join(input.env.XDG_CONFIG_HOME, "openwork", "desktop-bootstrap.json");
+    const bootstrapPath = path.join(input.env.XDG_CONFIG_HOME, "harness", "desktop-bootstrap.json");
     await mkdir(path.dirname(bootstrapPath), { recursive: true });
     await writeFile(bootstrapPath, JSON.stringify({ baseUrl: "https://den.example.com" }), "utf8");
     await mkdir(input.userDataPath, { recursive: true });

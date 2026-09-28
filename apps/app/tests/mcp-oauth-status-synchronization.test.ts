@@ -180,7 +180,7 @@ describe("local MCP entries from opencode.json", () => {
     expect(entry?.config.command).toBeUndefined();
   });
 
-  test("entries relayed by the OpenWork server get the same fold before readers touch command", () => {
+  test("entries relayed by the Harness server get the same fold before readers touch command", () => {
     // The server passes opencode.json entries through verbatim, so a
     // Claude-style string command reaches the app unless the boundary folds it.
     const relayed: McpServerEntry["config"] = JSON.parse(JSON.stringify({ type: "local", command: "python3", args: ["-m", "http.server", "8321"], enabled: false }));

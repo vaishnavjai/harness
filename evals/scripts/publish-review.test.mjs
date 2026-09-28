@@ -129,7 +129,7 @@ test("stale heads and run attempts do not publish", async () => {
   assert.match(staleHead.logs[0], /stale/);
 });
 
-const jobEnv = { GITHUB_REPOSITORY: repo, REVIEW_RUN_ID: "30", OPENWORK_REVIEW_URL: "https://review.example.test", BLOB_READ_WRITE_TOKEN: "synthetic" };
+const jobEnv = { GITHUB_REPOSITORY: repo, REVIEW_RUN_ID: "30", HARNESS_REVIEW_URL: "https://review.example.test", BLOB_READ_WRITE_TOKEN: "synthetic" };
 test("publication job distinguishes published, skipped, unavailable and failed without leaking errors", async () => {
   for (const [value, state, code] of [
     [{ posted: true, urls: { report: `https://review.example.test/r/${"a".repeat(32)}` } }, "published", 0],

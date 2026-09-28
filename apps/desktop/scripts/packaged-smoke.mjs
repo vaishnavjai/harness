@@ -7,7 +7,7 @@ import { runCommand, runConcurrent } from "./packaged-smoke-runner.mjs";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 if (process.platform !== "linux") throw new Error("The fast packaged smoke gate currently targets Linux.");
-const output = resolve(process.env.OPENWORK_PACKAGED_SMOKE_DIR || join(tmpdir(), `openwork-packaged-smoke-${process.pid}`));
+const output = resolve(process.env.HARNESS_PACKAGED_SMOKE_DIR || join(tmpdir(), `harness-packaged-smoke-${process.pid}`));
 mkdirSync(output, { recursive: true });
 const report = { commit: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim(), phases: [], passed: false };
 const started = performance.now();
@@ -35,8 +35,8 @@ function run(name, command, args, timeout, extraEnv = {}, cwd = repo) {
 // launch. Only these artifacts contain that code path, so each one is packaged
 // and booted on a fresh profile; the public flavor is covered by app-smoke.
 const gatedFlavors = [
-  { flavor: "enterprise", config: "electron-builder.enterprise.yml", executable: "openwork-enterprise" },
-  { flavor: "cloud", config: "electron-builder.cloud.yml", executable: "openwork-cloud" },
+  { flavor: "enterprise", config: "electron-builder.enterprise.yml", executable: "harness-enterprise" },
+  { flavor: "cloud", config: "electron-builder.cloud.yml", executable: "harness-cloud" },
 ];
 const flavorOutput = (flavor) => join(output, flavor);
 
@@ -53,10 +53,10 @@ async function bootPackagedDesktop(name, journey, binary, timeout, display) {
     cwd: repo, stdio: "inherit", timeout,
     env: {
       ...process.env,
-      OPENWORK_EVAL_ELECTRON_BINARY: binary,
-      OPENWORK_EVAL_ELECTRON_RESOURCES_PREPARED: "1",
-      OPENWORK_EVAL_ENGINE: "v1",
-      OPENWORK_EVAL_SURFACES_DIR: join(output, "profiles", name),
+      HARNESS_EVAL_ELECTRON_BINARY: binary,
+      HARNESS_EVAL_ELECTRON_RESOURCES_PREPARED: "1",
+      HARNESS_EVAL_ENGINE: "v1",
+      HARNESS_EVAL_SURFACES_DIR: join(output, "profiles", name),
       ELECTRON_RUN_AS_NODE: "",
       NODE_PATH: "", NODE_OPTIONS: "",
     },
@@ -76,7 +76,7 @@ try {
       packageFlavor(`package-${flavor}`, config, flavorOutput(flavor));
     }
   }
-  const binary = join(output, "linux-unpacked/openwork");
+  const binary = join(output, "linux-unpacked/harness");
   const resources = join(output, "linux-unpacked/resources");
   const archive = join(resources, "app.asar");
   if (!existsSync(archive)) throw new Error(`Missing packaged archive: ${archive}`);
@@ -110,7 +110,7 @@ try {
     }
   }
   // The same enterprise artifact, booted as an already-activated install (the update path for existing customers).
-  check("desktop-boot-enterprise-activated", "packaged-activated-launch", join(flavorOutput("enterprise"), "linux-unpacked", "openwork-enterprise"), 150_000);
+  check("desktop-boot-enterprise-activated", "packaged-activated-launch", join(flavorOutput("enterprise"), "linux-unpacked", "harness-enterprise"), 150_000);
   if (selected("desktop-quit-path")) matched.add("desktop-quit-path");
   const unknown = [...journeys].filter((journey) => !matched.has(journey));
   if (unknown.length) throw new Error(`No packaged smoke check runs journey ${unknown.join(", ")}.`);
@@ -123,7 +123,7 @@ try {
   if (selected("desktop-quit-path")) await bootPackagedDesktop(
     "desktop-quit-enterprise",
     "desktop-quit-path",
-    join(flavorOutput("enterprise"), "linux-unpacked", "openwork-enterprise"),
+    join(flavorOutput("enterprise"), "linux-unpacked", "harness-enterprise"),
     300_000,
     190,
   );

@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { denFetch } from "@openwork/behaviors";
-import type { Seed } from "@openwork/env";
-import { isRecord } from "./openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import type { Seed } from "@harness/env";
+import { isRecord } from "./harness-server-cli.ts";
 
 function clientIdFrom(value: unknown): string {
   const id = isRecord(value) ? value.client_id : undefined;
@@ -10,7 +10,7 @@ function clientIdFrom(value: unknown): string {
 }
 
 /**
- * A signed-in member and two MCP clients that ask for OpenWork access: one
+ * A signed-in member and two MCP clients that ask for Harness access: one
  * whose only return address is this computer (loopback) and one that
  * returns to a public website.
  */

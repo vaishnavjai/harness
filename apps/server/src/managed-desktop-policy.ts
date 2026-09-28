@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
-import { DESKTOP_POLICY_ENFORCEMENT_ENABLED, desktopConfigSchema, type DesktopConfig } from "@openwork/types/den/desktop-policies-runtime";
+import { DESKTOP_POLICY_ENFORCEMENT_ENABLED, desktopConfigSchema, type DesktopConfig } from "@harness/types/den/desktop-policies-runtime";
 import type { CloudProviderDenSession } from "./cloud-provider-sync.js";
 import type { ServerConfig } from "./types.js";
 import { isRecord } from "./workspace-kv-store.js";
@@ -119,7 +119,7 @@ class ManagedDesktopPolicy {
       if (remainingMs <= 0) throw new Error("Den read deadline exceeded");
       try {
         const response = await externalFetch(`${session.baseUrl}${path}`, {
-          headers: { Accept: "application/json", Authorization: `Bearer ${session.token}`, "x-openwork-org-id": session.orgId, "x-openwork-legacy-org-id": session.orgId },
+          headers: { Accept: "application/json", Authorization: `Bearer ${session.token}`, "x-harness-org-id": session.orgId, "x-harness-legacy-org-id": session.orgId },
           redirect: "error",
           signal: AbortSignal.timeout(Math.min(DEN_READ_ATTEMPT_TIMEOUT_MS, remainingMs)),
         });
@@ -127,7 +127,7 @@ class ManagedDesktopPolicy {
         if (allowNotFound && response.status === 404) return null;
         if (!response.ok) {
           if (attempt < DEN_READ_MAX_ATTEMPTS && RETRYABLE_DEN_STATUSES.has(response.status)) {
-            console.warn("[openwork:managed-policy] retrying Den verification", {
+            console.warn("[harness:managed-policy] retrying Den verification", {
               reason: "http_transient", status: response.status, attempt: attempt + 1,
             });
             void response.body?.cancel().catch(() => undefined);
@@ -142,7 +142,7 @@ class ManagedDesktopPolicy {
         this.identityChanged(generation);
         const reason = transientTransportReason(error);
         if (attempt < DEN_READ_MAX_ATTEMPTS && reason && performance.now() < deadline) {
-          console.warn("[openwork:managed-policy] retrying Den verification", {
+          console.warn("[harness:managed-policy] retrying Den verification", {
             reason, status: null, attempt: attempt + 1,
           });
           continue;
@@ -258,8 +258,8 @@ class ManagedDesktopPolicy {
           const items = isRecord(catalog) ? catalog[field] : null;
           if (!Array.isArray(items)) throw new Error("Invalid catalog");
           return items.filter(isRecord).some((item) =>
-            (gateway ? /^ipr_/.test(providerID) && item.source === "openwork_gateway" && item.status === "active" && item.id === providerID
-              : /^(?:lpr_|openwork$)/i.test(providerID) && (item.source === "openwork" ? "openwork" : item.id) === providerID)
+            (gateway ? /^ipr_/.test(providerID) && item.source === "harness_gateway" && item.status === "active" && item.id === providerID
+              : /^(?:lpr_|harness$)/i.test(providerID) && (item.source === "harness" ? "harness" : item.id) === providerID)
             && (item.organizationId === undefined || item.organizationId === session.orgId)
             && Array.isArray(item.models) && item.models.filter(isRecord).some((model) => model.id === modelID));
         }));

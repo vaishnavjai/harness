@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec, type SpecBodyContext } from "@openwork/testkit";
+import { spec, type SpecBodyContext } from "@harness/testkit";
 import { archiveActiveSessions } from "../worlds/session-shell.ts";
 import { awayFirstPrompt, awayQueuedPrompt } from "../worlds/chat.ts";
 

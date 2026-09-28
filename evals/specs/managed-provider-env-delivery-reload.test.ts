@@ -2,20 +2,20 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { mkdir, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { eventually, mcpMock, needs, test } from "@openwork/testkit";
+import { eventually, mcpMock, needs, test } from "@harness/testkit";
 import { expect } from "vitest";
 
 import { resetManagedProviderAuthCache } from "../../apps/server/src/managed-provider-auth.js";
-import { openworkRuntimeConfigFilePath } from "../../apps/server/src/openwork-runtime-config.js";
+import { harnessRuntimeConfigFilePath } from "../../apps/server/src/harness-runtime-config.js";
 import { startServer } from "../../apps/server/src/server.js";
 import type { ServerConfig } from "../../apps/server/src/types.js";
-import { bootManagedOpenworkServer, close, isRecord, listen } from "../worlds/openwork-server-cli.ts";
+import { bootManagedHarnessServer, close, isRecord, listen } from "../worlds/harness-server-cli.ts";
 
 const CLIENT_TOKEN = "owt_managed_provider_env_client";
 const HOST_TOKEN = "owt_managed_provider_env_host";
 
 function hostHeaders() {
-  return { "x-openwork-host-token": HOST_TOKEN, "content-type": "application/json" };
+  return { "x-harness-host-token": HOST_TOKEN, "content-type": "application/json" };
 }
 
 function managedProviderChanges(requests: string[]): string[] {
@@ -42,7 +42,7 @@ async function handleEngineRequest(
     return;
   }
   if (method === "GET" && path === "/config") {
-    const content = await readFile(openworkRuntimeConfigFilePath(config), "utf8");
+    const content = await readFile(harnessRuntimeConfigFilePath(config), "utf8");
     response.writeHead(200, { "content-type": "application/json" });
     response.end(content);
     return;
@@ -82,11 +82,11 @@ async function startFakeEngine(config: ServerConfig, requests: string[]) {
 }
 
 test("stored managed provider credentials reload only after full session or auth delivery", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-provider-env-reload-"));
-  const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
-  const previousEnvStore = process.env.OPENWORK_ENV_STORE;
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
-  process.env.OPENWORK_ENV_STORE = join(root, "env.json");
+  const root = await mkdtemp(join(tmpdir(), "harness-provider-env-reload-"));
+  const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
+  const previousEnvStore = process.env.HARNESS_ENV_STORE;
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_ENV_STORE = join(root, "env.json");
   resetManagedProviderAuthCache();
 
   const engineRequests: string[] = [];
@@ -233,8 +233,8 @@ test("stored managed provider credentials reload only after full session or auth
     if (!address || typeof address === "string") throw new Error("Den witness did not bind a port");
     const identity = JSON.stringify({ baseUrl: `http://127.0.0.1:${address.port}`, token: "test-den-token", orgId: "org_ready" });
     const providersBefore = await (await fetch(`${base}/runtime-config/providers`, { headers: hostHeaders() })).json();
-    const envBefore = await readFile(process.env.OPENWORK_ENV_STORE, "utf8");
-    const configBefore = await readFile(openworkRuntimeConfigFilePath(config), "utf8");
+    const envBefore = await readFile(process.env.HARNESS_ENV_STORE, "utf8");
+    const configBefore = await readFile(harnessRuntimeConfigFilePath(config), "utf8");
     const early = await fetch(`${base}/den-session/identity`, { method: "PUT", headers: hostHeaders(), body: identity });
     expect(early.status).toBe(204);
     expect(await (await fetch(`${base}/managed-policy`, { headers: { authorization: `Bearer ${CLIENT_TOKEN}` } })).json())
@@ -243,8 +243,8 @@ test("stored managed provider credentials reload only after full session or auth
     expect(await premature.json()).toEqual({ status: "no_session" });
     expect(denRequests.every((path) => path === "/v1/me/desktop-config")).toBe(true);
     expect(await (await fetch(`${base}/runtime-config/providers`, { headers: hostHeaders() })).json()).toEqual(providersBefore);
-    expect(await readFile(process.env.OPENWORK_ENV_STORE, "utf8")).toBe(envBefore);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).toBe(configBefore);
+    expect(await readFile(process.env.HARNESS_ENV_STORE, "utf8")).toBe(envBefore);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).toBe(configBefore);
     expect(engineRequests).toEqual([]);
 
     const ready = await fetch(`${base}/den-session`, { method: "PUT", headers: hostHeaders(), body: identity });
@@ -259,8 +259,8 @@ test("stored managed provider credentials reload only after full session or auth
     expect(managedProviderChanges(engineRequests)).toContain("PUT /auth/lpr_ready");
     expect(engineRequests.indexOf("PUT /auth/lpr_ready")).toBeLessThan(engineRequests.indexOf("POST /instance/dispose"));
 
-    const materializedEnv = await readFile(process.env.OPENWORK_ENV_STORE, "utf8");
-    const materializedConfig = await readFile(openworkRuntimeConfigFilePath(config), "utf8");
+    const materializedEnv = await readFile(process.env.HARNESS_ENV_STORE, "utf8");
+    const materializedConfig = await readFile(harnessRuntimeConfigFilePath(config), "utf8");
     engine.setBusy(true);
     engineRequests.length = 0;
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -269,8 +269,8 @@ test("stored managed provider credentials reload only after full session or auth
     expect((await fetch(`${base}/den-session`, { method: "PUT", headers: hostHeaders(), body: identity })).status).toBe(204);
     const resumed = await fetch(`${base}/cloud-provider-sync/run`, { method: "POST", headers: hostHeaders(), body: "{}" });
     expect(await resumed.json()).toEqual({ status: "noop" });
-    expect(await readFile(process.env.OPENWORK_ENV_STORE, "utf8")).toBe(materializedEnv);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).toBe(materializedConfig);
+    expect(await readFile(process.env.HARNESS_ENV_STORE, "utf8")).toBe(materializedEnv);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).toBe(materializedConfig);
     expect(engineRequests.filter((entry) => !entry.startsWith("GET "))).toEqual([]);
   } finally {
     await server?.stop();
@@ -280,10 +280,10 @@ test("stored managed provider credentials reload only after full session or auth
     }
     await engine?.stop();
     resetManagedProviderAuthCache();
-    if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-    else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
-    if (previousEnvStore === undefined) delete process.env.OPENWORK_ENV_STORE;
-    else process.env.OPENWORK_ENV_STORE = previousEnvStore;
+    if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+    else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
+    if (previousEnvStore === undefined) delete process.env.HARNESS_ENV_STORE;
+    else process.env.HARNESS_ENV_STORE = previousEnvStore;
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -316,7 +316,7 @@ test("a Den key-only rotation reaches the real managed engine through an applied
   const replyA = `REPLY-BEFORE-${Date.now()}`;
   const replyB = `REPLY-AFTER-${Date.now()}`;
   const workloads = [{ promptMarker: markerA, finalReply: replyA, steps: [] }, { promptMarker: markerB, finalReply: replyB, steps: [] }];
-  const scratch = await realpath(await mkdtemp(join(tmpdir(), "openwork-key-rotation-")));
+  const scratch = await realpath(await mkdtemp(join(tmpdir(), "harness-key-rotation-")));
   const workspace = join(scratch, "workspace");
   await mkdir(workspace);
   const token = "owt_key_rotation_client";
@@ -351,14 +351,14 @@ test("a Den key-only rotation reaches the real managed engine through an applied
     else sendJson(response, 404, { error: "not_found" });
   });
   const denUrl = await listen(den);
-  let managed: Awaited<ReturnType<typeof bootManagedOpenworkServer>> | undefined;
+  let managed: Awaited<ReturnType<typeof bootManagedHarnessServer>> | undefined;
   try {
-    managed = await bootManagedOpenworkServer({
+    managed = await bootManagedHarnessServer({
       scratch, workspace, token, sink: (chunk) => { output += chunk; },
-      env: { OPENWORK_ENGINE_RELOAD_RETRY_MS: "1000" },
+      env: { HARNESS_ENGINE_RELOAD_RETRY_MS: "1000" },
     });
     const base = managed.base;
-    const host = { "x-openwork-host-token": hostToken, "content-type": "application/json" };
+    const host = { "x-harness-host-token": hostToken, "content-type": "application/json" };
     const syncStatus = async () => {
       const response = await fetch(`${base}/cloud-provider-sync/status`, { headers: { authorization: `Bearer ${token}` } });
       const payload: unknown = await response.json();

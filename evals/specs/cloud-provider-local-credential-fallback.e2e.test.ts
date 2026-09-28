@@ -1,8 +1,8 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect, onTestFinished } from "vitest";
-import { denFetch, evalIn, go, readAvailableModels, waitFor } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { app, eventually, needs, server, test } from "@openwork/testkit";
+import { denFetch, evalIn, go, readAvailableModels, waitFor } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { app, eventually, needs, server, test } from "@harness/testkit";
 
 const ORGANIZATION_NAME = "Cloud Provider Local Credential Fallback";
 const PROVIDER_NAME = "Local Credential Models";
@@ -45,7 +45,7 @@ async function createProvider(
 ): Promise<string> {
   const result = await denFetch(admin, "/v1/llm-providers", {
     method: "POST",
-    headers: { ...auth(admin), "x-openwork-org-id": orgId },
+    headers: { ...auth(admin), "x-harness-org-id": orgId },
     body: JSON.stringify({
       name: input.name,
       source: "custom",
@@ -73,14 +73,14 @@ async function createProvider(
 async function deleteProvider(admin: DenSession, orgId: string, providerId: string): Promise<void> {
   await denFetch(admin, `/v1/llm-providers/${encodeURIComponent(providerId)}`, {
     method: "DELETE",
-    headers: { ...auth(admin), "x-openwork-org-id": orgId },
+    headers: { ...auth(admin), "x-harness-org-id": orgId },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 }
 
 async function memberProviderList(member: DenSession, orgId: string): Promise<Record<string, unknown>[]> {
   const result = await denFetch(member, "/v1/llm-providers", {
-    headers: { ...auth(member), "x-openwork-org-id": orgId },
+    headers: { ...auth(member), "x-harness-org-id": orgId },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!result.response.ok) throw new Error(`Listing member providers failed with HTTP ${result.response.status}.`);
@@ -95,10 +95,10 @@ async function localServerRequest(
   input: { method?: string; body?: Record<string, unknown>; host?: boolean } = {},
 ): Promise<{ status: number; body: unknown }> {
   const value = await evalIn(surface, browserScript(async (value, path, inputValue, inputValue2) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return { status: 0, body: { error: "local_server_unavailable" } };
     const headers: Record<string, string> = { "content-type": "application/json" };
-    if (value) headers["x-openwork-host-token"] = String(info.hostToken ?? "");
+    if (value) headers["x-harness-host-token"] = String(info.hostToken ?? "");
     else headers.authorization = "Bearer " + String(info.ownerToken ?? info.clientToken ?? "");
     const response = await fetch(String(info.baseUrl).replace(/\/+$/, "") + path, {
       method: inputValue,
@@ -181,7 +181,7 @@ async function closeModelPicker(surface: Parameters<typeof evalIn>[0]): Promise<
 test("a Den provider can use a matching local Desktop credential without giving Den ownership", {
   timeout: 15 * 60_000,
 }, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
   await using den = await server({
     place,
     org: {

@@ -1,10 +1,10 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { evalIn, go, waitFor } from "@openwork/behaviors";
-import type { Surface } from "@openwork/cdp";
-import { screenshot } from "@openwork/test-evidence";
-import { spec } from "@openwork/testkit";
-import type { User } from "@openwork/testkit";
+import { evalIn, go, waitFor } from "@harness/behaviors";
+import type { Surface } from "@harness/cdp";
+import { screenshot } from "@harness/test-evidence";
+import { spec } from "@harness/testkit";
+import type { User } from "@harness/testkit";
 import { bootCrossWorkspaceSplitView } from "../../worlds/cross-workspace-split-view.ts";
 
 const test = spec.world(async (seed, { place }) => {
@@ -12,11 +12,11 @@ const test = spec.world(async (seed, { place }) => {
   const runId = `${Date.now().toString(36)}-${process.pid}`;
   try {
     const world = await bootCrossWorkspaceSplitView(stack, place, {
-      adminEmail: `split-view-admin-${runId}@openwork.test`,
-      workspacePath: `/tmp/openwork-cross-workspace-split-${runId}-a`,
+      adminEmail: `split-view-admin-${runId}@harness.test`,
+      workspacePath: `/tmp/harness-cross-workspace-split-${runId}-a`,
       sessionTitles: [`Primary workspace anchor ${runId}`, `Primary workspace peer ${runId}`],
     });
-    const { workspaceId: workspaceB } = await seed.workspace(world.desktop, `/tmp/openwork-cross-workspace-split-${runId}-b`, { create: true });
+    const { workspaceId: workspaceB } = await seed.workspace(world.desktop, `/tmp/harness-cross-workspace-split-${runId}-b`, { create: true });
     const crossWorkspacePeer = { workspaceId: workspaceB,
       ...await seed.session(world.desktop, { title: `Secondary workspace peer ${runId}` }) };
     return { ...world, app: world.desktop, workspaceB, crossWorkspacePeer, [Symbol.asyncDispose]: () => stack.disposeAsync() };
@@ -91,7 +91,7 @@ async function openSessionRoute(app: Surface, candidate: SplitCandidate): Promis
   await go(app, `/workspace/${candidate.workspaceId}/session/${candidate.sessionId}`, { timeoutMs: 60_000 });
   await waitFor(app, browserScript((workspaceId, sessionId) => {
     const surface = document.querySelector<HTMLElement>("[data-session-surface-id]");
-    return (localStorage.getItem("openwork.react.activeWorkspace") ?? "") === workspaceId
+    return (localStorage.getItem("harness.react.activeWorkspace") ?? "") === workspaceId
       && surface?.getAttribute("data-session-surface-id") === sessionId;
   }, [candidate.workspaceId, candidate.sessionId]), { timeoutMs: 60_000, label: `visible session ${candidate.title}` });
 }
@@ -130,7 +130,7 @@ async function openCrossWorkspaceSplitFromPalette(app: Surface, user: User, cand
 
 async function readSplitFacts(app: Surface, primary: SplitCandidate, secondary: SplitCandidate): Promise<SplitFacts> {
   return parseSplitFacts(await evalIn(app, browserScript((inputSessionId, inputSessionId2, inputSessionId3, inputSessionId4) => {
-    const context = window.__openworkControl?.context?.();
+    const context = window.__harnessControl?.context?.();
     const layout = context?.conversations?.layout;
     const primaryPane = document.querySelector<HTMLElement>('[data-workbench-pane="primary"]');
     const secondaryPane = document.querySelector<HTMLElement>('[data-workbench-pane="secondary"]');

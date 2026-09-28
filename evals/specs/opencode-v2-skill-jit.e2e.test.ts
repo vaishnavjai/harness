@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { liveOpenAiEnabled } from "@openwork/behaviors";
-import { browserScript, observeTranscript, readTranscriptMessages, spec, type Probe, type User } from "@openwork/testkit";
+import { liveOpenAiEnabled } from "@harness/behaviors";
+import { browserScript, observeTranscript, readTranscriptMessages, spec, type Probe, type User } from "@harness/testkit";
 import { skillLifecycle } from "../worlds/chat.ts";
 import { selectedSkillsWeb } from "../worlds/selected-skills.ts";
 import {
@@ -82,8 +82,8 @@ test("workspace skills change during an ongoing conversation", async ({ world, u
     expect((await agent.desktopApi(`${skillRoute}/${world.skillName}`, { method: "DELETE" })).status).toBe(200);
   };
 
-  await step("the conversation knows OpenWork and cannot invent a skill result", async () => {
-    expect(await ask(null)).toMatch(/OpenWork/i);
+  await step("the conversation knows Harness and cannot invent a skill result", async () => {
+    expect(await ask(null)).toMatch(/Harness/i);
   });
   await step("installing a matching skill makes its unseen instructions usable on the next turn", async () => {
     const code = randomUUID();
@@ -110,7 +110,7 @@ test("workspace skills change during an ongoing conversation", async ({ world, u
     await ask(null);
   });
   evidence.recordAssertionEvidence("Workspace skill changes reach the next turn",
-    `Installing, editing, removing and reinstalling a workspace skill through OpenWork changed the very next answer in one conversation, with every sent message kept once and the same engine process throughout.`, true);
+    `Installing, editing, removing and reinstalling a workspace skill through Harness changed the very next answer in one conversation, with every sent message kept once and the same engine process throughout.`, true);
 });
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -325,7 +325,7 @@ jitTest("SKILL-NATIVE-01 a malformed workspace skill never blocks prompt admissi
   await step("a directory/name mismatch without a description is admitted and answered", async () => {
     await world.writeWorkspaceSkillFile("mismatched-directory", "---\nname: some-other-name\n---\n\nThis skill has no description and lives in a directory that does not match its name.\n");
     const turn = await talk.ask(catalogTurn, "UNAVAILABLE");
-    expect(turn.text).toMatch(/OpenWork/i);
+    expect(turn.text).toMatch(/Harness/i);
     expect(await talk.skillToolIds(turn.prompt)).toEqual([]);
     expect(await world.cloudNativeSkills()).toEqual([]);
   });
@@ -336,7 +336,7 @@ jitTest("SKILL-NATIVE-01 a malformed workspace skill never blocks prompt admissi
     const duplicate = "---\nname: shared-helper\ndescription: Formats changelog entries.\n---\n\nFormat changelog entries as bullet points.\n";
     for (const folder of [".agents", ".claude"] as const) await world.writeWorkspaceSkillFile("shared-helper", duplicate, folder);
     const turn = await talk.ask(catalogTurn, "UNAVAILABLE");
-    expect(turn.text).toMatch(/OpenWork/i);
+    expect(turn.text).toMatch(/Harness/i);
     expect(await talk.skillToolIds(turn.prompt)).toEqual([]);
   });
 
@@ -358,5 +358,5 @@ jitTest("SKILL-NATIVE-01 a malformed workspace skill never blocks prompt admissi
     expect(world.cloud.log()).toEqual([]);
   });
   evidence.recordAssertionEvidence("Workspace skills never block a turn",
-    "A malformed skill and one skill installed in both .agents and .claude were answered normally; installing, editing and removing the workspace skill through OpenWork still changed the next answer.", true);
+    "A malformed skill and one skill installed in both .agents and .claude were answered normally; installing, editing and removing the workspace skill through Harness still changed the next answer.", true);
 });

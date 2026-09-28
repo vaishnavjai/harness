@@ -3,7 +3,7 @@ import type { SessionReference } from "../src/components/chat/session-reference"
 import { openSessionReference } from "../src/react-app/domains/session/chat/session-reference-navigation";
 import {
   focusWorkbenchPane,
-  openWorkbenchTab,
+  harnessbenchTab,
   setWorkbenchSplit,
   syncWorkbenchSnapshot,
   type WorkbenchSnapshot,
@@ -22,10 +22,10 @@ function harness(split = false) {
     sessionsKnown: true,
     sessions: [primary],
   });
-  if (split) state = setWorkbenchSplit(openWorkbenchTab(state, secondary), secondary);
+  if (split) state = setWorkbenchSplit(harnessbenchTab(state, secondary), secondary);
   const routes: Array<{ workspaceId: string; sessionId: string }> = [];
   const actions = {
-    openTab: (tab: WorkbenchSessionTab) => { state = openWorkbenchTab(state, tab); },
+    openTab: (tab: WorkbenchSessionTab) => { state = harnessbenchTab(state, tab); },
     focusPane: (pane: "primary" | "secondary") => { state = focusWorkbenchPane(state, pane); },
     setSplit: (reference: WorkbenchSessionTab) => { state = setWorkbenchSplit(state, reference); },
     onOpenSession: (workspaceId: string, sessionId: string) => {

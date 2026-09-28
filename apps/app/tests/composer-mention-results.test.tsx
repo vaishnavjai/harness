@@ -43,7 +43,7 @@ const { ReactSessionComposer } = await import("../src/react-app/domains/session/
 const { NewTaskComposer } = await import("../src/react-app/domains/session/chat/new-task-composer");
 const { $createRangeSelection, $getRoot, $getSelection, $isElementNode, $isRangeSelection, $isTextNode, $setSelection, getNearestEditorFromDOMNode, SKIP_DOM_SELECTION_TAG } = await import("lexical");
 type Props = ComponentProps<typeof ReactSessionComposer>;
-const defaultAgents: Awaited<ReturnType<Props["listAgents"]>> = [{ name: "openwork", mode: "primary", options: {}, permission: [] }];
+const defaultAgents: Awaited<ReturnType<Props["listAgents"]>> = [{ name: "harness", mode: "primary", options: {}, permission: [] }];
 
 async function mounted(options: {
   draft?: string;
@@ -65,7 +65,7 @@ async function mounted(options: {
   let currentDraft = options.draft ?? "";
   const searchFiles = async (query: string) => {
     queries.push(query);
-    return options.search ? options.search(query) : options.files ?? ["notes.md", "docs/start.md", "src/openwork.ts", "docs/cloud-notes.md"];
+    return options.search ? options.search(query) : options.files ?? ["notes.md", "docs/start.md", "src/harness.ts", "docs/cloud-notes.md"];
   };
   const listAgents = options.listAgents ?? (async () => defaultAgents);
   const listCommands = async () => [];
@@ -85,7 +85,7 @@ async function mounted(options: {
       modelVariantLabel: "Default",
       modelVariant: null,
       onModelVariantChange: () => {},
-      agentLabel: "OpenWork",
+      agentLabel: "Harness",
       selectedAgent: null,
       listAgents,
       onSelectAgent: selectedAgent,
@@ -212,10 +212,10 @@ async function mounted(options: {
 test("end-of-draft queries retain the available default agent and matching files", async () => {
   const composer = await mounted();
   try {
-    for (const character of "@openwork") await composer.type(character);
-    expect(composer.queries.at(-1)).toBe("openwork");
-    expect(composer.labels()[0]?.startsWith("@openwork")).toBe(true);
-    expect(composer.labels().some((label) => label.startsWith("@src/openwork.ts"))).toBe(true);
+    for (const character of "@harness") await composer.type(character);
+    expect(composer.queries.at(-1)).toBe("harness");
+    expect(composer.labels()[0]?.startsWith("@harness")).toBe(true);
+    expect(composer.labels().some((label) => label.startsWith("@src/harness.ts"))).toBe(true);
     expect(composer.labels().some((label) => label.startsWith("@notes.md"))).toBe(false);
     await composer.type(" summarize");
     expect(composer.labels()).toEqual([]);
@@ -225,21 +225,21 @@ test("end-of-draft queries retain the available default agent and matching files
 for (const newTask of [false, true]) {
   for (const method of ["Enter", "Tab", "mouse"]) {
     test(`${newTask ? "new-task" : "session composer"} ${method} replaces the mention at the caret and preserves later text`, async () => {
-      const composer = await mounted({ draft: "@openwork @notes", newTask });
+      const composer = await mounted({ draft: "@harness @notes", newTask });
       try {
-        await composer.caret("@openwork".length);
+        await composer.caret("@harness".length);
         await composer.type(" @cl");
         expect(composer.queries.at(-1)).toBe("cl");
         expect(composer.labels()[0]?.startsWith("@cloud")).toBe(true);
         expect(composer.labels().some((label) => label.startsWith("@notes.md"))).toBe(false);
         if (method === "mouse") await composer.choose("@cloud");
         else await composer.press(method);
-        expect(composer.draft()).toBe("@openwork @cloud @notes");
+        expect(composer.draft()).toBe("@harness @cloud @notes");
         expect(composer.tokenTitles()).toContain("@cloud");
         expect(composer.labels()).toEqual([]);
         expect(composer.sent).not.toHaveBeenCalled();
         await composer.type("continue ");
-        expect(composer.draft()).toBe("@openwork @cloud continue @notes");
+        expect(composer.draft()).toBe("@harness @cloud continue @notes");
         expect(composer.sent).not.toHaveBeenCalled();
       } finally { await composer.close(); }
     });
@@ -280,7 +280,7 @@ test("selection-only movement refreshes the active query and a range selection c
 
 test("encoded mention and attachment nodes do not shift replacement across paragraph breaks", async () => {
   const file = "docs/100% plan.md";
-  const prefix = `@${encodeComposerMentionValue(file)} [attachment document] @openwork`;
+  const prefix = `@${encodeComposerMentionValue(file)} [attachment document] @harness`;
   const composer = await mounted({
     draft: `First\n\n${prefix} @notes\nLast`,
     mentions: { [file]: "file" },
@@ -323,10 +323,10 @@ for (const newTask of [false, true]) {
     const composer = await mounted({ draft: "Use @openw before @notes", newTask });
     try {
       await composer.caret("Use @openw".length);
-      expect(composer.labels()[0]?.startsWith("@openwork")).toBe(true);
+      expect(composer.labels()[0]?.startsWith("@harness")).toBe(true);
       await composer.press("Enter");
       expect(composer.draft()).toBe("Use  before @notes");
-      expect(composer.selectedAgent).toHaveBeenCalledWith("openwork");
+      expect(composer.selectedAgent).toHaveBeenCalledWith("harness");
       expect(composer.sent).not.toHaveBeenCalled();
       await composer.type("this");
       expect(composer.draft()).toBe("Use this before @notes");
@@ -347,11 +347,11 @@ test("file values keep their encoding and later mention tokens intact", async ()
 });
 
 for (const newTask of [false, true]) {
-  test(`${newTask ? "new-task" : "session composer"} email text after @openwork does not become a file mention query`, async () => {
-    const composer = await mounted({ draft: "@openwork ", newTask });
+  test(`${newTask ? "new-task" : "session composer"} email text after @harness does not become a file mention query`, async () => {
+    const composer = await mounted({ draft: "@harness ", newTask });
     try {
       for (const character of "person@notes") await composer.type(character);
-      expect(composer.draft()).toBe("@openwork person@notes");
+      expect(composer.draft()).toBe("@harness person@notes");
       expect(composer.labels()).toEqual([]);
       expect(composer.queries).toEqual([]);
       expect(composer.selectedAgent).not.toHaveBeenCalled();
@@ -360,7 +360,7 @@ for (const newTask of [false, true]) {
       expect(composer.queries.at(-1)).toBe("notes");
       expect(composer.labels().some((label) => label.startsWith("@notes.md"))).toBe(true);
       await composer.press("Tab");
-      expect(composer.draft()).toBe("@openwork person@notes @notes.md ");
+      expect(composer.draft()).toBe("@harness person@notes @notes.md ");
       expect(composer.tokenTitles()).toContain("@notes.md");
       expect(composer.selectedAgent).not.toHaveBeenCalled();
       expect(composer.sent).not.toHaveBeenCalled();
@@ -369,7 +369,7 @@ for (const newTask of [false, true]) {
 }
 
 test("ordinary text after an existing semantic app mention does not reopen suggestions", async () => {
-  const composer = await mounted({ draft: "@OpenWork ", mentions: { OpenWork: "app" }, apps: ["OpenWork"] });
+  const composer = await mounted({ draft: "@Harness ", mentions: { Harness: "app" }, apps: ["Harness"] });
   try {
     await composer.type("summarize");
     expect(composer.labels()).toEqual([]);
@@ -383,11 +383,11 @@ test("agent mentions remain selectable when file lookup rejects", async () => {
     await composer.type("@");
     expect(composer.labels()[0]?.startsWith("@cloud")).toBe(true);
     expect(composer.labels()[1]?.startsWith("@desktop")).toBe(true);
-    await composer.type("openwork");
-    expect(composer.queries.at(-1)).toBe("openwork");
-    expect(composer.labels()[0]?.startsWith("@openwork")).toBe(true);
+    await composer.type("harness");
+    expect(composer.queries.at(-1)).toBe("harness");
+    expect(composer.labels()[0]?.startsWith("@harness")).toBe(true);
     await composer.press("Enter");
-    expect(composer.selectedAgent).toHaveBeenCalledWith("openwork");
+    expect(composer.selectedAgent).toHaveBeenCalledWith("harness");
     expect(composer.draft()).toBe("");
     expect(composer.labels()).toEqual([]);
     expect(composer.sent).not.toHaveBeenCalled();
@@ -414,14 +414,14 @@ test("file mentions remain selectable when agent lookup rejects", async () => {
 
 test("a delayed previous query cannot replace newer mention results", async () => {
   const oldFiles = Promise.withResolvers<string[]>();
-  const composer = await mounted({ search: (query) => query === "openwork" ? oldFiles.promise : Promise.resolve(["docs/cloud-notes.md"]) });
+  const composer = await mounted({ search: (query) => query === "harness" ? oldFiles.promise : Promise.resolve(["docs/cloud-notes.md"]) });
   try {
-    await composer.type("@openwork");
+    await composer.type("@harness");
     await composer.type(" @cl");
-    await act(async () => { oldFiles.resolve(["src/openwork.ts"]); });
+    await act(async () => { oldFiles.resolve(["src/harness.ts"]); });
     expect(composer.queries.at(-1)).toBe("cl");
     expect(composer.labels()[0]?.startsWith("@cloud")).toBe(true);
-    expect(composer.labels().some((label) => label.includes("src/openwork.ts"))).toBe(false);
+    expect(composer.labels().some((label) => label.includes("src/harness.ts"))).toBe(false);
   } finally { oldFiles.resolve([]); await composer.close(); }
 });
 

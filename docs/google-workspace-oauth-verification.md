@@ -1,11 +1,11 @@
 # Google Workspace OAuth Verification
 
-Google Workspace uses only OpenWork Cloud connections. The former desktop OAuth
+Google Workspace uses only Harness Cloud connections. The former desktop OAuth
 verification procedure no longer applies: there is no local Google Workspace
 extension, loopback sign-in flow, or desktop OAuth environment setup.
 
 For account setup, follow [Connect your services](../packages/docs/start-here/connect-your-stack/connect-services.mdx#google-workspace):
-sign in to OpenWork Cloud, open `Settings` > `Library` > `Connections`, select
+sign in to Harness Cloud, open `Settings` > `Library` > `Connections`, select
 the Google connection, and click `Connect`. Organization administrators configure
 Google connections in Cloud `Connectors`, not in a desktop extension.
 

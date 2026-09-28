@@ -13,7 +13,7 @@ func runDesktopRelay(_ path: String) {
     let connected = withUnsafePointer(to: &address) {
         $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
     }
-    guard connected == 0 else { fputs("Open OpenWork, then reconnect Computer Use.\n", stderr); exit(1) }
+    guard connected == 0 else { fputs("Open Harness, then reconnect Computer Use.\n", stderr); exit(1) }
     signal(SIGPIPE, SIG_IGN)
     DispatchQueue.global().async {
         while true {

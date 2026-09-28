@@ -1,5 +1,5 @@
-import { checkpointSchema } from "@openwork/review";
-import type { ReviewEvidence } from "@openwork/review";
+import { checkpointSchema } from "@harness/review";
+import type { ReviewEvidence } from "@harness/review";
 type ImageEvidence = Extract<ReviewEvidence, { kind: "image" }>;
 
 export interface ArtifactExpectationResult {

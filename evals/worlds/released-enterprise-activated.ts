@@ -2,13 +2,13 @@ import { execFile } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import { basename, dirname, join, relative } from "node:path";
 import { promisify } from "node:util";
-import { createAndSelectWorkspace, quitDesktop, signInDesktopAs } from "@openwork/behaviors";
-import { attachSurface, evaluateOnSurface, probeAppStateOnSurface } from "@openwork/cdp";
-import type { AppStateProbe, AttachedSurface, SurfaceHandle } from "@openwork/cdp";
-import { SkipError } from "@openwork/env";
-import type { Den, Seed } from "@openwork/env";
-import { localHost } from "@openwork/hosts";
-import type { Host } from "@openwork/hosts";
+import { createAndSelectWorkspace, quitDesktop, signInDesktopAs } from "@harness/behaviors";
+import { attachSurface, evaluateOnSurface, probeAppStateOnSurface } from "@harness/cdp";
+import type { AppStateProbe, AttachedSurface, SurfaceHandle } from "@harness/cdp";
+import { SkipError } from "@harness/env";
+import type { Den, Seed } from "@harness/env";
+import { localHost } from "@harness/hosts";
+import type { Host } from "@harness/hosts";
 import type { PackagedFlavor, RendererException } from "./packaged-first-launch.ts";
 
 /**
@@ -18,11 +18,11 @@ import type { PackagedFlavor, RendererException } from "./packaged-first-launch.
  * The fresh-machine gate (packaged-first-launch) never reaches this code path,
  * and it is the one every existing enterprise user boots into after an update.
  *
- * `OPENWORK_EVAL_ELECTRON_BINARY` names the release under test. The optional
- * `OPENWORK_EVAL_RELEASED_BASELINE_BINARY` names an older release used to
+ * `HARNESS_EVAL_ELECTRON_BINARY` names the release under test. The optional
+ * `HARNESS_EVAL_RELEASED_BASELINE_BINARY` names an older release used to
  * create the profile that the release under test then opens (an in-place
  * update), so migrations on a real user's profile are exercised too. The
- * optional `OPENWORK_EVAL_RELEASED_VERSION` pins the version the binary under
+ * optional `HARNESS_EVAL_RELEASED_VERSION` pins the version the binary under
  * test must report, so a stale download cannot pass as the release.
  */
 
@@ -140,17 +140,17 @@ function parseActivation(value: unknown): { activatedAt: string; denBaseUrl: str
 
 /**
  * The local host resolves the executable from the ambient
- * OPENWORK_EVAL_ELECTRON_BINARY at spawn time; an update scenario needs two
+ * HARNESS_EVAL_ELECTRON_BINARY at spawn time; an update scenario needs two
  * executables in one test, so the override is scoped to one spawn here.
  */
 async function withElectronBinary<T>(binary: string, run: () => Promise<T>): Promise<T> {
-  const previous = process.env.OPENWORK_EVAL_ELECTRON_BINARY;
-  process.env.OPENWORK_EVAL_ELECTRON_BINARY = binary;
+  const previous = process.env.HARNESS_EVAL_ELECTRON_BINARY;
+  process.env.HARNESS_EVAL_ELECTRON_BINARY = binary;
   try {
     return await run();
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_EVAL_ELECTRON_BINARY;
-    else process.env.OPENWORK_EVAL_ELECTRON_BINARY = previous;
+    if (previous === undefined) delete process.env.HARNESS_EVAL_ELECTRON_BINARY;
+    else process.env.HARNESS_EVAL_ELECTRON_BINARY = previous;
   }
 }
 
@@ -192,7 +192,7 @@ const execFileAsync = promisify(execFile);
 async function shipItIsRunning(): Promise<boolean> {
   if (process.platform !== "darwin") return false;
   try {
-    await execFileAsync("pgrep", ["-f", "com.differentai.openwork.ShipIt"]);
+    await execFileAsync("pgrep", ["-f", "com.vaishnavjai.harness.ShipIt"]);
     return true;
   } catch {
     return false;
@@ -230,7 +230,7 @@ async function launchReleased(host: Host, name: string, den: Den, activatedAt: s
     profileDir: options.profileDir,
     prepareSharedResources: false,
     ...(options.seedBootstrap ? { bootstrap: activatedBootstrap(den, activatedAt) } : {}),
-    env: { OPENWORK_DEV_MODE: "0", OPENWORK_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
+    env: { HARNESS_DEV_MODE: "0", HARNESS_ELECTRON_START_URL: "", ELECTRON_START_URL: "" },
   }));
   let app: AttachedSurface | null = null;
   let witness: Awaited<ReturnType<typeof observeRendererExceptions>> | null = null;
@@ -259,7 +259,7 @@ async function launchReleased(host: Host, name: string, den: Den, activatedAt: s
     binary: options.binary,
     profileDir: options.profileDir,
     flavor: () => evaluateOnSurface(attached, (): PackagedFlavor | null => {
-      const electron: unknown = Reflect.get(window, "__OPENWORK_ELECTRON__");
+      const electron: unknown = Reflect.get(window, "__HARNESS_ELECTRON__");
       if (typeof electron !== "object" || electron === null) return null;
       const meta: unknown = Reflect.get(electron, "meta");
       if (typeof meta !== "object" || meta === null) return null;
@@ -269,14 +269,14 @@ async function launchReleased(host: Host, name: string, den: Den, activatedAt: s
       return flavor === "public" || flavor === "cloud" || flavor === "enterprise" ? flavor : null;
     }),
     buildInfo: async () => parseBuildInfo(await evaluateOnSurface(attached, async (): Promise<unknown> => {
-      const electron: unknown = Reflect.get(window, "__OPENWORK_ELECTRON__");
+      const electron: unknown = Reflect.get(window, "__HARNESS_ELECTRON__");
       if (typeof electron !== "object" || electron === null) return null;
       const invoke: unknown = Reflect.get(electron, "invokeDesktop");
       if (typeof invoke !== "function") return null;
       return invoke("appBuildInfo");
     }, { awaitPromise: true, timeoutMs: 15_000 })),
     activation: async () => parseActivation(await evaluateOnSurface(attached, (): unknown => {
-      const electron: unknown = Reflect.get(window, "__OPENWORK_ELECTRON__");
+      const electron: unknown = Reflect.get(window, "__HARNESS_ELECTRON__");
       if (typeof electron !== "object" || electron === null) return null;
       const meta: unknown = Reflect.get(electron, "meta");
       if (typeof meta !== "object" || meta === null) return null;
@@ -300,10 +300,10 @@ async function launchReleased(host: Host, name: string, den: Den, activatedAt: s
 }
 
 export async function releasedEnterpriseActivatedWorld(seed: Seed) {
-  const binary = process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim();
-  if (!binary) throw new SkipError("OPENWORK_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
-  const baselineBinary = process.env.OPENWORK_EVAL_RELEASED_BASELINE_BINARY?.trim() || null;
-  const expectedVersion = process.env.OPENWORK_EVAL_RELEASED_VERSION?.trim() || null;
+  const binary = process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim();
+  if (!binary) throw new SkipError("HARNESS_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
+  const baselineBinary = process.env.HARNESS_EVAL_RELEASED_BASELINE_BINARY?.trim() || null;
+  const expectedVersion = process.env.HARNESS_EVAL_RELEASED_VERSION?.trim() || null;
   const den = await seed.den();
   const host = localHost();
   const activatedAt = new Date().toISOString();

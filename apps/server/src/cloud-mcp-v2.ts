@@ -10,7 +10,7 @@ export function createNativeCloudMcpResolver(preview: Pick<EngineV2Preview, "sta
     return {
       version: artifacts.version,
       request: async (path, directory, method = "GET") => {
-        if (!connection) throw new Error("OpenCode v2 is not running. Reconnect before checking OpenWork Connect.");
+        if (!connection) throw new Error("OpenCode v2 is not running. Reconnect before checking Harness Connect.");
         const url = new URL(path, connection.url);
         if (directory) url.searchParams.set("location[directory]", directory);
         const response = await fetch(url, {
@@ -35,13 +35,13 @@ export function createRoutedCloudMcpRegistrar(preview: Pick<EngineV2Preview, "st
       await preview.syncWorkspaceMcp(workspace.id, workspace.path);
       // A repair may have disconnected an unchanged registration. The mirror
       // skips unchanged config, so explicitly reconnect only the requested names.
-      for (const name of onlyNames ?? ["openwork-cloud"]) {
+      for (const name of onlyNames ?? ["harness-cloud"]) {
         await engine.request(`/api/mcp/${encodeURIComponent(name)}/connect`, workspace.path, "POST");
       }
-      return { status: "ok", syncedNames: onlyNames ?? ["openwork-cloud"], failures: [] };
+      return { status: "ok", syncedNames: onlyNames ?? ["harness-cloud"], failures: [] };
     } catch (error) {
       if (options?.throwOnFailure) throw error;
-      return { status: "failed", syncedNames: [], failures: [{ name: "openwork-cloud", message: error instanceof Error ? error.message : "OpenCode v2 MCP registration failed" }] };
+      return { status: "failed", syncedNames: [], failures: [{ name: "harness-cloud", message: error instanceof Error ? error.message : "OpenCode v2 MCP registration failed" }] };
     }
   };
 }

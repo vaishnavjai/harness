@@ -1,10 +1,10 @@
 import { afterAll, describe, expect, spyOn, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, createElement, useState } from "react";
-import type { CreateAutomation } from "@openwork/types/automations";
+import type { CreateAutomation } from "@harness/types/automations";
 import type { AutomationProviderCatalog, AutomationModelOption } from "../src/react-app/domains/automations/automation-model-options";
 import type { ModelOption } from "../src/app/types";
-import { fastVariantId } from "@openwork/types/cloud-model-fast";
+import { fastVariantId } from "@harness/types/cloud-model-fast";
 
 // Base UI detects DOM support when its module loads.
 GlobalRegistrator.register({ url: "http://localhost" });
@@ -212,28 +212,28 @@ for (const surface of ["compact", "full"]) {
 test("Fast Default and custom effort persist in the same session variant read by queued sends", async () => {
   const { getSessionModelSelection, useSessionModelStore } = await import("../src/react-app/domains/session/surface/session-model-store");
   const { setQueuedSendContext, getQueuedSendContext, clearQueuedSendContext } = await import("../src/react-app/domains/session/sync/queued-send-context");
-  const { createOpenworkServerClient } = await import("../src/app/lib/openwork-server");
+  const { createHarnessServerClient } = await import("../src/app/lib/harness-server");
   const sessionId = "synthetic-fast-session";
   const model = { providerID: "fixture", modelID: "model" };
   const before = useSessionModelStore.getState().bySessionId;
-  const stored = localStorage.getItem("openwork.sessionModels.v1");
+  const stored = localStorage.getItem("harness.sessionModels.v1");
   setQueuedSendContext(sessionId, { workspaceId: "fixture", workspaceRoot: "/fixture", opencodeBaseUrl: "http://synthetic.test/opencode2",
-    openworkToken: "synthetic", client: createOpenworkServerClient({ baseUrl: "http://synthetic.test" }),
+    harnessToken: "synthetic", client: createHarnessServerClient({ baseUrl: "http://synthetic.test" }),
     agent: null, variant: "high", model, environmentRuntimeKey: null });
   try {
     useSessionModelStore.getState().setModel(sessionId, model, "high");
     for (const variant of [fastVariantId("CustomExact"), fastVariantId(null), null]) {
       useSessionModelStore.getState().setVariant(sessionId, variant);
       expect(getSessionModelSelection(sessionId)).toEqual({ model, variant });
-      expect(localStorage.getItem("openwork.sessionModels.v1")).toContain(JSON.stringify({ model, variant }));
+      expect(localStorage.getItem("harness.sessionModels.v1")).toContain(JSON.stringify({ model, variant }));
       // The drainer deliberately prefers session memory over its older context.
       expect(getQueuedSendContext(sessionId)?.variant).toBe("high");
     }
   } finally {
     clearQueuedSendContext(sessionId);
     useSessionModelStore.setState({ bySessionId: before });
-    if (stored === null) localStorage.removeItem("openwork.sessionModels.v1");
-    else localStorage.setItem("openwork.sessionModels.v1", stored);
+    if (stored === null) localStorage.removeItem("harness.sessionModels.v1");
+    else localStorage.setItem("harness.sessionModels.v1", stored);
   }
 });
 
@@ -353,7 +353,7 @@ test("long picker labels retain full hover text and select the complete model ID
   };
   try {
     await act(async () => root.render(createElement(PlatformProvider, { value: createDefaultPlatform(), children: createElement(Picker) })));
-    for (const text of [providerName, organization, "via OpenWork Gateway", title, modelID]) {
+    for (const text of [providerName, organization, "via Harness Gateway", title, modelID]) {
       expect(label(text)?.textContent).toBe(text);
     }
     const header = label(providerName)?.closest("button");
@@ -378,7 +378,7 @@ test("long picker labels retain full hover text and select the complete model ID
 
 describe("model picker provider badges", () => {
   const importedCloudProviders = {
-    ipr_gateway: { providerId: "ipr_gateway", source: "openwork_gateway" },
+    ipr_gateway: { providerId: "ipr_gateway", source: "harness_gateway" },
     lpr_team: { providerId: "lpr_team", source: "custom" },
   };
   const labels = (group: Parameters<typeof resolveProviderGroupBadges>[0]) =>
@@ -390,7 +390,7 @@ describe("model picker provider badges", () => {
     expect(isCloudManagedProviderKey("anthropic")).toBe(false);
   });
 
-  test("badges only providers whose sync status source is the OpenWork gateway", () => {
+  test("badges only providers whose sync status source is the Harness gateway", () => {
     const gatewayProviderIds = resolveGatewayProviderIds(importedCloudProviders);
     expect([...gatewayProviderIds]).toEqual(["ipr_gateway"]);
 
@@ -400,7 +400,7 @@ describe("model picker provider badges", () => {
       isGateway: gatewayProviderIds.has("ipr_gateway"),
       hasCurrent: false,
     });
-    expect(gateway).toEqual(["Acme", "via OpenWork Gateway"]);
+    expect(gateway).toEqual(["Acme", "via Harness Gateway"]);
 
     const organization = labels({
       isNew: false,
@@ -409,7 +409,7 @@ describe("model picker provider badges", () => {
       hasCurrent: true,
     });
     expect(organization).toEqual(["Acme", "Current"]);
-    expect(organization).not.toContain("via OpenWork Gateway");
+    expect(organization).not.toContain("via Harness Gateway");
   });
 });
 

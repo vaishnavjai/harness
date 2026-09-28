@@ -1,6 +1,6 @@
-import type { BrowserEvaluation, EvaluateOptions } from "@openwork/cdp";
-import { browserScript } from "@openwork/cdp";
-import { typeWithCadence, typingPlan } from "@openwork/behaviors";
+import type { BrowserEvaluation, EvaluateOptions } from "@harness/cdp";
+import { browserScript } from "@harness/cdp";
+import { typeWithCadence, typingPlan } from "@harness/behaviors";
 import {
   control,
   createNativeConnector,
@@ -15,7 +15,7 @@ import {
   renameSessionAndWait,
   signInDesktopAs,
   waitUntilInteractive,
-} from "@openwork/behaviors";
+} from "@harness/behaviors";
 import {
   callFunctionOnSurface,
   addInitScript,
@@ -33,8 +33,8 @@ import {
   setViewport,
   typeText,
   waitForLocated,
-} from "@openwork/cdp";
-import type { Located, Surface, Target } from "@openwork/cdp";
+} from "@harness/cdp";
+import type { Located, Surface, Target } from "@harness/cdp";
 import {
   app as startApp,
   appWeb as startAppWeb,
@@ -46,12 +46,12 @@ import {
   setBrowserFixtureDiscovery,
   requireWorldResource,
   validateWorldResources,
-} from "@openwork/env";
-import type { App, Den, Place, WorldResources } from "@openwork/env";
-import { chrome, desktop } from "@openwork/hosts";
-import type { DesktopHandle } from "@openwork/hosts";
-import { findCheckpointCapability, screenshot, takeCheckpoint, validate } from "@openwork/test-evidence";
-import type { CheckpointCapability, ScreenshotArtifact } from "@openwork/test-evidence";
+} from "@harness/env";
+import type { App, Den, Place, WorldResources } from "@harness/env";
+import { chrome, desktop } from "@harness/hosts";
+import type { DesktopHandle } from "@harness/hosts";
+import { findCheckpointCapability, screenshot, takeCheckpoint, validate } from "@harness/test-evidence";
+import type { CheckpointCapability, ScreenshotArtifact } from "@harness/test-evidence";
 import type {
   StepRecord,
   StepRecordInput,
@@ -60,7 +60,7 @@ import type {
   TraceChannel,
   TraceEntry,
   TraceEntryInput,
-} from "@openwork/test-evidence";
+} from "@harness/test-evidence";
 import { eventually } from "../eventually.ts";
 import { denLink as startDenLink } from "../link.ts";
 import { readConnectState } from "../state.ts";
@@ -231,7 +231,7 @@ async function waitForControlAction(surface: Surface, action: string, timeoutMs 
   await waitForControlRail(surface, action, Math.max(1, deadline - Date.now()));
   while (Date.now() < deadline) {
     try {
-      const actions = await evalIn(surface, () => (window.__openworkControl?.listActions?.() ?? null), {
+      const actions = await evalIn(surface, () => (window.__harnessControl?.listActions?.() ?? null), {
         timeoutMs: Math.min(2_000, Math.max(1, deadline - Date.now())),
       });
       if (Array.isArray(actions) && actions.some((entry) => isRecord(entry) && entry.id === action && entry.disabled !== true)) return;
@@ -345,17 +345,17 @@ export class SpecRuntime {
    * anything else prints one warning and the test continues unchanged.
    */
   async checkpoint(surface: Surface | null, caption: string | undefined, quiet = false): Promise<ScreenshotArtifact | undefined> {
-    if (process.env.OPENWORK_EVIDENCE_CHECKPOINTS !== "1") return undefined;
+    if (process.env.HARNESS_EVIDENCE_CHECKPOINTS !== "1") return undefined;
     const capability = this.#capability;
     if (!surface || !capability || capability.surface !== surface || !capability.available()) {
       if (!quiet && !this.#warnedNoCapture) {
         this.#warnedNoCapture = true;
-        console.warn(`[openwork/testkit] Checkpoints skipped: this world cannot capture ${surface ? `surface "${surface.handle.name}"` : "without a primary surface"} (placement ${this.place.kind}). The test runs normally.`);
+        console.warn(`[harness/testkit] Checkpoints skipped: this world cannot capture ${surface ? `surface "${surface.handle.name}"` : "without a primary surface"} (placement ${this.place.kind}). The test runs normally.`);
       }
       return undefined;
     }
     // Unit tests shorten the hold; real runs use the measured default.
-    const holdMs = Number(process.env.OPENWORK_EVIDENCE_CHECKPOINT_HOLD_MS) || undefined;
+    const holdMs = Number(process.env.HARNESS_EVIDENCE_CHECKPOINT_HOLD_MS) || undefined;
     const result = await this.call("user", "checkpoint", `checkpoint(${caption ?? ""})`, surface, () =>
       takeCheckpoint(surface, capability, { caption: caption ?? this.currentStepName(), holdMs }));
     this.#actedSinceCheckpoint = false;
@@ -508,7 +508,7 @@ export class SeedChannel implements Seed {
     this.#runtime = runtime;
   }
 
-  den(options: Omit<import("@openwork/env").ServerOptions, "place"> = {}): Promise<Den> {
+  den(options: Omit<import("@harness/env").ServerOptions, "place"> = {}): Promise<Den> {
     requireWorldResource(this.#runtime.resources, "den");
     if (options.mocks && Object.keys(options.mocks).length > 0) requireWorldResource(this.#runtime.resources, "mock");
     return this.#runtime.call("seed", "den", `den(${this.#runtime.place.kind})`, null, async () => {
@@ -522,7 +522,7 @@ export class SeedChannel implements Seed {
   desktop(options: SeedDesktopOptions = {}): Promise<App | DesktopHandle> {
     requireWorldResource(this.#runtime.resources, "desktop");
     if (options.den) this.#runtime.requireDen(options.den);
-    const requestedSurface = process.env.OPENWORK_EVAL_APP_SURFACE?.trim();
+    const requestedSurface = process.env.HARNESS_EVAL_APP_SURFACE?.trim();
     if (requestedSurface && requestedSurface !== "electron") {
       throw new Error(`seed.desktop() conflicts with app surface ${requestedSurface}; select an explicit desktop world.`);
     }
@@ -559,7 +559,7 @@ export class SeedChannel implements Seed {
         profileDir: options.profileDir,
         ownSandbox: options.ownSandbox,
         env: options.model
-          ? { ...options.env, OPENWORK_EVAL_MODEL: options.model }
+          ? { ...options.env, HARNESS_EVAL_MODEL: options.model }
           : options.env,
       }), "electron");
       if (options.workspacePath) await this.workspace(app, options.workspacePath);
@@ -570,9 +570,9 @@ export class SeedChannel implements Seed {
   appWeb(options: SeedAppWebOptions) {
     requireWorldResource(this.#runtime.resources, "appWeb");
     if (options.mocks && Object.keys(options.mocks).length > 0) requireWorldResource(this.#runtime.resources, "mock");
-    const requestedSurface = process.env.OPENWORK_EVAL_APP_SURFACE?.trim();
+    const requestedSurface = process.env.HARNESS_EVAL_APP_SURFACE?.trim();
     if (requestedSurface && requestedSurface !== "web") {
-      throw new Error(`seed.appWeb() requires OPENWORK_EVAL_APP_SURFACE=web when a surface is explicitly requested; received ${JSON.stringify(requestedSurface)}.`);
+      throw new Error(`seed.appWeb() requires HARNESS_EVAL_APP_SURFACE=web when a surface is explicitly requested; received ${JSON.stringify(requestedSurface)}.`);
     }
     return this.#runtime.call("seed", "appWeb", `appWeb(${this.#runtime.place.kind})`, null, async () => {
       const web = await startAppWeb({ ...options, place: this.#runtime.place });
@@ -599,7 +599,7 @@ export class SeedChannel implements Seed {
         const denOrigin = new URL(options.den.ref.webUrl).origin;
         // Seed before hydration: a running anonymous page can otherwise clear the token.
         await using initialSession = await addInitScript(web.client, browserScript((origin, token) => {
-          if (location.origin === origin) localStorage.setItem("openwork:web:auth-token", token);
+          if (location.origin === origin) localStorage.setItem("harness:web:auth-token", token);
         }, [denOrigin, session.token]));
         await navigate(web.client, new URL(options.startPath ?? "/", options.den.ref.webUrl).toString());
         await eventually(() => evaluateOnSurface(web, browserScript((origin) =>
@@ -613,11 +613,11 @@ export class SeedChannel implements Seed {
     });
   }
 
-  workspace(app: Surface, path = `/tmp/openwork-spec-${Date.now()}`, options: { create?: boolean } = {}) {
+  workspace(app: Surface, path = `/tmp/harness-spec-${Date.now()}`, options: { create?: boolean } = {}) {
     return this.#runtime.call("seed", "workspace", `workspace(${path})`, app, async () => {
-      const result = await import("@openwork/behaviors").then(({ createAndSelectWorkspace }) => createAndSelectWorkspace(app, { path, ...options }));
+      const result = await import("@harness/behaviors").then(({ createAndSelectWorkspace }) => createAndSelectWorkspace(app, { path, ...options }));
       await eventually(() => callFunctionOnSurface(app, (workspaceId) => {
-        const workspace = window.__openwork?.slice?.("route")?.workspaces?.find(item => item.id === workspaceId);
+        const workspace = window.__harness?.slice?.("route")?.workspaces?.find(item => item.id === workspaceId);
         return workspace ? { exists: true, loading: workspace.loading } : { exists: false };
       }, [result.workspaceId]), {
         within: 60000, intervalMs: 250, label: `workspace ${result.workspaceId} initial session load`,
@@ -655,11 +655,11 @@ export class SeedChannel implements Seed {
     });
   }
 
-  signIn(app: Surface, member: import("@openwork/behaviors").DenSession, identity: string) {
+  signIn(app: Surface, member: import("@harness/behaviors").DenSession, identity: string) {
     return this.#runtime.call("seed", "signIn", `signIn(${identity})`, app, () => signInDesktopAs(app, member, member));
   }
 
-  api(session: import("@openwork/behaviors").DenSession, path: string, init: RequestInit = {}) {
+  api(session: import("@harness/behaviors").DenSession, path: string, init: RequestInit = {}) {
     const method = init.method?.toUpperCase() ?? "GET";
     return this.#runtime.call("seed", "api", `[seed] api ${method} ${path}`, null, () => {
       const headers = new Headers(init.headers);
@@ -668,11 +668,11 @@ export class SeedChannel implements Seed {
     });
   }
 
-  orgConnection(admin: import("@openwork/behaviors").DenSession, input: import("./types.ts").OrgConnectionInput) {
+  orgConnection(admin: import("@harness/behaviors").DenSession, input: import("./types.ts").OrgConnectionInput) {
     return this.#runtime.call("seed", "orgConnection", `orgConnection(${JSON.stringify(input.name)})`, null, () => createOrgConnection(admin, input));
   }
 
-  nativeConnector(admin: import("@openwork/behaviors").DenSession, input: import("@openwork/behaviors").NativeConnectorInput) {
+  nativeConnector(admin: import("@harness/behaviors").DenSession, input: import("@harness/behaviors").NativeConnectorInput) {
     return this.#runtime.call("seed", "nativeConnector", `nativeConnector(${JSON.stringify(input.name)})`, null, () => createNativeConnector(admin, input));
   }
 
@@ -692,7 +692,7 @@ export class SeedChannel implements Seed {
     });
   }
 
-  denLink(den: Den, options: import("@openwork/env").SeedDenLinkOptions = {}) {
+  denLink(den: Den, options: import("@harness/env").SeedDenLinkOptions = {}) {
     this.#runtime.requireDen(den);
     return this.#runtime.call("seed", "denLink", `denLink(${options.client ?? "public-preview"})`, null, async () => {
       const link = await startDenLink(den.ref, options);
@@ -703,7 +703,7 @@ export class SeedChannel implements Seed {
   tmpPath(label: string): string {
     this.#runtime.checkOrder("seed", "tmpPath");
     return this.#runtime.adapters.seed?.tmpPath?.(label)
-      ?? `/tmp/openwork-${label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
+      ?? `/tmp/harness-${label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
   }
 
   composerText(app: Surface, text: string) {
@@ -715,9 +715,9 @@ export class SeedChannel implements Seed {
 
   deepLink(app: Surface, url: string) {
     return this.#runtime.call("seed", "deepLink", "deepLink(renderer ingress)", app, async () => {
-      if (new URL(url).protocol !== "openwork:") throw new Error("Expected an OpenWork deep link.");
+      if (new URL(url).protocol !== "harness:") throw new Error("Expected a Harness deep link.");
       await callFunctionOnSurface(app, (url) => {
-        window.dispatchEvent(new CustomEvent("openwork:deep-link", { detail: { urls: [url] } }));
+        window.dispatchEvent(new CustomEvent("harness:deep-link", { detail: { urls: [url] } }));
       }, [url]);
     });
   }
@@ -878,7 +878,7 @@ export class UserChannel implements User {
     return this.#runtime.call("vision", "looks", `looks(${expectations.length} expectations)`, surface, async () => {
       const artifact = await screenshot(surface);
       const result = await validate(artifact, expectations);
-      const { expectVisualEvidence } = await import("@openwork/test-evidence/vitest");
+      const { expectVisualEvidence } = await import("@harness/test-evidence/vitest");
       expectVisualEvidence(result);
     });
   }
@@ -897,7 +897,7 @@ export class AgentChannel implements Agent {
     return new AgentChannel(this.#runtime, surface);
   }
 
-  browserTask(input: import("@openwork/behaviors").BrowserTaskInput) {
+  browserTask(input: import("@harness/behaviors").BrowserTaskInput) {
     const surface = requireSurface(this.#surface);
     return this.#runtime.call("agent", "browserTask", `browserTask(${input.operation}, session=${input.sessionId}, tab=${input.args?.tabId ?? "owned"})`, surface,
       () => requestBrowserTask(surface, input));
@@ -916,7 +916,7 @@ export class AgentChannel implements Agent {
     const surface = requireSurface(this.#surface);
     return this.#runtime.call("agent", "browserRequest", `browserRequest(${input.method ?? "GET"} ${input.url})`, surface, async () => {
       const handle = await callFunctionOnSurface(surface, async () => {
-        const browser = window.__OPENWORK_ELECTRON__.browser;
+        const browser = window.__HARNESS_ELECTRON__.browser;
         const state = await browser.getState();
         const tab = state.tabs.find(tab => tab.id === state.activeTabId);
         if (!tab?.ownerSessionId || !tab.url?.startsWith('http')) throw new Error('Select an owned website tab first');
@@ -946,7 +946,7 @@ export class AgentChannel implements Agent {
       if (!path.startsWith("/") || path.startsWith("//") || /[\\\s]/.test(path)) throw new Error("A root-relative server path is required.");
       const value = await callFunctionOnSurface(surface, async (path, encodedInput) => {
         const input = JSON.parse(encodedInput);
-        const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+        const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
         if (!info?.running || !info.baseUrl) return { status: 0, body: { error: "local_server_unavailable" } };
         const response = await fetch(String(info.baseUrl).replace(/\/+$/, "") + path, {
           method: input.method,
@@ -992,7 +992,7 @@ export class AgentChannel implements Agent {
     const surface = requireSurface(this.#surface);
     return this.#runtime.call("agent", "actions", "listActions", surface, async () => {
       await waitForControlRail(surface, "listActions");
-      return evaluateOnSurface(surface, () => (window.__openworkControl.listActions()));
+      return evaluateOnSurface(surface, () => (window.__harnessControl.listActions()));
     });
   }
 }
@@ -1116,7 +1116,7 @@ export class ProbeChannel implements Probe {
     return this.#runtime.call("probe", "connectState", "connectState", app, () => readConnectState(app));
   }
 
-  api(session: import("@openwork/behaviors").DenSession, path: string, init: RequestInit = {}) {
+  api(session: import("@harness/behaviors").DenSession, path: string, init: RequestInit = {}) {
     const method = init.method?.toUpperCase() ?? "GET";
     return this.#runtime.call("probe", "api", `api(GET ${path})`, null, () => {
       if (method !== "GET") throw new Error(`probe.api is read-only; ${method} is not allowed.`);
@@ -1133,7 +1133,7 @@ export class ProbeChannel implements Probe {
         throw new Error("probe.desktopApi requires a root-relative server path.");
       }
       const value = await callFunctionOnSurface(surface, async (path) => {
-        const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+        const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
         if (!info?.running || !info.baseUrl) return { status: 0, body: { error: "local_server_unavailable" } };
         const response = await fetch(String(info.baseUrl).replace(/\/+$/, "") + path, {
           method: "GET",
@@ -1153,7 +1153,7 @@ export class ProbeChannel implements Probe {
     });
   }
 
-  toolCalls(mock: import("@openwork/env").MockHandle, options: Parameters<import("@openwork/env").MockHandle["toolCalls"]>[0] = {}) {
+  toolCalls(mock: import("@harness/env").MockHandle, options: Parameters<import("@harness/env").MockHandle["toolCalls"]>[0] = {}) {
     return this.#runtime.call("probe", "toolCalls", `toolCalls(${options.name ?? "any"})`, null, () => mock.toolCalls(options));
   }
 

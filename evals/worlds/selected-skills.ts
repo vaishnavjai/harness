@@ -1,5 +1,5 @@
-import { addInitScript, browserScript } from "@openwork/cdp";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { addInitScript, browserScript } from "@harness/cdp";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
@@ -118,10 +118,10 @@ export async function selectedSkillsWeb(seed: Seed) {
       },
       providerRequests: () => providerRequests,
       modelRequests: () => witness.agentRequests({ promptMarker: prompt }),
-      runtimeFacts: () => seed.evalIn(app, () => ({ browser: navigator.userAgent, electronBridge: Boolean(window.__OPENWORK_ELECTRON__) })),
+      runtimeFacts: () => seed.evalIn(app, () => ({ browser: navigator.userAgent, electronBridge: Boolean(window.__HARNESS_ELECTRON__) })),
       readNative: (path: string) => seed.evalIn(app, browserScript(async (path) => {
-        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + path, {
-          headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + path, {
+          headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
           signal: AbortSignal.timeout(15_000),
         });
         const body: unknown = await response.json();

@@ -8,9 +8,9 @@ import { callTool, openLink, parseToolResult, toolResultHandlers } from "../src/
 const connection = {
   schemaVersion: "1", connectionId: "emc_fixture", connectionName: "Fixture", state: "needs_connection",
   actor: "member", message: "Sign in to use this connection.",
-  action: { type: "connect", label: "Connect Fixture", surface: "openwork_your_connections", url: "https://example.com/connections/emc_fixture" },
+  action: { type: "connect", label: "Connect Fixture", surface: "harness_your_connections", url: "https://example.com/connections/emc_fixture" },
 }
-const hostContext = { experimental: { "openwork/connection-actions": true } }
+const hostContext = { experimental: { "harness/connection-actions": true } }
 
 test("shared result handlers render validated payloads, escape untrusted text, and clear errors and cancellation", () => {
   const app = new App({ name: "test", version: "1" }, {}, { autoResize: false })
@@ -52,7 +52,7 @@ test("initial search wrapper and valid error remediation render through the same
 test("connection view uses host support without guessing a connected outcome", () => {
   const app = new App({ name: "test", version: "1" }, {}, { autoResize: false })
   const payload = connectionResultSchema.parse(connection)
-  const native = renderToStaticMarkup(<ConnectionView payload={payload} app={app} hostContext={{ experimental: { "openwork/connection-actions": true } }} />)
+  const native = renderToStaticMarkup(<ConnectionView payload={payload} app={app} hostContext={{ experimental: { "harness/connection-actions": true } }} />)
   assert.match(native, /Authenticate/)
   assert.match(native, /Skip/)
   assert.match(native, /<h1>Connect Fixture for account access<\/h1>/)
@@ -66,7 +66,7 @@ test("connection view uses host support without guessing a connected outcome", (
   assert.match(fallback, /Open connections/)
   assert.doesNotMatch(fallback, /Authenticate|Fixture connected|Skip continues without connecting/)
   const reconnect = connectionResultSchema.parse({ ...connection, state: "reauth_required", action: { ...connection.action, type: "reconnect" } })
-  const reconnectHtml = renderToStaticMarkup(<ConnectionView payload={reconnect} app={app} hostContext={{ experimental: { "openwork/connection-actions": true } }} />)
+  const reconnectHtml = renderToStaticMarkup(<ConnectionView payload={reconnect} app={app} hostContext={{ experimental: { "harness/connection-actions": true } }} />)
   assert.match(reconnectHtml, /<h1>Connect Fixture for account access<\/h1>/)
   assert.match(reconnectHtml, /<details><summary>Access details<\/summary>/)
   const connected = connectionResultSchema.parse({ ...connection, state: "connected", actor: null, action: null })

@@ -9,7 +9,7 @@ import { format } from "prettier";
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const repoDir = fileURLToPath(new URL("../../..", import.meta.url));
 const check = process.argv.includes("--check");
-const temporary = await mkdtemp(join(tmpdir(), "openwork-sdk-"));
+const temporary = await mkdtemp(join(tmpdir(), "harness-sdk-"));
 
 async function files(directory, prefix = "") {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -24,9 +24,9 @@ async function files(directory, prefix = "") {
 
 try {
   // This workspace package exposes built browser assets even in development.
-  execFileSync("pnpm", ["--filter", "@openwork/mcp-apps", "build"], { cwd: repoDir, stdio: "inherit" });
+  execFileSync("pnpm", ["--filter", "@harness/mcp-apps", "build"], { cwd: repoDir, stdio: "inherit" });
   const input = join(temporary, "openapi.json");
-  execFileSync("pnpm", ["--filter", "@openwork-ee/den-api", "exec", "tsx", "--conditions=development",
+  execFileSync("pnpm", ["--filter", "@harness-ee/den-api", "exec", "tsx", "--conditions=development",
     "scripts/generate-openapi-snapshot.ts", "--output", input], { cwd: repoDir, stdio: "inherit" });
   const committed = join(packageDir, "src/gen");
   const output = check ? join(temporary, "gen") : committed;
@@ -36,7 +36,7 @@ try {
     plugins: [
       { name: "@hey-api/typescript", exportFromIndex: false },
       { name: "@hey-api/sdk", instance: "DenClient", exportFromIndex: false, auth: false, paramsStructure: "flat" },
-      { name: "@hey-api/client-fetch", exportFromIndex: false, baseUrl: "https://api.openworklabs.com" },
+      { name: "@hey-api/client-fetch", exportFromIndex: false, baseUrl: "https://api.harness.invalid" },
     ],
   });
   const generatedFiles = await files(output);

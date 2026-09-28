@@ -9,31 +9,31 @@ import { MIN_NODE_VERSION } from "../bin/platform.mjs";
 // installs them next to the package.
 export const BUNDLE_EXTERNAL_DEPENDENCIES = ["jsonc-parser"];
 
-// Stages the published openwork-server package:
+// Stages the published harness-server package:
 //   bin/                      launcher
-//   dist/openwork-server.mjs  the server, bundled for Node (every OS and CPU)
+//   dist/harness-server.mjs  the server, bundled for Node (every OS and CPU)
 //   dist/pdfium.wasm          loaded next to the bundle by PDF attachments
 //   dist/opencode-plugins/    plugins handed to the OpenCode engine
-//   web/                      the web UI served by `openwork-server web`
+//   web/                      the web UI served by `harness-server web`
 export async function stageNpmPackage(packageRoot, outputRoot = resolve(packageRoot, "dist/npm")) {
   const sourcePackage = JSON.parse(await readFile(resolve(packageRoot, "package.json"), "utf8"));
 
-  const bundle = resolve(packageRoot, "dist/npm-bundle/openwork-server.mjs");
+  const bundle = resolve(packageRoot, "dist/npm-bundle/harness-server.mjs");
   const bundleInfo = await stat(bundle).catch(() => null);
   if (!bundleInfo || !bundleInfo.isFile() || bundleInfo.size < 100_000) {
-    throw new Error(`Node bundle missing at ${bundle}. Run: pnpm --filter openwork-server build:npm-bundle`);
+    throw new Error(`Node bundle missing at ${bundle}. Run: pnpm --filter @harness/server build:npm-bundle`);
   }
   const webDist = resolve(packageRoot, "..", "app", "dist");
   if (!existsSync(resolve(webDist, "index.html"))) {
-    throw new Error(`Web UI bundle missing at ${webDist}. Run: pnpm --filter @openwork/app build:selfhost`);
+    throw new Error(`Web UI bundle missing at ${webDist}. Run: pnpm --filter @harness/app build:selfhost`);
   }
   const pluginDist = resolve(packageRoot, "dist/opencode-plugins");
-  if (!existsSync(resolve(pluginDist, "openwork-extensions-preview.js"))) {
-    throw new Error(`OpenCode plugin bundle missing at ${pluginDist}. Run: pnpm --filter openwork-server build`);
+  if (!existsSync(resolve(pluginDist, "harness-extensions-preview.js"))) {
+    throw new Error(`OpenCode plugin bundle missing at ${pluginDist}. Run: pnpm --filter @harness/server build`);
   }
   const pdfiumWasm = resolve(pluginDist, "pdfium.wasm");
   if (!existsSync(pdfiumWasm)) {
-    throw new Error(`pdfium.wasm missing at ${pdfiumWasm}. Run: pnpm --filter openwork-server build`);
+    throw new Error(`pdfium.wasm missing at ${pdfiumWasm}. Run: pnpm --filter @harness/server build`);
   }
 
   const dependencies = {};
@@ -46,9 +46,9 @@ export async function stageNpmPackage(packageRoot, outputRoot = resolve(packageR
   await rm(outputRoot, { recursive: true, force: true });
   await mkdir(resolve(outputRoot, "bin"), { recursive: true });
   await mkdir(resolve(outputRoot, "dist"), { recursive: true });
-  await cp(resolve(packageRoot, "bin/openwork-server.mjs"), resolve(outputRoot, "bin/openwork-server.mjs"));
+  await cp(resolve(packageRoot, "bin/harness-server.mjs"), resolve(outputRoot, "bin/harness-server.mjs"));
   await cp(resolve(packageRoot, "bin/platform.mjs"), resolve(outputRoot, "bin/platform.mjs"));
-  await cp(bundle, resolve(outputRoot, "dist/openwork-server.mjs"));
+  await cp(bundle, resolve(outputRoot, "dist/harness-server.mjs"));
   await cp(pdfiumWasm, resolve(outputRoot, "dist/pdfium.wasm"));
   await cp(pluginDist, resolve(outputRoot, "dist/opencode-plugins"), {
     recursive: true,
@@ -62,6 +62,10 @@ export async function stageNpmPackage(packageRoot, outputRoot = resolve(packageR
       {
         name: sourcePackage.name,
         version: sourcePackage.version,
+        // Harness is not published to a registry: the @harness scope and the
+        // unscoped harness-* names are not owned by this project. The staged
+        // package is for local installs (Docker image, self-host tarballs).
+        private: true,
         description: sourcePackage.description,
         type: sourcePackage.type,
         bin: sourcePackage.bin,
@@ -72,7 +76,6 @@ export async function stageNpmPackage(packageRoot, outputRoot = resolve(packageR
         bugs: sourcePackage.bugs,
         keywords: sourcePackage.keywords,
         license: sourcePackage.license,
-        publishConfig: sourcePackage.publishConfig,
       },
       null,
       2,

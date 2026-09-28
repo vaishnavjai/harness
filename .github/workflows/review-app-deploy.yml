@@ -1,15 +1,15 @@
 name: Review app deploy
 
-# Report links in PR comments point at vars.OPENWORK_REVIEW_URL. A Vercel
+# Report links in PR comments point at vars.HARNESS_REVIEW_URL. A Vercel
 # deployment URL is an immutable snapshot, so that variable must name a stable
 # alias. This workflow redeploys the review app from the default branch and
 # moves the alias to the new deployment, so existing report links always open
 # the current app.
 #
 # Required repository configuration:
-#   vars.OPENWORK_REVIEW_URL                 https://<stable-alias>.vercel.app
-#   vars.OPENWORK_REVIEW_VERCEL_ORG_ID       Vercel team id (team_...)
-#   vars.OPENWORK_REVIEW_VERCEL_PROJECT_ID   Vercel project id (prj_...)
+#   vars.HARNESS_REVIEW_URL                 https://<stable-alias>.vercel.app
+#   vars.HARNESS_REVIEW_VERCEL_ORG_ID       Vercel team id (team_...)
+#   vars.HARNESS_REVIEW_VERCEL_PROJECT_ID   Vercel project id (prj_...)
 #   secrets.VERCEL_TOKEN                     Vercel token with access to the project
 
 on:
@@ -34,17 +34,17 @@ concurrency:
 jobs:
   deploy:
     if: >-
-      github.repository == 'different-ai/openwork' &&
-      vars.OPENWORK_REVIEW_URL != '' &&
-      vars.OPENWORK_REVIEW_VERCEL_ORG_ID != '' &&
-      vars.OPENWORK_REVIEW_VERCEL_PROJECT_ID != ''
+      github.repository == 'vaishnavjai/harness' &&
+      vars.HARNESS_REVIEW_URL != '' &&
+      vars.HARNESS_REVIEW_VERCEL_ORG_ID != '' &&
+      vars.HARNESS_REVIEW_VERCEL_PROJECT_ID != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ vars.OPENWORK_REVIEW_VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.OPENWORK_REVIEW_VERCEL_PROJECT_ID }}
-      OPENWORK_REVIEW_URL: ${{ vars.OPENWORK_REVIEW_URL }}
+      VERCEL_ORG_ID: ${{ vars.HARNESS_REVIEW_VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.HARNESS_REVIEW_VERCEL_PROJECT_ID }}
+      HARNESS_REVIEW_URL: ${{ vars.HARNESS_REVIEW_URL }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
@@ -60,9 +60,9 @@ jobs:
             echo "::error::Missing GitHub Actions secret VERCEL_TOKEN."
             exit 1
           fi
-          host="$(node -e 'const u = new URL(process.env.OPENWORK_REVIEW_URL); if (u.protocol !== "https:" || u.pathname !== "/" || u.search || u.hash) throw new Error("OPENWORK_REVIEW_URL must be an https origin"); console.log(u.hostname)')"
+          host="$(node -e 'const u = new URL(process.env.HARNESS_REVIEW_URL); if (u.protocol !== "https:" || u.pathname !== "/" || u.search || u.hash) throw new Error("HARNESS_REVIEW_URL must be an https origin"); console.log(u.hostname)')"
           if [[ "$host" =~ -[a-z0-9]{9}-[a-z0-9-]+\.vercel\.app$ ]]; then
-            echo "::error::OPENWORK_REVIEW_URL ($host) looks like a single deployment URL. Point it at a stable alias so redeploys can replace it."
+            echo "::error::HARNESS_REVIEW_URL ($host) looks like a single deployment URL. Point it at a stable alias so redeploys can replace it."
             exit 1
           fi
           echo "host=$host" >> "$GITHUB_OUTPUT"

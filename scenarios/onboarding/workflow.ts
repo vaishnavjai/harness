@@ -1,5 +1,5 @@
-import { typeField } from "@openwork/behaviors";
-import type { SpecBodyContext } from "@openwork/testkit";
+import { typeField } from "@harness/behaviors";
+import type { SpecBodyContext } from "@harness/testkit";
 import type { onboardingWorld } from "./world.ts";
 
 export type OnboardingContext = SpecBodyContext<
@@ -24,7 +24,7 @@ export async function onboarding(ctx: OnboardingContext) {
     const result = await probe.api(
       world.den.admin,
       path,
-      orgId ? { headers: { "x-openwork-org-id": orgId } } : {},
+      orgId ? { headers: { "x-harness-org-id": orgId } } : {},
     );
     if (!result.response.ok)
       throw new Error(
@@ -122,7 +122,7 @@ export async function onboarding(ctx: OnboardingContext) {
     );
   });
 
-  await user.notSee({ testId: "download-openwork-card" });
+  await user.notSee({ testId: "download-harness-card" });
   await step("Complete setup", async () => {
     await user.click({ role: "button", label: "Complete setup" });
     await user.see({ testId: "den-org-sidebar" }, { timeoutMs: 90_000 });

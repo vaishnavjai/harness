@@ -20,7 +20,7 @@ Makes Working indicators and session reconciliation truthful, connects Den provi
 - Working indicators now stop when a run errors or the engine is unreachable, and show minutes past the first hour.
 - Sessions reconcile more cleanly: completions are detected while you are elsewhere, queued composer messages send when a session is out of view, and archiving works from any workspace.
 - Den cloud providers now connect using credentials saved locally on the Desktop, and Google Workspace retrieval is more resilient.
-- The landing page shows OpenWork's SOC 2 badge and status, and web boot failures and Stripe webhook errors now reach Sentry.
+- The landing page shows Harness's SOC 2 badge and status, and web boot failures and Stripe webhook errors now reach Sentry.
 - Remediated static-analysis security findings, isolated provider sync contexts, and improved internal test and release tooling.
 
 #### Lines of code changed since previous release
@@ -78,7 +78,7 @@ Exposes MCP connections as standard MCP servers while improving browser opening,
 #### Main changes
 - MCP connections can now be exposed directly as standard MCP servers.
 - Fixed browser.open_url so a blank initialize load no longer aborts it.
-- Added the OpenWork Dashboard page and interactive dashboard preview, plus a Dashboards guide with an MCP App widget tutorial.
+- Added the Harness Dashboard page and interactive dashboard preview, plus a Dashboards guide with an MCP App widget tutorial.
 - Improved narrow-window Settings navigation, session naming, child permission requests, image lightboxes, tool groups, queued drafts, and session sidebar behavior.
 - Added Automations flags to Helm starter examples, Google SSO and SCIM guidance, and safer SSO configuration validation.
 
@@ -96,7 +96,7 @@ True
 
 #### Major improvement details
 - Exposed an MCP connection directly as a standard MCP server.
-- Added the OpenWork Dashboard page, interactive dashboard preview, and Dashboards guide.
+- Added the Harness Dashboard page, interactive dashboard preview, and Dashboards guide.
 
 #### Major bugs resolved
 True
@@ -108,7 +108,7 @@ True
 - Stopped a blank initialize load from aborting browser.open_url.
 - Kept a way out of Settings in narrow windows and kept binary file paths out of Read-expanded prompt parts.
 - Hid subagent sessions when their parent is archived or unloaded, and surfaced child permission requests in parent tasks.
-- Fixed image lightbox sizing, tool-group detail visibility, queued follow-up draft wrapping, and the OpenWork system prompt message structure.
+- Fixed image lightbox sizing, tool-group detail visibility, queued follow-up draft wrapping, and the Harness system prompt message structure.
 
 #### Deprecated features
 False

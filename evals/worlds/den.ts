@@ -1,9 +1,9 @@
-import { addInitScript, browserScript } from "@openwork/cdp";
-import { localMysqlIsRunning, SkipError } from "@openwork/env";
-import type { Seed } from "@openwork/env";
-import { waitFor } from "@openwork/behaviors";
-import { navigate } from "@openwork/cdp";
-import { startMockIdpLab } from "@openwork/labs";
+import { addInitScript, browserScript } from "@harness/cdp";
+import { localMysqlIsRunning, SkipError } from "@harness/env";
+import type { Seed } from "@harness/env";
+import { waitFor } from "@harness/behaviors";
+import { navigate } from "@harness/cdp";
+import { startMockIdpLab } from "@harness/labs";
 import { localInviteNeeds } from "./org-invite.ts";
 
 function recordField(value: unknown, key: string): Record<string, unknown> | null {
@@ -40,7 +40,7 @@ export async function ssoInvite(seed: Seed, options: { mismatchedEmail?: boolean
     const den = await seed.den({
       trustedOrigins: [new URL(idp.issuer).origin],
       org: { admin: { email: `sso-owner-${stamp}@${domain}` } },
-      env: { DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "true", OPENWORK_DEV_MODE: "1", RESEND_API_KEY: "", SMTP_HOST: "" },
+      env: { DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "true", HARNESS_DEV_MODE: "1", RESEND_API_KEY: "", SMTP_HOST: "" },
     });
     const organizationResult = await seed.api(den.admin, "/v1/org");
     const organizationId = stringField(recordField(organizationResult.body, "organization"), "id");
@@ -62,7 +62,7 @@ export async function ssoInvite(seed: Seed, options: { mismatchedEmail?: boolean
       method: "POST",
       headers: {
         cookie: sessionCookie,
-        "x-openwork-org-id": organizationId,
+        "x-harness-org-id": organizationId,
       },
       body: JSON.stringify({
         issuer: registration.issuer,
@@ -82,7 +82,7 @@ export async function ssoInvite(seed: Seed, options: { mismatchedEmail?: boolean
 
     const orgHeaders = {
       cookie: sessionCookie,
-      "x-openwork-org-id": organizationId,
+      "x-harness-org-id": organizationId,
     };
     const createdTest = await seed.api(den.admin, "/v1/sso/test", {
       method: "POST",

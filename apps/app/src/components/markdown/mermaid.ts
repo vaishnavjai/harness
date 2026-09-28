@@ -283,7 +283,7 @@ export async function renderMermaidSource(
         loaded = true;
         runtime.initialize(mermaidConfigForTheme(theme));
         mermaidRenderId += 1;
-        return runtime.render(`openwork-mermaid-${mermaidRenderId}`, source);
+        return runtime.render(`harness-mermaid-${mermaidRenderId}`, source);
       })(), timeoutMs);
 
       return { status: "rendered", svg: sanitizeMermaidSvg(rendered.svg) };
@@ -305,16 +305,16 @@ function sourceStatus(reason: Exclude<MermaidRenderResult, { status: "rendered" 
 }
 
 function setMermaidView(element: HTMLElement, view: "rendered" | "source") {
-  const rendered = element.querySelector("[data-openwork-mermaid-rendered]");
-  const source = element.querySelector("[data-openwork-mermaid-source]");
-  const renderedButton = element.querySelector("[data-openwork-mermaid-view='rendered']");
-  const sourceButton = element.querySelector("[data-openwork-mermaid-view='source']");
+  const rendered = element.querySelector("[data-harness-mermaid-rendered]");
+  const source = element.querySelector("[data-harness-mermaid-source]");
+  const renderedButton = element.querySelector("[data-harness-mermaid-view='rendered']");
+  const sourceButton = element.querySelector("[data-harness-mermaid-view='source']");
   if (!(rendered instanceof HTMLElement) || !(source instanceof HTMLElement)) return;
 
   const showRendered = view === "rendered" && mermaidSvgByElement.has(element);
   rendered.hidden = !showRendered;
   source.hidden = showRendered;
-  element.dataset.openworkMermaidState = showRendered ? "rendered" : "source";
+  element.dataset.harnessMermaidState = showRendered ? "rendered" : "source";
   renderedButton?.setAttribute("aria-pressed", String(showRendered));
   sourceButton?.setAttribute("aria-pressed", String(!showRendered));
   renderedButton?.classList.toggle("bg-muted", showRendered);
@@ -324,11 +324,11 @@ function setMermaidView(element: HTMLElement, view: "rendered" | "source") {
 }
 
 async function enhanceMermaidElement(element: HTMLElement, theme: ResolvedThemeMode, signal: AbortSignal) {
-  const code = element.querySelector("[data-openwork-mermaid-source] code");
-  const renderedPane = element.querySelector("[data-openwork-mermaid-rendered]");
-  const renderedButton = element.querySelector("[data-openwork-mermaid-view='rendered']");
-  const downloadButton = element.querySelector("[data-openwork-mermaid-download]");
-  const status = element.querySelector("[data-openwork-mermaid-status]");
+  const code = element.querySelector("[data-harness-mermaid-source] code");
+  const renderedPane = element.querySelector("[data-harness-mermaid-rendered]");
+  const renderedButton = element.querySelector("[data-harness-mermaid-view='rendered']");
+  const downloadButton = element.querySelector("[data-harness-mermaid-download]");
+  const status = element.querySelector("[data-harness-mermaid-status]");
   if (!(code instanceof HTMLElement) || !(renderedPane instanceof HTMLElement)) return;
 
   element.setAttribute("aria-busy", "true");
@@ -339,13 +339,13 @@ async function enhanceMermaidElement(element: HTMLElement, theme: ResolvedThemeM
 
   const result = await renderMermaidSource(code.textContent ?? "", theme);
   if (signal.aborted || !element.isConnected) return;
-  const preserveSource = mermaidSvgByElement.has(element) && element.dataset.openworkMermaidState === "source";
+  const preserveSource = mermaidSvgByElement.has(element) && element.dataset.harnessMermaidState === "source";
 
   element.setAttribute("aria-busy", "false");
   if (result.status === "source") {
     mermaidSvgByElement.delete(element);
     renderedPane.replaceChildren();
-    element.dataset.openworkMermaidReason = result.reason;
+    element.dataset.harnessMermaidReason = result.reason;
     if (renderedButton instanceof HTMLButtonElement) renderedButton.disabled = true;
     if (downloadButton instanceof HTMLButtonElement) downloadButton.hidden = true;
     if (status instanceof HTMLElement) status.textContent = sourceStatus(result.reason);
@@ -353,10 +353,10 @@ async function enhanceMermaidElement(element: HTMLElement, theme: ResolvedThemeM
     return;
   }
 
-  delete element.dataset.openworkMermaidReason;
+  delete element.dataset.harnessMermaidReason;
   renderedPane.innerHTML = result.svg;
   mermaidSvgByElement.set(element, result.svg);
-  element.dataset.openworkMermaidTheme = theme;
+  element.dataset.harnessMermaidTheme = theme;
   if (renderedButton instanceof HTMLButtonElement) renderedButton.disabled = false;
   if (downloadButton instanceof HTMLButtonElement) downloadButton.hidden = false;
   if (status instanceof HTMLElement) status.hidden = true;
@@ -376,23 +376,23 @@ export function useMermaidEnhancer(
     if (!root || !enabled) return;
 
     const controller = new AbortController();
-    const diagrams = Array.from(root.querySelectorAll("[data-openwork-mermaid]"))
+    const diagrams = Array.from(root.querySelectorAll("[data-harness-mermaid]"))
       .filter((element): element is HTMLElement => element instanceof HTMLElement);
 
     const handleClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest("button");
-      const diagram = button?.closest("[data-openwork-mermaid]");
+      const diagram = button?.closest("[data-harness-mermaid]");
       if (!(button instanceof HTMLButtonElement) || !(diagram instanceof HTMLElement)) return;
 
-      const view = button.dataset.openworkMermaidView;
+      const view = button.dataset.harnessMermaidView;
       if (view === "source" || view === "rendered") {
         event.preventDefault();
         setMermaidView(diagram, view);
         return;
       }
 
-      if (!button.hasAttribute("data-openwork-mermaid-download")) return;
+      if (!button.hasAttribute("data-harness-mermaid-download")) return;
       const svg = mermaidSvgByElement.get(diagram);
       if (!svg) return;
 

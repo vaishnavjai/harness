@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import type { GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 import { createGatewayUsageSettlementRefresh, gatewayUsageNeedsSettlement, gatewayUsageSettlementDelays } from "../src/react-app/domains/cloud/gateway-usage-refresh";
 import { trackedCoverage } from "./gateway-usage-fixture";
 

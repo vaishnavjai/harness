@@ -1,4 +1,4 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
 import {
   control,
@@ -8,9 +8,9 @@ import {
   selectModel,
   waitFor,
   writeComposerText,
-} from "@openwork/behaviors";
-import { resolveEvalEngine } from "@openwork/env";
-import { screenshot } from "@openwork/test-evidence";
+} from "@harness/behaviors";
+import { resolveEvalEngine } from "@harness/env";
+import { screenshot } from "@harness/test-evidence";
 import {
   app,
   eventually,
@@ -21,8 +21,8 @@ import {
   server,
   spec,
   test,
-} from "@openwork/testkit";
-import type { App } from "@openwork/testkit";
+} from "@harness/testkit";
+import type { App } from "@harness/testkit";
 import { sessionSwitchLatencyWeb } from "../worlds/session-switch-latency.ts";
 
 const providerId = "live-tool-switch-mock";
@@ -30,15 +30,15 @@ const modelId = "live-tool-switch-model";
 const modelName = "Live tool switch model";
 const evalEngine = resolveEvalEngine();
 const shellToolName = evalEngine === "v2" ? "shell" : "bash";
-const e2eTestsEnabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-const daytonaEnabled = process.env.OPENWORK_EVAL_DAYTONA === "1";
-const configuredDen = Boolean(process.env.OPENWORK_EVAL_DEN_API_URL?.trim());
+const e2eTestsEnabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
+const daytonaEnabled = process.env.HARNESS_EVAL_DAYTONA === "1";
+const configuredDen = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
 const localServicesRequired = !daytonaEnabled && !configuredDen;
 const mysqlOpen = await localMysqlIsRunning();
 const redisOpen = await localRedisIsRunning();
 const runnable = e2eTestsEnabled && (!localServicesRequired || (mysqlOpen && redisOpen));
 const skipSuffix = !e2eTestsEnabled
-  ? " skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1"
+  ? " skipped — needs: set HARNESS_EVAL_E2E_TESTS=1"
   : localServicesRequired && !mysqlOpen
     ? " skipped — needs MySQL on 127.0.0.1:3306"
     : localServicesRequired && !redisOpen
@@ -82,7 +82,7 @@ function parseVisibleToolFact(value: unknown): VisibleToolFact {
 
 async function configureWorkspaces(appSurface: App, workspaceIds: string[], baseUrl: string): Promise<void> {
   const result = await evalIn(appSurface, browserScript(async (workspaceIds, providerId, modelName, value, modelId, inputModelName, inputProviderId, inputModelId, inputValue) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return "local_server_unavailable";
     const root = String(info.baseUrl).replace(/\/+$/, "");
     const headers = {
@@ -118,23 +118,23 @@ async function configureWorkspaces(appSurface: App, workspaceIds: string[], base
       });
       if (!reloaded.ok) return "reload:" + reloaded.status + ":" + (await reloaded.text()).slice(0, 300);
     }
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch { preferences = {}; }
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: inputProviderId, modelID: inputModelId },
       modelVariant: null,
       providerStepCompleted: true,
     }));
-    localStorage.setItem("openwork.defaultModel", inputValue);
+    localStorage.setItem("harness.defaultModel", inputValue);
     return "ok";
   }, [workspaceIds, providerId, modelName, `${baseUrl}/v1`, modelId, modelName, providerId, modelId, `${providerId}/${modelId}`]), { awaitPromise: true, timeoutMs: 120_000 });
   expect(result).toBe("ok");
 
   await evalIn(appSurface, () => { location.reload(); return true; });
-  await waitFor(appSurface, () => (Boolean(window.__openworkControl)), {
+  await waitFor(appSurface, () => (Boolean(window.__harnessControl)), {
     timeoutMs: 60_000,
     label: "desktop restored after mock provider configuration",
   });
@@ -169,7 +169,7 @@ async function clickSessionRow(appSurface: App, workspaceId: string, sessionId: 
   await waitFor(appSurface, browserScript((sessionId, workspaceId) => {
     const surface = document.querySelector<HTMLElement>("[data-session-surface-id]");
     return surface?.getAttribute("data-session-surface-id") === sessionId
-      && (localStorage.getItem("openwork.react.activeWorkspace") ?? "") === workspaceId;
+      && (localStorage.getItem("harness.react.activeWorkspace") ?? "") === workspaceId;
   }, [sessionId, workspaceId]), { timeoutMs: 60_000, label: `workspace ${workspaceId} session ${sessionId} visible after sidebar click` });
 }
 
@@ -264,7 +264,7 @@ test.skipIf(!runnable)(
   `a tool started while away is visible after returning to its chat${skipSuffix}`,
   { timeout: 12 * 60_000 },
   async ({ evidence, place }) => {
-    needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+    needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
     const runId = `${Date.now().toString(36)}-${process.pid}`;
     const promptMarker = `LIVE-TOOL-SWITCH-${runId}`;
     const firstMarker = `FIRST-${promptMarker}`;
@@ -313,13 +313,13 @@ test.skipIf(!runnable)(
     await using desktopApp = await app({ den, as: "member", place });
 
     const workspaceB = await createAndSelectWorkspace(desktopApp, {
-      path: `/tmp/openwork-live-tool-switch-${runId}-b`,
+      path: `/tmp/harness-live-tool-switch-${runId}-b`,
     });
     const chatB = await createSession(desktopApp);
     await control(desktopApp, "session.rename", { sessionId: chatB, title: "Chat B" });
 
     const workspaceA = await createAndSelectWorkspace(desktopApp, {
-      path: `/tmp/openwork-live-tool-switch-${runId}-a`,
+      path: `/tmp/harness-live-tool-switch-${runId}-a`,
     });
     await configureWorkspaces(desktopApp, [workspaceA.workspaceId, workspaceB.workspaceId], den.mocks.agent.url);
     const chatA = await createSession(desktopApp);

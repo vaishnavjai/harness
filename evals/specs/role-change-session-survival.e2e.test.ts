@@ -1,16 +1,16 @@
 import { expect } from "vitest";
-import { denFetch, freshSession } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { eventually, localMysqlIsRunning, needs, server, test } from "@openwork/testkit";
+import { denFetch, freshSession } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { eventually, localMysqlIsRunning, needs, server, test } from "@harness/testkit";
 
 const ORGANIZATION_NAME = "Role Change Session Survival";
-const e2eTestsEnabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-const localPlacement = process.env.OPENWORK_EVAL_DAYTONA !== "1" && !process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
+const e2eTestsEnabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
+const localPlacement = process.env.HARNESS_EVAL_DAYTONA !== "1" && !process.env.HARNESS_EVAL_DEN_API_URL?.trim();
 const mysqlOpen = await localMysqlIsRunning();
 const title = !e2eTestsEnabled
-  ? "role change session survival skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1"
+  ? "role change session survival skipped — needs: set HARNESS_EVAL_E2E_TESTS=1"
   : !localPlacement
-    ? "role change session survival skipped — needs local placement without OPENWORK_EVAL_DEN_API_URL"
+    ? "role change session survival skipped — needs local placement without HARNESS_EVAL_DEN_API_URL"
     : !mysqlOpen
       ? "role change session survival skipped — needs MySQL on 127.0.0.1:3306"
       : "role upgrades preserve live sessions while demotions revoke them";
@@ -40,7 +40,7 @@ async function memberIdByEmail(admin: DenSession, orgId: string, email: string):
   const result = await denFetch(admin, "/v1/org", {
     headers: {
       ...auth(admin),
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
   });
   const members = isRecord(result.body) && Array.isArray(result.body.members)
@@ -60,7 +60,7 @@ async function updateMemberRole(admin: DenSession, orgId: string, memberId: stri
     method: "POST",
     headers: {
       ...auth(privilegedAdmin),
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: JSON.stringify({ role }),
   });
@@ -73,7 +73,7 @@ async function sessionStatus(member: DenSession): Promise<number> {
 }
 
 test.skipIf(!e2eTestsEnabled || !localPlacement || !mysqlOpen)(title, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
 
   await using den = await server({
     place,

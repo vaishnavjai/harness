@@ -72,7 +72,7 @@ const errorBannerClass =
  */
 export function DenSignInSurface(props: DenSignInSurfaceProps) {
   const variant: DenSignInSurfaceVariant = props.variant ?? "panel";
-  const appName = props.appName?.trim() || "OpenWork";
+  const appName = props.appName?.trim() || "Harness";
 
   /* -- Panel content (reused by both variants) -- */
   const panelContent = (
@@ -232,7 +232,7 @@ export function DenSignInSurface(props: DenSignInSurfaceProps) {
           <div className="w-full max-w-[720px] rounded-3xl border border-border bg-background px-8 pb-12 pt-10 sm:px-16 sm:pb-16 sm:pt-14">
             <div className="flex items-center gap-2.5">
               <img
-                src={props.logoUrl ?? resolveExtensionIconSrc("/openwork-mark.svg")}
+                src={props.logoUrl ?? resolveExtensionIconSrc("/harness-mark.svg")}
                 alt=""
                 width={26}
                 height={26}

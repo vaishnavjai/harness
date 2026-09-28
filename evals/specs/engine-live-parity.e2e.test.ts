@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { spec, resolveEvalEngine, readTranscriptMessages } from "@openwork/testkit";
+import { spec, resolveEvalEngine, readTranscriptMessages } from "@harness/testkit";
 import { engineLiveParity, record } from "../worlds/engine-live-parity.ts";
 
 const test = spec.world(engineLiveParity, { timeout: 600_000,
   resources: { surfaces: ["appWeb"], services: [] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 test(`LIVE-FRESH ${resolveEvalEngine()}: ${resolveEvalEngine() === "v2" ? "create the first workspace and open the composer" : "create the first workspace and send to the real free model"}`, async ({ world, user, probe, step, evidence }) => {
@@ -28,7 +28,7 @@ test(`LIVE-FRESH ${resolveEvalEngine()}: ${resolveEvalEngine() === "v2" ? "creat
     await user.screenshot();
   });
   if (world.engine === "v2") {
-    evidence.recordAssertionEvidence("Fresh browser v2 workspace and composer", "The server started with no workspace; real workspace creation opened the composer. Existing free-starter inference is outside the v2 migration gate. OpenWork's own free models require first-send coverage before GA; real paid first sends remain covered separately.", true);
+    evidence.recordAssertionEvidence("Fresh browser v2 workspace and composer", "The server started with no workspace; real workspace creation opened the composer. Existing free-starter inference is outside the v2 migration gate. Harness's own free models require first-send coverage before GA; real paid first sends remain covered separately.", true);
     return;
   }
   await step("Send a nonce challenge to the real model and observe its generated answer", async () => {

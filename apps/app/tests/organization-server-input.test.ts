@@ -4,17 +4,17 @@ import { normalizeOrganizationServerInput } from "../src/app/lib/organization-se
 
 describe("normalizeOrganizationServerInput", () => {
   test("normalizes full URLs and bare hostnames to their origin", () => {
-    expect(normalizeOrganizationServerInput("https://openwork.acme.com/werpiweur")).toBe(
-      "https://openwork.acme.com",
+    expect(normalizeOrganizationServerInput("https://harness.acme.com/werpiweur")).toBe(
+      "https://harness.acme.com",
     );
-    expect(normalizeOrganizationServerInput("  openwork.acme.com  ")).toBe(
-      "https://openwork.acme.com",
+    expect(normalizeOrganizationServerInput("  harness.acme.com  ")).toBe(
+      "https://harness.acme.com",
     );
     expect(normalizeOrganizationServerInput("http://localhost:3005/dashboard?x=1#y")).toBe(
       "http://localhost:3005",
     );
-    expect(normalizeOrganizationServerInput("https://openwork.acme.com:8443/path")).toBe(
-      "https://openwork.acme.com:8443",
+    expect(normalizeOrganizationServerInput("https://harness.acme.com:8443/path")).toBe(
+      "https://harness.acme.com:8443",
     );
   });
 
@@ -31,13 +31,13 @@ describe("normalizeOrganizationServerInput", () => {
     expect(normalizeOrganizationServerInput("http://[::1]:3005")).toBe(
       "http://[::1]:3005",
     );
-    expect(normalizeOrganizationServerInput("http://openwork.acme.com")).toBeNull();
+    expect(normalizeOrganizationServerInput("http://harness.acme.com")).toBeNull();
     expect(normalizeOrganizationServerInput("http://den.internal:8080")).toBeNull();
   });
 
   test("keeps https available for non-loopback hosts", () => {
-    expect(normalizeOrganizationServerInput("https://openwork.acme.com")).toBe(
-      "https://openwork.acme.com",
+    expect(normalizeOrganizationServerInput("https://harness.acme.com")).toBe(
+      "https://harness.acme.com",
     );
     expect(normalizeOrganizationServerInput("https://den.internal:8080/path")).toBe(
       "https://den.internal:8080",
@@ -45,16 +45,16 @@ describe("normalizeOrganizationServerInput", () => {
   });
 
   test("rejects unsupported schemes, empty values, and malformed input", () => {
-    expect(normalizeOrganizationServerInput("ftp://openwork.acme.com")).toBeNull();
+    expect(normalizeOrganizationServerInput("ftp://harness.acme.com")).toBeNull();
     expect(normalizeOrganizationServerInput("")).toBeNull();
     expect(normalizeOrganizationServerInput("not a url at all")).toBeNull();
     expect(normalizeOrganizationServerInput("https://")).toBeNull();
   });
 
   test("rejects URL-parser userinfo and backslash oddities", () => {
-    expect(normalizeOrganizationServerInput("https://admin@openwork.acme.com")).toBeNull();
-    expect(normalizeOrganizationServerInput("https://admin:secret@openwork.acme.com/path")).toBeNull();
-    expect(normalizeOrganizationServerInput("https:\\openwork.acme.com\\dashboard")).toBeNull();
-    expect(normalizeOrganizationServerInput("openwork.acme.com\\@attacker.example")).toBeNull();
+    expect(normalizeOrganizationServerInput("https://admin@harness.acme.com")).toBeNull();
+    expect(normalizeOrganizationServerInput("https://admin:secret@harness.acme.com/path")).toBeNull();
+    expect(normalizeOrganizationServerInput("https:\\harness.acme.com\\dashboard")).toBeNull();
+    expect(normalizeOrganizationServerInput("harness.acme.com\\@attacker.example")).toBeNull();
   });
 });

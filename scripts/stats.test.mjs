@@ -6,20 +6,20 @@ import { calculate, classifyAsset, parseCountCell, parseLastDataRow } from "./st
 test("classifyAsset buckets manual installer assets", () => {
   const release = { tag_name: "v0.11.135" }
 
-  assert.equal(classifyAsset(release, { name: "openwork-desktop-darwin-aarch64.dmg" }), "manual_install")
-  assert.equal(classifyAsset(release, { name: "openwork-desktop-windows-x64.msi" }), "manual_install")
-  assert.equal(classifyAsset(release, { name: "openwork-desktop-linux-amd64.deb" }), "manual_install")
+  assert.equal(classifyAsset(release, { name: "harness-desktop-darwin-aarch64.dmg" }), "manual_install")
+  assert.equal(classifyAsset(release, { name: "harness-desktop-windows-x64.msi" }), "manual_install")
+  assert.equal(classifyAsset(release, { name: "harness-desktop-linux-amd64.deb" }), "manual_install")
 })
 
 test("classifyAsset buckets updater and non-desktop assets separately", () => {
   const desktopRelease = { tag_name: "v0.11.135" }
-  const serverRelease = { tag_name: "openwork-server-v0.11.135" }
+  const serverRelease = { tag_name: "harness-server-v0.11.135" }
 
   assert.equal(classifyAsset(desktopRelease, { name: "latest.json" }), "updater")
-  assert.equal(classifyAsset(desktopRelease, { name: "openwork-desktop-darwin-aarch64.app.tar.gz" }), "updater")
-  assert.equal(classifyAsset(desktopRelease, { name: "openwork-desktop-darwin-aarch64.app.tar.gz.sig" }), "updater")
-  assert.equal(classifyAsset(desktopRelease, { name: "openwork-desktop-linux-aarch64.rpm.sig" }), "other")
-  assert.equal(classifyAsset(serverRelease, { name: "openwork-server-darwin-arm64" }), "other")
+  assert.equal(classifyAsset(desktopRelease, { name: "harness-desktop-darwin-aarch64.app.tar.gz" }), "updater")
+  assert.equal(classifyAsset(desktopRelease, { name: "harness-desktop-darwin-aarch64.app.tar.gz.sig" }), "updater")
+  assert.equal(classifyAsset(desktopRelease, { name: "harness-desktop-linux-aarch64.rpm.sig" }), "other")
+  assert.equal(classifyAsset(serverRelease, { name: "harness-server-darwin-arm64" }), "other")
 })
 
 test("calculate aggregates legacy total and v2 buckets", () => {
@@ -27,15 +27,15 @@ test("calculate aggregates legacy total and v2 buckets", () => {
     {
       tag_name: "v0.11.135",
       assets: [
-        { name: "openwork-desktop-darwin-aarch64.dmg", download_count: 10 },
-        { name: "openwork-desktop-darwin-aarch64.app.tar.gz", download_count: 4 },
+        { name: "harness-desktop-darwin-aarch64.dmg", download_count: 10 },
+        { name: "harness-desktop-darwin-aarch64.app.tar.gz", download_count: 4 },
         { name: "latest.json", download_count: 6 },
-        { name: "openwork-desktop-linux-aarch64.rpm.sig", download_count: 3 },
+        { name: "harness-desktop-linux-aarch64.rpm.sig", download_count: 3 },
       ],
     },
     {
-      tag_name: "openwork-server-v0.11.135",
-      assets: [{ name: "openwork-server-darwin-arm64", download_count: 8 }],
+      tag_name: "harness-server-v0.11.135",
+      assets: [{ name: "harness-server-darwin-arm64", download_count: 8 }],
     },
   ]
 

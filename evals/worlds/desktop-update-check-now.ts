@@ -1,6 +1,6 @@
-import { evalIn, go } from "@openwork/behaviors";
-import { browserScript, setViewport } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
+import { evalIn, go } from "@harness/behaviors";
+import { browserScript, setViewport } from "@harness/cdp";
+import type { Seed } from "@harness/env";
 
 declare global {
   interface Window {
@@ -33,7 +33,7 @@ export async function desktopUpdateCheckNowWorld(seed: Seed) {
   await evalIn(app, browserScript(async (releases) => {
     // Keep the installed version stable so the first manual check does not
     // re-key the background checker while its fake download is pending.
-    const { currentVersion } = await window.__OPENWORK_ELECTRON__.updater.getChannel();
+    const { currentVersion } = await window.__HARNESS_ELECTRON__.updater.getChannel();
     const state: Window["__checkNowUpdateWitness"] = {
       channel: "stable", latestVersion: releases.staged, newerVersion: releases.newer, selectedVersion: null,
       stagedVersion: null, published: false, checks: [], downloads: [], installs: [],
@@ -49,13 +49,13 @@ export async function desktopUpdateCheckNowWorld(seed: Seed) {
       if (delay === 15 * 60 * 1000 && typeof callback === "function") state.intervalCheck = () => callback(...args);
       return schedule(callback, delay, ...args);
     };
-    window.__openworkApplyDesktopConfig({ allowAlphaUpdates: true });
-    window.__openworkSetDesktopConfigRefreshResult({ allowAlphaUpdates: true });
-    window.__openworkReadDesktopVersionMetadataEval = () => {
+    window.__harnessApplyDesktopConfig({ allowAlphaUpdates: true });
+    window.__harnessSetDesktopConfigRefreshResult({ allowAlphaUpdates: true });
+    window.__harnessReadDesktopVersionMetadataEval = () => {
       const latestAppVersion = releases.channel === "alpha" ? "0.18.46" : state.latestVersion;
       return { minAppVersion: "0.1.0", latestAppVersion, publishedDesktopVersions: [latestAppVersion] };
     };
-    window.__openworkUpdaterEvalBridge = {
+    window.__harnessUpdaterEvalBridge = {
       getChannel: async () => ({ channel: state.channel, currentVersion }),
       setChannel: async (channel) => {
         state.channel = channel;
@@ -110,8 +110,8 @@ export async function desktopUpdateCheckNowWorld(seed: Seed) {
       const settingsActions = buttons.filter((button) => /^(Install & restart|Download)$/.test(button.textContent?.trim() ?? ""));
       return {
         channel, checks, downloads, installs, stagedVersion,
-        automaticChecksEnabled: localStorage.getItem("openwork.react.settings.update-auto-check") !== "0",
-        automaticDownloadsEnabled: localStorage.getItem("openwork.react.settings.update-auto-download.v2") !== "0",
+        automaticChecksEnabled: localStorage.getItem("harness.react.settings.update-auto-check") !== "0",
+        automaticDownloadsEnabled: localStorage.getItem("harness.react.settings.update-auto-download.v2") !== "0",
         capsuleText: document.querySelector<HTMLElement>("header [data-update-button]")?.textContent?.trim() ?? null,
         updateInSidebar: Boolean(document.querySelector('[data-sidebar="footer"] [data-update-button]')),
         panelText: document.querySelector<HTMLElement>('[role="alertdialog"]')?.innerText ?? null,
@@ -181,6 +181,6 @@ export async function desktopUpdateCheckNowWorld(seed: Seed) {
       document.dispatchEvent(new Event("visibilitychange"));
     }),
     openSettings: () => go(app, `/workspace/${workspace.workspaceId}/settings/updates`),
-    openWorkspace: () => go(app, `/workspace/${workspace.workspaceId}/session`),
+    harnessspace: () => go(app, `/workspace/${workspace.workspaceId}/session`),
   };
 }

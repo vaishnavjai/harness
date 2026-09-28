@@ -24,8 +24,8 @@ import {
 import { ensureLocalWorkspaceFiles } from "./workspace-init.js";
 import { findManagedEngineWorkspace, resolveManagedEngineCwd, shouldStartManagedEngine } from "./workspaces.js";
 import { runtimeStorageDir } from "./runtime-db.js";
-import { keepOpenworkRuntimeConfigFileFresh, writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
-import { migrateOpenworkCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
+import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
+import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
 import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
 import { startWorkerActivityHeartbeat } from "./worker-activity-heartbeat.js";
@@ -64,34 +64,34 @@ if (args.web) {
   const packageRoot = await resolvePackageRoot({ env: process.env, execPath: process.execPath });
   webRoot = await resolveWebRoot({ env: process.env, packageRoot, sourceDir: import.meta.dirname });
   if (!webRoot) {
-    console.error("The OpenWork web UI bundle was not found. Reinstall openwork-server, or set OPENWORK_WEB_ROOT to a built apps/app/dist.");
+    console.error("The Harness web UI bundle was not found. Reinstall harness-server, or set HARNESS_WEB_ROOT to a built apps/app/dist.");
     process.exit(1);
   }
-  process.env.OPENWORK_WEB_ROOT = webRoot;
-  if (args.bootstrapToken === false) process.env.OPENWORK_WEB_BOOTSTRAP_TOKEN = "0";
-  if (!process.env.OPENWORK_EXTENSIONS_PLUGIN_DIR) {
+  process.env.HARNESS_WEB_ROOT = webRoot;
+  if (args.bootstrapToken === false) process.env.HARNESS_WEB_BOOTSTRAP_TOKEN = "0";
+  if (!process.env.HARNESS_EXTENSIONS_PLUGIN_DIR) {
     const pluginDir = await resolveBundledPluginDir(packageRoot);
-    if (pluginDir) process.env.OPENWORK_EXTENSIONS_PLUGIN_DIR = pluginDir;
+    if (pluginDir) process.env.HARNESS_EXTENSIONS_PLUGIN_DIR = pluginDir;
   }
   // The web UI has no approvals responder, so manual mode would time out every gated write.
-  args.approvalMode ??= process.env.OPENWORK_APPROVAL_MODE === "manual" ? "manual" : "auto";
-  if (args.workspaces.length === 0 && !process.env.OPENWORK_WORKSPACES) args.workspaces.push(process.cwd());
+  args.approvalMode ??= process.env.HARNESS_APPROVAL_MODE === "manual" ? "manual" : "auto";
+  if (args.workspaces.length === 0 && !process.env.HARNESS_WORKSPACES) args.workspaces.push(process.cwd());
   // Stable tokens across restarts: CLI flag, then env, then a file in the data dir.
-  const tokenProvided = Boolean(args.token || process.env.OPENWORK_TOKEN);
-  const hostTokenProvided = Boolean(args.hostToken || process.env.OPENWORK_HOST_TOKEN);
+  const tokenProvided = Boolean(args.token || process.env.HARNESS_TOKEN);
+  const hostTokenProvided = Boolean(args.hostToken || process.env.HARNESS_HOST_TOKEN);
   if (!tokenProvided || !hostTokenProvided) {
     const tokens = await loadOrCreateWebTokens({ env: process.env });
     if (!tokenProvided) args.token = tokens.token;
     if (!hostTokenProvided) args.hostToken = tokens.hostToken;
     webTokensPath = tokens.path;
   }
-  process.env.OPENWORK_MANAGE_OPENCODE = "1";
+  process.env.HARNESS_MANAGE_OPENCODE = "1";
   const engine = await ensureManagedEngine({
     env: process.env,
     expectedVersion: constants.opencodeVersion,
     log: (message) => console.log(message),
   });
-  process.env.OPENWORK_OPENCODE_BIN = engine.bin;
+  process.env.HARNESS_OPENCODE_BIN = engine.bin;
   setInstalledOpencodeVersion(engine.installedVersion);
 }
 
@@ -105,17 +105,17 @@ let stopRuntimeConfigFileRefresh: (() => void) | undefined;
 
 if (!config.readOnly) {
   await ensureLocalWorkspaceFiles(config.workspaces);
-  await migrateOpenworkCloudMcpRuntimeConfig(config);
+  await migrateHarnessCloudMcpRuntimeConfig(config);
   await migrateWorkspaceRuntimeConfigToEngineGlobal(config);
 }
 
 // Bind the HTTP server before spawning the engine: serve-node may fall back
 // to an OS-assigned port on EADDRINUSE, and the engine's spawn-time env
-// (OPENWORK_SERVER_URL) must point at the port that actually bound, not the
+// (HARNESS_SERVER_URL) must point at the port that actually bound, not the
 // requested one.
 // The engine also starts with no workspace registered yet, so providers load
 // before the first workspace exists.
-const manageEngine = !config.opencodeBaseUrl && process.env.OPENWORK_MANAGE_OPENCODE === "1"
+const manageEngine = !config.opencodeBaseUrl && process.env.HARNESS_MANAGE_OPENCODE === "1"
   && shouldStartManagedEngine(config.workspaces);
 const server = await startServer(config, { deferManagedEngineStartup: manageEngine });
 config.port = server.port;
@@ -127,27 +127,27 @@ if (manageEngine) {
   // effort: a failed reap must never block startup.
   await reapOrphanEngineInstances(config, { logger }).catch(() => undefined);
   // Server-managed config file: the engine re-reads it from disk on every
-  // instance rebuild, and keepOpenworkRuntimeConfigFileFresh synchronizes it
+  // instance rebuild, and keepHarnessRuntimeConfigFileFresh synchronizes it
   // on every runtime-DB write — so disposes always pick up current state.
-  const { path: runtimeConfigPath } = await writeOpenworkRuntimeConfigFile(config);
-  stopRuntimeConfigFileRefresh = keepOpenworkRuntimeConfigFileFresh(config);
+  const { path: runtimeConfigPath } = await writeHarnessRuntimeConfigFile(config);
+  stopRuntimeConfigFileRefresh = keepHarnessRuntimeConfigFileFresh(config);
   const managedOpencodeCwd = resolveManagedEngineCwd({
-    explicit: process.env.OPENWORK_MANAGED_OPENCODE_CWD,
+    explicit: process.env.HARNESS_MANAGED_OPENCODE_CWD,
     workspace: findManagedEngineWorkspace(config.workspaces),
     fallbackDir: join(runtimeStorageDir(config), "managed-opencode-workdir"),
   });
   await mkdir(managedOpencodeCwd, { recursive: true });
   const opencodeModelsUrl = await resolveOpencodeModelsUrl();
   const engineEnv: Record<string, string | undefined> = {
-    ...(process.env.OPENWORK_DEV_MODE ? { OPENWORK_DEV_MODE: process.env.OPENWORK_DEV_MODE } : {}),
-    ...(process.env.OPENWORK_UI_CONTROL_DISCOVERY ? { OPENWORK_UI_CONTROL_DISCOVERY: process.env.OPENWORK_UI_CONTROL_DISCOVERY } : {}),
-    OPENWORK_SERVER_URL: serverUrl,
-    OPENWORK_SERVER_TOKEN: config.token,
+    ...(process.env.HARNESS_DEV_MODE ? { HARNESS_DEV_MODE: process.env.HARNESS_DEV_MODE } : {}),
+    ...(process.env.HARNESS_UI_CONTROL_DISCOVERY ? { HARNESS_UI_CONTROL_DISCOVERY: process.env.HARNESS_UI_CONTROL_DISCOVERY } : {}),
+    HARNESS_SERVER_URL: serverUrl,
+    HARNESS_SERVER_TOKEN: config.token,
     OPENCODE_CONFIG: runtimeConfigPath,
     OPENCODE_MODELS_URL: opencodeModelsUrl,
   };
   const engineSpawnTemplate: EngineSpawnTemplate = {
-    bin: process.env.OPENWORK_OPENCODE_BIN,
+    bin: process.env.HARNESS_OPENCODE_BIN,
     cwd: managedOpencodeCwd,
     runtimeConfigPath,
     env: engineEnv,
@@ -157,13 +157,13 @@ if (manageEngine) {
     },
   };
   managedOpencode = await createManagedOpencodeServer({
-    bin: process.env.OPENWORK_OPENCODE_BIN,
+    bin: process.env.HARNESS_OPENCODE_BIN,
     cwd: managedOpencodeCwd,
     excludedPorts: [config.port],
     env: engineEnv,
   });
   if (!readInstalledOpencodeVersion()) {
-    setInstalledOpencodeVersion(readBinaryVersion(process.env.OPENWORK_OPENCODE_BIN?.trim() || "opencode"));
+    setInstalledOpencodeVersion(readBinaryVersion(process.env.HARNESS_OPENCODE_BIN?.trim() || "opencode"));
   }
   config.opencodeBaseUrl = managedOpencode.url;
   config.opencodeUsername = managedOpencode.username;
@@ -198,7 +198,7 @@ if (manageEngine) {
       serverRunId: managedOpencodeIdentity,
       ownerPid: process.pid,
       authProbe: buildEngineAuthProbeHeader(managedOpencode.username, managedOpencode.password),
-      bin: process.env.OPENWORK_OPENCODE_BIN?.trim() || "opencode",
+      bin: process.env.HARNESS_OPENCODE_BIN?.trim() || "opencode",
     }).catch(() => undefined);
   }
   enginePool = createEnginePoolForConfig({
@@ -235,16 +235,16 @@ if (managedOpencode) {
 }
 
 const url = `http://${config.host}:${server.port}`;
-logger.log("info", `OpenWork server listening on ${url}`);
+logger.log("info", `Harness server listening on ${url}`);
 
 if (args.web) {
   const browserHost = config.host === "0.0.0.0" || config.host === "::" ? "localhost" : config.host;
   const browserUrl = `http://${browserHost}:${server.port}`;
-  logger.log("info", `OpenWork web UI: ${browserUrl}`);
+  logger.log("info", `Harness web UI: ${browserUrl}`);
   logger.log("info", `Web root: ${webRoot}`);
-  logger.log("info", `Engine: ${process.env.OPENWORK_OPENCODE_BIN} (${installedOpencodeVersionLabel()})`);
+  logger.log("info", `Engine: ${process.env.HARNESS_OPENCODE_BIN} (${installedOpencodeVersionLabel()})`);
   if (webTokensPath) logger.log("info", `Tokens: ${webTokensPath}`);
-  if (process.env.OPENWORK_WEB_BOOTSTRAP_TOKEN === "0") {
+  if (process.env.HARNESS_WEB_BOOTSTRAP_TOKEN === "0") {
     logger.log("info", `Browser sign-in requires the client token: ${config.token}`);
   } else if (browserHost !== "localhost" && browserHost !== "127.0.0.1") {
     logger.log("info", "Anyone who can reach this URL is signed in automatically. Keep it on a private network or pass --no-bootstrap-token.");

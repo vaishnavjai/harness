@@ -5,7 +5,7 @@ import { getReactQueryClient } from "../src/react-app/infra/query-client";
 import { gatewayUsageQueryPrefix } from "../src/react-app/domains/cloud/gateway-usage-state";
 import { usageStatus } from "./gateway-usage-fixture";
 
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
 import { createClient } from "../src/app/lib/opencode";
 import type { ProviderListItem, WorkspaceDisplay } from "../src/app/types";
 import { createProviderAuthStore } from "../src/react-app/domains/connections/provider-auth/store";
@@ -15,7 +15,7 @@ import { resolveGatewayProviderIds } from "../src/react-app/domains/connections/
 const originalWindow = globalThis.window;
 const originalFetch = globalThis.fetch;
 const originalConsoleInfo = console.info;
-const originalDeployment = process.env.VITE_OPENWORK_DEPLOYMENT;
+const originalDeployment = process.env.VITE_HARNESS_DEPLOYMENT;
 
 type RecordedRequest = {
   url: string;
@@ -57,7 +57,7 @@ function installWindow(options: { origin: string; gateway?: boolean }) {
       dispatchEvent: () => true,
       localStorage,
       location: { origin: options.origin },
-      __OPENWORK_GATEWAY__: options.gateway ? { version: 1 } : undefined,
+      __HARNESS_GATEWAY__: options.gateway ? { version: 1 } : undefined,
     },
   });
   return localStorage;
@@ -89,10 +89,10 @@ function jsonResponse(payload: unknown, status = 200) {
 function cloudProviderPayload(options: { conflict?: boolean } = {}) {
   return {
     id: "lpr_test",
-    source: options.conflict ? "openwork" : "custom",
-    providerId: options.conflict ? "openwork" : "openai",
-    name: options.conflict ? "OpenWork Models" : "Team OpenAI",
-    providerConfig: { env: [options.conflict ? "OPENWORK_API_KEY" : "OPENAI_API_KEY"] },
+    source: options.conflict ? "harness" : "custom",
+    providerId: options.conflict ? "harness" : "openai",
+    name: options.conflict ? "Harness Models" : "Team OpenAI",
+    providerConfig: { env: [options.conflict ? "HARNESS_API_KEY" : "OPENAI_API_KEY"] },
     hasApiKey: true,
     apiKey: "sk-test",
     models: [
@@ -109,9 +109,9 @@ function cloudProviderPayload(options: { conflict?: boolean } = {}) {
 }
 
 function installCloudSession(storage: Storage) {
-  storage.setItem("openwork.den.baseUrl", "https://den.example");
-  storage.setItem("openwork.den.authToken", "den-token");
-  storage.setItem("openwork.den.activeOrgId", "org_test");
+  storage.setItem("harness.den.baseUrl", "https://den.example");
+  storage.setItem("harness.den.authToken", "den-token");
+  storage.setItem("harness.den.activeOrgId", "org_test");
 }
 
 function observeOwnUsage() {
@@ -134,9 +134,9 @@ function createProviderAuthTestStore(
 ) {
   const opencodeClient = createClient("https://engine.example", "/tmp/workspace_test", {
     token: "engine-token",
-    mode: "openwork",
+    mode: "harness",
   });
-  const openworkClient = createOpenworkServerClient({
+  const harnessClient = createHarnessServerClient({
     baseUrl: "https://server.example",
     token: "server-token",
     hostToken: "host-token",
@@ -165,12 +165,12 @@ function createProviderAuthTestStore(
     providerBaseUrl: () => "https://engine.example",
     selectedWorkspaceRoot: () => readiness.workspace === false ? "" : "/tmp/workspace_test",
     runtimeWorkspaceId: () => readiness.workspace === false ? null : "ws_1",
-    openworkServer: {
+    harnessServer: {
       getSnapshot: () => ({
-        openworkServerStatus: readiness.server === false ? "disconnected" : "connected",
-        openworkServerClient: openworkClient,
-        openworkServerAuth: { token: "server-token", hostToken: "host-token" },
-        openworkServerCapabilities: {
+        harnessServerStatus: readiness.server === false ? "disconnected" : "connected",
+        harnessServerClient: harnessClient,
+        harnessServerAuth: { token: "server-token", hostToken: "host-token" },
+        harnessServerCapabilities: {
           config: configCapabilities,
           providerSync: configCapabilities.providerSync,
         },
@@ -234,7 +234,7 @@ function installProviderSyncFetch(
         return jsonResponse({ llmProvider: cloudProviderPayload(options) });
       }
       if (url.origin === "https://server.example" && url.pathname === "/workspace/ws_1/config" && method === "GET") {
-        return jsonResponse({ opencode: {}, openwork: {} });
+        return jsonResponse({ opencode: {}, harness: {} });
       }
       if (url.origin === "https://server.example" && url.pathname === "/den-session" && method === "PUT") {
         return new Response(null, { status: 204 });
@@ -263,7 +263,7 @@ function installProviderSyncFetch(
       }
       if (url.origin === "https://server.example" && url.pathname === "/workspace/ws_1/opencode-config") {
         return jsonResponse(options.conflict
-          ? { content: '{"provider":{"openwork":{"name":"Local OpenWork"}}}' }
+          ? { content: '{"provider":{"harness":{"name":"Local Harness"}}}' }
           : null);
       }
       if (url.origin === "https://server.example" && url.pathname === "/workspace/ws_1/engine/reload") {
@@ -298,7 +298,7 @@ function installProviderSyncFetch(
 
 describe("cloud provider sync usage refresh", () => {
   beforeEach(() => {
-    process.env.VITE_OPENWORK_DEPLOYMENT = "web";
+    process.env.VITE_HARNESS_DEPLOYMENT = "web";
     console.info = () => undefined;
   });
 
@@ -307,8 +307,8 @@ describe("cloud provider sync usage refresh", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
     Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
     console.info = originalConsoleInfo;
-    if (originalDeployment === undefined) delete process.env.VITE_OPENWORK_DEPLOYMENT;
-    else process.env.VITE_OPENWORK_DEPLOYMENT = originalDeployment;
+    if (originalDeployment === undefined) delete process.env.VITE_HARNESS_DEPLOYMENT;
+    else process.env.VITE_HARNESS_DEPLOYMENT = originalDeployment;
   });
 
   test.each([false, true])("refreshes fresh healthy own usage without config changes (server sync: %s)", async (providerSync) => {
@@ -371,7 +371,7 @@ describe("cloud provider sync usage refresh", () => {
       const { store: blocker } = createProviderAuthTestStore({ read: true, write: true, providerSync: true });
       const blocking = blocker.runCloudProviderSync("app_resume");
       await started;
-      if (mode === "gateway") Object.defineProperty(window, "__OPENWORK_GATEWAY__", { configurable: true, value: { version: 1 } });
+      if (mode === "gateway") Object.defineProperty(window, "__HARNESS_GATEWAY__", { configurable: true, value: { version: 1 } });
       const { store } = createProviderAuthTestStore({ read: true, write: false });
       const { observer, unsubscribe } = observeOwnUsage();
       let nextUsage: ReturnType<typeof observeOwnUsage> | undefined;
@@ -379,8 +379,8 @@ describe("cloud provider sync usage refresh", () => {
         const queued = store.runCloudProviderSync("app_resume");
         blocker.dispose();
         if (change === "signout") storage.clear();
-        else if (change === "organization") storage.setItem("openwork.den.activeOrgId", "org_next");
-        else if (change === "account") storage.setItem("openwork.den.authToken", "next-token");
+        else if (change === "organization") storage.setItem("harness.den.activeOrgId", "org_next");
+        else if (change === "account") storage.setItem("harness.den.authToken", "next-token");
         else store.dispose();
         nextUsage = observeOwnUsage();
         release();
@@ -407,7 +407,7 @@ describe("cloud provider sync usage refresh", () => {
     const { observer, unsubscribe } = observeOwnUsage();
     try {
       const running = store.runCloudProviderSync("app_resume");
-      if (change === "organization") storage.setItem("openwork.den.activeOrgId", "org_next");
+      if (change === "organization") storage.setItem("harness.den.activeOrgId", "org_next");
       else store.dispose();
       await running;
       expect(requests).toHaveLength(0);
@@ -442,9 +442,9 @@ describe("cloud provider sync usage refresh", () => {
     let nextUsage: ReturnType<typeof observeOwnUsage> | undefined;
     installProviderSyncFetch(requests, { onRun: () => {
       if (change === "signout") storage.clear();
-      else if (change === "organization") storage.setItem("openwork.den.activeOrgId", "org_next");
-      else if (change === "account") storage.setItem("openwork.den.authToken", "next-token");
-      else storage.setItem("openwork.den.baseUrl", "https://den-next.example");
+      else if (change === "organization") storage.setItem("harness.den.activeOrgId", "org_next");
+      else if (change === "account") storage.setItem("harness.den.authToken", "next-token");
+      else storage.setItem("harness.den.baseUrl", "https://den-next.example");
       nextUsage = observeOwnUsage();
     } });
     const { store } = createProviderAuthTestStore({ read: true, write: true, providerSync: true });
@@ -486,7 +486,7 @@ describe("cloud provider sync usage refresh", () => {
 
 describe("cloud provider sync in gateway mode", () => {
   beforeEach(() => {
-    process.env.VITE_OPENWORK_DEPLOYMENT = "web";
+    process.env.VITE_HARNESS_DEPLOYMENT = "web";
     console.info = () => undefined;
   });
 
@@ -501,14 +501,14 @@ describe("cloud provider sync in gateway mode", () => {
     });
     console.info = originalConsoleInfo;
     if (originalDeployment === undefined) {
-      delete process.env.VITE_OPENWORK_DEPLOYMENT;
+      delete process.env.VITE_HARNESS_DEPLOYMENT;
     } else {
-      process.env.VITE_OPENWORK_DEPLOYMENT = originalDeployment;
+      process.env.VITE_HARNESS_DEPLOYMENT = originalDeployment;
     }
   });
 
   test.each(["settings_cloud_opened", "manual"] as const)("rereads hosted runtime providers without client-side materialization on %s", async (reason) => {
-    const storage = installWindow({ origin: "https://web.openworklabs.com", gateway: true });
+    const storage = installWindow({ origin: "https://web.harness.invalid", gateway: true });
     installCloudSession(storage);
     const requests: RecordedRequest[] = [];
     installProviderSyncFetch(requests);
@@ -533,11 +533,11 @@ describe("cloud provider sync in gateway mode", () => {
     Object.defineProperty(globalThis, "fetch", { configurable: true, value: async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = getRequestUrl(input);
       if (url.endsWith("/den-session") && phase === "session delivery") {
-        storage.setItem("openwork.den.activeOrgId", "org_other");
+        storage.setItem("harness.den.activeOrgId", "org_other");
       }
       if (url.endsWith("/oauth/start")) {
         starts.push(url);
-        if (phase === "OAuth response") storage.setItem("openwork.den.activeOrgId", "org_other");
+        if (phase === "OAuth response") storage.setItem("harness.den.activeOrgId", "org_other");
         return jsonResponse({ authorizationUrl: "https://den.example/gateway/connect?attempt=fixture" });
       }
       return fixtureFetch(input, init);
@@ -581,7 +581,7 @@ describe("cloud provider sync in gateway mode", () => {
     expect(store.getSnapshot().lastSyncError).toEqual({});
   });
 
-  test("records a hand-authored OpenWork collision once and skips later automatic retries", async () => {
+  test("records a hand-authored Harness collision once and skips later automatic retries", async () => {
     const storage = installWindow({ origin: "https://self-hosted.example" });
     installCloudSession(storage);
     const requests: RecordedRequest[] = [];
@@ -592,7 +592,7 @@ describe("cloud provider sync in gateway mode", () => {
 
     expect(store.getSnapshot().lastSyncError.lpr_test).toMatchObject({
       kind: "conflict",
-      message: expect.stringContaining("openwork already has a provider block"),
+      message: expect.stringContaining("harness already has a provider block"),
     });
     expect(store.getSnapshot().importedCloudProviders.lpr_test).toBeUndefined();
     const firstConnectCount = requests.filter(
@@ -611,7 +611,7 @@ describe("cloud provider sync in gateway mode", () => {
 
 describe("cloud provider sync in server-capability mode", () => {
   beforeEach(() => {
-    process.env.VITE_OPENWORK_DEPLOYMENT = "web";
+    process.env.VITE_HARNESS_DEPLOYMENT = "web";
     console.info = () => undefined;
   });
 
@@ -619,15 +619,15 @@ describe("cloud provider sync in server-capability mode", () => {
     Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
     Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
     console.info = originalConsoleInfo;
-    if (originalDeployment === undefined) delete process.env.VITE_OPENWORK_DEPLOYMENT;
-    else process.env.VITE_OPENWORK_DEPLOYMENT = originalDeployment;
+    if (originalDeployment === undefined) delete process.env.VITE_HARNESS_DEPLOYMENT;
+    else process.env.VITE_HARNESS_DEPLOYMENT = originalDeployment;
   });
 
   test("quota notice provenance stays with org A through delayed/failed B sync and changes only on verified B success", async () => {
     const storage = installWindow({ origin: "https://self-hosted.example" });
     installCloudSession(storage);
     const requests: RecordedRequest[] = [];
-    const provider = (id: string) => ({ cloudProviderId: id, providerId: id, sourceProviderId: "openai", source: "openwork_gateway", name: "Assigned", modelIds: ["model"] });
+    const provider = (id: string) => ({ cloudProviderId: id, providerId: id, sourceProviderId: "openai", source: "harness_gateway", name: "Assigned", modelIds: ["model"] });
     const options: NonNullable<Parameters<typeof installProviderSyncFetch>[1]> = {
       statusProviders: [provider("ipr_org_a")], runStatuses: [{ status: "applied" }],
     };
@@ -644,8 +644,8 @@ describe("cloud provider sync in server-capability mode", () => {
       await store.runCloudProviderSync("manual");
       expect(eligible("ipr_org_a")).toBe(true);
       const scopeA = store.getSnapshot().gatewayUsageProviderScope;
-      storage.setItem("openwork.den.activeOrgId", "org_b");
-      storage.setItem("openwork.den.authToken", "token_b");
+      storage.setItem("harness.den.activeOrgId", "org_b");
+      storage.setItem("harness.den.authToken", "token_b");
       let release: (() => void) | undefined;
       const delayed = new Promise<void>((resolve) => { release = resolve; });
       options.onRun = async () => { await delayed; throw new Error("Sync unavailable"); };
@@ -709,7 +709,7 @@ describe("cloud provider sync in server-capability mode", () => {
     await Bun.sleep(10);
     expect(requests.filter((request) => new URL(request.url).pathname === "/cloud-provider-sync/run")).toHaveLength(1);
 
-    storage.setItem("openwork.den.activeOrgId", "org_changed");
+    storage.setItem("harness.den.activeOrgId", "org_changed");
     const changedContext = [
       store.runCloudProviderSync("sign_in"),
       strictModeRemountStore.runCloudProviderSync("app_resume"),
@@ -858,7 +858,7 @@ describe("cloud provider sync in server-capability mode", () => {
       expect(store.getSnapshot().importedCloudProviders).toEqual({});
       expect(store.isGatewayModelAvailable({ cloudProviderId: "ipr_pending", providerId: "ipr_pending", credentialSetId, name: "Member", authUrl: null }, { providerID: "ipr_pending", modelID: id })).toBe(false);
       expect(requests.filter((request) => request.method !== "GET").every((request) => ["/den-session", "/cloud-provider-sync/run"].includes(new URL(request.url).pathname))).toBe(true);
-      storage.setItem("openwork.den.activeOrgId", "org_replacement");
+      storage.setItem("harness.den.activeOrgId", "org_replacement");
       options.statusSkipped = [];
       hold = new Promise<void>((resolve) => { release = resolve; });
       const refresh = store.runCloudProviderSync("manual");

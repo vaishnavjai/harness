@@ -351,7 +351,7 @@ async function startEnterpriseProfileMock(options: StartMockMcpOptions): Promise
   let mcpUrl = `${url}/mcp`;
   const boot = async (): Promise<void> => {
     output = "";
-    const active = spawn("pnpm", ["--filter", "@openwork/enterprise-mcp-mock-server", "exec", "tsx", runner], {
+    const active = spawn("pnpm", ["--filter", "@harness/enterprise-mcp-mock-server", "exec", "tsx", runner], {
       cwd: REPO_ROOT,
       detached: true,
       env: {

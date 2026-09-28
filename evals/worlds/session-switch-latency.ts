@@ -1,5 +1,5 @@
-import { addInitScript, browserScript, evaluate, setViewport } from "@openwork/cdp";
-import { resolveEvalEngine, type Place, type Seed } from "@openwork/env";
+import { addInitScript, browserScript, evaluate, setViewport } from "@harness/cdp";
+import { resolveEvalEngine, type Place, type Seed } from "@harness/env";
 import { configureProvider } from "./chat.ts";
 
 const WIDTH = 1280;
@@ -159,10 +159,10 @@ function summary(samples: readonly SessionSwitchMeasurement[]) {
 }
 
 function requestedPlacement(place: Place): Place["kind"] {
-  const value = process.env.OPENWORK_WORLD_PLACE?.trim();
+  const value = process.env.HARNESS_WORLD_PLACE?.trim();
   if (value === undefined || value === "") return place.kind;
   if (value !== "local" && value !== "daytona") {
-    throw new Error(`OPENWORK_WORLD_PLACE must be local or daytona; received ${JSON.stringify(value)}.`);
+    throw new Error(`HARNESS_WORLD_PLACE must be local or daytona; received ${JSON.stringify(value)}.`);
   }
   return value;
 }
@@ -239,8 +239,8 @@ export async function sessionSwitchLatencyWeb(seed: Seed, context: { place: Plac
     : [{ sessionId: target.sessionId, prompt: target.prompt, lastLine: target.lastLine }]);
 
   await seed.evalIn(app, browserScript(async (workspaceId, engine, providerId, modelId, submissions) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-    const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" };
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+    const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" };
     const mount = base + "/workspace/" + encodeURIComponent(workspaceId) + "/" + (engine === "v2" ? "opencode2/api" : "opencode");
     const request = async (path: string, method = "GET", body?: unknown) => {
       const response = await fetch(mount + path, {
@@ -311,8 +311,8 @@ export async function sessionSwitchLatencyWeb(seed: Seed, context: { place: Plac
   const markerSet = new Set(workloads.map((workload) => workload.promptMarker));
 
   const nativeState = () => evaluate(app.client, browserScript(async (workspaceId, engine, targets, oldLastLine) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-    const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") };
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+    const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token") };
     const mount = "/workspace/" + encodeURIComponent(workspaceId) + "/" + (engine === "v2" ? "opencode2/api" : "opencode");
     const get = async (path: string) => {
       const response = await fetch(base + mount + path, { headers, signal: AbortSignal.timeout(10_000) });
@@ -537,8 +537,8 @@ export async function sessionSwitchLatencyWeb(seed: Seed, context: { place: Plac
       actualSourceSha,
       hostKind,
     ) => {
-      const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-      const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") };
+      const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+      const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token") };
       const [health, status, native] = await Promise.all([
         fetch(base + "/health", { headers }),
         fetch(base + "/experimental/engine-v2-preview/status", { headers }),
@@ -550,8 +550,8 @@ export async function sessionSwitchLatencyWeb(seed: Seed, context: { place: Plac
       try { parsedStatus = JSON.parse(statusBody); } catch {}
       const statusRecord = parsedStatus !== null && typeof parsedStatus === "object" && !Array.isArray(parsedStatus) ? parsedStatus : null;
       return {
-        surface: window.__OPENWORK_ELECTRON__ ? "electron" : "web",
-        electronBridge: Boolean(window.__OPENWORK_ELECTRON__),
+        surface: window.__HARNESS_ELECTRON__ ? "electron" : "web",
+        electronBridge: Boolean(window.__HARNESS_ELECTRON__),
         browser: navigator.userAgent,
         origin: location.origin,
         expectedOrigin,

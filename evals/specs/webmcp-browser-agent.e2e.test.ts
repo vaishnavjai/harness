@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { browserConversation, browserImageTarget, spec } from "@openwork/testkit";
-import type { BrowserTaskInput, BrowserTaskReply } from "@openwork/testkit";
+import { browserConversation, browserImageTarget, spec } from "@harness/testkit";
+import type { BrowserTaskInput, BrowserTaskReply } from "@harness/testkit";
 import { browserWebMcpWorld, setBrowserEnabled, setBrowserPolicy } from "../worlds/browser-webmcp.ts";
 import { attachBuiltinTab, browserTabHandle } from "../worlds/browser-panel.ts";
 
@@ -642,7 +642,7 @@ test("a conversation signs in, uses site tools and page controls with consent, i
       kind: "command", input: { id: "browser.open_url", args: { url: `${world.origin}/disabled`, provider: "builtin" }, origin: { sessionId } },
     } });
     expect(legacy.status).toBe(200);
-    expect(legacy.body).toMatchObject({ ok: false, error: expect.stringMatching(/Enable OpenWork Browser/i) });
+    expect(legacy.body).toMatchObject({ ok: false, error: expect.stringMatching(/Enable Harness Browser/i) });
     expect(await probe.browserState()).toEqual(disabledState);
     expect((await witness()).pageRequests).toEqual(disabledRequests);
     expect(await witness()).toMatchObject({ uploads: 1, frameClicks: 1, records: before.records, signInCount: 1, signals: ["started", "canceled"] });

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { templateOrigins } from "./origins.mjs";
 // This script must not launch/reseed any process. All services are already alive.
-const root = "/opt/openwork-preview";
+const root = "/opt/harness-preview";
 const services = JSON.parse(await readFile(`${root}/services.json`, "utf8"));
 const outputs = JSON.parse(await readFile(`${root}/outputs.json`, "utf8"));
 await readFile(`${root}/ready-world`, "utf8");
@@ -20,7 +20,7 @@ if (!login.ok) throw new Error("Could not renew the restored demo session");
 const account = await login.json();
 if (typeof account.token !== "string") throw new Error("Missing renewed demo token");
 const synced = await fetch(`${services.engine}/den-session`, {
-  method: "PUT", headers: { "x-openwork-host-token": outputs.openworkHostToken.value, "content-type": "application/json" },
+  method: "PUT", headers: { "x-harness-host-token": outputs.harnessHostToken.value, "content-type": "application/json" },
   body: JSON.stringify({ baseUrl: services.api, token: account.token, orgId: outputs.orgId.value }),
   signal: AbortSignal.timeout(10_000),
 });

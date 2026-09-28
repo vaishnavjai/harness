@@ -2,11 +2,10 @@
 
 import * as React from "react";
 import { formatCrashDiagnostic } from "@/app/lib/crash-diagnostics";
-import { openworkServerInfo, readDesktopDistributionInfo, revealDesktopItemInDir } from "@/app/lib/desktop";
-import { reportCaughtWebError } from "@/app/lib/error-monitoring";
-import { getOpenWorkDeployment } from "@/app/lib/openwork-deployment";
+import { harnessServerInfo, readDesktopDistributionInfo, revealDesktopItemInDir } from "@/app/lib/desktop";
+import { getHarnessDeployment } from "@/app/lib/harness-deployment";
 
-const APP_VERSION = String(import.meta.env.VITE_OPENWORK_APP_VERSION ?? "").trim();
+const APP_VERSION = String(import.meta.env.VITE_HARNESS_APP_VERSION ?? "").trim();
 
 export type CrashDetails = {
   message: string;
@@ -33,14 +32,14 @@ export function describeCrash(thrown: unknown): CrashDetails {
 
 /** Clipboard payload: message, stack, app version and distribution flavor. */
 export function buildCrashReport(crash: CrashDetails, context: CrashContext): string {
-  const header = `OpenWork ${context.version} (${context.deployment}, ${context.flavor})`;
+  const header = `Harness ${context.version} (${context.deployment}, ${context.flavor})`;
   return [header, crash.message, crash.stack].filter((line) => line.length > 0).join("\n\n");
 }
 
 function readCrashContext(): CrashContext {
   return {
     version: APP_VERSION,
-    deployment: getOpenWorkDeployment(),
+    deployment: getHarnessDeployment(),
     flavor: readDesktopDistributionInfo().flavor,
   };
 }
@@ -52,7 +51,7 @@ function readCrashContext(): CrashContext {
  */
 async function resolveLogFilePath(): Promise<string | null> {
   try {
-    return (await openworkServerInfo()).logFilePath;
+    return (await harnessServerInfo()).logFilePath;
   } catch {
     return null;
   }
@@ -98,7 +97,7 @@ function RecoveryScreen({ crash }: { crash: CrashDetails }) {
     <div className="flex h-screen w-screen items-center justify-center bg-background p-6" role="alert">
       <div className="flex w-full max-w-lg flex-col gap-4 text-sm">
         <div className="flex flex-col gap-1">
-          <h1 className="text-lg font-semibold text-foreground">OpenWork hit an unexpected error</h1>
+          <h1 className="text-lg font-semibold text-foreground">Harness hit an unexpected error</h1>
           <p className="text-muted-foreground">
             The window recovered instead of going blank. Reloading usually clears it.
           </p>
@@ -184,13 +183,6 @@ export class AppErrorBoundary extends React.Component<
 
   static getDerivedStateFromError(thrown: unknown): AppErrorBoundaryState {
     return { crash: describeCrash(thrown) };
-  }
-
-  componentDidCatch(error: unknown, _info: React.ErrorInfo) {
-    // A caught render throw never reaches the window "error" listener, so the
-    // web deployment's monitor is told directly, with the same redacted text
-    // the screen shows. Inert on desktop.
-    reportCaughtWebError(error);
   }
 
   render() {

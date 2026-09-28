@@ -190,7 +190,7 @@ const task: TaskToolPart = {
   input: { description: "Review project notes", prompt: "PRIVATE TASK PROMPT", subagent_type: "general" },
   callProviderMetadata: {
     opencode: { partId: "part-delegation" },
-    openwork: { childSessionId: "child", toolStartedAt: 1_000 },
+    harness: { childSessionId: "child", toolStartedAt: 1_000 },
   },
 };
 const delegated: UIMessage = { id: "assistant", role: "assistant", parts: [task] };
@@ -289,7 +289,7 @@ describe("task-linked meaningful progress", () => {
         toolCallId: "delegation-new-child",
         callProviderMetadata: {
           opencode: { partId: "part-delegation-new-child" },
-          openwork: { childSessionId: "child-new", toolStartedAt: 61_500 },
+          harness: { childSessionId: "child-new", toolStartedAt: 61_500 },
         },
       };
       const oldCompleted: UIMessage = {

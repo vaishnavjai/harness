@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { cliDeviceLogin } from "../worlds/cli-device-login.ts";
 
 const test = spec.world(cliDeviceLogin, {
@@ -8,12 +8,12 @@ const test = spec.world(cliDeviceLogin, {
   resources: { surfaces: ["web"], services: ["den"] },
 });
 
-test("a person signs the OpenWork CLI in from their browser without typing a password", async ({ world, user, step, evidence }) => {
+test("a person signs the Harness CLI in from their browser without typing a password", async ({ world, user, step, evidence }) => {
   const person = user.on(world.web);
 
   await step("before: the CLI has no saved sign-in and cannot act for the person", async () => {
     const onboard = await world.run(["cloud", "onboard", "--base-url", world.den.ref.apiUrl, "--org-name", "Should not exist", "--invite-email", "teammate@example.com"]);
-    const refused = onboard.status !== 0 && onboard.stderr.includes("not_signed_in: run \"openwork-bootstrap login");
+    const refused = onboard.status !== 0 && onboard.stderr.includes("not_signed_in: run \"harness-bootstrap login");
     evidence.recordAssertionEvidence(
       "Without a sign-in the CLI points at `login` instead of asking for a password",
       `exit ${onboard.status}; stderr: ${onboard.stderr.trim().split("\n")[0]}`,
@@ -30,7 +30,7 @@ test("a person signs the OpenWork CLI in from their browser without typing a pas
     expect(url.origin).toBe(new URL(world.den.ref.webUrl).origin);
     expect(url.pathname).toBe("/device");
     await person.navigate(login.verificationUrl);
-    await person.see({ text: "Sign in OpenWork CLI?" }, { timeoutMs: 90_000 });
+    await person.see({ text: "Sign in Harness CLI?" }, { timeoutMs: 90_000 });
     await person.see({ testId: "device-user-code", text: login.userCode });
     await person.see({ text: world.den.admin.email });
     await person.see({ testId: "device-consent-line" });
@@ -43,8 +43,8 @@ test("a person signs the OpenWork CLI in from their browser without typing a pas
   });
 
   await step("after: the person approves and the CLI receives a session it can use", async () => {
-    await person.click({ role: "button", label: "Sign in OpenWork CLI" });
-    await person.see({ text: /OpenWork CLI is signed in/ }, { timeoutMs: 30_000 });
+    await person.click({ role: "button", label: "Sign in Harness CLI" });
+    await person.see({ text: /Harness CLI is signed in/ }, { timeoutMs: 30_000 });
     await person.screenshot();
     const result = await login.finished;
     expect(result.status, result.stderr).toBe(0);

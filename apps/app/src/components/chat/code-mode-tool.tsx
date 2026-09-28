@@ -43,7 +43,7 @@ export function CodeModeTool({ part, calls, lifecycle, connectors }: {
     ? formatElapsedSeconds(liveDuration)
     : statusUnknown ? null : trackToolCallDuration(part);
   const serviceName = (call: DynamicToolUIPart) => {
-    // Catalog search is an OpenWork mechanism, not a service the person used.
+    // Catalog search is a Harness mechanism, not a service the person used.
     if (call.toolName.endsWith("search_capabilities")) return null;
     const connector = resolveConnectorToolIdentity(call, connectors);
     return connector?.name ?? getCapabilityCallSentence(call, { includeQuery: false }).service;

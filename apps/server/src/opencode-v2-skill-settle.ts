@@ -43,13 +43,13 @@ function nativeSkill(path: string, content: string): { name: string; body: strin
 }
 
 /**
- * After OpenWork itself installs, edits or removes workspace skills, give the
+ * After Harness itself installs, edits or removes workspace skills, give the
  * engine's own file watcher a moment to reflect them, so the next turn sees
  * the change. The watcher normally takes about 200 ms.
  *
- * This runs on OpenWork's skill write routes only, never before a prompt: the
+ * This runs on Harness's skill write routes only, never before a prompt: the
  * engine alone decides which skills a turn sees, exactly as when `opencode2`
- * runs directly. Only `.opencode/skills` is compared, the one folder OpenWork
+ * runs directly. Only `.opencode/skills` is compared, the one folder Harness
  * writes and the one the engine ranks first. A skill the engine serves under
  * the same name from another file counts as reflected. Never throws; returns
  * whether the engine caught up before the deadline.

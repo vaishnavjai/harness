@@ -3,13 +3,13 @@ import { access, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { eventually, test } from "@openwork/testkit";
+import { eventually, test } from "@harness/testkit";
 import {
   isProcessAlive,
   main,
   readScriptWorldSnapshot,
   type WorldCliOptions,
-} from "@openwork/world";
+} from "@harness/world";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -40,7 +40,7 @@ async function probeUntilOk(url: string, label: string): Promise<number | "rejec
 }
 
 test("staged worlds run side by side without touching each other", async ({ evidence }) => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-stage-isolation-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-stage-isolation-"));
   const worldsDirectory = join(root, "worlds");
   const scriptsDirectory = join(root, ".worlds", "scripts");
   const fixtureName = "staged-recipe-world";
@@ -50,8 +50,8 @@ test("staged worlds run side by side without touching each other", async ({ evid
   const stageBPath = join(scriptsDirectory, `${fixtureName}--b.json`);
   const stageCPath = join(scriptsDirectory, `${fixtureName}--c.json`);
   const recipeUrl = pathToFileURL(join(REPO_ROOT, "evals", "packages", "env", "src", "recipe.ts")).href;
-  const previousSnapshotDirectory = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-  const previousStage = process.env.OPENWORK_WORLD_STAGE;
+  const previousSnapshotDirectory = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+  const previousStage = process.env.HARNESS_WORLD_STAGE;
   const launchedPids = new Set<number>();
   let printedLines: string[] = [];
 
@@ -69,8 +69,8 @@ test("staged worlds run side by side without touching each other", async ({ evid
   };
 
   try {
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = scriptsDirectory;
-    delete process.env.OPENWORK_WORLD_STAGE;
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = scriptsDirectory;
+    delete process.env.HARNESS_WORLD_STAGE;
     await mkdir(worldsDirectory);
     await writeFile(fixturePath, `
 import { createServer } from "node:http";
@@ -165,7 +165,7 @@ if (import.meta.main) await runRecipe(world);
     const downB = await run(["down", fixtureName, "--stage", "b"]);
     assert.equal(downB.code, 0, downB.lines.join("\n"));
 
-    process.env.OPENWORK_WORLD_STAGE = "c";
+    process.env.HARNESS_WORLD_STAGE = "c";
     const stageCUp = await run(["up", fixturePath, "--detach", "--timeout", "10000"]);
     assert.equal(stageCUp.code, 0, stageCUp.lines.join("\n"));
     const stageC = await readScriptWorldSnapshot(stageCPath);
@@ -177,13 +177,13 @@ if (import.meta.main) await runRecipe(world);
     assert.equal(await exists(bareSnapshotPath), false);
     evidence.recordAssertionEvidence(
       "Environment stage reaches receipt and recipe display naming",
-      "OPENWORK_WORLD_STAGE=c without a CLI stage produced only the c-suffixed receipt and the recipe output Org (c), with no unstaged receipt.",
+      "HARNESS_WORLD_STAGE=c without a CLI stage produced only the c-suffixed receipt and the recipe output Org (c), with no unstaged receipt.",
       true,
     );
     const downC = await run(["down", fixtureName, "--stage", "c"]);
     assert.equal(downC.code, 0, downC.lines.join("\n"));
 
-    delete process.env.OPENWORK_WORLD_STAGE;
+    delete process.env.HARNESS_WORLD_STAGE;
     const bareUp = await run(["up", fixturePath, "--detach", "--timeout", "10000"]);
     assert.equal(bareUp.code, 0, bareUp.lines.join("\n"));
     const bare = await readScriptWorldSnapshot(bareSnapshotPath);
@@ -204,7 +204,7 @@ if (import.meta.main) await runRecipe(world);
       true,
     );
   } finally {
-    delete process.env.OPENWORK_WORLD_STAGE;
+    delete process.env.HARNESS_WORLD_STAGE;
     for (const stage of ["a", "b", "c"]) {
       try { await main(["down", fixtureName, "--stage", stage], { ...options, print: () => {} }); } catch {}
     }
@@ -220,10 +220,10 @@ if (import.meta.main) await runRecipe(world);
         });
       } catch {}
     }
-    if (previousSnapshotDirectory === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
-    if (previousStage === undefined) delete process.env.OPENWORK_WORLD_STAGE;
-    else process.env.OPENWORK_WORLD_STAGE = previousStage;
+    if (previousSnapshotDirectory === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
+    if (previousStage === undefined) delete process.env.HARNESS_WORLD_STAGE;
+    else process.env.HARNESS_WORLD_STAGE = previousStage;
     await rm(root, { recursive: true, force: true });
   }
 }, 60_000);

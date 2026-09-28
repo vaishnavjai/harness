@@ -1,0 +1,22 @@
+{
+  "name": "@harness/bootstrap",
+  "version": "0.1.0",
+  "description": "Script-installable Harness bootstrap CLI for agents",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "harness-bootstrap": "bin/harness.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "start.md"
+  ],
+  "scripts": {
+    "check": "node --check bin/harness.mjs && node --check evals/agent-test-evidence-harness-bootstrap.mjs && node --check evals/agent-test-evidence-harness-app-install.mjs && node --check evals/agent-test-evidence-linux-container.mjs",
+    "test": "node test/harness-bootstrap.test.mjs && node test/login.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

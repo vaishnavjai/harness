@@ -1,11 +1,11 @@
 import { createServer } from "node:http";
-import { browserScript, evaluate } from "@openwork/cdp";
-import { resolveEvalEngine, SkipError, type Place, type Seed } from "@openwork/env";
+import { browserScript, evaluate } from "@harness/cdp";
+import { resolveEvalEngine, SkipError, type Place, type Seed } from "@harness/env";
 import { configureProvider } from "./chat.ts";
 
 export async function sessionProviderAttribution(seed: Seed, { place }: { place: Place }) {
   if (place.kind !== "local" || resolveEvalEngine() !== "v1") throw new SkipError("Requires isolated local Electron and engine v1");
-  if (process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) throw new SkipError("Requires source-built isolated Electron");
+  if (process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) throw new SkipError("Requires source-built isolated Electron");
   await using resources = new AsyncDisposableStack();
   const prompt = `Attribute terminal provider rejection ${Date.now()}-${process.pid}.`;
   const errorMessage = "Attribution witness: provider rejected this request before assistant text.";
@@ -42,7 +42,7 @@ export async function sessionProviderAttribution(seed: Seed, { place }: { place:
   const [session] = await seed.sessions(app, ["Provider terminal attribution"]);
   if (!session) throw new Error("Attribution session not created");
   const server = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Isolated server is unavailable");
     return { baseUrl: info.baseUrl, token: info.ownerToken ?? info.clientToken };
   }, { awaitPromise: true });

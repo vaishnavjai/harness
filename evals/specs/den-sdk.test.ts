@@ -1,9 +1,9 @@
 import { expect } from "vitest";
-import { createDenClient } from "@openwork/sdk";
-import { denFetch } from "@openwork/behaviors";
-import { localMysqlIsRunning, localRedisIsRunning, server, test } from "@openwork/testkit";
+import { createDenClient } from "@harness/sdk";
+import { denFetch } from "@harness/behaviors";
+import { localMysqlIsRunning, localRedisIsRunning, server, test } from "@harness/testkit";
 
-const remote = process.env.OPENWORK_EVAL_DAYTONA === "1" || Boolean(process.env.OPENWORK_EVAL_DEN_API_URL);
+const remote = process.env.HARNESS_EVAL_DAYTONA === "1" || Boolean(process.env.HARNESS_EVAL_DEN_API_URL);
 const available = remote || (await localMysqlIsRunning() && await localRedisIsRunning());
 
 test.skipIf(!available)(
@@ -22,7 +22,7 @@ test.skipIf(!available)(
       },
     });
     const defaultHealth = await defaultClient.getHealth({ throwOnError: true });
-    expect(defaultUrl).toBe("https://api.openworklabs.com/health");
+    expect(defaultUrl).toBe("https://api.harness.invalid/health");
     expect(defaultHealth.response.status).toBe(200);
     const anonymous = createDenClient({ baseUrl: den.ref.apiUrl });
     const health = await anonymous.getHealth({ throwOnError: true });
@@ -34,7 +34,7 @@ test.skipIf(!available)(
     evidence.recordAssertionEvidence("Public health and protected identity", "Health succeeds without credentials; identity returns 401 with no data.",
       health.response.status === 200 && denied.response.status === 401 && denied.data === undefined);
     evidence.recordAssertionEvidence("Default URL and custom transport", "The default HTTPS health URL is passed to the custom fetch, which reaches the isolated Den successfully.",
-      defaultUrl === "https://api.openworklabs.com/health" && defaultHealth.response.status === 200);
+      defaultUrl === "https://api.harness.invalid/health" && defaultHealth.response.status === 200);
 
     const session = createDenClient({ baseUrl: den.ref.apiUrl, token: den.admin.token });
     const identity = await session.getV1Me({ throwOnError: true });
@@ -63,7 +63,7 @@ test.skipIf(!available)(
         expect(defaultTeam.data.team.organizationId).toBe(secondOrg.id);
         expect(defaultTeam.data.team.id).not.toBe(selectedTeam.data.team.id);
         const override = await scoped.getV1Org(undefined, {
-          headers: { "x-openwork-org-id": secondOrg.id }, throwOnError: true,
+          headers: { "x-harness-org-id": secondOrg.id }, throwOnError: true,
         });
         expect(override.data.organization.id).toBe(secondOrg.id);
         const unchanged = await scoped.getV1Org(undefined, { throwOnError: true });

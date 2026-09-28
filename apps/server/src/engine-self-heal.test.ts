@@ -4,11 +4,11 @@ import { EnginePool, isEngineConnectionFailure, type EnginePoolHooks, type Engin
 import { createManagedProcessClose, type ManagedChildProcess, type ManagedOpencodeServer } from "./managed-opencode.js";
 import type { ServerConfig, WorkspaceInfo } from "./types.js";
 
-const previousSpawnInterval = process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS;
+const previousSpawnInterval = process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS;
 
 afterEach(() => {
-  if (previousSpawnInterval === undefined) delete process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS;
-  else process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS = previousSpawnInterval;
+  if (previousSpawnInterval === undefined) delete process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS;
+  else process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS = previousSpawnInterval;
 });
 
 function managedHandle(port: number) {
@@ -106,7 +106,7 @@ describe("managed engine self-heal", () => {
   });
 
   test("requires three consecutive connection failures and throttles later bursts", async () => {
-    process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
+    process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
     const old = managedHandle(41001);
     const replacements = [managedHandle(41002), managedHandle(41003)];
     let spawnCalls = 0;
@@ -141,7 +141,7 @@ describe("managed engine self-heal", () => {
   });
 
   test("kills the old generation before spawn and schedules retry when replacement fails", async () => {
-    process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
+    process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
     const old = managedHandle(42001);
     let oldAliveAtSpawn = true;
     const testFixture = fixture(async () => {
@@ -163,7 +163,7 @@ describe("managed engine self-heal", () => {
   });
 
   test("treats loopback connect timeouts as recoverable engine failures", async () => {
-    process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
+    process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS = "30000";
     const old = managedHandle(43001);
     const replacement = managedHandle(43002);
     let spawnCalls = 0;

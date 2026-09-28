@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "harness-connect",
+  "version": "1.0.0",
+  "description": "Use the skills, MCP connections, and connected services assigned to you through Harness.",
+  "author": {
+    "name": "Harness",
+    "url": "https://github.com/vaishnavjai/harness"
+  },
+  "homepage": "https://github.com/vaishnavjai/harness/blob/dev/packages/docs/cloud/run-in-the-cloud/cloud-mcp.mdx",
+  "repository": "https://github.com/vaishnavjai/harness",
+  "license": "MIT",
+  "keywords": [
+    "harness",
+    "mcp",
+    "agent-skills",
+    "organization"
+  ]
+}

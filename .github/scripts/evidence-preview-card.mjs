@@ -1,4 +1,4 @@
-export const cardMarker = "<!-- openwork-evidence-preview:v1 -->";
+export const cardMarker = "<!-- harness-evidence-preview:v1 -->";
 
 function reportLink(value, reviewUrl) {
   try {
@@ -10,7 +10,7 @@ function reportLink(value, reviewUrl) {
 }
 
 export function previousPreview(body, reviewUrl) {
-  const raw = /<!-- openwork-evidence-report:(\{[^\n]+\}) -->/.exec(body ?? "");
+  const raw = /<!-- harness-evidence-report:(\{[^\n]+\}) -->/.exec(body ?? "");
   if (!raw) return undefined;
   try {
     const value = JSON.parse(raw[1]);
@@ -29,14 +29,14 @@ export function renderPreviewCard({ repo, sha, status, conclusion, title, report
   const preview = ready ? `**[Open preview](${reportUrl})**` : `[View run](${logUrl})`;
   const updated = now.replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
   const report = ready ? { sha, url: reportUrl, publishedAt: now } : previous;
-  const lines = [cardMarker, "### OpenWork evidence", "", "| Status | Commit | Preview | Updated |", "| --- | --- | --- | --- |",
+  const lines = [cardMarker, "### Harness evidence", "", "| Status | Commit | Preview | Updated |", "| --- | --- | --- | --- |",
     `| ${label} | ${commit} | ${preview} | ${updated} |`, ""];
   if (ready) lines.push(`[Run details](${logUrl}) · Open the preview to inspect evidence and sandbox options.`);
   else {
     lines.push(status === "completed" ? title : "A preview for this commit is being prepared.");
     if (previous) lines.push("", `**Previous evidence — out of date:** [Open report for \`${previous.sha.slice(0, 7)}\`](${previous.url}). It does not verify the current run.`);
   }
-  if (report) lines.push("", `<!-- openwork-evidence-report:${JSON.stringify(report)} -->`);
+  if (report) lines.push("", `<!-- harness-evidence-report:${JSON.stringify(report)} -->`);
   return lines.join("\n");
 }
 

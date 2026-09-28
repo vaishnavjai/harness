@@ -59,10 +59,10 @@ describe("assigned model options", () => {
         models: [{ id: "claude-sonnet", name: "Claude Sonnet", config: {}, createdAt: null }],
       }),
       provider({
-        id: "lpr_openwork_subscription",
-        source: "openwork",
-        providerId: "openwork",
-        name: "OpenWork Models",
+        id: "lpr_harness_subscription",
+        source: "harness",
+        providerId: "harness",
+        name: "Harness Models",
         hasApiKey: false,
         models: [{ id: "gpt-5", name: "GPT-5", config: {}, createdAt: null }],
       }),
@@ -77,10 +77,10 @@ describe("assigned model options", () => {
         source: "cloud",
       },
       {
-        providerID: "openwork",
+        providerID: "harness",
         modelID: "gpt-5",
         title: "GPT-5",
-        description: "OpenWork Models",
+        description: "Harness Models",
         source: "cloud",
       },
     ]);

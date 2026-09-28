@@ -41,12 +41,12 @@ function singleEntryArchive({ name, data, uncompressedSize = data.length }) {
 
 describe("workspace archive limits", () => {
   it("rejects an oversized entry before zlib or file writes run", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "openwork-archive-test-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "harness-archive-test-"));
     const archivePath = path.join(root, "archive.zip");
     const targetDir = path.join(root, "target");
     try {
       await writeFile(archivePath, singleEntryArchive({
-        name: ".opencode/openwork.json",
+        name: ".opencode/harness.json",
         data: Buffer.from("{}"),
         uncompressedSize: 17 * 1024 * 1024,
       }));

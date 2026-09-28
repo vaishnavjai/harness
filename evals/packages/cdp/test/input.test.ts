@@ -469,7 +469,7 @@ test("unreadable frame documents cannot establish absence or fall back to the ho
   await assert.rejects(assertAbsent(surfaceReturning(null), appAuthenticate, 100), /Unexpected CDP method/);
 });
 
-test("trusted input reaches an isolated MCP App iframe in Chrome", { skip: process.env.OPENWORK_CDP_FRAME_CHROME ? false : "needs: OPENWORK_CDP_FRAME_CHROME", timeout: 30_000 }, async () => {
+test("trusted input reaches an isolated MCP App iframe in Chrome", { skip: process.env.HARNESS_CDP_FRAME_CHROME ? false : "needs: HARNESS_CDP_FRAME_CHROME", timeout: 30_000 }, async () => {
   const { createServer } = await import("node:http");
   const { mkdtemp, rm } = await import("node:fs/promises");
   const { tmpdir } = await import("node:os");
@@ -477,7 +477,7 @@ test("trusted input reaches an isolated MCP App iframe in Chrome", { skip: proce
   const { spawn } = await import("node:child_process");
   const { attachSurface, evaluateOnSurface } = await import("../src/surface.ts");
   await using cleanup = new AsyncDisposableStack();
-  const profile = await mkdtemp(join(tmpdir(), "openwork-frame-input-"));
+  const profile = await mkdtemp(join(tmpdir(), "harness-frame-input-"));
   cleanup.defer(() => rm(profile, { recursive: true, force: true }));
   let port = 0;
   let trusted = 0;
@@ -494,7 +494,7 @@ test("trusted input reaches an isolated MCP App iframe in Chrome", { skip: proce
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Fixture port unavailable");
   port = address.port;
-  const browser = spawn(process.env.OPENWORK_CDP_FRAME_CHROME ?? "", ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `http://localhost:${port}`], { stdio: ["ignore", "ignore", "pipe"] });
+  const browser = spawn(process.env.HARNESS_CDP_FRAME_CHROME ?? "", ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", `http://localhost:${port}`], { stdio: ["ignore", "ignore", "pipe"] });
   cleanup.defer(async () => {
     if (browser.exitCode !== null || browser.signalCode !== null) return;
     const exited = new Promise<void>(resolve => browser.once("exit", () => resolve()));

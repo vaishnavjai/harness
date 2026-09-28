@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { z } from "zod"
 import type { App } from "@modelcontextprotocol/ext-apps"
-import { connectionActionIntentSchema, connectionActionPayloadSchema } from "@openwork/types/connection-action-app"
+import { connectionActionIntentSchema, connectionActionPayloadSchema } from "@harness/types/connection-action-app"
 import type { AppViewProps } from "./shared/bridge"
 import { callTool, openLink, safeLinkSchema } from "./shared/result"
 
@@ -30,10 +30,10 @@ export function ConnectionView({ payload, app, hostContext }: AppViewProps<z.inf
   const [status, setStatus] = useState("")
   const [outcome, setOutcome] = useState<"connected" | "skipped" | "dismissed" | null>(null)
   const [logoFailed, setLogoFailed] = useState(false)
-  const member = payload.actor === "member" && payload.action?.surface === "openwork_your_connections"
+  const member = payload.actor === "member" && payload.action?.surface === "harness_your_connections"
     && ((payload.state === "needs_connection" && payload.action.type === "connect")
       || (payload.state === "reauth_required" && payload.action.type === "reconnect"))
-  const native = z.object({ "openwork/connection-actions": z.literal(true) }).safeParse(hostContext?.experimental).success
+  const native = z.object({ "harness/connection-actions": z.literal(true) }).safeParse(hostContext?.experimental).success
   const link = safeLinkSchema.safeParse(payload.action?.url)
   const connected = payload.state === "connected" || outcome === "connected"
   const finished = connected || outcome !== null

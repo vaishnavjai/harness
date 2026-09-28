@@ -88,16 +88,16 @@ describe("isCloudProviderOutOfSync", () => {
 });
 
 describe("buildCloudProviderConfig", () => {
-  test("omits empty models for openwork so catalog models can remain", () => {
+  test("omits empty models for harness so catalog models can remain", () => {
     const provider: DenOrgLlmProviderConnection = {
-      id: "lpr_openwork",
-      source: "openwork",
-      providerId: "openwork",
-      name: "OpenWork Models",
+      id: "lpr_harness",
+      source: "harness",
+      providerId: "harness",
+      name: "Harness Models",
       providerConfig: {
         npm: "@openrouter/ai-sdk-provider",
-        api: "https://inference.openworklabs.com/api/v1",
-        env: ["OPENWORK_API_KEY"],
+        api: "https://inference.harness.invalid/api/v1",
+        env: ["HARNESS_API_KEY"],
       },
       hasApiKey: true,
       models: [],
@@ -109,10 +109,10 @@ describe("buildCloudProviderConfig", () => {
 
     const config = buildCloudProviderConfig(provider);
     expect(config.models).toBe(undefined);
-    expect(config.name).toBe("OpenWork Models");
+    expect(config.name).toBe("Harness Models");
   });
 
-  test("keeps an empty models map for non-openwork cloud providers", () => {
+  test("keeps an empty models map for non-harness cloud providers", () => {
     const provider: DenOrgLlmProviderConnection = {
       id: "lpr_custom",
       source: "custom",

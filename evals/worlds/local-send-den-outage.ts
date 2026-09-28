@@ -1,9 +1,9 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { resolveEvalEngine, SkipError, type Seed } from "@openwork/env";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
+import { resolveEvalEngine, SkipError, type Seed } from "@harness/env";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { sessionlessFirstSendWorld } from "./first-run.ts";
-import { eventually } from "@openwork/testkit";
+import { eventually } from "@harness/testkit";
 
 export async function localSendDenOutageWorld(seed: Seed) {
   if (resolveEvalEngine() !== "v1") throw new SkipError("DEN-LOCAL-SEND requires the real v1 engine");
@@ -34,13 +34,13 @@ export async function localSendDenOutageWorld(seed: Seed) {
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), base.app.handle.name);
   const runtime = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
-  if (!runtime || runtime.workspace !== base.workspacePath || runtime.openworkUrl !== base.app.openworkUrl) {
+  if (!runtime || runtime.workspace !== base.workspacePath || runtime.harnessUrl !== base.app.harnessUrl) {
     throw new Error("Outage fixture could not identify its owned headless runtime");
   }
   // Host-only identity arrangement, not renderer Cloud sign-in or provider sync.
-  const installed = await fetch(`${runtime.openworkUrl}/den-session/identity`, {
+  const installed = await fetch(`${runtime.harnessUrl}/den-session/identity`, {
     method: "PUT",
-    headers: { "X-OpenWork-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
+    headers: { "X-Harness-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
     body: JSON.stringify({ baseUrl, token: "den-outage-fixture-token", orgId: "org_test" }),
     signal: AbortSignal.timeout(30_000),
   });

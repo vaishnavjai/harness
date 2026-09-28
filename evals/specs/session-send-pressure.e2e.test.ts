@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { sendPressureMode, sessionSendPressure } from "../worlds/session-send-pressure.ts";
 
 const mode = sendPressureMode();

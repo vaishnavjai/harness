@@ -1,5 +1,5 @@
-import { browserScript } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
+import { browserScript } from "@harness/cdp";
+import type { Seed } from "@harness/env";
 
 // Cover both Claude-style string commands and OpenCode's command arrays.
 const handWrittenConfig = {
@@ -45,7 +45,7 @@ export async function libraryMcpServersFromConfig(seed: Seed) {
   // The enabled server must be discovered from disk when the workspace opens.
   // Do not register it through the MCP API: that would bypass config loading.
   const configWrite = await seed.evalIn(app, browserScript(async (workspacePath: string, content: string) => {
-    const result = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("writeOpencodeConfig", "project", workspacePath, content);
+    const result = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("writeOpencodeConfig", "project", workspacePath, content);
     return result ?? { ok: false, stderr: "desktop bridge unavailable" };
   }, [workspacePath, `${JSON.stringify(config, null, 2)}\n`]));
   const workspace = await seed.workspace(app, workspacePath, { create: true });

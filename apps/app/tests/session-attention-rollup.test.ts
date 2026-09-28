@@ -37,7 +37,7 @@ function taskTranscript(childSessionId: string, text = "Inspecting"): UIMessage[
     id: "msg-task", role: "assistant", parts: [{
       type: "dynamic-tool", toolName: "task", toolCallId: "call-task", state: "input-available",
       input: { description: "Inspect", prompt: "Inspect tests", subagent_type: "general" },
-      callProviderMetadata: { openwork: { childSessionId } },
+      callProviderMetadata: { harness: { childSessionId } },
     }, { type: "text", text }],
   }];
 }
@@ -290,7 +290,7 @@ describe("descendant attention inventory", () => {
       id: "msg-task", role: "assistant", parts: [{
         type: "dynamic-tool", toolName: "task", toolCallId: "call-task", state: "input-available",
         input: { description: "Inspect", prompt: "Inspect tests", subagent_type: "general" },
-        callProviderMetadata: { openwork: { childSessionId: "missing-child" } },
+        callProviderMetadata: { harness: { childSessionId: "missing-child" } },
       }],
     }]);
     store.setRunStatus(workspaceId, "missing-child", "running");

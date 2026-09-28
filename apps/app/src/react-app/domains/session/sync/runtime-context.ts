@@ -13,7 +13,7 @@
  * Kept dependency-free so unit tests and specs can import it directly.
  */
 
-export type OpenworkRuntimeFacts = {
+export type HarnessRuntimeFacts = {
   /** IANA zone, for example America/Los_Angeles. */
   timeZone: string;
   /** Offset of that zone at `now`, for example UTC-07:00. */
@@ -26,7 +26,7 @@ export type OpenworkRuntimeFacts = {
   locale: string;
 };
 
-export type OpenworkRuntimeFactsInput = {
+export type HarnessRuntimeFactsInput = {
   now?: Date;
   timeZone?: string;
   locale?: string;
@@ -96,7 +96,7 @@ function offsetFor(timeZone: string, now: Date): string {
   return formatOffset(Math.round((asUtc - wholeSeconds) / 60_000));
 }
 
-export function readOpenworkRuntimeFacts(input: OpenworkRuntimeFactsInput = {}): OpenworkRuntimeFacts {
+export function readHarnessRuntimeFacts(input: HarnessRuntimeFactsInput = {}): HarnessRuntimeFacts {
   const now = input.now ?? new Date();
   const locale = input.locale ?? detectLocale();
   let timeZone = input.timeZone ?? detectTimeZone();
@@ -130,7 +130,7 @@ export function readOpenworkRuntimeFacts(input: OpenworkRuntimeFactsInput = {}):
   };
 }
 
-export function renderOpenworkRuntimeContext(facts: OpenworkRuntimeFacts): string {
+export function renderHarnessRuntimeContext(facts: HarnessRuntimeFacts): string {
   return [
     "User context:",
     `- Time zone: ${facts.timeZone} (${facts.utcOffset})`,

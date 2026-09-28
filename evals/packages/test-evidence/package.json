@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/test-evidence",
+  "name": "@harness/test-evidence",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -19,9 +19,9 @@
     }
   },
   "dependencies": {
-    "@openwork/cdp": "workspace:*",
-    "@openwork/freestyle": "link:../../../packages/freestyle",
-    "@openwork/env": "workspace:*",
-    "@openwork/timeline": "workspace:*"
+    "@harness/cdp": "workspace:*",
+    "@harness/freestyle": "link:../../../packages/freestyle",
+    "@harness/env": "workspace:*",
+    "@harness/timeline": "workspace:*"
   }
 }

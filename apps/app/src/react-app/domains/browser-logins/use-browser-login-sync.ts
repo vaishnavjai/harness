@@ -7,7 +7,7 @@ import { isLoginSyncPromptDue, usePersistedBrowserLoginsStore } from "./browser-
 
 export function getBrowserLoginsBridge() {
   if (!isElectronRuntime()) return null;
-  return window.__OPENWORK_ELECTRON__?.browserLogins ?? null;
+  return window.__HARNESS_ELECTRON__?.browserLogins ?? null;
 }
 
 export type BrowserLoginSyncAccess = {

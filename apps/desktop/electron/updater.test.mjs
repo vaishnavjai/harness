@@ -84,7 +84,7 @@ function fakeUpdaterHarness({ version, platform, manualNativeStaging }) {
  * @param {{ version: string, platform?: string, manualNativeStaging?: boolean, nativeStagingTimeoutMs?: number, assertActivation?: () => void }} options
  */
 async function registerFakeUpdaterIpc({ version, platform = "linux", manualNativeStaging = false, nativeStagingTimeoutMs, assertActivation }, { arch = process.arch, runningUnderARM64Translation = false } = {}) {
-  const tempDir = mkdtempSync(path.join(os.tmpdir(), "openwork-updater-test-"));
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "harness-updater-test-"));
   const handlers = new Map();
   const harness = fakeUpdaterHarness({ version, platform, manualNativeStaging });
   const defaultsWrites = [];
@@ -109,7 +109,7 @@ async function registerFakeUpdaterIpc({ version, platform = "linux", manualNativ
     platform,
     arch,
     nativeStagingTimeoutMs,
-    shipItDefaultsDomain: "test.openwork.ShipIt",
+    shipItDefaultsDomain: "test.harness.ShipIt",
     writeDefaults: async (args) => { defaultsWrites.push(args); },
     ...(assertActivation ? { assertActivation } : {}),
   });
@@ -119,7 +119,7 @@ async function registerFakeUpdaterIpc({ version, platform = "linux", manualNativ
 describe("staleUpdaterStatePaths", () => {
   it("targets the ShipIt cache on macOS", { skip: process.platform !== "darwin" }, () => {
     assert.deepEqual(staleUpdaterStatePaths(fakeApp), [
-      "/Users/test/Library/Caches/com.differentai.openwork.ShipIt",
+      "/Users/test/Library/Caches/com.vaishnavjai.harness.ShipIt",
     ]);
   });
 
@@ -132,7 +132,7 @@ describe("targetedStableUpdaterFeed", () => {
   it("builds a fixed GitHub release feed from a strict stable version", () => {
     assert.equal(
       targetedStableUpdaterFeed("0.17.22", "0.17.23"),
-      "https://github.com/different-ai/openwork/releases/download/v0.17.23",
+      "https://github.com/vaishnavjai/harness/releases/download/v0.17.23",
     );
   });
 
@@ -161,7 +161,7 @@ describe("targetedStableUpdaterFeed", () => {
   it("allows only an explicit exact recovery downgrade", () => {
     assert.equal(
       targetedStableUpdaterFeed("0.17.23", "0.17.22", true),
-      "https://github.com/different-ai/openwork/releases/download/v0.17.22",
+      "https://github.com/vaishnavjai/harness/releases/download/v0.17.22",
     );
     assert.throws(
       () => targetedStableUpdaterFeed("0.17.23", "0.17.23", true),
@@ -199,7 +199,7 @@ describe("recovery metadata and candidates", () => {
   });
 
   it("atomically preserves the immediately prior healthy version", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-state-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-state-"));
     const app = { getPath: () => userData };
     try {
       await recordHealthyVersion(app, "public", "1.2.3");
@@ -236,9 +236,9 @@ describe("recovery metadata and candidates", () => {
 
   it("accepts only the exact platform, architecture, distribution release artifact", () => {
     const files = [
-      { url: "openwork-mac-x64-1.2.3.dmg", sha512: "wrong-arch" },
-      { url: "https://tampered.invalid/openwork-mac-arm64-1.2.3.dmg", sha512: "tampered" },
-      { url: "openwork-mac-arm64-1.2.3.dmg", sha512: "verified" },
+      { url: "harness-mac-x64-1.2.3.dmg", sha512: "wrong-arch" },
+      { url: "https://tampered.invalid/harness-mac-arm64-1.2.3.dmg", sha512: "tampered" },
+      { url: "harness-mac-arm64-1.2.3.dmg", sha512: "verified" },
     ];
     assert.deepEqual(selectRecoveryArtifact(files, {
       version: "1.2.3",
@@ -250,7 +250,7 @@ describe("recovery metadata and candidates", () => {
       platform: "darwin",
       arch: "arm64",
       distribution: "public",
-      url: "https://github.com/different-ai/openwork/releases/download/v1.2.3/openwork-mac-arm64-1.2.3.dmg",
+      url: "https://github.com/vaishnavjai/harness/releases/download/v1.2.3/harness-mac-arm64-1.2.3.dmg",
       sha512: "verified",
     });
     assert.equal(selectRecoveryArtifact(files, {
@@ -263,15 +263,15 @@ describe("recovery metadata and candidates", () => {
 
   it("accepts each artifact flavor only for its matching distribution", () => {
     const artifacts = {
-      public: "openwork-mac-arm64-1.2.3.dmg",
-      cloud: "openwork-cloud-mac-arm64-1.2.3.dmg",
-      enterprise: "openwork-enterprise-mac-arm64-1.2.3.dmg",
+      public: "harness-mac-arm64-1.2.3.dmg",
+      cloud: "harness-cloud-mac-arm64-1.2.3.dmg",
+      enterprise: "harness-enterprise-mac-arm64-1.2.3.dmg",
     };
     for (const [distribution, fileName] of Object.entries(artifacts)) {
       const files = [{ url: fileName, sha512: `${distribution}-checksum` }];
       assert.equal(selectRecoveryArtifact(files, {
         version: "1.2.3", platform: "darwin", arch: "arm64", distribution,
-      })?.url, `https://github.com/different-ai/openwork/releases/download/v1.2.3/${fileName}`);
+      })?.url, `https://github.com/vaishnavjai/harness/releases/download/v1.2.3/${fileName}`);
       for (const otherDistribution of Object.keys(artifacts).filter((flavor) => flavor !== distribution)) {
         assert.equal(selectRecoveryArtifact(files, {
           version: "1.2.3", platform: "darwin", arch: "arm64", distribution: otherDistribution,
@@ -283,14 +283,14 @@ describe("recovery metadata and candidates", () => {
   it("parses representative builder manifests and selects published installer extensions", () => {
     const files = parseRecoveryManifest(`version: 1.2.3
 files:
-  - url: openwork-mac-arm64-1.2.3.dmg
+  - url: harness-mac-arm64-1.2.3.dmg
     sha512: mac-checksum
     size: 100
-  - url: openwork-cloud-win-x64-1.2.3.exe
+  - url: harness-cloud-win-x64-1.2.3.exe
     sha512: win-checksum
-  - url: openwork-enterprise-linux-x86_64-1.2.3.AppImage
+  - url: harness-enterprise-linux-x86_64-1.2.3.AppImage
     sha512: linux-checksum
-path: openwork-mac-arm64-1.2.3.zip
+path: harness-mac-arm64-1.2.3.zip
 sha512: updater-zip-checksum
 releaseDate: '2026-08-11T00:00:00.000Z'
 `);
@@ -309,12 +309,12 @@ releaseDate: '2026-08-11T00:00:00.000Z'
   });
 
   it("rejects a checksum mismatch without producing a cached installer", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-checksum-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-checksum-"));
     try {
       await assert.rejects(
         cacheVerifiedRecoveryArtifact({
           app: { getPath: () => userData },
-          artifact: { url: "https://github.com/different-ai/openwork/releases/download/v1.2.3/openwork.dmg", sha512: "invalid" },
+          artifact: { url: "https://github.com/vaishnavjai/harness/releases/download/v1.2.3/harness.dmg", sha512: "invalid" },
           fetchArtifact: async () => new Response("tampered"),
         }),
         /checksum did not match/,
@@ -325,7 +325,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
   });
 
   it("preserves a valid rollback cache across network and checksum replacement failures", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-cache-preserve-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-cache-preserve-"));
     const app = { getPath: () => userData };
     const bytes = Buffer.from("known-good");
     const artifact = {
@@ -333,7 +333,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
       platform: "darwin",
       arch: "arm64",
       distribution: "public",
-      url: "https://github.com/different-ai/openwork/releases/download/v1.2.3/openwork-mac-arm64-1.2.3.dmg",
+      url: "https://github.com/vaishnavjai/harness/releases/download/v1.2.3/harness-mac-arm64-1.2.3.dmg",
       sha512: createHash("sha512").update(bytes).digest("base64"),
     };
     try {
@@ -361,7 +361,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
   });
 
   it("rejects cached metadata with a modified URL or wrong installer filename", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-cache-identity-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-cache-identity-"));
     const app = { getPath: () => userData };
     const bytes = Buffer.from("known-good-identity");
     const artifact = {
@@ -369,7 +369,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
       platform: "darwin",
       arch: "arm64",
       distribution: "public",
-      url: "https://github.com/different-ai/openwork/releases/download/v0.18.18/openwork-mac-arm64-0.18.18.dmg",
+      url: "https://github.com/vaishnavjai/harness/releases/download/v0.18.18/harness-mac-arm64-0.18.18.dmg",
       sha512: createHash("sha512").update(bytes).digest("base64"),
     };
     const expected = { platform: "darwin", arch: "arm64", distribution: "public" };
@@ -377,9 +377,9 @@ releaseDate: '2026-08-11T00:00:00.000Z'
       await cacheVerifiedRecoveryArtifact({ app, artifact, fetchArtifact: async () => new Response(bytes) });
       const metadataPath = path.join(userData, "app-recovery-cache", "metadata.json");
       const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
-      await writeFile(metadataPath, JSON.stringify({ ...metadata, url: "https://tampered.invalid/OpenWork.dmg" }), "utf8");
+      await writeFile(metadataPath, JSON.stringify({ ...metadata, url: "https://tampered.invalid/Harness.dmg" }), "utf8");
       assert.equal(await readCachedRecoveryArtifact(app, expected), null);
-      await writeFile(metadataPath, JSON.stringify({ ...metadata, fileName: "OpenWork.dmg" }), "utf8");
+      await writeFile(metadataPath, JSON.stringify({ ...metadata, fileName: "Harness.dmg" }), "utf8");
       assert.equal(await readCachedRecoveryArtifact(app, expected), null);
     } finally {
       await rm(userData, { recursive: true, force: true });
@@ -387,7 +387,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
   });
 
   it("discovers and opens a reverified cached healthy installer while offline", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-offline-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-offline-"));
     const quitCalls = [];
     const app = {
       isPackaged: true,
@@ -401,7 +401,7 @@ releaseDate: '2026-08-11T00:00:00.000Z'
       platform: "darwin",
       arch: "arm64",
       distribution: "public",
-      url: "https://github.com/different-ai/openwork/releases/download/v1.9.0/openwork-mac-arm64-1.9.0.dmg",
+      url: "https://github.com/vaishnavjai/harness/releases/download/v1.9.0/harness-mac-arm64-1.9.0.dmg",
       sha512: createHash("sha512").update(bytes).digest("base64"),
     };
     const handlers = new Map();
@@ -423,18 +423,18 @@ releaseDate: '2026-08-11T00:00:00.000Z'
         arch: "arm64",
         distribution: "public",
       });
-      const listed = await handlers.get("openwork:recovery:list")(null, {
+      const listed = await handlers.get("harness:recovery:list")(null, {
         versions: [], minimumVersion: "0.0.0",
       });
       assert.deepEqual(listed.releases, [{ id: "1.9.0", version: "1.9.0", marking: "previous" }]);
       assert.deepEqual(networkCalls, []);
-      assert.deepEqual(await handlers.get("openwork:recovery:use")(null, "1.9.0"), {
+      assert.deepEqual(await handlers.get("harness:recovery:use")(null, "1.9.0"), {
         ok: false,
         reason: "installer blocked",
       });
       assert.deepEqual(quitCalls, []);
       openError = "";
-      assert.deepEqual(await handlers.get("openwork:recovery:use")(null, "1.9.0"), {
+      assert.deepEqual(await handlers.get("harness:recovery:use")(null, "1.9.0"), {
         ok: true,
         action: "installer",
         message: "The verified installer is open. Follow the operating system steps to finish.",
@@ -446,11 +446,11 @@ releaseDate: '2026-08-11T00:00:00.000Z'
   });
 
   it("rejects a candidate whose fresh manifest changes without any destructive action", async () => {
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-recovery-fresh-mismatch-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-recovery-fresh-mismatch-"));
     const handlers = new Map();
     const destructiveCalls = [];
     let candidateFetches = 0;
-    const manifest = (checksum) => `version: 1.9.0\nfiles:\n  - url: openwork-mac-arm64-1.9.0.dmg\n    sha512: ${checksum}\n`;
+    const manifest = (checksum) => `version: 1.9.0\nfiles:\n  - url: harness-mac-arm64-1.9.0.dmg\n    sha512: ${checksum}\n`;
     try {
       isolatedUpdaterImportId += 1;
       const isolated = await import(`./updater.mjs?fresh-mismatch=${isolatedUpdaterImportId}`);
@@ -473,11 +473,11 @@ releaseDate: '2026-08-11T00:00:00.000Z'
         arch: "arm64",
         distribution: "public",
       });
-      const listed = await handlers.get("openwork:recovery:list")(null, {
+      const listed = await handlers.get("harness:recovery:list")(null, {
         versions: ["1.9.0"], minimumVersion: "0.0.0",
       });
       assert.deepEqual(listed.releases, [{ id: "1.9.0", version: "1.9.0", marking: null }]);
-      const result = await handlers.get("openwork:recovery:use")(null, "1.9.0");
+      const result = await handlers.get("harness:recovery:use")(null, "1.9.0");
       assert.equal(result.ok, false);
       assert.match(result.reason, /could not be verified/);
       assert.deepEqual(destructiveCalls, []);
@@ -507,13 +507,13 @@ releaseDate: '2026-08-11T00:00:00.000Z'
         return "";
       } },
       env: {
-        OPENWORK_EVAL_RECOVERY_CANDIDATES: JSON.stringify([
-          { version: "1.2.2", verified: false, artifactUrl: "https://tampered.invalid/openwork.dmg" },
+        HARNESS_EVAL_RECOVERY_CANDIDATES: JSON.stringify([
+          { version: "1.2.2", verified: false, artifactUrl: "https://tampered.invalid/harness.dmg" },
         ]),
       },
     });
-    await handlers.get("openwork:recovery:list")(null, {});
-    assert.equal((await handlers.get("openwork:recovery:use")(null, "1.2.2")).ok, false);
+    await handlers.get("harness:recovery:list")(null, {});
+    assert.equal((await handlers.get("harness:recovery:use")(null, "1.2.2")).ok, false);
     assert.deepEqual(destructiveCalls, []);
   });
 });
@@ -527,7 +527,7 @@ describe("installAndRestart", () => {
       getMainWindow: () => null,
     });
 
-    const install = handlers.get("openwork:updater:installAndRestart");
+    const install = handlers.get("harness:updater:installAndRestart");
     assert.equal(typeof install, "function");
     assert.deepEqual(await install(), {
       ok: false,
@@ -542,13 +542,13 @@ describe("pre-activation guard", () => {
     const { tempDir, handlers, calls, feeds } = await registerFakeUpdaterIpc({
       version: "9.9.9",
       assertActivation: () => {
-        if (activationRequired) throw new Error("OpenWork must be activated from your Den portal before this command is available.");
+        if (activationRequired) throw new Error("Harness must be activated from your Den portal before this command is available.");
       },
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
-      const install = handlers.get("openwork:updater:installAndRestart");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
+      const install = handlers.get("harness:updater:installAndRestart");
       await assert.rejects(() => check(null, "stable"), /must be activated/, "check must reject before activation");
       await assert.rejects(() => download(), /must be activated/, "download must reject before activation");
       await assert.rejects(() => install(), /must be activated/, "installAndRestart must reject before activation");
@@ -574,9 +574,9 @@ describe("downloaded update lifecycle", () => {
       version: "0.17.1",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
-      const install = handlers.get("openwork:updater:installAndRestart");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
+      const install = handlers.get("harness:updater:installAndRestart");
       assert.equal(typeof check, "function");
       assert.equal(typeof download, "function");
       assert.equal(typeof install, "function");
@@ -603,9 +603,9 @@ describe("downloaded update lifecycle", () => {
       version: "0.17.1",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
-      const install = handlers.get("openwork:updater:installAndRestart");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
+      const install = handlers.get("harness:updater:installAndRestart");
       assert.equal(typeof check, "function");
       assert.equal(typeof download, "function");
       assert.equal(typeof install, "function");
@@ -627,9 +627,9 @@ describe("downloaded update lifecycle", () => {
       version: "0.17.1",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
-      const install = handlers.get("openwork:updater:installAndRestart");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
+      const install = handlers.get("harness:updater:installAndRestart");
       assert.equal(typeof check, "function");
       assert.equal(typeof download, "function");
       assert.equal(typeof install, "function");
@@ -657,8 +657,8 @@ describe("metadata-only updater checks", () => {
       version: "0.17.1", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
+      const check = handlers.get("harness:updater:check");
+      assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
       const nativeFeed = nativeUpdater.getFeedURL();
       const autoInstall = updater.autoInstallOnAppQuit;
       updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.2" } });
@@ -670,7 +670,7 @@ describe("metadata-only updater checks", () => {
       assert.equal(nativeUpdater.getFeedURL(), nativeFeed);
       assert.equal(updater.squirrelDownloadedUpdate, true);
       assert.deepEqual(calls, ["download", "nativeCheck"]);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), { ok: true });
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), { ok: true });
       assert.deepEqual(calls, ["download", "nativeCheck", "quitAndInstall"]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -682,8 +682,8 @@ describe("metadata-only updater checks", () => {
       version: "0.17.1", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
       assert.deepEqual(await download(), { ok: true });
       updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.2" } });
       assert.equal((await check(null, "stable", "0.17.2", { preserveStaged: true })).stagedVersion, "0.17.1");
@@ -704,7 +704,7 @@ describe("metadata-only updater checks", () => {
         version: "0.17.1", platform: "darwin",
       });
       try {
-        assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
+        assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
         const nativeFeed = nativeUpdater.getFeedURL();
         updater.checkForUpdates = async () => {
           if (outcome === "error") throw new Error("offline");
@@ -712,7 +712,7 @@ describe("metadata-only updater checks", () => {
         };
         for (const autoInstall of [true, false]) {
           updater.autoInstallOnAppQuit = autoInstall;
-          const result = await handlers.get("openwork:updater:check")(null, "stable", undefined, { preserveStaged: true });
+          const result = await handlers.get("harness:updater:check")(null, "stable", undefined, { preserveStaged: true });
           assert.equal(result.available, outcome === "equal");
           assert.equal(result.stagedVersion, "0.17.1");
           assert.equal(result.totalBytes, null);
@@ -721,7 +721,7 @@ describe("metadata-only updater checks", () => {
           assert.equal(nativeUpdater.getFeedURL(), nativeFeed);
         }
         assert.deepEqual(calls, ["download", "nativeCheck"]);
-        assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), { ok: true });
+        assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), { ok: true });
       } finally {
         await rm(tempDir, { recursive: true, force: true });
       }
@@ -734,15 +734,15 @@ describe("metadata-only updater checks", () => {
         version: "0.17.1", platform: "darwin",
       });
       try {
-        assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
+        assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
         updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.2" } });
-        const result = await handlers.get("openwork:updater:check")(null, "stable", undefined, options);
+        const result = await handlers.get("harness:updater:check")(null, "stable", undefined, options);
         assert.equal(result.available, true);
         assert.equal(Object.hasOwn(result, "stagedVersion"), false);
         assert.equal(updater.autoInstallOnAppQuit, false);
-        const recheck = await handlers.get("openwork:updater:check")(null, "stable", undefined, { preserveStaged: true });
+        const recheck = await handlers.get("harness:updater:check")(null, "stable", undefined, { preserveStaged: true });
         assert.equal(recheck.stagedVersion, null);
-        assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), {
+        assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), {
           ok: false, reason: "update-not-downloaded",
         });
         assert.deepEqual(calls, ["download", "nativeCheck"]);
@@ -757,13 +757,13 @@ describe("metadata-only updater checks", () => {
       version: "0.17.1", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
+      const check = handlers.get("harness:updater:check");
       assert.equal((await check(null, "stable", undefined, { preserveStaged: true })).stagedVersion, null);
       assert.deepEqual(calls, []);
-      assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
-      await handlers.get("openwork:updater:setChannel")(null, "stable");
+      assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
+      await handlers.get("harness:updater:setChannel")(null, "stable");
       assert.equal((await check(null, "stable", undefined, { preserveStaged: true })).stagedVersion, null);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), {
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), {
         ok: false, reason: "update-not-downloaded",
       });
     } finally {
@@ -776,8 +776,8 @@ describe("metadata-only updater checks", () => {
       version: "0.17.1", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
       await check(null, "stable", "0.17.1");
       assert.deepEqual(await download(), { ok: true });
       const nativeFeed = nativeUpdater.getFeedURL();
@@ -796,7 +796,7 @@ describe("metadata-only updater checks", () => {
         assert.deepEqual(feeds, originalFeeds);
       }
       assert.deepEqual(calls, ["download", "nativeCheck"]);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), { ok: true });
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), { ok: true });
       assert.deepEqual(calls, ["download", "nativeCheck", "quitAndInstall"]);
       assert.deepEqual(await download(), { ok: true });
       assert.equal(feeds.at(-1).url, targetedStableUpdaterFeed("0.17.0", "0.17.1"));
@@ -810,10 +810,10 @@ describe("metadata-only updater checks", () => {
       version: "0.18.0-alpha.2962", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
+      const check = handlers.get("harness:updater:check");
       assert.equal((await check(null, "alpha")).available, true);
-      assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
-      assert.equal(downloadFeeds.at(-1).url, "https://github.com/different-ai/openwork/releases/download/alpha-macos-latest");
+      assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
+      assert.equal(downloadFeeds.at(-1).url, "https://github.com/vaishnavjai/harness/releases/download/alpha-macos-latest");
       const nativeFeed = nativeUpdater.getFeedURL();
       const autoInstall = updater.autoInstallOnAppQuit;
       updater.checkForUpdates = async () => ({ updateInfo: { version: "0.18.0-alpha.2966" } });
@@ -826,7 +826,7 @@ describe("metadata-only updater checks", () => {
       assert.equal(nativeUpdater.getFeedURL(), nativeFeed);
       assert.equal(updater.squirrelDownloadedUpdate, true);
       assert.deepEqual(calls, ["download", "nativeCheck"]);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), { ok: true });
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), { ok: true });
       assert.deepEqual(calls, ["download", "nativeCheck", "quitAndInstall"]);
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -836,10 +836,10 @@ describe("metadata-only updater checks", () => {
 
 describe("updater artifact metadata size", () => {
   const files = [
-    { url: "openwork-mac-x64-0.17.1.dmg", size: 900 },
-    { url: "openwork-mac-arm64-0.17.1.dmg", size: 800 },
-    { url: "openwork-mac-x64-0.17.1.zip", size: 700 },
-    { url: "openwork-mac-arm64-0.17.1.zip", size: 600 },
+    { url: "harness-mac-x64-0.17.1.dmg", size: 900 },
+    { url: "harness-mac-arm64-0.17.1.dmg", size: 800 },
+    { url: "harness-mac-x64-0.17.1.zip", size: 700 },
+    { url: "harness-mac-arm64-0.17.1.zip", size: 600 },
   ];
   for (const { arm64, runningUnderARM64Translation, totalBytes } of [
     { arm64: true, runningUnderARM64Translation: false, totalBytes: 600 },
@@ -853,7 +853,7 @@ describe("updater artifact metadata size", () => {
       }, { arch, runningUnderARM64Translation });
       try {
         updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.1", files } });
-        const result = await handlers.get("openwork:updater:check")(null, "stable", undefined, { preserveStaged: true });
+        const result = await handlers.get("harness:updater:check")(null, "stable", undefined, { preserveStaged: true });
         assert.equal(result.totalBytes, totalBytes);
         assert.equal(result.stagedVersion, null);
         assert.deepEqual(calls, []);
@@ -865,11 +865,11 @@ describe("updater artifact metadata size", () => {
 
   for (const [name, artifacts, totalBytes] of [
     ["DMG only", files.slice(0, 2), null],
-    ["universal ZIP", [{ url: "openwork-universal.zip", size: 500 }], 500],
+    ["universal ZIP", [{ url: "harness-universal.zip", size: 500 }], 500],
     ["x64 fallback on ARM", [files[2]], 700],
-    ["missing size", [{ url: "openwork-arm64.zip" }], null],
-    ["invalid size", [{ url: "openwork-arm64.zip", size: -1 }], null],
-    ["string size", [{ url: "openwork-arm64.zip", size: "500" }], null],
+    ["missing size", [{ url: "harness-arm64.zip" }], null],
+    ["invalid size", [{ url: "harness-arm64.zip", size: -1 }], null],
+    ["string size", [{ url: "harness-arm64.zip", size: "500" }], null],
   ]) {
     it(`handles ${name}`, async () => {
       const { tempDir, handlers, updater } = await registerFakeUpdaterIpc({
@@ -877,7 +877,7 @@ describe("updater artifact metadata size", () => {
       }, { arch: "arm64" });
       try {
         updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.1", files: artifacts } });
-        assert.equal((await handlers.get("openwork:updater:check")(null, "stable")).totalBytes, totalBytes);
+        assert.equal((await handlers.get("harness:updater:check")(null, "stable")).totalBytes, totalBytes);
       } finally {
         await rm(tempDir, { recursive: true, force: true });
       }
@@ -893,7 +893,7 @@ describe("macOS native staging", () => {
     try {
       const started = once(nativeUpdater, "checking-for-update");
       let downloaded = false;
-      const download = handlers.get("openwork:updater:download")().then((result) => {
+      const download = handlers.get("harness:updater:download")().then((result) => {
         downloaded = true;
         return result;
       });
@@ -902,7 +902,7 @@ describe("macOS native staging", () => {
       assert.equal(updater.autoInstallOnAppQuit, false);
       assert.deepEqual(calls, ["download", "nativeCheck"]);
       assert.equal(nativeUpdater.listenerCount("update-downloaded"), 2);
-      const install = handlers.get("openwork:updater:installAndRestart")();
+      const install = handlers.get("harness:updater:installAndRestart")();
       finishNativeStage();
       assert.deepEqual(await download, { ok: true });
       assert.equal(updater.autoInstallOnAppQuit, true);
@@ -912,7 +912,7 @@ describe("macOS native staging", () => {
       assert.equal(nativeUpdater.listenerCount("error"), 1);
       if (process.platform === "darwin") {
         assert.equal(defaultsWrites.length, 2);
-        assert.ok(defaultsWrites.every((args) => args[1] === "test.openwork.ShipIt"));
+        assert.ok(defaultsWrites.every((args) => args[1] === "test.harness.ShipIt"));
       }
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -925,23 +925,23 @@ describe("macOS native staging", () => {
     });
     try {
       const started = once(nativeUpdater, "checking-for-update");
-      const download = handlers.get("openwork:updater:download")();
+      const download = handlers.get("harness:updater:download")();
       await started;
       nativeUpdater.emit("error", new Error("native signature validation failed"));
       assert.deepEqual(await download, { ok: false, reason: "native signature validation failed" });
       assert.equal(updater.autoInstallOnAppQuit, false);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), {
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), {
         ok: false, reason: "update-not-downloaded",
       });
       assert.equal(nativeUpdater.listenerCount("update-downloaded"), 1);
       assert.equal(nativeUpdater.listenerCount("error"), 1);
 
       const retryStarted = once(nativeUpdater, "checking-for-update");
-      const retry = handlers.get("openwork:updater:download")();
+      const retry = handlers.get("harness:updater:download")();
       await retryStarted;
       finishNativeStage();
       assert.deepEqual(await retry, { ok: true });
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), { ok: true });
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), { ok: true });
       assert.deepEqual(calls, ["download", "nativeCheck", "download", "nativeCheck", "quitAndInstall"]);
       assert.equal(nativeUpdater.listenerCount("update-downloaded"), 1);
       assert.equal(nativeUpdater.listenerCount("error"), 1);
@@ -955,7 +955,7 @@ describe("macOS native staging", () => {
       version: "0.17.1", platform: "darwin", manualNativeStaging: true, nativeStagingTimeoutMs: 25,
     });
     try {
-      const download = handlers.get("openwork:updater:download");
+      const download = handlers.get("harness:updater:download");
       const started = once(nativeUpdater, "checking-for-update");
       const pending = download();
       await started;
@@ -967,12 +967,12 @@ describe("macOS native staging", () => {
       assert.equal(nativeUpdater.listenerCount("update-downloaded"), 1);
       assert.equal(nativeUpdater.listenerCount("error"), 1);
       finishNativeStage();
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), {
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), {
         ok: false, reason: "update-not-downloaded",
       });
 
       updater.checkForUpdates = async () => ({ updateInfo: { version: "0.17.2" } });
-      await handlers.get("openwork:updater:check")(null, "stable");
+      await handlers.get("harness:updater:check")(null, "stable");
       const retryStarted = once(nativeUpdater, "checking-for-update");
       let downloaded = false;
       const retry = download().then((value) => { downloaded = true; return value; });
@@ -997,9 +997,9 @@ describe("macOS native staging", () => {
       version: "0.17.1", platform: "darwin",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const install = handlers.get("openwork:updater:installAndRestart");
-      assert.deepEqual(await handlers.get("openwork:updater:download")(), { ok: true });
+      const check = handlers.get("harness:updater:check");
+      const install = handlers.get("harness:updater:installAndRestart");
+      assert.deepEqual(await handlers.get("harness:updater:download")(), { ok: true });
       updater.checkForUpdates = async () => { throw new Error("network flake"); };
       assert.equal((await check(null, "stable")).available, false);
       // Wrapper errors from checks remain informational, not native-stage failures.
@@ -1026,7 +1026,7 @@ describe("macOS native staging", () => {
     });
     try {
       delete updater.nativeUpdater;
-      const download = handlers.get("openwork:updater:download");
+      const download = handlers.get("harness:updater:download");
       assert.deepEqual(await download(), { ok: false, reason: "Native macOS updater is unavailable." });
       assert.deepEqual(calls, []);
       updater.nativeUpdater = nativeUpdater;
@@ -1035,7 +1035,7 @@ describe("macOS native staging", () => {
       assert.equal(updater.autoInstallOnAppQuit, false);
       assert.equal(nativeUpdater.listenerCount("update-downloaded"), 1);
       assert.equal(nativeUpdater.listenerCount("error"), 1);
-      assert.deepEqual(await handlers.get("openwork:updater:installAndRestart")(), {
+      assert.deepEqual(await handlers.get("harness:updater:installAndRestart")(), {
         ok: false, reason: "update-not-downloaded",
       });
     } finally {
@@ -1054,7 +1054,7 @@ describe("release channel changes", () => {
 
   it("pins enterprise builds to their parallel stable manifest channel", async () => {
     const handlers = new Map();
-    const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-enterprise-updater-"));
+    const userData = await mkdtemp(path.join(os.tmpdir(), "harness-enterprise-updater-"));
     try {
       registerUpdaterIpc({
         app: {
@@ -1067,11 +1067,11 @@ describe("release channel changes", () => {
         manifestChannel: "enterprise",
       });
 
-      const setChannel = handlers.get("openwork:updater:setChannel");
+      const setChannel = handlers.get("harness:updater:setChannel");
       assert.equal(typeof setChannel, "function");
       assert.deepEqual(await setChannel(null, "alpha"), {
         channel: "stable",
-        feedUrl: "https://github.com/different-ai/openwork/releases/latest/download",
+        feedUrl: "https://github.com/vaishnavjai/harness/releases/latest/download",
         currentVersion: desktopVersion,
       });
     } finally {
@@ -1086,9 +1086,9 @@ describe("release channel changes", () => {
       version: "0.18.0",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const setChannel = handlers.get("openwork:updater:setChannel");
-      const getChannel = handlers.get("openwork:updater:getChannel");
+      const check = handlers.get("harness:updater:check");
+      const setChannel = handlers.get("harness:updater:setChannel");
+      const getChannel = handlers.get("harness:updater:getChannel");
 
       assert.equal((await setChannel(null, "alpha")).channel, "alpha");
       assert.equal((await check(null, "stable")).channel, "stable");
@@ -1105,14 +1105,14 @@ describe("release channel changes", () => {
       version: "0.18.0-alpha.1",
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const download = handlers.get("openwork:updater:download");
+      const check = handlers.get("harness:updater:check");
+      const download = handlers.get("harness:updater:download");
 
       assert.equal((await check(null, "alpha")).channel, "alpha");
       assert.deepEqual(await download(), { ok: true });
       assert.equal(
         downloadFeeds.at(-1)?.url,
-        "https://github.com/different-ai/openwork/releases/download/alpha-macos-latest",
+        "https://github.com/vaishnavjai/harness/releases/download/alpha-macos-latest",
       );
     } finally {
       await rm(tempDir, { recursive: true, force: true });
@@ -1135,9 +1135,9 @@ describe("release channel changes", () => {
       });
     });
     try {
-      const check = handlers.get("openwork:updater:check");
-      const setChannel = handlers.get("openwork:updater:setChannel");
-      const getChannel = handlers.get("openwork:updater:getChannel");
+      const check = handlers.get("harness:updater:check");
+      const setChannel = handlers.get("harness:updater:setChannel");
+      const getChannel = handlers.get("harness:updater:getChannel");
 
       const stableCheck = check(null, "stable");
       await stableCheckStarted;
@@ -1160,7 +1160,7 @@ describe("release channel changes", () => {
       );
       assert.equal(
         feeds.at(-1)?.url,
-        "https://github.com/different-ai/openwork/releases/download/alpha-macos-latest",
+        "https://github.com/vaishnavjai/harness/releases/download/alpha-macos-latest",
       );
     } finally {
       await rm(tempDir, { recursive: true, force: true });

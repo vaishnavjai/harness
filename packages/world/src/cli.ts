@@ -115,8 +115,8 @@ export function parseWorldArgs(argv: string[]): WorldCommand {
       const option = options[index];
       if (option === "--env") {
         const key = options[index + 1];
-        if (!key || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || key.startsWith("OPENWORK_WORLD_") || /TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTHORIZATION|COOKIE/i.test(key)) {
-          return helpError("Use --env only for nonsecret configuration outside the reserved OPENWORK_WORLD_ namespace; credential-like key names are rejected.");
+        if (!key || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) || key.startsWith("HARNESS_WORLD_") || /TOKEN|SECRET|PASSWORD|KEY|CREDENTIAL|AUTHORIZATION|COOKIE/i.test(key)) {
+          return helpError("Use --env only for nonsecret configuration outside the reserved HARNESS_WORLD_ namespace; credential-like key names are rejected.");
         }
         env.push(key);
         index += 1;
@@ -592,7 +592,7 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
       // Existing previews use origin/dev by default. Resolve it before adoption,
       // otherwise a moved branch silently reuses an older running world.
       if ((preview || script.name === "acme-web") && place === "daytona" && !sources.den && !sources["*"]) {
-        const pinned = process.env.OPENWORK_EVAL_REF?.trim();
+        const pinned = process.env.HARNESS_EVAL_REF?.trim();
         const sha = pinned ?? await resolveRef("dev");
         if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("Preview Den source must be a full reviewed, pushed commit SHA.");
         sources.den = { kind: "sha", sha };
@@ -600,7 +600,7 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
       // A Freestyle snapshot is built from one pushed commit. Pin it before
       // adoption, exactly as Daytona previews pin their Den source.
       if (script.name === "preview-desktop" && place === "freestyle" && !sources.desktop && !sources["*"]) {
-        const sha = process.env.OPENWORK_EVAL_REF?.trim() || await resolveRef("dev");
+        const sha = process.env.HARNESS_EVAL_REF?.trim() || await resolveRef("dev");
         if (!/^[0-9a-f]{40}$/.test(sha)) throw new Error("Freestyle desktop source must be a full reviewed, pushed commit SHA.");
         sources.desktop = { kind: "sha", sha };
       }
@@ -608,12 +608,12 @@ export async function main(argv: string[], options: WorldCliOptions): Promise<nu
         if (command.args.length > 0) throw new Error("Daytona acme-web uses --source to select a ref; script arguments after -- are not supported.");
         const acmeSource = sources["*"] ?? sources.den;
         if (acmeSource?.kind !== "sha") throw new Error("Daytona acme-web requires a pinned commit SHA.");
-        env.OPENWORK_EVAL_REF = acmeSource.sha;
+        env.HARNESS_EVAL_REF = acmeSource.sha;
       }
       if (place === "daytona" && script.name !== "app-web" && !preview && script.name !== "acme-web") {
-        const pinned = process.env.OPENWORK_EVAL_REF?.trim() || process.env.GITHUB_SHA?.trim() || await resolveRef("dev");
+        const pinned = process.env.HARNESS_EVAL_REF?.trim() || process.env.GITHUB_SHA?.trim() || await resolveRef("dev");
         if (!/^[0-9a-f]{40}$/.test(pinned)) throw new Error("Daytona world source must be a full reviewed, pushed commit SHA.");
-        env.OPENWORK_EVAL_REF = pinned;
+        env.HARNESS_EVAL_REF = pinned;
       }
       if (preview && Object.keys(sources).length > 0) env[SOURCES_ENV] = JSON.stringify(sources);
       if (preview && seeds.length > 0) env[SEEDS_ENV] = JSON.stringify(seeds);

@@ -1,16 +1,16 @@
 ---
 title: "Missing languages"
-description: "See which OpenWork languages ship today and help us improve them."
+description: "See which Harness languages ship today and help us improve them."
 ---
 
-OpenWork already ships with a growing set of languages, and we want to keep expanding that list.
+Harness already ships with a growing set of languages, and we want to keep expanding that list.
 
 <Frame>
   <iframe
     width="100%"
     height="400"
     src="https://www.youtube.com/embed/orGF117Snu8"
-    title="OpenWork missing languages overview"
+    title="Harness missing languages overview"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowFullScreen
   />
@@ -32,13 +32,13 @@ Watch the video above for a quick overview, then use this list as the current so
 
 ## Improve current translations
 
-If you want to improve an existing translation, start in [`apps/app/src/i18n/locales`](https://github.com/different-ai/openwork/tree/dev/apps/app/src/i18n/locales).
+If you want to improve an existing translation, start in [`apps/app/src/i18n/locales`](https://github.com/vaishnavjai/harness/tree/dev/apps/app/src/i18n/locales).
 
 Each language lives in its own file, so most fixes are simple copy updates inside one locale file such as `apps/app/src/i18n/locales/fr.ts` or `apps/app/src/i18n/locales/es.ts`.
 
 ## Add a new language
 
-If you want to add a new language to OpenWork, the basic file changes are:
+If you want to add a new language to Harness, the basic file changes are:
 
 - Create a new locale file in `apps/app/src/i18n/locales/<language-code>.ts`.
 - Register that locale in `apps/app/src/i18n/index.ts` by adding the import, language code, language option, and translation map entry.
@@ -51,4 +51,4 @@ After that, run the audit script to spot missing keys:
 node scripts/i18n-audit.mjs --missing
 ```
 
-If you want to follow broader localization work, language requests, or upcoming improvements, check the [i18n roadmap](https://github.com/different-ai/openwork/issues/1385).
+If you want to follow broader localization work, language requests, or upcoming improvements, check the [i18n roadmap](https://github.com/vaishnavjai/harness/issues/1385).

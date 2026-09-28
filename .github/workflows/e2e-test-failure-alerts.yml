@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   notify:
-    if: github.repository == 'different-ai/openwork' && github.event.workflow_run.event == 'schedule'
+    if: github.repository == 'vaishnavjai/harness' && github.event.workflow_run.event == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

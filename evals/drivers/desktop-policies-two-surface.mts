@@ -1,12 +1,12 @@
-import type { CdpClient, BrowserEvaluation } from "@openwork/cdp";
-import { browserScript } from "@openwork/cdp";
+import type { CdpClient, BrowserEvaluation } from "@harness/cdp";
+import { browserScript } from "@harness/cdp";
 /**
  * Two-surface desktop policies demo driver.
  *
  * Drives BOTH surfaces of the real flow and captures interleaved frames:
  *   - ADMIN: the Den web dashboard in Chrome (CDP :9224) — real clicks on the
  *     Brand Appearance card and Desktop Policy editor.
- *   - MEMBER: the OpenWork desktop app in Electron (CDP :9823) — signed into
+ *   - MEMBER: the Harness desktop app in Electron (CDP :9823) — signed into
  *     the same org, fetching desktop config from the local Den on its own.
  *
  * Each journey: admin clicks + saves in the web UI → member app fetches the
@@ -26,15 +26,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
-import { connect, evaluate, captureScreenshot, pickAppTarget, debuggerUrlFor, listTargets } from "@openwork/cdp";
+import { connect, evaluate, captureScreenshot, pickAppTarget, debuggerUrlFor, listTargets } from "@harness/cdp";
 
 const ADMIN_CDP = "http://127.0.0.1:9224";
 const MEMBER_CDP = "http://127.0.0.1:9823";
 const DEN_API = "http://localhost:8790";
 const DEN_WEB = "http://localhost:3005";
 const ADMIN_EMAIL = "alex@acme.test";
-const ADMIN_PASSWORD = "OpenWorkDemo123!";
-const DEMO_LOGO = "https://openworklabs.com/favicon.ico";
+const ADMIN_PASSWORD = "HarnessDemo123!";
+const DEMO_LOGO = "https://harness.invalid/favicon.ico";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const runId = new Date().toISOString().replace(/[:.]/g, "-");
@@ -52,10 +52,10 @@ async function connectTo(baseUrl: string) {
   return client;
 }
 
-/** Pick the den-web admin page target (title "OpenWork Cloud"). */
+/** Pick the den-web admin page target (title "Harness Cloud"). */
 async function connectAdmin() {
   const targets = await listTargets(ADMIN_CDP);
-  const page = targets.find((t) => t.type === "page" && t.title.includes("OpenWork Cloud"))
+  const page = targets.find((t) => t.type === "page" && t.title.includes("Harness Cloud"))
     ?? targets.find((t) => t.type === "page" && t.url.includes("3005"))
     ?? targets.find((t) => t.type === "page");
   if (!page) throw new Error("Admin browser target not found");
@@ -156,8 +156,8 @@ async function adminEnsureFreshAuth(admin: CdpClient) {
 
 /** Trigger the member app to refresh its desktop config and wait for a DOM condition. */
 async function memberRefreshAndWait(member: CdpClient, condition: BrowserEvaluation, label: string, timeoutMs = 25000) {
-  await evaluate(member, () => (window.dispatchEvent(new CustomEvent('openwork-den-settings-changed', { detail: {} }))));
-  await evaluate(member, () => (window.dispatchEvent(new CustomEvent('openwork-den-session-updated', { detail: {} }))));
+  await evaluate(member, () => (window.dispatchEvent(new CustomEvent('harness-den-settings-changed', { detail: {} }))));
+  await evaluate(member, () => (window.dispatchEvent(new CustomEvent('harness-den-session-updated', { detail: {} }))));
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const ok = await evaluate(member, condition).catch(() => false);
@@ -234,7 +234,7 @@ async function main() {
     } }),
   });
   // Member: light mode + session view + refresh to clear brand.
-  await evaluate(member, () => (localStorage.setItem('openwork.react.settings.theme-mode','light')));
+  await evaluate(member, () => (localStorage.setItem('harness.react.settings.theme-mode','light')));
   await evaluate(member, () => (window.location.hash = '#/session'));
   await memberRefreshAndWait(member, () => (!document.querySelector('[data-testid=\"brand-logo\"]')), "no logo (clean)").catch(() => {});
   await sleep(1500);
@@ -258,13 +258,13 @@ async function main() {
     [{ label: "no brand logo", passed: await evaluate(member, () => (!document.querySelector('[data-testid="brand-logo"]'))) }]);
 
   // =================================================================
-  // JOURNEY 1: admin sets OpenWork demo logo in the web UI → member sees it
+  // JOURNEY 1: admin sets Harness demo logo in the web UI → member sees it
   // =================================================================
   console.log("\nJourney 1: admin sets logo via web UI");
   await adminSetLogoViaUI(admin, DEMO_LOGO);
   await sleep(500);
   await shot(admin, "admin", "01-logo-typed",
-    "Admin: typed OpenWork demo logo URL into the Logo URL field.",
+    "Admin: typed Harness demo logo URL into the Logo URL field.",
     [{ label: "logo URL in field", passed: await evaluate(admin, browserScript((expectedLogo) => [...document.querySelectorAll('input')].some(input => input.value === expectedLogo), [DEMO_LOGO])) }]);
 
   await adminClickSave(admin);
@@ -278,13 +278,13 @@ async function main() {
   // Member app fetches the change on its own and renders the logo.
   await memberRefreshAndWait(member,
     () => { const img = document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img'); return img && img.naturalWidth > 0 && img.complete; },
-    "OpenWork demo logo loaded in member app");
+    "Harness demo logo loaded in member app");
   // Verify the logo renders at a legible size (not a squished icon).
   const logoDims = await evaluate(member, () => { const i = document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img'); if (!i) throw new Error('Brand logo missing'); const r = i.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; });
   await shot(member, "member", "01-logo-appeared",
-    "Member: app fetched the change and rendered the OpenWork demo logo at a legible size (no reload).",
+    "Member: app fetched the change and rendered the Harness demo logo at a legible size (no reload).",
     [
-      { label: "OpenWork demo logo rendered", passed: await evaluate(member, () => (Boolean(document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img')))) },
+      { label: "Harness demo logo rendered", passed: await evaluate(member, () => (Boolean(document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img')))) },
       { label: "logo legible (height ≥ 28px)", passed: logoDims.h >= 28, detail: `${logoDims.w}x${logoDims.h}` },
     ]);
 
@@ -311,20 +311,20 @@ async function main() {
   // The accent's most prominent painted surface is the notification badge +
   // unread dots. Push a fresh unread notice so the blue accent is guaranteed
   // visible, then open the bell — this single frame shows the blue accent
-  // (badge + unread dot) together with the OpenWork demo logo top-left.
+  // (badge + unread dot) together with the Harness demo logo top-left.
   await evaluate(member, () => (window.location.hash = '#/session'));
   await sleep(800);
   await evaluate(member, () => {
     // Use the public notify path if exposed; otherwise write an unread entry.
     try {
-      const raw = localStorage.getItem('openwork:notifications:v1');
+      const raw = localStorage.getItem('harness:notifications:v1');
       const data = raw ? JSON.parse(raw) : { state: { notifications: [] }, version: 0 };
       data.state.notifications.unshift({
         id: 'accent-demo-' + Date.now(), kind: 'cloud', severity: 'info',
         title: 'Brand updated', body: 'Your organization accent color was applied.',
         count: 1, createdAt: Date.now(), updatedAt: Date.now(), readAt: null,
       });
-      localStorage.setItem('openwork:notifications:v1', JSON.stringify(data));
+      localStorage.setItem('harness:notifications:v1', JSON.stringify(data));
     } catch {}
     return true;
   });
@@ -336,12 +336,12 @@ async function main() {
   const cssAccent = await evaluate(member, () => (getComputedStyle(document.documentElement).getPropertyValue('--dls-accent').trim()));
   const accentCheck = await memberAccentVisible(member);
   await shot(member, "member", "02-accent-applied",
-    "Member: accent switched to blue — visible on the notification badge + unread dots, with the OpenWork demo logo top-left.",
+    "Member: accent switched to blue — visible on the notification badge + unread dots, with the Harness demo logo top-left.",
     [
       { label: "data-brand-accent=blue", passed: await evaluate(member, () => (document.documentElement.dataset.brandAccent === 'blue')) },
       { label: "--dls-accent is blue-9", passed: cssAccent === "#0090ff" || cssAccent.includes("blue"), detail: cssAccent },
       { label: "blue accent painted on screen", passed: accentCheck.painted, detail: accentCheck.painted ? "blue pixels found" : "no blue painted" },
-      { label: "OpenWork demo logo still shown", passed: await evaluate(member, () => (Boolean(document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img')))) },
+      { label: "Harness demo logo still shown", passed: await evaluate(member, () => (Boolean(document.querySelector<HTMLImageElement>('[data-testid="brand-logo"] img')))) },
     ]);
 
   // =================================================================
@@ -421,7 +421,7 @@ async function main() {
   // the "Organization policies active" entry is present.
   await memberRefreshAndWait(member,
     () => {
-      const raw = localStorage.getItem('openwork:notifications:v1');
+      const raw = localStorage.getItem('harness:notifications:v1');
       if (!raw) return false;
       try { return (JSON.parse(raw)?.state?.notifications ?? []).some((n: { dedupeKey?: string; readAt?: number | null }) => n.dedupeKey === 'desktop-policy-active'); }
       catch { return false; }

@@ -353,7 +353,7 @@ export function parsedXmlText(xml: string, tagSeparator: string): string {
 }
 
 export function decodedXmlValue(value: string): string {
-  return parsedXmlText(`<openwork-value>${value}</openwork-value>`, "");
+  return parsedXmlText(`<harness-value>${value}</harness-value>`, "");
 }
 
 export function xmlText(xml: string): string {

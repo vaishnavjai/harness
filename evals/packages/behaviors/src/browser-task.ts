@@ -1,5 +1,5 @@
-import { connect, debuggerUrlFor, evaluate, evaluateOnSurface, listTargets } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
+import { connect, debuggerUrlFor, evaluate, evaluateOnSurface, listTargets } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
 
 export interface BrowserTaskInput {
   sessionId: string;
@@ -94,7 +94,7 @@ export function parseBrowserTaskReply(value: unknown): BrowserTaskReply {
 
 /** Read only the native state, never focus, attach, or select a browser view. */
 export async function readBrowserState(app: Surface): Promise<BrowserState> {
-  const value = await evaluateOnSurface(app, () => window.__OPENWORK_ELECTRON__.browser.getState(), { awaitPromise: true });
+  const value = await evaluateOnSurface(app, () => window.__HARNESS_ELECTRON__.browser.getState(), { awaitPromise: true });
   if (!record(value) || !Array.isArray(value.tabs) || !Array.isArray(value.nativeViews)
     || typeof value.visibleWindowCount !== "number" || typeof value.backgroundWindowCount !== "number"
     || typeof value.backgroundWindowVisible !== "boolean") throw new Error("Missing native browser state.");

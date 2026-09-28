@@ -123,7 +123,7 @@ test("known standalone IDs and supported routes become compact task links withou
     expect(link.className).toContain("focus-visible:ring-ring")
     expect(link.querySelector("span")?.className).toContain("truncate")
     const icon = link.querySelector("img")
-    expect(icon?.getAttribute("src")).toBe("/openwork-sidebar-mark.svg")
+    expect(icon?.getAttribute("src")).toBe("/harness-sidebar-mark.svg")
     expect(icon?.getAttribute("aria-hidden")).toBe("true")
     expect(icon?.getAttribute("alt")).toBe("")
     expect(link.querySelector("svg")).toBeNull()
@@ -148,7 +148,7 @@ test("unknown IDs, strict unknown routes, and unsupported forms stay literal", a
     "/session/ses_alpha?mode=read", "/session/ses_alpha?", "/session/ses_alpha#message", "/session/ses_alpha\\other",
     "/workspaces/workspace-a/session/ses_alpha", "/workspace/../session/ses_alpha", "/workspace/%ZZ/session/ses_alpha",
     "/workspace/workspace-a%2fother/session/ses_alpha", "/session/ses_alpha%0a", "/session/ses_alpha%2f",
-    "//example.test/session/ses_alpha", "ftp://example.test/session/ses_alpha", "openwork://session/ses_alpha", "javascript:ses_alpha",
+    "//example.test/session/ses_alpha", "ftp://example.test/session/ses_alpha", "harness://session/ses_alpha", "javascript:ses_alpha",
   ].join(" ")
   const opened: OpenTarget[] = []
   await view.render(raw, { onOpenTarget: (target) => opened.push(target) })

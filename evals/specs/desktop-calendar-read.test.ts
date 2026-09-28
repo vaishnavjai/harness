@@ -3,8 +3,8 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect } from "vitest";
-import { eventually, needs, test } from "@openwork/testkit";
-import { stopChild } from "../worlds/openwork-server-cli.ts";
+import { eventually, needs, test } from "@harness/testkit";
+import { stopChild } from "../worlds/harness-server-cli.ts";
 
 // Keep the real desktop HTTP boundary; native Cloud Calendar coverage lives in
 // den-api/test/google-workspace-capabilities.test.ts, not this retired extension.
@@ -49,16 +49,16 @@ async function calendarServer(cloudMember = false) {
   const child = spawn("bun", ["--conditions=development", "--preload", join(repo, "evals/packages/labs/src/calendar-read-preload.ts"), "src/cli.ts",
     "--host", "127.0.0.1", "--port", "0", "--token", "calendar-client", "--host-token", "calendar-host", "--config", config,
   ], { cwd: join(repo, "apps/server"), env: {
-    PATH: process.env.PATH, HOME: root, OPENWORK_SERVER_CONFIG: config, OPENWORK_DATA_DIR: join(root, "data"),
-    OPENWORK_RUNTIME_DB: join(root, "runtime.sqlite"),
+    PATH: process.env.PATH, HOME: root, HARNESS_SERVER_CONFIG: config, HARNESS_DATA_DIR: join(root, "data"),
+    HARNESS_RUNTIME_DB: join(root, "runtime.sqlite"),
     XDG_CONFIG_HOME: join(root, "config"), XDG_DATA_HOME: join(root, "data"), XDG_CACHE_HOME: join(root, "cache"),
-    OPENWORK_DEV_MODE: "1", OPENWORK_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT: "1",
+    HARNESS_DEV_MODE: "1", HARNESS_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT: "1",
     ...(!cloudMember ? {
       GOOGLE_WORKSPACE_OAUTH_CLIENT_ID: "retired-client-fixture",
       GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET: "retired-secret-fixture",
-      OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_ID: "retired-client-fixture",
-      OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET: "retired-secret-fixture",
-      OPENWORK_GOOGLE_WORKSPACE_TOKEN_BROKER_URL: "https://broker.example.test/token",
+      HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_ID: "retired-client-fixture",
+      HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET: "retired-secret-fixture",
+      HARNESS_GOOGLE_WORKSPACE_TOKEN_BROKER_URL: "https://broker.example.test/token",
       GOOGLE_WORKSPACE_TOKEN_BROKER_URL: "https://broker.example.test/token",
     } : {}),
   }, stdio: ["ignore", "pipe", "pipe"] });
@@ -68,7 +68,7 @@ async function calendarServer(cloudMember = false) {
   try {
     const base = await eventually(() => {
       if (child.exitCode !== null) throw new Error(output);
-      return output.match(/OpenWork server listening on (http:\/\/127\.0\.0\.1:\d+)/)?.[1];
+      return output.match(/Harness server listening on (http:\/\/127\.0\.0\.1:\d+)/)?.[1];
     }, { within: 60_000, intervalMs: 100 });
     const witness = output.match(/Calendar witness: (http:\/\/127\.0\.0\.1:\d+)/)?.[1];
     if (!witness) throw new Error("Calendar witness did not start");
@@ -112,7 +112,7 @@ test("desktop retires every local Google action without using or changing legacy
   for (const connectEnabled of [undefined, false, true]) {
     if (connectEnabled !== undefined) {
       expect(await calendar.request("/experimental/connect/state", {
-        method: "PUT", headers: { "x-openwork-host-token": "calendar-host" }, body: JSON.stringify({ connectEnabled }),
+        method: "PUT", headers: { "x-harness-host-token": "calendar-host" }, body: JSON.stringify({ connectEnabled }),
       })).toMatchObject({ status: 200, body: { connectEnabled } });
     }
     const state = await calendar.request("/experimental/connect/state");
@@ -125,8 +125,8 @@ test("desktop retires every local Google action without using or changing legacy
       status: 200, body: { ok: true, schemaVersion: 1, actions: [
         expect.objectContaining({ extensionId: "openai-image-generation", action: "status" }),
         expect.objectContaining({ extensionId: "openai-image-generation", action: "image_generate" }),
-        expect.objectContaining({ extensionId: "openwork-cloud-uploads", action: "drive_upload_file" }),
-        expect.objectContaining({ extensionId: "openwork-cloud-uploads", action: "gmail_create_draft_with_attachments" }),
+        expect.objectContaining({ extensionId: "harness-cloud-uploads", action: "drive_upload_file" }),
+        expect.objectContaining({ extensionId: "harness-cloud-uploads", action: "gmail_create_draft_with_attachments" }),
       ] },
     });
     for (const action of actions) {
@@ -138,8 +138,8 @@ test("desktop retires every local Google action without using or changing legacy
       });
       expect(result, `${action}, Connect=${connectEnabled}`).toMatchObject({
         status: 200, body: {
-          ok: false, error: "use_openwork_cloud", message: expect.stringContaining("local credentials cannot be used"),
-          nextAction: { recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose OpenWork Cloud agent access for this workspace." },
+          ok: false, error: "use_harness_cloud", message: expect.stringContaining("local credentials cannot be used"),
+          nextAction: { recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose Harness Cloud agent access for this workspace." },
         },
       });
       expect(result.body).not.toHaveProperty("result");
@@ -147,14 +147,14 @@ test("desktop retires every local Google action without using or changing legacy
       expect(result.body).not.toHaveProperty("authUrl");
     }
     for (const action of ["drive_upload_file", "gmail_create_draft_with_attachments"]) {
-      expect(await calendar.call("openwork-cloud-uploads", action, uploadArgs)).toMatchObject({ status: 409, body: { code: "cloud_not_connected" } });
+      expect(await calendar.call("harness-cloud-uploads", action, uploadArgs)).toMatchObject({ status: 409, body: { code: "cloud_not_connected" } });
     }
     expect(await calendar.call("openai-image-generation", "status")).toMatchObject({ status: 200, body: { ok: true, extensionId: "openai-image-generation", action: "status" } });
     expect(await calendar.requests()).toEqual({ externalRequests: [], cloudUploads: [] });
     for (const [path, bytes] of calendar.legacyFiles) expect(await readFile(path)).toEqual(bytes);
   }
   evidence.recordAssertionEvidence("Legacy Google cannot be discovered, executed, or reused for uploads",
-    "With Connect absent, off, and on, all 24 retired/unknown actions refuse with use_openwork_cloud, including status and lifecycle/config calls. Both Cloud uploads require member auth; OpenAI status still executes. Zero external requests or uploads; all three seeded OAuth files remain byte-identical.", true);
+    "With Connect absent, off, and on, all 24 retired/unknown actions refuse with use_harness_cloud, including status and lifecycle/config calls. Both Cloud uploads require member auth; OpenAI status still executes. Zero external requests or uploads; all three seeded OAuth files remain byte-identical.", true);
 });
 
 test("desktop file bridge uploads exact bytes through Cloud member auth without local Google tokens", async ({ evidence, place }) => {
@@ -163,9 +163,9 @@ test("desktop file bridge uploads exact bytes through Cloud member auth without 
   expect(await readdir(calendar.extensions)).toEqual([]);
   expect(await calendar.request("/experimental/extensions/actions?extensionId=google-workspace")).toMatchObject({ status: 200, body: { actions: [] } });
   expect(await calendar.call("google-workspace", "calendar_list_events", { timeMin: "2026-09-01T07:00:00Z", timeMax: "2026-09-01T08:00:00Z" }))
-    .toMatchObject({ status: 200, body: { ok: false, error: "use_openwork_cloud" } });
-  expect(await calendar.call("openwork-cloud-uploads", "drive_upload_file", uploadArgs)).toEqual({ status: 200, body: { ok: true, file: { id: "cloud-file" } } });
-  expect(await calendar.call("openwork-cloud-uploads", "gmail_create_draft_with_attachments", uploadArgs)).toEqual({ status: 200, body: { ok: true, draftId: "cloud-draft", threadId: "cloud-thread" } });
+    .toMatchObject({ status: 200, body: { ok: false, error: "use_harness_cloud" } });
+  expect(await calendar.call("harness-cloud-uploads", "drive_upload_file", uploadArgs)).toEqual({ status: 200, body: { ok: true, file: { id: "cloud-file" } } });
+  expect(await calendar.call("harness-cloud-uploads", "gmail_create_draft_with_attachments", uploadArgs)).toEqual({ status: 200, body: { ok: true, draftId: "cloud-draft", threadId: "cloud-thread" } });
   const file = { name: "review.docx", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", bytes: [...calendar.bytes] };
   expect(await calendar.requests()).toEqual({
     externalRequests: [],

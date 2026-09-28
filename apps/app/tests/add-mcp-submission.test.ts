@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { McpDirectoryInfo } from "../src/app/constants";
-import { conflictsWithOpenworkConnect } from "../src/react-app/domains/connections/mcp-connection-boundary";
+import { conflictsWithHarnessConnect } from "../src/react-app/domains/connections/mcp-connection-boundary";
 import { submitMcpEntry } from "../src/react-app/domains/connections/modals/add-mcp-submission";
 
 const entry: McpDirectoryInfo = {
@@ -14,16 +14,16 @@ const entry: McpDirectoryInfo = {
 };
 
 describe("local MCP submission feedback", () => {
-  test("reserves the OpenWork Connect runtime name for its managed entry", () => {
-    expect(conflictsWithOpenworkConnect({ name: "OpenWork Cloud" })).toBe(true);
-    expect(conflictsWithOpenworkConnect({ name: "openwork-cloud" })).toBe(true);
-    expect(conflictsWithOpenworkConnect({ id: "openwork-cloud", name: "Custom cloud" })).toBe(true);
-    expect(conflictsWithOpenworkConnect({
-      name: "OpenWork Cloud",
-      serverName: "openwork-cloud",
-      managedBy: "openwork-connect",
+  test("reserves the Harness Connect runtime name for its managed entry", () => {
+    expect(conflictsWithHarnessConnect({ name: "Harness Cloud" })).toBe(true);
+    expect(conflictsWithHarnessConnect({ name: "harness-cloud" })).toBe(true);
+    expect(conflictsWithHarnessConnect({ id: "harness-cloud", name: "Custom cloud" })).toBe(true);
+    expect(conflictsWithHarnessConnect({
+      name: "Harness Cloud",
+      serverName: "harness-cloud",
+      managedBy: "harness-connect",
     })).toBe(false);
-    expect(conflictsWithOpenworkConnect({ name: "BigQuery" })).toBe(false);
+    expect(conflictsWithHarnessConnect({ name: "BigQuery" })).toBe(false);
   });
 
   test("returns no error only after the connection succeeds", async () => {

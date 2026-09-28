@@ -1,11 +1,11 @@
-import { waitFor } from "@openwork/behaviors";
-import { currentTestEvidence, screenshot } from "@openwork/test-evidence";
-import { browserScript, evalIn, needs, test } from "@openwork/testkit";
+import { waitFor } from "@harness/behaviors";
+import { currentTestEvidence, screenshot } from "@harness/test-evidence";
+import { browserScript, evalIn, needs, test } from "@harness/testkit";
 import { expect } from "vitest";
 import { setSidebarBrandTheme, sidebarBrandApp } from "../worlds/sidebar-brand.ts";
 
 test("sidebar brand painted bounds align with the action rail without changing custom branding", async ({ place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"], commands: place.kind === "daytona" ? ["daytona"] : ["pnpm", "bun"] });
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"], commands: place.kind === "daytona" ? ["daytona"] : ["pnpm", "bun"] });
   await using app = await sidebarBrandApp(place);
   await waitFor(app, () => Boolean(document.querySelector('[data-sidebar-brand] img')), { timeoutMs: 30_000 });
 
@@ -103,8 +103,8 @@ test("sidebar brand painted bounds align with the action rail without changing c
   await evalIn(app, browserScript(logo => {
     document.documentElement.style.fontSize = "16px";
     const config = { brandAppName: "Studio", brandLogoUrl: logo };
-    window.__openworkApplyDesktopConfig(config);
-    window.__openworkSetDesktopConfigRefreshResult(config);
+    window.__harnessApplyDesktopConfig(config);
+    window.__harnessSetDesktopConfigRefreshResult(config);
   }, [logo]));
   await waitFor(app, () => Boolean(document.querySelector('[data-testid="brand-logo"] img')), { timeoutMs: 10_000 });
   for (const dark of [false, true]) {

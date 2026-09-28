@@ -13,9 +13,9 @@ new column, or new table is required. The canonical top-level key is a boolean:
 }
 ```
 
-The shared contract is `@openwork/types/den/managed-models-policy`.
+The shared contract is `@harness/types/den/managed-models-policy`.
 
-- `dpaSigned: true`: company-provided OpenWork Models are forbidden.
+- `dpaSigned: true`: company-provided Harness Models are forbidden.
 - Missing `dpaSigned` or explicit `false`: existing eligibility is unchanged.
 - Any present non-boolean value, malformed metadata, an array/scalar document,
   a missing organization, or a failed policy lookup: do not authorize Models.
@@ -87,7 +87,7 @@ The inference API uses its existing OpenAI-style envelope:
   "error": {
     "type": "invalid_request_error",
     "code": "managed_models_disabled_for_dpa",
-    "message": "Company-provided OpenWork Models are unavailable for this organization because a DPA is signed. Permitted customer-key providers and AI Gateway may still be used."
+    "message": "Company-provided Harness Models are unavailable for this organization because a DPA is signed. Permitted customer-key providers and AI Gateway may still be used."
   }
 }
 ```
@@ -106,8 +106,8 @@ but DPA denial does not activate Models or cause endless policy-denial retries.
 An unavailable policy remains a retryable failure.
 
 Usable provider lists, resource snapshots, and Web materialization exclude
-company-managed (`source: openwork`) configurations when policy denies them.
-Automation model authority rejects the OpenWork Models branch. In a list/connect
+company-managed (`source: harness`) configurations when policy denies them.
+Automation model authority rejects the Harness Models branch. In a list/connect
 race, direct managed connect deliberately stays HTTP 200 with null credentials,
 empty models, `memberCredential.state: blocked`, and `managedModelsPolicy` denial,
 so older desktops do not abort unrelated BYOK synchronization.

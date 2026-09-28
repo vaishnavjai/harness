@@ -1,5 +1,5 @@
-import { captureBrowserFilm } from "@openwork/cdp";
-import type { AppWeb, Seed } from "@openwork/env";
+import { captureBrowserFilm } from "@harness/cdp";
+import type { AppWeb, Seed } from "@harness/env";
 import { join } from "node:path";
 
 type Sample = { index: number; submitted: boolean; submissionIndex: number | null; submittedAt: number | null; elapsed: number; source: string; route: string; hero: boolean; persisted: string[]; totalUsers: number; top: number; left: number; width: number; height: number; starting: boolean; working: boolean; preparing: boolean; users: number };
@@ -62,7 +62,7 @@ export async function sessionlessTransition(seed: Seed, app: AppWeb, workspaceId
     socket.addEventListener("open", () => { clearTimeout(timer); resolve(); }, { once: true });
     socket.addEventListener("error", () => { clearTimeout(timer); reject(new Error("CDP gate connection failed")); }, { once: true });
   });
-  await command("Fetch.enable", { patterns: [{ urlPattern: `${new URL(app.openworkUrl).origin}${base}*`, requestStage: "Request" }] });
+  await command("Fetch.enable", { patterns: [{ urlPattern: `${new URL(app.harnessUrl).origin}${base}*`, requestStage: "Request" }] });
   const release = async (reject = false) => {
     released = true;
     await Promise.all([...held].map((requestId) => command(reject ? "Fetch.fulfillRequest" : "Fetch.continueRequest", reject ? {

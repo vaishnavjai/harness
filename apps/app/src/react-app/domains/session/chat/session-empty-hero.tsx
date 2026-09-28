@@ -10,12 +10,12 @@ import { resolveOrganizationPromptCardContent } from "@/components/chat/task-sug
 import { useCheckDesktopRestriction, useOrgRestrictions } from "@/react-app/domains/cloud/desktop-config-provider";
 import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
 import {
-  getOpenWorkModelsActionUrl,
-  hideOpenWorkModelsPromo,
-  isOpenWorkModelsPromoHidden,
-  openWorkModelsPromoChangedEvent,
-  useOpenWorkModelsPromoEligibility,
-} from "@/react-app/domains/cloud/openwork-models-promo";
+  getHarnessModelsActionUrl,
+  hideHarnessModelsPromo,
+  isHarnessModelsPromoHidden,
+  harnessModelsPromoChangedEvent,
+  useHarnessModelsPromoEligibility,
+} from "@/react-app/domains/cloud/harness-models-promo";
 import { usePlatform } from "@/react-app/kernel/platform";
 import { persistableComposerDraftText, useComposerStateStore } from "@/react-app/domains/session/surface/composer-state-store";
 import { useNewTaskDraftState } from "@/react-app/domains/session/sync/draft-store";
@@ -127,13 +127,13 @@ export function SessionEmptyHero(props: SessionEmptyHeroProps) {
   const canAddProviders = !checkDesktopRestriction({ restriction: "allowCustomProviders" });
   const platform = usePlatform();
   const denAuth = useDenAuth();
-  const openWorkModelsPromoEligible = useOpenWorkModelsPromoEligibility();
-  const [modelsPromoHidden, setModelsPromoHidden] = useState(isOpenWorkModelsPromoHidden);
+  const harnessModelsPromoEligible = useHarnessModelsPromoEligibility();
+  const [modelsPromoHidden, setModelsPromoHidden] = useState(isHarnessModelsPromoHidden);
 
   useEffect(() => {
-    const handlePromoChanged = () => setModelsPromoHidden(isOpenWorkModelsPromoHidden());
-    window.addEventListener(openWorkModelsPromoChangedEvent, handlePromoChanged);
-    return () => window.removeEventListener(openWorkModelsPromoChangedEvent, handlePromoChanged);
+    const handlePromoChanged = () => setModelsPromoHidden(isHarnessModelsPromoHidden());
+    window.addEventListener(harnessModelsPromoChangedEvent, handlePromoChanged);
+    return () => window.removeEventListener(harnessModelsPromoChangedEvent, handlePromoChanged);
   }, []);
 
   // A chat deep link (Den's connector "Chat" action) seeds the composer with
@@ -143,21 +143,21 @@ export function SessionEmptyHero(props: SessionEmptyHeroProps) {
       const draft = consumePendingChatSeed();
       if (draft === null) return;
       setPrompt(draft);
-      window.dispatchEvent(new Event("openwork:focusPrompt"));
+      window.dispatchEvent(new Event("harness:focusPrompt"));
     };
     seed();
     window.addEventListener(pendingChatSeedEvent, seed);
     return () => window.removeEventListener(pendingChatSeedEvent, seed);
   }, []);
 
-  // Quiet inline lead to OpenWork Models: replaces the old startup dialog
+  // Quiet inline lead to Harness Models: replaces the old startup dialog
   // interrupt. Shown only while the session runs on the free starter model
   // (the built-in `opencode` provider) and the hosted offering applies.
   const onFreeStarterModel = props.composer?.selectedModel.providerID === DEFAULT_MODEL.providerID;
   const showModelsHint =
-    openWorkModelsPromoEligible &&
+    harnessModelsPromoEligible &&
     !modelsPromoHidden &&
-    !props.composer?.openWorkModelsEntitled &&
+    !props.composer?.harnessModelsEntitled &&
     onFreeStarterModel;
 
   const organizationPrompts = orgRestrictions.onboardingPrompts;
@@ -199,7 +199,7 @@ export function SessionEmptyHero(props: SessionEmptyHeroProps) {
 
   const fillPrompt = (value: string) => {
     setPrompt(value);
-    window.dispatchEvent(new Event("openwork:focusPrompt"));
+    window.dispatchEvent(new Event("harness:focusPrompt"));
   };
 
   return (
@@ -223,13 +223,13 @@ export function SessionEmptyHero(props: SessionEmptyHeroProps) {
       {showModelsHint ? (
         <div
           className="flex items-center justify-center gap-2 text-[12px] text-muted-foreground"
-          data-testid="openwork-models-hint"
+          data-testid="harness-models-hint"
         >
           <span>Using the free starter model.</span>
           <button
             type="button"
             className="flex items-center gap-1 font-medium text-blue-10 transition-colors hover:text-blue-11"
-            onClick={() => platform.openLink(getOpenWorkModelsActionUrl(denAuth.isSignedIn, "sign-up"))}
+            onClick={() => platform.openLink(getHarnessModelsActionUrl(denAuth.isSignedIn, "sign-up"))}
           >
             Get frontier models with no API keys
             <ArrowRight className="size-3" />
@@ -237,8 +237,8 @@ export function SessionEmptyHero(props: SessionEmptyHeroProps) {
           <button
             type="button"
             className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground"
-            onClick={hideOpenWorkModelsPromo}
-            aria-label="Hide OpenWork Models hint"
+            onClick={hideHarnessModelsPromo}
+            aria-label="Hide Harness Models hint"
           >
             <X className="size-3" />
           </button>

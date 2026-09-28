@@ -19,11 +19,11 @@ const remaining = ours - result.deleted;
 const lines = [
   `## Freestyle cleanup${dryRun ? " (dry run)" : ""}`,
   "",
-  `Snapshots on the team: ${snapshots.length} (${ours} created by OpenWork CI or the review app)`,
+  `Snapshots on the team: ${snapshots.length} (${ours} created by Harness CI or the review app)`,
   `Planned deletions: ${plan.length}`,
   ...[...byReason].map(([reason, count]) => `- ${reason}: ${count}`),
   `Deleted: ${result.deleted}, failed: ${result.failed.length}`,
-  `Remaining OpenWork snapshots: ${dryRun ? ours - plan.length : remaining} (alert above ${alertAt})`,
+  `Remaining Harness snapshots: ${dryRun ? ours - plan.length : remaining} (alert above ${alertAt})`,
 ];
 console.log(lines.join("\n"));
 for (const failure of result.failed.slice(0, 20)) console.error(`Failed ${failure.item.slug}: ${failure.reason}`);
@@ -31,6 +31,6 @@ if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SU
 
 if (result.failed.length) process.exitCode = 1;
 if ((dryRun ? ours - plan.length : remaining) > alertAt) {
-  console.error(`OpenWork keeps more than ${alertAt} Freestyle snapshots after cleanup. Something is creating them faster than they expire.`);
+  console.error(`Harness keeps more than ${alertAt} Freestyle snapshots after cleanup. Something is creating them faster than they expire.`);
   process.exitCode = 1;
 }

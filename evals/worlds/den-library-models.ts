@@ -1,9 +1,9 @@
 import { createHmac, createSign, generateKeyPairSync, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import { allocateFreePort, connect, debuggerUrlFor, listTargets } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
-import type { DenSession } from "@openwork/behaviors";
-import { queryDenDatabase, type Place, type Seed } from "@openwork/env";
+import { allocateFreePort, connect, debuggerUrlFor, listTargets } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
+import type { DenSession } from "@harness/behaviors";
+import { queryDenDatabase, type Place, type Seed } from "@harness/env";
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected a Den response object");
@@ -151,7 +151,7 @@ export async function denLibraryModels(seed: Seed, { place }: { place: Place }) 
     web: true,
     env: {
       DEN_ORG_MODE: "multi_org", GATEWAY_ENABLED: "true",
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl,
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl,
       PROVISIONER_MODE: "stub", RESEND_API_KEY: "", STRIPE_SECRET_KEY: "", SENTRY_DSN: "",
       NODE_OPTIONS: `--import=data:text/javascript,${encodeURIComponent(google.preload)}`,
     },
@@ -206,7 +206,7 @@ export async function denLibraryModels(seed: Seed, { place }: { place: Place }) 
   const web = await seed.web({ den, signedInAs: sam, startPath: "/dashboard/library?show=models", headless: true, viewport });
   const webOrigin = new URL(den.ref.webUrl).origin;
   // Sam signed in to Den in this browser with his password, the way people
-  // do, so the browser also holds his Den session cookie. OpenWork's sign-in
+  // do, so the browser also holds his Den session cookie. Harness's sign-in
   // tab checks that cookie before it sends anyone to Google.
   const signedIn = await seed.api(sam, "/api/auth/sign-in/email", { method: "POST", body: JSON.stringify({ email: sam.email, password: sam.password }) });
   const sessionCookie = signedIn.response.headers.getSetCookie().find((value) => value.includes("session_token="))?.split(";")[0] ?? "";
@@ -235,7 +235,7 @@ export async function denLibraryModels(seed: Seed, { place }: { place: Place }) 
     memberConnections,
     googleTokenExchanges: google.exchanges,
     googleRevocations: google.revocations,
-    /** The tab Den opened for Google sign-in, once it reaches OpenWork's sign-in page. */
+    /** The tab Den opened for Google sign-in, once it reaches Harness's sign-in page. */
     async signInTab({ timeoutMs = 30_000 } = {}): Promise<Surface & { webSocketDebuggerUrl: string }> {
       const startedAt = Date.now();
       while (Date.now() - startedAt < timeoutMs) {

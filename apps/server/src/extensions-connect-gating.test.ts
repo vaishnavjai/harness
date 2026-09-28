@@ -39,7 +39,7 @@ const connectStateResponseSchema = z.object({
 
 const gatedCallSchema = z.object({
   ok: z.literal(false),
-  error: z.literal("use_openwork_cloud"),
+  error: z.literal("use_harness_cloud"),
   message: z.string(),
   nextAction: z.object({
     code: z.string().optional(),
@@ -53,13 +53,13 @@ const gatedCallSchema = z.object({
 type ActionItem = z.infer<typeof actionSchema>;
 
 const previousEnv = {
-  runtimeDb: process.env.OPENWORK_RUNTIME_DB,
+  runtimeDb: process.env.HARNESS_RUNTIME_DB,
   googleClientSecret: process.env.GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET,
-  legacyGoogleClientSecret: process.env.OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET,
-  tokenBrokerUrl: process.env.OPENWORK_GOOGLE_WORKSPACE_TOKEN_BROKER_URL,
+  legacyGoogleClientSecret: process.env.HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET,
+  tokenBrokerUrl: process.env.HARNESS_GOOGLE_WORKSPACE_TOKEN_BROKER_URL,
   legacyTokenBrokerUrl: process.env.GOOGLE_WORKSPACE_TOKEN_BROKER_URL,
-  plaintextVault: process.env.OPENWORK_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT,
-  devMode: process.env.OPENWORK_DEV_MODE,
+  plaintextVault: process.env.HARNESS_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT,
+  devMode: process.env.HARNESS_DEV_MODE,
 };
 
 const nativeFetch = globalThis.fetch;
@@ -74,8 +74,8 @@ function restoreEnv(key: string, value: string | undefined) {
 
 function clearLegacyGoogleWorkspaceEnv() {
   delete process.env.GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET;
-  delete process.env.OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET;
-  delete process.env.OPENWORK_GOOGLE_WORKSPACE_TOKEN_BROKER_URL;
+  delete process.env.HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET;
+  delete process.env.HARNESS_GOOGLE_WORKSPACE_TOKEN_BROKER_URL;
   delete process.env.GOOGLE_WORKSPACE_TOKEN_BROKER_URL;
 }
 
@@ -100,18 +100,18 @@ function serverConfig(root: string): ServerConfig {
 }
 
 async function boot(withLegacyData = false) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-connect-gating-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-connect-gating-"));
   dirs.push(root);
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
   const config = serverConfig(root);
   const legacyFiles = new Map<string, string>();
   if (withLegacyData) {
     process.env.GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET = "retired-test-secret";
-    process.env.OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET = "retired-test-secret";
-    process.env.OPENWORK_GOOGLE_WORKSPACE_TOKEN_BROKER_URL = "https://broker.example.test/token";
+    process.env.HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET = "retired-test-secret";
+    process.env.HARNESS_GOOGLE_WORKSPACE_TOKEN_BROKER_URL = "https://broker.example.test/token";
     process.env.GOOGLE_WORKSPACE_TOKEN_BROKER_URL = "https://broker.example.test/token";
-    process.env.OPENWORK_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT = "1";
-    process.env.OPENWORK_DEV_MODE = "1";
+    process.env.HARNESS_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT = "1";
+    process.env.HARNESS_DEV_MODE = "1";
     const directory = join(root, "extensions", "google-workspace");
     await mkdir(directory, { recursive: true });
     legacyFiles.set(join(directory, "oauth.dev-plaintext.json"), JSON.stringify({
@@ -141,7 +141,7 @@ function clientJsonHeaders() {
 }
 
 function hostJsonHeaders() {
-  return { "x-openwork-host-token": HOST_TOKEN, "content-type": "application/json" };
+  return { "x-harness-host-token": HOST_TOKEN, "content-type": "application/json" };
 }
 
 async function readSchema<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
@@ -205,13 +205,13 @@ afterEach(async () => {
     const dir = dirs.pop();
     if (dir) await rm(dir, { recursive: true, force: true });
   }
-  restoreEnv("OPENWORK_RUNTIME_DB", previousEnv.runtimeDb);
+  restoreEnv("HARNESS_RUNTIME_DB", previousEnv.runtimeDb);
   restoreEnv("GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET", previousEnv.googleClientSecret);
-  restoreEnv("OPENWORK_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET", previousEnv.legacyGoogleClientSecret);
-  restoreEnv("OPENWORK_GOOGLE_WORKSPACE_TOKEN_BROKER_URL", previousEnv.tokenBrokerUrl);
+  restoreEnv("HARNESS_GOOGLE_WORKSPACE_OAUTH_CLIENT_SECRET", previousEnv.legacyGoogleClientSecret);
+  restoreEnv("HARNESS_GOOGLE_WORKSPACE_TOKEN_BROKER_URL", previousEnv.tokenBrokerUrl);
   restoreEnv("GOOGLE_WORKSPACE_TOKEN_BROKER_URL", previousEnv.legacyTokenBrokerUrl);
-  restoreEnv("OPENWORK_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT", previousEnv.plaintextVault);
-  restoreEnv("OPENWORK_DEV_MODE", previousEnv.devMode);
+  restoreEnv("HARNESS_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT", previousEnv.plaintextVault);
+  restoreEnv("HARNESS_DEV_MODE", previousEnv.devMode);
 });
 
 describe("Cloud-only Google Workspace extension retirement", () => {
@@ -223,10 +223,10 @@ describe("Cloud-only Google Workspace extension retirement", () => {
           expect((await putConnectState(base, { connectEnabled })).status).toBe(200);
         }
         expect(actionKeys(await listActions(base))).toEqual([
+          "harness-cloud-uploads/drive_upload_file",
+          "harness-cloud-uploads/gmail_create_draft_with_attachments",
           "openai-image-generation/image_generate",
           "openai-image-generation/status",
-          "openwork-cloud-uploads/drive_upload_file",
-          "openwork-cloud-uploads/gmail_create_draft_with_attachments",
         ]);
         // A stale installed client can still request the retired extension id directly.
         expect(await listActions(base, "google-workspace")).toEqual([]);
@@ -239,7 +239,7 @@ describe("Cloud-only Google Workspace extension retirement", () => {
           const response = await callLegacyAction(base, action);
           expect(response.status).toBe(200);
           const body = await readSchema(response, gatedCallSchema);
-          expect(body.nextAction.recommendedAction).toBe("Connect OpenWork Cloud");
+          expect(body.nextAction.recommendedAction).toBe("Connect Harness Cloud");
           expect(body.message).toContain("local credentials cannot be used");
           expect(body).not.toHaveProperty("connected");
           expect(body).not.toHaveProperty("result");
@@ -259,7 +259,7 @@ describe("Cloud-only Google Workspace extension retirement", () => {
     const { base, config } = await boot(true);
     await writeRuntimeOpencodeConfig(config, "ws_1", (current) => ({
       ...current,
-      mcp: { ...current.mcp, "openwork-cloud": { type: "remote", url: "https://cloud.example.test/mcp/agent" } },
+      mcp: { ...current.mcp, "harness-cloud": { type: "remote", url: "https://cloud.example.test/mcp/agent" } },
     }));
     const stateSchema = z.object({
       cloudHealth: z.object({
@@ -280,7 +280,7 @@ describe("Cloud-only Google Workspace extension retirement", () => {
       new EnvService({ path: join(root, "env.json") }),
       { extensionId: "google-workspace", action: "calendar_list_events", args: {} },
     ));
-    expect(result.nextAction).toEqual({ recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose OpenWork Cloud agent access for this workspace." });
+    expect(result.nextAction).toEqual({ recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose Harness Cloud agent access for this workspace." });
     expect(result).not.toHaveProperty("connected");
     expect(externalRequests).toEqual([]);
   });

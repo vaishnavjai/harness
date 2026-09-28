@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/evals",
+  "name": "@harness/evals",
   "private": true,
   "type": "module",
   "scripts": {
@@ -22,19 +22,19 @@
     "check:browser": "node scripts/check-browser-code.mjs"
   },
   "dependencies": {
-    "@openwork/behaviors": "workspace:*",
-    "@openwork/cdp": "workspace:*",
-    "@openwork/env": "workspace:*",
-    "@openwork/hosts": "workspace:*",
-    "@openwork/labs": "workspace:*",
-    "@openwork/matchers": "workspace:*",
-    "@openwork/review": "link:../packages/review",
-    "@openwork/sdk": "link:../packages/sdk",
-    "@openwork/test-artifacts": "workspace:*",
-    "@openwork/test-evidence": "workspace:*",
-    "@openwork/testkit": "workspace:*",
-    "@openwork/types": "link:../packages/types",
-    "@openwork/world": "link:../packages/world"
+    "@harness/behaviors": "workspace:*",
+    "@harness/cdp": "workspace:*",
+    "@harness/env": "workspace:*",
+    "@harness/hosts": "workspace:*",
+    "@harness/labs": "workspace:*",
+    "@harness/matchers": "workspace:*",
+    "@harness/review": "link:../packages/review",
+    "@harness/sdk": "link:../packages/sdk",
+    "@harness/test-artifacts": "workspace:*",
+    "@harness/test-evidence": "workspace:*",
+    "@harness/testkit": "workspace:*",
+    "@harness/types": "link:../packages/types",
+    "@harness/world": "link:../packages/world"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.11",

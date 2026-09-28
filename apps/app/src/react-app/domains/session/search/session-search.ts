@@ -1,4 +1,4 @@
-import type { OpenworkSessionMessage } from "@/app/lib/openwork-server";
+import type { HarnessSessionMessage } from "@/app/lib/harness-server";
 
 /** A session that can be deep-searched. */
 export type SearchableSession = {
@@ -55,7 +55,7 @@ type CacheEntry = {
 export type SessionMessageFetcher = (
   workspaceId: string,
   sessionId: string,
-) => Promise<OpenworkSessionMessage[]>;
+) => Promise<HarnessSessionMessage[]>;
 
 const SNIPPET_BEFORE = 36;
 const SNIPPET_AFTER = 72;
@@ -75,7 +75,7 @@ export function buildSnippet(text: string, index: number, length: number): Sessi
   return { before, match: text.slice(index, index + length), after };
 }
 
-function toCacheEntry(updatedAt: number, messages: OpenworkSessionMessage[]): CacheEntry {
+function toCacheEntry(updatedAt: number, messages: HarnessSessionMessage[]): CacheEntry {
   const texts: CacheEntry["texts"] = [];
   for (const message of messages) {
     const role = message.info.role;

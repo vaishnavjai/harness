@@ -11,18 +11,18 @@ import {
 describe("resolveDenBaseUrls", () => {
   test("adds the API proxy path to an explicit API base URL", () => {
     const resolved = resolveDenBaseUrls({
-      baseUrl: "https://app.openworklabs.com",
-      apiBaseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
+      apiBaseUrl: "https://app.harness.invalid",
     });
-    expect(resolved.apiBaseUrl).toBe("https://app.openworklabs.com");
+    expect(resolved.apiBaseUrl).toBe("https://app.harness.invalid");
   });
 
   test("keeps an explicit API origin independent from the web base URL", () => {
     const resolved = resolveDenBaseUrls({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       apiBaseUrl: "https://api.example.com",
     });
-    expect(resolved.baseUrl).toBe("https://app.openworklabs.com");
+    expect(resolved.baseUrl).toBe("https://app.harness.invalid");
     expect(resolved.apiBaseUrl).toBe("https://api.example.com");
   });
 
@@ -47,16 +47,16 @@ describe("resolveDenBaseUrls", () => {
     expect(resolved.apiBaseUrl).toBe("https://api.den.example");
   });
 
-  test("derives the api subdomain for hosted openworklabs.com deployments", () => {
-    const resolved = resolveDenBaseUrls({ baseUrl: "https://staging.openworklabs.com" });
-    expect(resolved.baseUrl).toBe("https://staging.openworklabs.com");
-    expect(resolved.apiBaseUrl).toBe("https://api.staging.openworklabs.com");
+  test("derives the api subdomain for hosted harness.invalid deployments", () => {
+    const resolved = resolveDenBaseUrls({ baseUrl: "https://staging.harness.invalid" });
+    expect(resolved.baseUrl).toBe("https://staging.harness.invalid");
+    expect(resolved.apiBaseUrl).toBe("https://api.staging.harness.invalid");
   });
 
   test("uses the nested hosted API origin for the hosted web default", () => {
-    const resolved = resolveDenBaseUrls({ baseUrl: "https://app.openworklabs.com" });
-    expect(resolved.baseUrl).toBe("https://app.openworklabs.com");
-    expect(resolved.apiBaseUrl).toBe("https://api.app.openworklabs.com");
+    const resolved = resolveDenBaseUrls({ baseUrl: "https://app.harness.invalid" });
+    expect(resolved.baseUrl).toBe("https://app.harness.invalid");
+    expect(resolved.apiBaseUrl).toBe("https://api.app.harness.invalid");
   });
 });
 
@@ -70,12 +70,12 @@ describe("getDenMcpUrl", () => {
 
 describe("isLegacyWebAppMcpUrl", () => {
   test("flags the legacy bare web-app MCP URL", () => {
-    expect(isLegacyWebAppMcpUrl("https://app.openworklabs.com/mcp")).toBe(true);
-    expect(isLegacyWebAppMcpUrl("https://app.openwork.software/mcp/")).toBe(true);
+    expect(isLegacyWebAppMcpUrl("https://app.harness.invalid/mcp")).toBe(true);
+    expect(isLegacyWebAppMcpUrl("https://app.harness-legacy.invalid/mcp/")).toBe(true);
   });
 
   test("accepts valid MCP URLs", () => {
-    expect(isLegacyWebAppMcpUrl("https://app.openworklabs.com/api/den/mcp")).toBe(false);
+    expect(isLegacyWebAppMcpUrl("https://app.harness.invalid/api/den/mcp")).toBe(false);
     expect(isLegacyWebAppMcpUrl("http://127.0.0.1:8787/mcp")).toBe(false);
   });
 
@@ -87,23 +87,23 @@ describe("isLegacyWebAppMcpUrl", () => {
 
 describe("resolveCloudMcpResourceUrl", () => {
   test("heals hosted minted web-app resources to the direct API origin", () => {
-    expect(resolveCloudMcpResourceUrl("https://app.openworklabs.com/mcp")).toBe(
-      "https://api.app.openworklabs.com/mcp",
+    expect(resolveCloudMcpResourceUrl("https://app.harness.invalid/mcp")).toBe(
+      "https://api.app.harness.invalid/mcp",
     );
-    expect(resolveCloudMcpResourceUrl("https://app.openworklabs.com/api/den/mcp")).toBe(
-      "https://api.app.openworklabs.com/mcp",
+    expect(resolveCloudMcpResourceUrl("https://app.harness.invalid/api/den/mcp")).toBe(
+      "https://api.app.harness.invalid/mcp",
     );
   });
 
   test("heals non-hosted legacy web-app resources through the /api/den proxy", () => {
-    expect(resolveCloudMcpResourceUrl("https://app.openwork.software/mcp/")).toBe(
-      "https://app.openwork.software/api/den/mcp",
+    expect(resolveCloudMcpResourceUrl("https://app.harness-legacy.invalid/mcp/")).toBe(
+      "https://app.harness-legacy.invalid/api/den/mcp",
     );
   });
 
   test("keeps healthy resources verbatim", () => {
-    expect(resolveCloudMcpResourceUrl("https://api.app.openworklabs.com/mcp")).toBe(
-      "https://api.app.openworklabs.com/mcp",
+    expect(resolveCloudMcpResourceUrl("https://api.app.harness.invalid/mcp")).toBe(
+      "https://api.app.harness.invalid/mcp",
     );
     expect(resolveCloudMcpResourceUrl("https://app.example.com/api/den/mcp")).toBe(
       "https://app.example.com/api/den/mcp",
@@ -118,7 +118,7 @@ describe("resolveCloudMcpResourceUrl", () => {
     expect(resolveCloudMcpResourceUrl("")).toBeNull();
     expect(resolveCloudMcpResourceUrl("   ")).toBeNull();
     expect(resolveCloudMcpResourceUrl("not a url")).toBeNull();
-    expect(resolveCloudMcpResourceUrl("ftp://app.openworklabs.com/mcp")).toBeNull();
+    expect(resolveCloudMcpResourceUrl("ftp://app.harness.invalid/mcp")).toBeNull();
   });
 });
 
@@ -129,13 +129,13 @@ describe("parseDenMcpToken", () => {
       expiresAt: "2026-08-18T00:00:00.000Z",
       organizationId: "org_1",
       scopes: ["mcp:read", "mcp:write"],
-      resource: "https://api.openwork.test/mcp",
+      resource: "https://api.harness.test/mcp",
     })).toEqual({
       token: "central-token",
       expiresAt: "2026-08-18T00:00:00.000Z",
       organizationId: "org_1",
       scopes: ["mcp:read", "mcp:write"],
-      resource: "https://api.openwork.test/mcp",
+      resource: "https://api.harness.test/mcp",
     });
   });
 
@@ -145,7 +145,7 @@ describe("parseDenMcpToken", () => {
       expiresAt: "2026-08-18T00:00:00.000Z",
       organizationId: "org_1",
       scopes: ["mcp:read", "mcp:write"],
-      resource: "https://api.openwork.test/mcp",
+      resource: "https://api.harness.test/mcp",
     };
     expect(parseDenMcpToken({ ...base, appHostToken: "private-token" })?.appHostToken).toBeUndefined();
     expect(parseDenMcpToken({

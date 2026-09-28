@@ -1,8 +1,8 @@
 import { applyEdits, modify } from "jsonc-parser";
 import type { ProviderConfig } from "@opencode-ai/sdk/v2/client";
-import type { GatewayUsableModel } from "@openwork/types/den/gateway";
+import type { GatewayUsableModel } from "@harness/types/den/gateway";
 import type { ModelOption, ModelRef } from "@/app/types";
-import { catalogFastVariants, CLOUD_MODEL_CONFIG_VERSION } from "@openwork/types/cloud-model-fast";
+import { catalogFastVariants, CLOUD_MODEL_CONFIG_VERSION } from "@harness/types/cloud-model-fast";
 
 import type {
   DenOrgLlmProvider,
@@ -57,7 +57,7 @@ const selectPrimaryCredentialEnvName = (
 const removeCloudProviderComment = (raw: string, providerId: string) =>
   raw.replace(
     new RegExp(
-      `(^[ \t]*)// OpenWork Cloud import:.*\\n\\1(?="${escapeRegExp(providerId)}":)`,
+      `(^[ \t]*)// Harness Cloud import:.*\\n\\1(?="${escapeRegExp(providerId)}":)`,
       "m",
     ),
     "$1",
@@ -102,26 +102,26 @@ export const resolveCloudProviderCredentials = (
 
 export const getCloudManagedProviderId = (
   provider: Pick<DenOrgLlmProvider, "id" | "providerId" | "source">,
-) => (provider.source === "openwork" ? "openwork" : provider.id.trim());
+) => (provider.source === "harness" ? "harness" : provider.id.trim());
 
 /**
  * A provider key in `opencode.jsonc` that is owned by the cloud-import system:
  * `lpr_*` keys (org-managed providers), `ipr_*` keys (providers routed through
- * the OpenWork inference gateway) and the `openwork` hosted provider.
+ * the Harness inference gateway) and the `harness` hosted provider.
  * These keys are never hand-authored, so re-importing over an existing block
  * with one of these ids is a safe reconcile (recovers a lost import baseline)
  * rather than a clobber of a user's manual provider (#2346).
  */
 export const isCloudManagedProviderKey = (providerId: string) =>
-  /^(lpr|ipr)_/i.test(providerId) || providerId.trim() === "openwork";
+  /^(lpr|ipr)_/i.test(providerId) || providerId.trim() === "harness";
 
-export const OPENWORK_GATEWAY_PROVIDER_SOURCE = "openwork_gateway";
-/** Badge copy for providers routed through the OpenWork inference gateway. */
-export const OPENWORK_GATEWAY_BADGE_LABEL = "via OpenWork Gateway";
+export const HARNESS_GATEWAY_PROVIDER_SOURCE = "harness_gateway";
+/** Badge copy for providers routed through the Harness inference gateway. */
+export const HARNESS_GATEWAY_BADGE_LABEL = "via Harness Gateway";
 
 /**
- * Runtime provider ids whose sync status reports the OpenWork inference
- * gateway as source — the UI badges these "via OpenWork Gateway".
+ * Runtime provider ids whose sync status reports the Harness inference
+ * gateway as source — the UI badges these "via Harness Gateway".
  */
 /**
  * A gateway provider the server sync skipped because this member has not yet
@@ -250,7 +250,7 @@ export const resolveGatewayProviderIds = (
 ): Set<string> =>
   new Set(
     Object.values(importedCloudProviders ?? {})
-      .filter((provider) => provider.source === OPENWORK_GATEWAY_PROVIDER_SOURCE)
+      .filter((provider) => provider.source === HARNESS_GATEWAY_PROVIDER_SOURCE)
       .map((provider) => provider.providerId),
   );
 
@@ -326,10 +326,10 @@ export const buildCloudProviderConfig = (
     env: getCloudProviderEnv(provider.providerConfig),
   };
 
-  // OpenWork Models are catalog-backed via OPENCODE_MODELS_URL. Den provisions
+  // Harness Models are catalog-backed via OPENCODE_MODELS_URL. Den provisions
   // the provider + key with zero model rows — writing `models: {}` can prevent
-  // the engine from keeping catalog models, so omit an empty map for openwork.
-  if (Object.keys(models).length > 0 || provider.source !== "openwork") {
+  // the engine from keeping catalog models, so omit an empty map for harness.
+  if (Object.keys(models).length > 0 || provider.source !== "harness") {
     next.models = models;
   }
 

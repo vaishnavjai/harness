@@ -46,14 +46,14 @@ export async function gmailDraftModel() {
       const advertised = tools.flatMap((tool) => record(tool.function) && typeof tool.function.name === "string" ? [tool.function.name] : []);
       const results = messages.filter((message) => message.role === "tool");
       let call: { tool: string; args: Record<string, unknown> } | undefined;
-      if (plan && advertised.includes("openwork-cloud_search_capabilities")) {
+      if (plan && advertised.includes("harness-cloud_search_capabilities")) {
         if (results.length === 0) {
-          call = { tool: "openwork-cloud_search_capabilities", args: { query: plan.query, limit: 20 } };
+          call = { tool: "harness-cloud_search_capabilities", args: { query: plan.query, limit: 20 } };
         } else if (results.length === 1) {
           const found = gmailResultObjects(results[0].content).find((entry) => entry.name === plan.capability);
           if (!found) throw new Error(`Real search did not return selected capability ${plan.capability}`);
-          if (!advertised.includes("openwork-cloud_execute_capability")) throw new Error("Managed execute capability was not advertised");
-          call = { tool: "openwork-cloud_execute_capability", args: { name: found.name, body: plan.body, ...(typeof found.schemaDigest === "string" ? { schemaDigest: found.schemaDigest } : {}) } };
+          if (!advertised.includes("harness-cloud_execute_capability")) throw new Error("Managed execute capability was not advertised");
+          call = { tool: "harness-cloud_execute_capability", args: { name: found.name, body: plan.body, ...(typeof found.schemaDigest === "string" ? { schemaDigest: found.schemaDigest } : {}) } };
         }
       }
       if (call) emitted.push(call);

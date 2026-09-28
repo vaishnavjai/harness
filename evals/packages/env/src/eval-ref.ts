@@ -1,12 +1,12 @@
 /** True when placement resolves to Daytona, mirroring resolvePlace. */
 export function daytonaPlacement(env: NodeJS.ProcessEnv = process.env): boolean {
-  const worldPlace = env.OPENWORK_WORLD_PLACE?.trim() || undefined;
-  return worldPlace === "daytona" || (worldPlace === undefined && env.OPENWORK_EVAL_DAYTONA?.trim() === "1");
+  const worldPlace = env.HARNESS_WORLD_PLACE?.trim() || undefined;
+  return worldPlace === "daytona" || (worldPlace === undefined && env.HARNESS_EVAL_DAYTONA?.trim() === "1");
 }
 
 /** The git ref a Daytona sandbox checks out and builds. */
 export function resolveEvalRef(env: NodeJS.ProcessEnv = process.env): string {
-  return env.OPENWORK_EVAL_REF?.trim() || env.GITHUB_SHA?.trim() || "dev";
+  return env.HARNESS_EVAL_REF?.trim() || env.GITHUB_SHA?.trim() || "dev";
 }
 
 /**

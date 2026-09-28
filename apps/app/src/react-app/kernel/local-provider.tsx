@@ -80,7 +80,7 @@ type LocalContextValue = {
 
 const LocalContext = createContext<LocalContextValue | undefined>(undefined);
 
-const UI_STORAGE_KEY = "openwork.ui";
+const UI_STORAGE_KEY = "harness.ui";
 export const DEFAULT_SHOW_THINKING = true;
 
 const INITIAL_UI: LocalUIState = { view: "settings", tab: "general" };
@@ -94,7 +94,7 @@ const INITIAL_PREFS: LocalPreferences = {
   hasCompletedOnboarding: false,
   analyticsEnabled: true,
   desktopNotifications: DEFAULT_DESKTOP_NOTIFICATION_PREFERENCE,
-  linkOpenDestination: "openwork",
+  linkOpenDestination: "harness",
   askBeforeOpeningLinks: true,
 };
 
@@ -135,7 +135,7 @@ export function LocalProvider({ children }: LocalProviderProps) {
     persisted.askBeforeOpeningLinks = persisted.askBeforeOpeningLinks !== false;
     persisted.linkOpenDestination = isLinkOpenDestination(persisted.linkOpenDestination)
       ? persisted.linkOpenDestination
-      : "openwork";
+      : "harness";
     persisted.desktopNotifications = isDesktopNotificationPreference(persisted.desktopNotifications)
       ? persisted.desktopNotifications
       : DEFAULT_DESKTOP_NOTIFICATION_PREFERENCE;

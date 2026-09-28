@@ -62,10 +62,10 @@ vendor/opencode/
 .opencode/node_modules/
 .opencode/bun.lock
 
-# OpenWork workspace-local artifacts
-.opencode/openwork/
-.opencode/agents/openwork.md
-.opencode/openwork.json
+# Harness workspace-local artifacts
+.opencode/harness/
+.opencode/agents/harness.md
+.opencode/harness.json
 opencode.jsonc
 .vercel
 .env*.local

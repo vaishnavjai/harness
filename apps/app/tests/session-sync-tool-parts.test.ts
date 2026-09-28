@@ -2,7 +2,7 @@ import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import type { Part, Session } from "@opencode-ai/sdk/v2/client";
 import type { UIMessage } from "ai";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import { getReactQueryClient } from "../src/react-app/infra/query-client";
 import {
   __applySessionSyncEventForTest,
@@ -91,20 +91,20 @@ function writeToolPart(
 describe("tool part mapper", () => {
   test("forwards native tool start time without inventing pending timing", () => {
     expect(parseDynamicToolUIPart(writeToolPart("running", { description: "Review" }, { tool: "task" })))
-      .toMatchObject({ callProviderMetadata: { openwork: { toolStartedAt: 1 } } });
+      .toMatchObject({ callProviderMetadata: { harness: { toolStartedAt: 1 } } });
     expect(parseDynamicToolUIPart(writeToolPart("running", { code: "return 1" }, {
-      tool: "execute", metadata: { openworkV2CodeMode: true },
-    }))?.callProviderMetadata?.openwork?.toolStartedAt).toBe(1);
+      tool: "execute", metadata: { harnessV2CodeMode: true },
+    }))?.callProviderMetadata?.harness?.toolStartedAt).toBe(1);
     expect(parseDynamicToolUIPart(writeToolPart("pending", { description: "Review" }, { tool: "task" })))
       .toMatchObject({ callProviderMetadata: { opencode: { partId: "part-write" } } });
-    expect(parseDynamicToolUIPart(writeToolPart("pending", { description: "Review" }, { tool: "task" }))?.callProviderMetadata?.openwork?.toolStartedAt)
+    expect(parseDynamicToolUIPart(writeToolPart("pending", { description: "Review" }, { tool: "task" }))?.callProviderMetadata?.harness?.toolStartedAt)
       .toBeUndefined();
   });
 
   test("v1 execute tools keep their existing representation even with code or toolCalls metadata", () => {
-    const part = writeToolPart("completed", { code: 'tools["openwork-cloud"].search_capabilities({})' }, { tool: "execute" });
+    const part = writeToolPart("completed", { code: 'tools["harness-cloud"].search_capabilities({})' }, { tool: "execute" });
     if (part.state.status !== "completed") throw new Error("Expected completed fixture");
-    part.state.metadata = { toolCalls: [{ tool: "openwork-cloud.search_capabilities", status: "completed" }] };
+    part.state.metadata = { toolCalls: [{ tool: "harness-cloud.search_capabilities", status: "completed" }] };
     const mapped = parseDynamicToolUIPart(part);
     if (!mapped) throw new Error("Missing v1 tool");
     expect(codeModeToolCalls(mapped)).toBeNull();
@@ -114,21 +114,21 @@ describe("tool part mapper", () => {
   test("Code Mode uses recorded invocation positions for repeated calls and preserves partial failures", () => {
     const part = writeToolPart("completed", { code: "recorded code" }, { tool: "execute" });
     if (part.state.status !== "completed") throw new Error("Expected completed fixture");
-    part.metadata = { openworkV2CodeMode: true };
+    part.metadata = { harnessV2CodeMode: true };
     part.state.metadata = { toolCalls: [
-      { tool: "openwork-cloud.search_capabilities", status: "completed", input: { query: "Slack" } },
+      { tool: "harness-cloud.search_capabilities", status: "completed", input: { query: "Slack" } },
       null,
-      { tool: "openwork-cloud.search_capabilities", status: "running", input: { query: "Calendar" } },
-      { tool: "openwork-cloud.execute_capability", status: "error", input: { name: "mcp:connection:list_channels" } },
+      { tool: "harness-cloud.search_capabilities", status: "running", input: { query: "Calendar" } },
+      { tool: "harness-cloud.execute_capability", status: "error", input: { name: "mcp:connection:list_channels" } },
       { tool: "unexpected", status: "unrecognized" },
     ] };
     const mapped = parseDynamicToolUIPart(part);
     if (!mapped) throw new Error("Missing Code Mode tool");
     const calls = codeModeToolCalls(mapped);
     expect(calls?.map(call => [call.toolCallId, call.toolName, call.state])).toEqual([
-      ["call-write:call:0", "openwork-cloud_search_capabilities", "output-available"],
-      ["call-write:call:2", "openwork-cloud_search_capabilities", "input-streaming"],
-      ["call-write:call:3", "openwork-cloud_execute_capability", "output-error"],
+      ["call-write:call:0", "harness-cloud_search_capabilities", "output-available"],
+      ["call-write:call:2", "harness-cloud_search_capabilities", "input-streaming"],
+      ["call-write:call:3", "harness-cloud_execute_capability", "output-error"],
     ]);
     expect(calls?.[0]?.input).toEqual({ query: "Slack" });
     expect(calls?.[0]).toHaveProperty("output", undefined);
@@ -139,7 +139,7 @@ describe("tool part mapper", () => {
   test("a v2 completed wrapper with an error retains the actual execution error", () => {
     const part = writeToolPart("completed", { code: "throw new Error()" }, { tool: "execute" });
     if (part.state.status !== "completed") throw new Error("Expected completed fixture");
-    part.metadata = { openworkV2CodeMode: true };
+    part.metadata = { harnessV2CodeMode: true };
     part.state.metadata = { error: true, toolCalls: [] };
     part.state.output = "History lookup failed.";
     const mapped = parseDynamicToolUIPart(part);
@@ -178,7 +178,7 @@ describe("tool part mapper", () => {
     const part = writeToolPart("completed", { configObjectId: "script_1" });
     if (part.state.status !== "completed") throw new Error("Expected completed fixture");
     part.state.metadata = {
-      openworkMcpApp: {
+      harnessMcpApp: {
         ...(isError === undefined ? {} : { isError }),
         content: [{ type: "text", text: "Fallback" }],
         structuredContent: { schemaVersion: "1", value: 42 },
@@ -188,7 +188,7 @@ describe("tool part mapper", () => {
 
     expect(parseDynamicToolUIPart(part)?.callProviderMetadata).toEqual({
       opencode: { partId: "part-write" },
-      openwork: {
+      harness: {
         sourcePartId: "part-write",
         mcpResult: {
           ...(isError === undefined ? {} : { isError }),
@@ -211,7 +211,7 @@ describe("tool part mapper", () => {
 
     expect(parseDynamicToolUIPart(running)?.callProviderMetadata).toEqual({
       opencode: { partId: "part-task" },
-      openwork: { sourcePartId: "part-task", childSessionId: "ses_child_1", toolStartedAt: 1 },
+      harness: { sourcePartId: "part-task", childSessionId: "ses_child_1", toolStartedAt: 1 },
     });
 
     const completed = writeToolPart(
@@ -224,7 +224,7 @@ describe("tool part mapper", () => {
 
     expect(parseDynamicToolUIPart(completed)?.callProviderMetadata).toEqual({
       opencode: { partId: "part-task" },
-      openwork: { sourcePartId: "part-task", childSessionId: "ses_child_1", toolStartedAt: 1 },
+      harness: { sourcePartId: "part-task", childSessionId: "ses_child_1", toolStartedAt: 1 },
     });
   });
 
@@ -235,7 +235,7 @@ describe("tool part mapper", () => {
 
     expect(parseDynamicToolUIPart(part)?.callProviderMetadata).toEqual({
       opencode: { partId: "part-write" },
-      openwork: { sourcePartId: "part-write" },
+      harness: { sourcePartId: "part-write" },
     });
   });
 
@@ -252,18 +252,18 @@ describe("tool part mapper", () => {
         action: {
           type: "connect",
           label: "Connect Acme Tracker",
-          surface: "openwork_your_connections",
-          url: "https://app.openworklabs.com/dashboard/your-connections?connectionId=emc_acme",
+          surface: "harness_your_connections",
+          url: "https://app.harness.invalid/dashboard/your-connections?connectionId=emc_acme",
         },
       },
     });
 
     const parsed = parseDynamicToolUIPart(writeToolPart("error", {}, {}, error));
-    expect(parsed?.callProviderMetadata?.openwork?.mcpResult).not.toHaveProperty("_meta");
+    expect(parsed?.callProviderMetadata?.harness?.mcpResult).not.toHaveProperty("_meta");
     expect(parsed).toMatchObject({
       state: "output-error",
       callProviderMetadata: {
-        openwork: {
+        harness: {
           mcpResult: {
             isError: true,
             structuredContent: {
@@ -305,11 +305,11 @@ describe("tool part mapper", () => {
       created: [{ sessionId: "session-research", title: "Research", started: true }],
       failures: [],
     });
-    const part = writeToolPart("completed", {}, { tool: "openwork_session_create" });
+    const part = writeToolPart("completed", {}, { tool: "harness_session_create" });
     if (part.state.status !== "completed") throw new Error("Expected completed fixture");
     part.state.output = output;
     expect(parseDynamicToolUIPart(part)).toMatchObject({
-      type: "dynamic-tool", toolName: "openwork_session_create", state: "output-available", output,
+      type: "dynamic-tool", toolName: "harness_session_create", state: "output-available", output,
     });
   });
 
@@ -334,7 +334,7 @@ describe("tool part mapper", () => {
     { name: "late header with tied neighbor", headerCreated: undefined, neighborCreated: 10 },
     { name: "late header with untimestamped neighbor", headerCreated: undefined, neighborCreated: undefined },
   ])("metadata preserves source neighbors: $name", ({ headerCreated, neighborCreated }) => {
-    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
     const cleanup = __createWorkspaceSessionSyncForTest(syncInput);
     const release = trackWorkspaceSessionSync(syncInput, "session-a");
     const apply = (id: string, created: number | undefined) => __applySessionSyncEventForTest(syncInput, {
@@ -359,7 +359,7 @@ describe("tool part mapper", () => {
   });
 
   test.each([false, true])("late user metadata orders the settled transcript without losing parts (part first: %s)", (partFirst) => {
-    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
     const cleanup = __createWorkspaceSessionSyncForTest(syncInput);
     const release = trackWorkspaceSessionSync(syncInput, "session-a");
     const apply = (id: string, role: "user" | "assistant", created: number) => __applySessionSyncEventForTest(syncInput, {
@@ -394,7 +394,7 @@ describe("tool part mapper", () => {
   });
 
   test("session sync defers empty in-progress write tools until input arrives", () => {
-    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+    const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
     const cleanup = __createWorkspaceSessionSyncForTest(syncInput);
     const release = trackWorkspaceSessionSync(syncInput, "session-a");
     const clock = spyOn(Date, "now").mockReturnValue(1_000);
@@ -466,7 +466,7 @@ describe("tool part mapper", () => {
     const syncInput = {
       workspaceId: "workspace-a",
       baseUrl: "http://127.0.0.1:1234",
-      openworkToken: "token",
+      harnessToken: "token",
       onSessionCreated: (session: Session) => createdIds.push(session.id),
       onSessionUpdated: (update: { sessionId: string; info: Record<string, unknown> }) => updates.push(update),
       onSessionDeleted: (sessionId: string) => deletedIds.push(sessionId),
@@ -480,7 +480,7 @@ describe("tool part mapper", () => {
       });
 
       const queryClient = getReactQueryClient();
-      const snapshot: OpenworkSessionSnapshot = {
+      const snapshot: HarnessSessionSnapshot = {
         session: created,
         messages: [],
         todos: [],
@@ -520,7 +520,7 @@ describe("tool part mapper", () => {
 });
 
 test("live attachment notes render once across repeated updates", () => {
-  const syncInput = { workspaceId: "workspace-video", baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+  const syncInput = { workspaceId: "workspace-video", baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
   const cleanup = __createWorkspaceSessionSyncForTest(syncInput);
   const release = trackWorkspaceSessionSync(syncInput, "session-video");
   try {
@@ -533,7 +533,7 @@ test("live attachment notes render once across repeated updates", () => {
       properties: { part: {
         id: "note-video", type: "text", synthetic: true,
         messageID: "msg-video", sessionID: "session-video", text: "Hidden workspace paths",
-        metadata: { openworkAttachments: [
+        metadata: { harnessAttachments: [
           { filename: "recording.mp4", mime: "video/mp4", url: "file:///workspace/recording.mp4" },
           { filename: "recording.mov", mime: "video/quicktime", url: "file:///workspace/recording.mov" },
         ] },

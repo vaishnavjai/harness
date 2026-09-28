@@ -1,5 +1,5 @@
-import { browserScript, reload } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
+import { browserScript, reload } from "@harness/cdp";
+import type { Seed } from "@harness/env";
 import { configureProvider } from "./chat.ts";
 
 export async function manualTaskOrdering(seed: Seed) {
@@ -47,13 +47,13 @@ async function taskOrdering(seed: Seed, grouped: boolean) {
   const assignments = grouped ? Object.fromEntries(sessions.map(session => [session.sessionId, "grp_tasks"])) : {};
   await seed.evalIn(app, browserScript(async (workspaceId, ids, pinnedId, otherWorkspaceId, otherIds, groups, assignments) => {
     if (groups.length) {
-      const response = await fetch(`http://127.0.0.1:${localStorage.getItem("openwork.server.port")}/workspace/${workspaceId}/session-groups`, {
-        method: "PUT", headers: { Authorization: `Bearer ${localStorage.getItem("openwork.server.token")}`, "Content-Type": "application/json" },
+      const response = await fetch(`http://127.0.0.1:${localStorage.getItem("harness.server.port")}/workspace/${workspaceId}/session-groups`, {
+        method: "PUT", headers: { Authorization: `Bearer ${localStorage.getItem("harness.server.token")}`, "Content-Type": "application/json" },
         body: JSON.stringify({ state: { groups, assignments } }),
       });
       if (!response.ok) throw new Error(`Group arrangement failed: ${response.status}`);
     }
-    localStorage.setItem("openwork.react.sessionManagement", JSON.stringify({ version: 0, state: {
+    localStorage.setItem("harness.react.sessionManagement", JSON.stringify({ version: 0, state: {
       pinnedIds: [pinnedId], unreadIds: [], orderByWorkspace: { [workspaceId]: ids, [otherWorkspaceId]: otherIds },
       groupsByWorkspace: { [workspaceId]: { groups, assignments } },
     } }));

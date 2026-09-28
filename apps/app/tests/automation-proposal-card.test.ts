@@ -8,7 +8,7 @@ GlobalRegistrator.register({ url: "https://desktop.example" });
 afterAll(() => GlobalRegistrator.unregister());
 const { createRoot } = await import("react-dom/client");
 const { MemoryRouter } = await import("react-router");
-const { parseAutomationProposal } = await import("../src/components/tools/openwork-automation-proposal");
+const { parseAutomationProposal } = await import("../src/components/tools/harness-automation-proposal");
 const { MessageList } = await import("../src/components/chat/message-list");
 const { MessageListProvider } = await import("../src/components/chat/message-list-provider");
 const { createDefaultPlatform, PlatformProvider } = await import("../src/react-app/kernel/platform");
@@ -53,7 +53,7 @@ describe("Automation proposal card", () => {
       return Response.json({ automation: { id: "atm_fixture" } });
     });
     const part: DynamicToolUIPart = {
-      type: "dynamic-tool", toolName: "openwork_execute", toolCallId: "proposal", state: "output-available",
+      type: "dynamic-tool", toolName: "harness_execute", toolCallId: "proposal", state: "output-available",
       input: { id: "automation.propose" },
       output: { ...dailyProposal, result: { ...dailyProposal.result, proposal: { ...dailyProposal.result.proposal, workspaceId: "untrusted-workspace" } } },
     };
@@ -63,7 +63,7 @@ describe("Automation proposal card", () => {
         value: createDefaultPlatform(), children: createElement(QueryClientProvider, {
           client: queryClient, children: createElement(MemoryRouter, {
             children: createElement(WorkspaceProvider, {
-              client: null, openworkServerClient: null, workspaceId: "origin-workspace", selectedWorkspaceRoot: "/fixture",
+              client: null, harnessServerClient: null, workspaceId: "origin-workspace", selectedWorkspaceRoot: "/fixture",
               children: createElement(MessageListProvider, {
                 workspaceId: "origin-workspace", sessionId: "origin-session", showThinking: false, developerMode: false,
                 displaySuggestions: false, providerConnectedCount: 1, dispatchAction: noop, setPrompt: noop,
@@ -75,11 +75,11 @@ describe("Automation proposal card", () => {
           }),
         }),
       })));
-      expect(container.querySelector("[data-openwork-automation-proposal]")).not.toBeNull();
+      expect(container.querySelector("[data-harness-automation-proposal]")).not.toBeNull();
       expect(container.textContent).toContain("Nothing was created yet. Review it");
       expect(container.textContent).toContain(dailyProposal.result.proposal.name);
       expect(container.textContent).toContain(dailyProposal.result.proposal.instructions);
-      expect(container.querySelector('[data-capability-call="openwork_execute"]')).toBeNull();
+      expect(container.querySelector('[data-capability-call="harness_execute"]')).toBeNull();
       expect(writes).toEqual([]);
       const create = container.querySelector<HTMLButtonElement>("[data-create-automation]");
       if (!create) throw new Error("Missing Create Automation review action");
@@ -108,7 +108,7 @@ describe("Automation proposal card", () => {
     }
   });
 
-  test("reads a proposal out of an openwork_execute result, string or object", () => {
+  test("reads a proposal out of a harness_execute result, string or object", () => {
     const fromObject = parseAutomationProposal(dailyProposal);
     const fromString = parseAutomationProposal(JSON.stringify(dailyProposal));
 

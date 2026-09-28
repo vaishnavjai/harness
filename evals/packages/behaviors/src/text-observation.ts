@@ -1,5 +1,5 @@
-import { callFunctionOnSurface } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
+import { callFunctionOnSurface } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
 
 /** Record changes, including empty frames, without modifying the renderer's fetch or event handlers. */
 export async function observeText(surface: Surface, selector: string, options: { ignoreExistingMessages?: boolean } = {}) {

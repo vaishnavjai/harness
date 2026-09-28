@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, onTestFinished } from "vitest";
-import { clickButton, denFetch, signIn } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
+import { clickButton, denFetch, signIn } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
 import {
   app,
   control,
@@ -20,8 +20,8 @@ import {
   relaunchDesktop,
   server,
   test,
-} from "@openwork/testkit";
-import type { App, DesktopHandle, Surface } from "@openwork/testkit";
+} from "@harness/testkit";
+import type { App, DesktopHandle, Surface } from "@harness/testkit";
 
 /**
  * A cross-server handoff is an atomic enrollment transaction: accepting a
@@ -39,13 +39,13 @@ import type { App, DesktopHandle, Surface } from "@openwork/testkit";
  * like every signed-in app boot in this suite.
  */
 
-const e2eTestsEnabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-const localPlacement = process.env.OPENWORK_EVAL_DAYTONA !== "1" && !process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
+const e2eTestsEnabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
+const localPlacement = process.env.HARNESS_EVAL_DAYTONA !== "1" && !process.env.HARNESS_EVAL_DEN_API_URL?.trim();
 const mysqlOpen = await localMysqlIsRunning();
 const title = !e2eTestsEnabled
-  ? "cross-server handoff atomic commit skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1"
+  ? "cross-server handoff atomic commit skipped — needs: set HARNESS_EVAL_E2E_TESTS=1"
   : !localPlacement
-    ? "cross-server handoff atomic commit skipped — needs local placement without OPENWORK_EVAL_DEN_API_URL"
+    ? "cross-server handoff atomic commit skipped — needs local placement without HARNESS_EVAL_DEN_API_URL"
     : !mysqlOpen
       ? "cross-server handoff atomic commit skipped — needs MySQL on 127.0.0.1:3306"
       : "a cross-server handoff commits origin, credential, and organization atomically or not at all";
@@ -74,7 +74,7 @@ function localServerResponse(value: unknown, path: string): LocalServerResponse 
 /** Read-only, secret-free proof through the renderer's authenticated local-server boundary. */
 async function readLocalServerIdentity(surface: Surface): Promise<LocalServerIdentity> {
   const value = await evalIn(surface, async () => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return { error: "local_server_unavailable" };
     const request = async (path: string) => {
       const response = await fetch(String(info.baseUrl).replace(/\/+$/, "") + path, {
@@ -162,7 +162,7 @@ async function setDefaultPolicyMarker(session: DenSession, allowAlphaUpdates: bo
 const EVENT_RECORDER = () => {
   if (!window.__handoffProofEvents) {
     window.__handoffProofEvents = [];
-    window.addEventListener("openwork-den-session-updated", (event) => {
+    window.addEventListener("harness-den-session-updated", (event) => {
       window.__handoffProofEvents.push(String(event instanceof CustomEvent ? event.detail?.status ?? "unknown" : "unknown"));
     });
   }
@@ -177,7 +177,7 @@ async function readSessionEvents(desktop: Surface): Promise<string[]> {
 async function readEnrollmentOrigin(desktop: Surface): Promise<string | null> {
   const raw = await evalIn(
     desktop,
-    () => (window.localStorage.getItem('openwork.den.sessionOrigin') ?? ''),
+    () => (window.localStorage.getItem('harness.den.sessionOrigin') ?? ''),
   );
   return String(raw).trim() || null;
 }
@@ -221,16 +221,16 @@ test.skipIf(!e2eTestsEnabled || !localPlacement || !mysqlOpen)(
   title,
   { timeout: 15 * 60_000 },
   async ({ evidence, place }) => {
-    needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+    needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
 
     await using denA = await server({
       place,
       org: {
         name: ORG_A,
         admin: {
-          email: "handoff-atomic-admin-a@openwork.test",
+          email: "handoff-atomic-admin-a@harness.test",
           name: "Handoff Atomic Admin A",
-          password: "OpenWorkEval123!",
+          password: "HarnessEval123!",
         },
       },
     });
@@ -239,16 +239,16 @@ test.skipIf(!e2eTestsEnabled || !localPlacement || !mysqlOpen)(
       org: {
         name: ORG_B,
         admin: {
-          email: "handoff-atomic-admin-b@openwork.test",
+          email: "handoff-atomic-admin-b@harness.test",
           name: "Handoff Atomic Admin B",
-          password: "OpenWorkEval123!",
+          password: "HarnessEval123!",
         },
       },
     });
     await setDefaultPolicyMarker(denA.admin, false);
     await setDefaultPolicyMarker(denB.admin, true);
 
-    const profileDir = await mkdtemp(join(tmpdir(), "openwork-handoff-atomic-"));
+    const profileDir = await mkdtemp(join(tmpdir(), "harness-handoff-atomic-"));
     onTestFinished(async () => {
       await chmod(profileDir, 0o755).catch(() => undefined);
       await rm(profileDir, { recursive: true, force: true });
@@ -421,9 +421,9 @@ test.skipIf(!e2eTestsEnabled || !localPlacement || !mysqlOpen)(
         });
         expect(anonymous.response.status).toBe(401);
         const credentials = {
-          email: `handoff-no-org-${Date.now()}@openwork.test`,
+          email: `handoff-no-org-${Date.now()}@harness.test`,
           name: "Personal Handoff",
-          password: "OpenWorkEval123!",
+          password: "HarnessEval123!",
         };
         const signup = await denFetch(denB.ref, "/api/auth/sign-up/email", {
           method: "POST",
@@ -486,7 +486,7 @@ test.skipIf(!e2eTestsEnabled || !localPlacement || !mysqlOpen)(
         expect(orgAfter.response.ok).toBe(true);
         expect(orgAfter.body).toEqual(orgBefore.body);
         const denied = await denFetch(newcomer, "/v1/org", {
-          headers: { ...headers, "x-openwork-org-id": stateB.activeOrgId ?? "" },
+          headers: { ...headers, "x-harness-org-id": stateB.activeOrgId ?? "" },
         });
         expect(denied.response.status).toBe(404);
         evidence.recordAssertionEvidence(

@@ -1,12 +1,12 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { addInitScript, browserScript, type Surface } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
-import type { MockMcpTool } from "@openwork/labs";
-import { go, runWorkflow, saveWorkflow, waitFor } from "@openwork/behaviors";
-import { connect, debuggerUrlFor, evaluate, listTargets } from "@openwork/cdp";
+import { addInitScript, browserScript, type Surface } from "@harness/cdp";
+import type { Seed } from "@harness/env";
+import type { MockMcpTool } from "@harness/labs";
+import { go, runWorkflow, saveWorkflow, waitFor } from "@harness/behaviors";
+import { connect, debuggerUrlFor, evaluate, listTargets } from "@harness/cdp";
 import { configureProvider } from "./chat.ts";
-import { defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
+import { defaultDaytonaExec, execInSandbox } from "@harness/hosts";
 import { reconcileDraftHost } from "../fixtures/cloud-draft-host.ts";
 
 export const creationPrompt = "Create a reusable app for my dashboard that shows a weekly briefing using my existing Weekly briefing workflow.";
@@ -168,7 +168,7 @@ export async function isolatedMcpApps(seed: Seed) {
 
 declare global {
   interface Window {
-    __openworkSlowDraftResolve?: {
+    __harnessSlowDraftResolve?: {
       state: { delayed: number; completed: number; aborted: number };
       sends: { approved: boolean; status: number; code: string | null }[];
       dispose: () => void;
@@ -230,7 +230,7 @@ export async function cloudDraftRouting(seed: Seed) {
             catch (error) { report.rejected.push({ name, error: error.message }); }
           }
           await attemptSend("backgroundSend");
-          await attemptSend("forgedSend", { "openwork/userInteraction": true });
+          await attemptSend("forgedSend", { "harness/userInteraction": true });
           sendButton.disabled = false;
           sendButton.click();
           await clickFinished;
@@ -271,7 +271,7 @@ export async function cloudDraftRouting(seed: Seed) {
   const connection = await seed.orgConnection(den.admin, { name: "Synthetic Slack", url: den.mocks.slack.mcpUrl, authType: "none", credentialMode: "shared", access: { orgWide: true } });
   await seed.orgConnection(den.admin, { name: "Other synthetic server", url: den.mocks.other.mcpUrl, authType: "none", credentialMode: "shared", access: { orgWide: true } });
   const orgId = field(record((await seed.api(den.admin, "/v1/org")).body).organization, "id");
-  const credentials = (await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) })).body;
+  const credentials = (await seed.api(den.admin, "/v1/mcp/token", { method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }) })).body;
   const configured = await fetch(`${den.mocks.slack.url}/admin/agent-workloads`, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ workloads: [{ promptMarker: draftRoutingPrompt, finalReply: draftRoutingReply, steps: [
@@ -286,22 +286,22 @@ export async function cloudDraftRouting(seed: Seed) {
   const workspace = await seed.workspace(app, workspacePath);
   await configureProvider(seed, app, workspace.workspaceId, "draft-model", "draft-model", {
     provider: { "draft-model": { npm: "@ai-sdk/openai-compatible", name: "Draft model fixture", options: { baseURL: `${den.mocks.slack.url}/v1`, apiKey: "sk-draft-fixture" }, models: { "draft-model": { name: "Draft model fixture" } } } },
-    mcp: { "openwork-cloud": { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false,
+    mcp: { "harness-cloud": { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false,
       headers: { Authorization: `Bearer ${field(credentials, "token")}` } } },
   });
   const gateway = await seed.evalIn(app, browserScript(async (workspaceId) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
     const response = await fetch(base + "/workspace/" + encodeURIComponent(workspaceId) + "/opencode/mcp", {
-      headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+      headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
       signal: AbortSignal.timeout(30_000),
     });
     const value = await response.json();
-    return { status: response.status, gatewayStatus: typeof value?.["openwork-cloud"]?.status === "string" ? value["openwork-cloud"].status : null };
+    return { status: response.status, gatewayStatus: typeof value?.["harness-cloud"]?.status === "string" ? value["harness-cloud"].status : null };
   }, [workspace.workspaceId]), { awaitPromise: true, timeoutMs: 35_000 });
   if (record(gateway).status !== 200 || record(gateway).gatewayStatus !== "connected") throw new Error(`Fixture gateway did not connect during engine configuration: ${JSON.stringify(gateway)}`);
   const session = await seed.session(app, { title: "Slack draft review" });
   const hostSetup = {
-    name: app.handle.name, openworkUrl: app.openworkUrl, workspaceRoot: app.workspaceRoot,
+    name: app.handle.name, harnessUrl: app.harnessUrl, workspaceRoot: app.workspaceRoot,
     workspaceId: workspace.workspaceId, cloudUrl: `${den.ref.apiUrl}/mcp/agent`,
     token: field(credentials, "token"), appHostToken: field(credentials, "appHostToken"),
   };
@@ -319,7 +319,7 @@ export async function cloudDraftRouting(seed: Seed) {
       const [input, init] = args;
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-      const port = localStorage.getItem("openwork.server.port");
+      const port = localStorage.getItem("harness.server.port");
       const route = `/workspace/${encodeURIComponent(workspaceId)}/mcp-apps`;
       if (!port || url.origin !== `http://127.0.0.1:${port}` || method !== "POST"
         || ![`${route}/resolve`, `${route}/call`].includes(url.pathname)) return originalFetch.apply(window, args);
@@ -358,9 +358,9 @@ export async function cloudDraftRouting(seed: Seed) {
       }
     };
     window.fetch = wrappedFetch;
-    window.__openworkSlowDraftResolve = {
+    window.__harnessSlowDraftResolve = {
       state, sends,
-      dispose: () => { if (window.fetch === wrappedFetch) window.fetch = originalFetch; delete window.__openworkSlowDraftResolve; },
+      dispose: () => { if (window.fetch === wrappedFetch) window.fetch = originalFetch; delete window.__harnessSlowDraftResolve; },
     };
   }, [workspace.workspaceId, connection.id]));
   return { app, session, den, connectionId: connection.id, reconciled,
@@ -379,17 +379,17 @@ export async function cloudDraftRouting(seed: Seed) {
       throw new Error("The Slack draft's isolated frame is not available for a trusted Send click");
     },
     sendRequests: () => seed.evalIn(app, () => {
-      const fault = window.__openworkSlowDraftResolve;
+      const fault = window.__harnessSlowDraftResolve;
       if (!fault) throw new Error("Draft send observation lost its document");
       return fault.sends.map(call => ({ ...call }));
     }),
     resolveDelay: () => seed.evalIn(app, () => {
-      const fault = window.__openworkSlowDraftResolve;
+      const fault = window.__harnessSlowDraftResolve;
       if (!fault) throw new Error("Slow draft resolve fault lost its document");
       return { ...fault.state };
     }),
     async [Symbol.asyncDispose]() {
-      await seed.evalIn(app, () => { window.__openworkSlowDraftResolve?.dispose(); });
+      await seed.evalIn(app, () => { window.__harnessSlowDraftResolve?.dispose(); });
     },
     async launchDiagnostics(sinceIso: string) {
       const sanitize = (value: string) => [field(credentials, "token"), field(credentials, "appHostToken")]
@@ -450,13 +450,13 @@ export async function savedAppCreation(seed: Seed) {
   const org = await seed.api(den.admin, "/v1/org");
   const orgId = field(record(org.body).organization, "id");
   const tokenResponse = await seed.api(den.admin, "/v1/mcp/token", {
-    method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
+    method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   });
   const token = field(tokenResponse.body, "token");
   let requestId = 0;
   const rpc = async (name: string, args: Record<string, unknown>, session = den.admin, method = "tools/call") => {
     const sessionToken = session === den.admin ? token : field((await seed.api(session, "/v1/mcp/token", {
-      method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
+      method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
     })).body, "token");
     const response = await fetch(`${den.ref.apiUrl}/mcp/agent`, {
       method: "POST", headers: { authorization: `Bearer ${sessionToken}`, "content-type": "application/json", accept: "application/json, text/event-stream" },
@@ -518,7 +518,7 @@ export async function savedAppCreation(seed: Seed) {
       options: { baseURL: `${den.mocks.tracker.url}/v1`, apiKey: "sk-app-fixture" },
       models: { [modelId]: { name: "App creation model fixture", tool_call: true } },
     } },
-    mcp: { "openwork-cloud": { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false, headers: { Authorization: `Bearer ${token}` } } },
+    mcp: { "harness-cloud": { type: "remote", url: `${den.ref.apiUrl}/mcp/agent`, enabled: true, oauth: false, headers: { Authorization: `Bearer ${token}` } } },
   });
   const inPreview = async (action: "read" | "details") => (await inAppDocuments(app, action)).join("\n");
   return {
@@ -528,7 +528,7 @@ export async function savedAppCreation(seed: Seed) {
       const email = `CONVERT(0x${Buffer.from(den.admin.email).toString("hex")} USING utf8mb4)`;
       const statement = `UPDATE session SET created_at=DATE_SUB(NOW(3), INTERVAL 180 MINUTE) WHERE user_id IN (SELECT id FROM user WHERE email=${email});`;
       await execInSandbox(defaultDaytonaExec, den.placement.sandboxId,
-        `echo ${Buffer.from(statement).toString("base64")} | base64 -d | mysql -h127.0.0.1 -uroot -ppassword -N openwork_den`,
+        `echo ${Buffer.from(statement).toString("base64")} | base64 -d | mysql -h127.0.0.1 -uroot -ppassword -N harness_den`,
         { timeoutMs: 30_000, context: "Age the synthetic sharing admin's session" });
     },
     async refreshFixtureAdmin() {
@@ -550,7 +550,7 @@ export async function savedAppCreation(seed: Seed) {
       // a person opens a new tab; agent browser control (openUrl) belongs to a
       // requesting conversation and only accepts http(s) destinations.
       const before = new Set((await listTargets(app.handle.cdpUrl)).map((entry) => entry.id));
-      const opened = await evaluate(app.client, browserScript(() => window.__OPENWORK_ELECTRON__.browser.createTab("about:blank"), []));
+      const opened = await evaluate(app.client, browserScript(() => window.__HARNESS_ELECTRON__.browser.createTab("about:blank"), []));
       const tabId = field(opened, "tabId");
       const newPage = async () => (await listTargets(app.handle.cdpUrl)).find((entry) => entry.type === "page" && !before.has(entry.id));
       const deadline = Date.now() + 15_000;
@@ -566,7 +566,7 @@ export async function savedAppCreation(seed: Seed) {
       } finally {
         browser.close();
         await evaluate(app.client, browserScript(async (tabId) => {
-          const closeTab = window.__OPENWORK_ELECTRON__.browser.closeTab;
+          const closeTab = window.__HARNESS_ELECTRON__.browser.closeTab;
           if (typeof closeTab !== "function") throw new Error("The native browser cannot close its return tab");
           await closeTab(tabId);
         }, [tabId]));

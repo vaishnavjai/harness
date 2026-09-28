@@ -1,22 +1,22 @@
 import { mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 import {
-  bootManagedOpenworkServer,
+  bootManagedHarnessServer,
   close,
   isRecord,
   listen,
   readBody,
   sendJson,
   sendStream,
-  type ManagedOpenworkServer,
-} from "./openwork-server-cli.ts";
+  type ManagedHarnessServer,
+} from "./harness-server-cli.ts";
 
 /**
- * A real openwork-server + managed engine whose provider is a scripted
+ * A real harness-server + managed engine whose provider is a scripted
  * OpenAI-compatible stand-in. The mock model does what its user message says:
- * a message containing `TOOL_CALL: <json>` makes it call that OpenWork tool
+ * a message containing `TOOL_CALL: <json>` makes it call that Harness tool
  * once, then it answers MOCK_REPLY. Every provider request is recorded with
  * the model and `reasoning_effort` it carried, so a spec can prove not only
  * that a session's record says "low" but that its turn ran at low.
@@ -141,7 +141,7 @@ export async function agentSessionModel(seed: Seed): Promise<AgentSessionModelWo
   const token = "agent-session-model-client-token";
   let output = "";
   const sink = (chunk: string) => { output += chunk; };
-  let managed: ManagedOpenworkServer | null = null;
+  let managed: ManagedHarnessServer | null = null;
 
   const dispose = async () => {
     if (managed) await managed.stop();
@@ -150,7 +150,7 @@ export async function agentSessionModel(seed: Seed): Promise<AgentSessionModelWo
   };
 
   try {
-    managed = await bootManagedOpenworkServer({ scratch, workspace, token, sink });
+    managed = await bootManagedHarnessServer({ scratch, workspace, token, sink });
     return {
       base: managed.base,
       token,

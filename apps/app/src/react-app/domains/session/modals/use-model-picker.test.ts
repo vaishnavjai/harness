@@ -8,7 +8,7 @@ import { filterCloudManagedModelOptions } from "@/react-app/domains/connections/
 
 describe("filterCloudManagedModelOptions", () => {
   const options = [
-    { providerID: "openwork", modelID: "cloud-model" },
+    { providerID: "harness", modelID: "cloud-model" },
     { providerID: "lpr_team", modelID: "managed-model" },
     { providerID: "anthropic", modelID: "local-model" },
   ];

@@ -1,13 +1,13 @@
-import { faultProxy, mcpMock, resolveEvalEngine } from "@openwork/env";
+import { faultProxy, mcpMock, resolveEvalEngine } from "@harness/env";
 import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
-import { engineSessionProbe } from "@openwork/behaviors";
+import { engineSessionProbe } from "@harness/behaviors";
 import { configureProvider } from "./chat.ts";
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { desktopWithExternalOpenCapture, isRecord, records } from "./library.ts";
-import { bootServer, stopChild } from "./openwork-server-cli.ts";
+import { bootServer, stopChild } from "./harness-server-cli.ts";
 
 /** Real app-web tools with the old policy HTTP service faulted and IPC severed.
  * Wrappers affect only this fixture's captured PATH, never a personal engine. */
@@ -64,9 +64,9 @@ export async function policyTransportRollback(seed: Seed) {
     const real = execFileSync("which", [name], { encoding: "utf8" }).trim();
     await writeFile(join(bin, name), `#!/bin/sh
 if [ "$1" = "serve" ]; then
-  printf '%s' "$OPENWORK_SERVER_URL" > ${quote(upstreamPath)}
-  export OPENWORK_SERVER_URL=${quote(faultUrl)}
-  export OPENWORK_POLICY_TOKEN=fixture-policy-transport
+  printf '%s' "$HARNESS_SERVER_URL" > ${quote(upstreamPath)}
+  export HARNESS_SERVER_URL=${quote(faultUrl)}
+  export HARNESS_POLICY_TOKEN=fixture-policy-transport
   unset NODE_CHANNEL_FD NODE_CHANNEL_SERIALIZATION_MODE
   exec 3<&- 3>&-
   printf '%s' 'HTTP fault configured; IPC fd closed' > ${quote(join(root, `${name}-fault.txt`))}
@@ -106,9 +106,9 @@ exec ${quote(real)} "$@"
     } },
   }, engine);
   const session = await seed.session(app, { title: "Copy a local file during policy outage" });
-  const token = await seed.evalIn(app, () => localStorage.getItem("openwork.server.token"));
+  const token = await seed.evalIn(app, () => localStorage.getItem("harness.server.token"));
   if (typeof token !== "string" || !token) throw new Error("Missing isolated app-web token");
-  const native = engineSessionProbe({ engine, serverUrl: app.openworkUrl, token, workspaceId: workspace.workspaceId });
+  const native = engineSessionProbe({ engine, serverUrl: app.harnessUrl, token, workspaceId: workspace.workspaceId });
   const owned = setup.move();
   return {
     app, engine, marker, session, content, command,
@@ -183,7 +183,7 @@ export async function defaultPolicyEditorAndMemberDesktop(seed: Seed) {
  * The admin starts at Team Access and Jordan starts in a real desktop. */
 export async function teamAccess(seed: Seed) {
   const nonce = `team-policy-${Date.now()}`;
-  const shellTool = process.env.OPENWORK_EVAL_ENGINE === "v2" ? "shell" : "bash";
+  const shellTool = process.env.HARNESS_EVAL_ENGINE === "v2" ? "shell" : "bash";
   const commandProofs = ["restricted", "control"].map((member) => ({
     marker: `${nonce}-${member}`, file: `${nonce}-${member}.txt`, reply: `${nonce}-${member}-finished`,
     command: `printf '${nonce}' > '${nonce}-${member}.txt'`,
@@ -216,7 +216,7 @@ export async function teamAccess(seed: Seed) {
         env: ["TEAM_ACCESS_EVAL_PROVIDER_API_KEY"],
         models: [{ id: "mock-agent-workload-model", name: "Team access model", tool_call: true }],
       },
-      apiKey: "sk-openwork-team-access-eval-only",
+      apiKey: "sk-harness-team-access-eval-only",
       allMembers: true,
       memberIds: [],
       teamIds: [],
@@ -284,7 +284,7 @@ export async function teamAccess(seed: Seed) {
     memberId: currentMember.id, controlMemberId: controlMember.id, editorPath, pluginId, pluginName, rawSourceText };
 }
 
-/** A real OpenWork server signed in to Den through a fault proxy, without an
+/** A real Harness server signed in to Den through a fault proxy, without an
  * Electron renderer. The journey can therefore count only policy verification
  * requests caused by each evaluation. */
 export async function managedPolicyRecovery(seed: Seed) {
@@ -319,7 +319,7 @@ export async function managedPolicyRecovery(seed: Seed) {
         env: ["ASSIGNED_POLICY_RECOVERY_API_KEY"],
         models: [{ id: modelId, name: "Assigned policy recovery model" }],
       },
-      apiKey: "sk-openwork-assigned-policy-recovery-eval-only",
+      apiKey: "sk-harness-assigned-policy-recovery-eval-only",
       allMembers: false,
       memberIds: [currentMember.id],
       teamIds: [],
@@ -362,11 +362,11 @@ export async function managedPolicyRecovery(seed: Seed) {
   const home = join(root, "home");
   await mkdir(workspace, { recursive: true });
   await mkdir(home, { recursive: true });
-  // The OpenWork server below runs beside Vitest, so its Den fault boundary
+  // The Harness server below runs beside Vitest, so its Den fault boundary
   // must run there too even when Den is on Daytona. Point it at the API origin
   // directly: unlike browser traffic, server verification has no web Origin.
   const proxy = await faultProxy({ ...den.ref, webUrl: den.ref.apiUrl });
-  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENWORK_") && !key.startsWith("OPENCODE")));
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("HARNESS_") && !key.startsWith("OPENCODE")));
   const token = "owt_managed_policy_recovery";
   const booted = bootServer({
     ...inherited,
@@ -375,14 +375,14 @@ export async function managedPolicyRecovery(seed: Seed) {
     XDG_DATA_HOME: join(home, ".local", "share"),
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_STATE_HOME: join(home, ".local", "state"),
-    OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000",
-    OPENWORK_MANAGE_OPENCODE: "0",
+    HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000",
+    HARNESS_MANAGE_OPENCODE: "0",
   }, token, workspace, () => {});
   try {
     const baseUrl = await booted.listening;
     const request = async (path: string, input: { method?: string; host?: boolean; body?: unknown } = {}) => {
       const headers: Record<string, string> = { "content-type": "application/json" };
-      if (input.host) headers["x-openwork-host-token"] = `${token}-host`;
+      if (input.host) headers["x-harness-host-token"] = `${token}-host`;
       else headers.authorization = `Bearer ${token}`;
       const response = await fetch(`${baseUrl}${path}`, {
         method: input.method ?? "GET",

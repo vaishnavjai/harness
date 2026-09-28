@@ -1,9 +1,9 @@
 ---
 title: "Evaluate with Docker Compose"
-description: "Run the OpenWork control plane from published images without cloning or building the repository."
+description: "Run the Harness control plane from published images without cloning or building the repository."
 ---
 
-Use the pull-only Docker Compose stack to evaluate Den web, Den API, and organization management on one machine. The stack downloads published OpenWork images and MySQL, runs database migrations, and starts the browser experience at `http://localhost:3005`.
+Use the pull-only Docker Compose stack to evaluate Den web, Den API, and organization management on one machine. The stack downloads published Harness images and MySQL, runs database migrations, and starts the browser experience at `http://localhost:3005`.
 
 <Warning>
   This stack is for evaluation only. Its HTTP ports bind to loopback, but it enables public signup by default, uses development credentials, keeps MySQL on one local Docker volume, and uses a stub worker provisioner. Do not change the port bindings to expose it on a network or use it for production data.
@@ -19,7 +19,7 @@ Install Docker Engine or Docker Desktop with Docker Compose v2. The machine must
 
    ```bash
    curl -fsSLo docker-compose.eval.yml \
-     https://raw.githubusercontent.com/different-ai/openwork/79636623bfbed3e2e5daff48b8550cb2ba220d77/packaging/docker/docker-compose.eval.yml
+     https://raw.githubusercontent.com/vaishnavjai/harness/79636623bfbed3e2e5daff48b8550cb2ba220d77/packaging/docker/docker-compose.eval.yml
    printf '%s  %s\n' \
      '7b94efe1ac4be68d56b8ecb91206e9c005360b0f7954ba36c6f6ae7bd87a9430' \
      'docker-compose.eval.yml' | shasum -a 256 --check
@@ -31,7 +31,7 @@ Install Docker Engine or Docker Desktop with Docker Compose v2. The machine must
 
    ```bash
    umask 077
-   printf 'OPENWORK_AUTH_SECRET=%s\nOPENWORK_DB_ENCRYPTION_KEY=%s\n' \
+   printf 'HARNESS_AUTH_SECRET=%s\nHARNESS_DB_ENCRYPTION_KEY=%s\n' \
      "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
    docker compose -f docker-compose.eval.yml up -d --wait
    ```
@@ -46,14 +46,14 @@ Set variables in your shell before running `docker compose`, or save them in a `
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `OPENWORK_WEB_PORT` | `3005` | Host port for Den web. |
-| `OPENWORK_API_PORT` | `8788` | Host port for Den API. |
-| `OPENWORK_AUTH_SECRET` | Required | Better Auth signing secret of at least 32 random characters. |
-| `OPENWORK_DB_ENCRYPTION_KEY` | Required | Key of at least 32 random characters used to encrypt selected database values. |
-| `OPENWORK_ORG_NAME` | `OpenWork Evaluation` | Name of the single organization. |
-| `OPENWORK_ALLOW_SIGNUP` | `true` | Whether anyone who can reach the site can create an account. |
-| `OPENWORK_OWNER_EMAILS` | empty | Comma-separated emails allowed to claim the organization at `/setup`. Empty disables the private first-administrator flow. |
-| `OPENWORK_SETUP_CODE` | empty | One-time setup code entered at `/setup` together with an owner email. Empty disables the private first-administrator flow. |
+| `HARNESS_WEB_PORT` | `3005` | Host port for Den web. |
+| `HARNESS_API_PORT` | `8788` | Host port for Den API. |
+| `HARNESS_AUTH_SECRET` | Required | Better Auth signing secret of at least 32 random characters. |
+| `HARNESS_DB_ENCRYPTION_KEY` | Required | Key of at least 32 random characters used to encrypt selected database values. |
+| `HARNESS_ORG_NAME` | `Harness Evaluation` | Name of the single organization. |
+| `HARNESS_ALLOW_SIGNUP` | `true` | Whether anyone who can reach the site can create an account. |
+| `HARNESS_OWNER_EMAILS` | empty | Comma-separated emails allowed to claim the organization at `/setup`. Empty disables the private first-administrator flow. |
+| `HARNESS_SETUP_CODE` | empty | One-time setup code entered at `/setup` together with an owner email. Empty disables the private first-administrator flow. |
 
 The setup command writes unique secrets to `.env` so subsequent Compose commands reuse them. Keep this file private and do not commit it. To rotate the secrets, replace their values before recreating the services.
 
@@ -63,7 +63,7 @@ If you create `.env` separately, generate unique secrets with:
 
 ```bash
 umask 077
-printf 'OPENWORK_AUTH_SECRET=%s\nOPENWORK_DB_ENCRYPTION_KEY=%s\n' \
+printf 'HARNESS_AUTH_SECRET=%s\nHARNESS_DB_ENCRYPTION_KEY=%s\n' \
   "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
 ```
 
@@ -73,9 +73,9 @@ To evaluate the private-deployment onboarding instead of public signup, disable 
 
 ```bash
 umask 077
-printf 'OPENWORK_AUTH_SECRET=%s\nOPENWORK_DB_ENCRYPTION_KEY=%s\n' \
+printf 'HARNESS_AUTH_SECRET=%s\nHARNESS_DB_ENCRYPTION_KEY=%s\n' \
   "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
-printf 'OPENWORK_ALLOW_SIGNUP=false\nOPENWORK_OWNER_EMAILS=%s\nOPENWORK_SETUP_CODE=%s\n' \
+printf 'HARNESS_ALLOW_SIGNUP=false\nHARNESS_OWNER_EMAILS=%s\nHARNESS_SETUP_CODE=%s\n' \
   'admin@example.com' "$(openssl rand -hex 16)" >> .env
 docker compose -f docker-compose.eval.yml up -d --wait
 ```

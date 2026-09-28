@@ -38,13 +38,13 @@ function fakeSafeStorage(overrides = {}, marker = "sealed") {
  * @param {string} filePath
  */
 async function backupSiblings(filePath) {
-  const prefix = `${path.basename(filePath)}.openwork-backup-`;
+  const prefix = `${path.basename(filePath)}.harness-backup-`;
   return (await readdir(path.dirname(filePath))).filter((name) => name.startsWith(prefix));
 }
 
 describe("desktop managed MCP vault key", () => {
   it("persists only an OS-protected blob and restores the same key", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "openwork-vault-key-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "harness-vault-key-"));
     const filePath = path.join(root, "vault-key.bin");
     try {
       const safeStorage = fakeSafeStorage();
@@ -68,7 +68,7 @@ describe("desktop managed MCP vault key", () => {
   });
 
   it("quarantines a blob the OS keychain can no longer decrypt and mints a fresh key", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "openwork-vault-key-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "harness-vault-key-"));
     const filePath = path.join(root, "vault-key.bin");
     try {
       const oldKey = await createDesktopVaultKeyProvider({ filePath, loadSafeStorage: () => fakeSafeStorage() })();
@@ -92,7 +92,7 @@ describe("desktop managed MCP vault key", () => {
   });
 
   it("rejects Electron's insecure Linux basic-text backend", async () => {
-    const filePath = path.join(os.tmpdir(), "unused-openwork-vault-key.bin");
+    const filePath = path.join(os.tmpdir(), "unused-harness-vault-key.bin");
     const provider = createDesktopVaultKeyProvider({
       filePath,
       loadSafeStorage: () => fakeSafeStorage({ getSelectedStorageBackend: () => "basic_text" }),
@@ -103,7 +103,7 @@ describe("desktop managed MCP vault key", () => {
   });
 
   it("fails closed when OS secure storage is unavailable", async () => {
-    const filePath = path.join(os.tmpdir(), "unused-openwork-vault-key.bin");
+    const filePath = path.join(os.tmpdir(), "unused-harness-vault-key.bin");
     const provider = createDesktopVaultKeyProvider({
       filePath,
       loadSafeStorage: () => fakeSafeStorage({ isAsyncEncryptionAvailable: async () => false }),

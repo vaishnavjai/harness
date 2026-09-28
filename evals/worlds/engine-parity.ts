@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { performance as nodePerformance } from "node:perf_hooks";
-import { resolveEvalEngine, type MockHandle, type Place, type Seed } from "@openwork/env";
-import type { MockAgentToolStep, MockAgentWorkload } from "@openwork/labs";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
+import { resolveEvalEngine, type MockHandle, type Place, type Seed } from "@harness/env";
+import type { MockAgentToolStep, MockAgentWorkload } from "@harness/labs";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,7 +16,7 @@ function record(value: unknown): value is Record<string, unknown> {
 /** Real app, server and pinned engine; only the paid model transport is synthetic. */
 export async function engineParity(seed: Seed, { place }: { place: Place }, options: { mock?: MockHandle; env?: Record<string, string> } = {}) {
   const engine = resolveEvalEngine();
-  const binary = engine === "v1" ? process.env.OPENWORK_OPENCODE_BIN ?? "opencode" : process.env.OPENWORK_OPENCODE2_BIN ?? "opencode2";
+  const binary = engine === "v1" ? process.env.HARNESS_OPENCODE_BIN ?? "opencode" : process.env.HARNESS_OPENCODE2_BIN ?? "opencode2";
   const { stdout } = await promisify(execFile)(binary, ["--version"], { timeout: 15_000 });
   const engineVersion = stdout.trim().replace(/^opencode2\s+/, "").replace(/^v/, "");
   const nonce = randomUUID();
@@ -44,24 +44,24 @@ export async function engineParity(seed: Seed, { place }: { place: Place }, opti
     }));
     const startedAt = nodePerformance.now();
     const app = await seed.appWeb({ name: "engine-parity", workspacePath, env: {
-      OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "1000",
-      OPENWORK_LOG_FORMAT: "json",
-      ...(process.env.OPENWORK_OPENCODE_BIN ? { OPENWORK_OPENCODE_BIN: process.env.OPENWORK_OPENCODE_BIN } : {}),
-      ...(process.env.OPENWORK_OPENCODE2_BIN ? { OPENWORK_OPENCODE2_BIN: process.env.OPENWORK_OPENCODE2_BIN } : {}),
+      HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "1000",
+      HARNESS_LOG_FORMAT: "json",
+      ...(process.env.HARNESS_OPENCODE_BIN ? { HARNESS_OPENCODE_BIN: process.env.HARNESS_OPENCODE_BIN } : {}),
+      ...(process.env.HARNESS_OPENCODE2_BIN ? { HARNESS_OPENCODE2_BIN: process.env.HARNESS_OPENCODE2_BIN } : {}),
       ...options.env,
     } });
     const interactiveMs = nodePerformance.now() - startedAt;
     const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), app.handle.name);
     const manifest = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
     if (!manifest) throw new Error("Missing owned app runtime manifest");
-    const ownerResponse = await fetch(`${app.openworkUrl}/tokens`, {
-      method: "POST", headers: { "X-OpenWork-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
+    const ownerResponse = await fetch(`${app.harnessUrl}/tokens`, {
+      method: "POST", headers: { "X-Harness-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
       body: JSON.stringify({ scope: "owner", label: "engine-parity-fixture" }),
     });
     const owner: unknown = await ownerResponse.json();
     if (ownerResponse.status !== 201 || !owner || typeof owner !== "object" || !("token" in owner) || typeof owner.token !== "string") throw new Error("Could not mint fixture owner token");
     const request = async (path: string, method = "GET", body?: unknown) => {
-      const response = await fetch(`${app.openworkUrl}${path}`, {
+      const response = await fetch(`${app.harnessUrl}${path}`, {
         method, headers: { Authorization: `Bearer ${owner.token}`, "Content-Type": "application/json" },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(60_000),
       });
@@ -94,7 +94,7 @@ export async function engineParity(seed: Seed, { place }: { place: Place }, opti
       async observeNativeCatalog(workspaceId: string) {
         const abort = new AbortController();
         const events: Array<{ type: string; directory?: string }> = [];
-        const response = await fetch(`${app.openworkUrl}/workspace/${workspaceId}/opencode2/api/event`, {
+        const response = await fetch(`${app.harnessUrl}/workspace/${workspaceId}/opencode2/api/event`, {
           headers: { Authorization: `Bearer ${owner.token}`, Accept: "text/event-stream" }, signal: abort.signal,
         });
         if (!response.ok || !response.body) throw new Error("Native event observer did not connect");
@@ -120,8 +120,8 @@ export async function engineParity(seed: Seed, { place }: { place: Place }, opti
         return { events, async stop() { abort.abort(); await reading; } };
       },
       async hostRequest(path: string, method: string, body?: unknown) {
-        const response = await fetch(`${app.openworkUrl}${path}`, {
-          method, headers: { "X-OpenWork-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
+        const response = await fetch(`${app.harnessUrl}${path}`, {
+          method, headers: { "X-Harness-Host-Token": manifest.hostToken, "Content-Type": "application/json" },
           ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(60_000),
         });
         const text = await response.text();

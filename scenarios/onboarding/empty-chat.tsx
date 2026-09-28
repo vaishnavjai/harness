@@ -1,4 +1,4 @@
-import { Icon, Mark, mix } from "@openwork/presentation";
+import { Icon, Mark, mix } from "@harness/presentation";
 
 /** Standalone illustration, not evidence of desktop installation or launch. */
 export function EmptyChat({ f }: { f: number }) {

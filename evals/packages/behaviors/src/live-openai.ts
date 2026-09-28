@@ -1,7 +1,7 @@
 import { denFetch, type DenSession } from "./den.ts";
 
-export const liveOpenAiEnabled = () => process.env.OPENWORK_EVAL_LIVE_OPENAI === "1";
-export const liveOpenAiModel = () => process.env.OPENWORK_EVAL_OPENAI_MODEL?.trim() || "gpt-5.4";
+export const liveOpenAiEnabled = () => process.env.HARNESS_EVAL_LIVE_OPENAI === "1";
+export const liveOpenAiModel = () => process.env.HARNESS_EVAL_OPENAI_MODEL?.trim() || "gpt-5.4";
 
 export function assertNoLiveSecret(value: unknown): void {
   const key = process.env.OPENAI_API_KEY?.trim();
@@ -19,7 +19,7 @@ export async function provisionLiveOpenAi(admin: DenSession, organizationName: s
   const body = orgs.body;
   const org = typeof body === "object" && body !== null && "orgs" in body && Array.isArray(body.orgs) ? body.orgs.find((entry) => record(entry) && entry.name === organizationName) : null;
   if (!org || typeof org.id !== "string") throw new Error("Live provider needs an isolated organization");
-  const orgHeaders = { ...headers, "x-openwork-org-id": org.id };
+  const orgHeaders = { ...headers, "x-harness-org-id": org.id };
   let result;
   try {
     result = await denFetch(admin, "/v1/llm-providers", { method: "POST", headers: orgHeaders,
@@ -67,7 +67,7 @@ export async function liveV2Turn(request: Request, v2: string, sessionId: string
     if (record(permissions) && Array.isArray(permissions.data)) for (const permission of permissions.data) {
       if (record(permission) && typeof permission.id === "string") {
         const relevant = permission.action === "skill" || permission.action === "reload-witness_read_report"
-          || permission.action === "openwork-cloud_search_capabilities";
+          || permission.action === "harness-cloud_search_capabilities";
         const allowed = await request(`${path}/permission/${permission.id}/reply`, "POST", { reply: relevant ? "once" : "reject" });
         if (![200, 204].includes(allowed.status)) throw new Error("Live tool permission could not be approved");
       }

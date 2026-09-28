@@ -5,8 +5,8 @@ import { join } from "node:path";
 
 import type { ServerConfig } from "../types.js";
 import { ApiError, formatError } from "../errors.js";
-import { OpenWorkExtensionsPreview } from "../opencode-plugins/openwork-extensions-preview.js";
-import { OPENWORK_CLOUD_UPLOAD_ACTIONS, callOpenWorkCloudUploadAction } from "./cloud-uploads.js";
+import { HarnessExtensionsPreview } from "../opencode-plugins/harness-extensions-preview.js";
+import { HARNESS_CLOUD_UPLOAD_ACTIONS, callHarnessCloudUploadAction } from "./cloud-uploads.js";
 
 const roots: string[] = [];
 
@@ -34,14 +34,14 @@ function cloudMcp() {
   return {
     type: "remote",
     enabled: true,
-    url: "https://api.openwork.test/mcp/agent",
+    url: "https://api.harness.test/mcp/agent",
     headers: { Authorization: "Bearer member-token" },
     oauth: false,
   };
 }
 
 async function tempRoot() {
-  const root = join(tmpdir(), `openwork-cloud-uploads-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const root = join(tmpdir(), `harness-cloud-uploads-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   roots.push(root);
   await mkdir(root, { recursive: true });
   return root;
@@ -61,7 +61,7 @@ afterEach(async () => {
 });
 
 test("cloud upload action schemas expose paths and metadata, never inline bytes", () => {
-  const fields = OPENWORK_CLOUD_UPLOAD_ACTIONS.flatMap((action) => Object.keys(action.inputSchema.properties));
+  const fields = HARNESS_CLOUD_UPLOAD_ACTIONS.flatMap((action) => Object.keys(action.inputSchema.properties));
 
   expect(fields.sort()).toEqual([
     "bcc",
@@ -76,8 +76,8 @@ test("cloud upload action schemas expose paths and metadata, never inline bytes"
     "to",
   ]);
   expect(fields.filter((field) => /base64|bytes|content|raw/i.test(field))).toEqual([]);
-  const drive = OPENWORK_CLOUD_UPLOAD_ACTIONS.find((action) => action.action === "drive_upload_file");
-  const gmail = OPENWORK_CLOUD_UPLOAD_ACTIONS.find((action) => action.action === "gmail_create_draft_with_attachments");
+  const drive = HARNESS_CLOUD_UPLOAD_ACTIONS.find((action) => action.action === "drive_upload_file");
+  const gmail = HARNESS_CLOUD_UPLOAD_ACTIONS.find((action) => action.action === "gmail_create_draft_with_attachments");
   expect(drive?.description).toContain("This Drive bridge cannot select a different named connection");
   expect(drive?.inputSchema.properties).not.toHaveProperty("connectionId");
   expect(gmail?.description).toContain("Pass connectionId to preserve the selected Google Workspace connection");
@@ -92,7 +92,7 @@ test("drive upload sends exact workspace bytes and server-derived Office metadat
   const captured: { file?: File } = {};
   let capturedUrl = "";
 
-  const result = await callOpenWorkCloudUploadAction(
+  const result = await callHarnessCloudUploadAction(
     testConfig(root),
     "drive_upload_file",
     { path: "agreement.docx", filename: "changed.pdf", mimeType: "application/pdf" },
@@ -116,7 +116,7 @@ test("drive upload sends exact workspace bytes and server-derived Office metadat
   expect(result).toEqual({ ok: true, file: { id: "file_1" } });
   expect(payloadFieldNames(result).filter((field) => /base64|bytes|content|raw/i.test(field))).toEqual([]);
   expect(JSON.stringify(result)).not.toContain(bytes.toString("base64"));
-  expect(capturedUrl).toBe("https://api.openwork.test/v1/direct-uploads/google-workspace/drive-files");
+  expect(capturedUrl).toBe("https://api.harness.test/v1/direct-uploads/google-workspace/drive-files");
   expect(captured.file?.name).toBe("agreement.docx");
   expect(captured.file?.type).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
   if (!captured.file) throw new Error("Expected captured file");
@@ -130,7 +130,7 @@ test.each([undefined, "google-workspace", "emc_selected"])("Gmail attachment mul
   let capturedFiles: File[] = [];
   let capturedPayload = "";
 
-  const result = await callOpenWorkCloudUploadAction(
+  const result = await callHarnessCloudUploadAction(
     testConfig(root),
     "gmail_create_draft_with_attachments",
     {
@@ -144,7 +144,7 @@ test.each([undefined, "google-workspace", "emc_selected"])("Gmail attachment mul
     {
       readCloudMcp: async () => cloudMcp(),
       fetchImpl: async (url, init) => {
-        expect(url).toBe("https://api.openwork.test/v1/direct-uploads/google-workspace/gmail-drafts");
+        expect(url).toBe("https://api.harness.test/v1/direct-uploads/google-workspace/gmail-drafts");
         expect(new Headers(init?.headers).get("authorization")).toBe("Bearer member-token");
         if (!(init?.body instanceof FormData)) throw new Error("Expected multipart form");
         capturedFiles = init.body.getAll("file").filter((value): value is File => value instanceof File);
@@ -175,7 +175,7 @@ test.each([undefined, "google-workspace", "emc_selected"])("Gmail attachment mul
 test("Gmail upload rejects invalid connection namespaces before file or network I/O", async () => {
   let calls = 0;
   const root = await tempRoot();
-  await expect(callOpenWorkCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
+  await expect(callHarnessCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
     paths: ["missing.txt"], connectionId: "external:other",
   }, { directory: root }, {
     readCloudMcp: async () => { calls++; return cloudMcp(); },
@@ -189,7 +189,7 @@ test("direct upload rejects files above the deployed 4 MiB transport ceiling bef
   await writeFile(join(root, "too-large.bin"), Buffer.alloc((4 * 1024 * 1024) + 1));
   let fetchCalled = false;
 
-  await expect(callOpenWorkCloudUploadAction(
+  await expect(callHarnessCloudUploadAction(
     testConfig(root),
     "drive_upload_file",
     { path: "too-large.bin" },
@@ -217,7 +217,7 @@ test("direct uploads require Cloud member authorization even when local Google t
 
   for (const cloud of [null, { ...cloudMcp(), headers: {} }]) {
     for (const action of ["drive_upload_file", "gmail_create_draft_with_attachments"]) {
-      await expect(callOpenWorkCloudUploadAction(
+      await expect(callHarnessCloudUploadAction(
         testConfig(root),
         action,
         { path: "notes.txt", paths: ["notes.txt"], to: "review@example.test", subject: "Review", body: "Notes" },
@@ -242,7 +242,7 @@ test("direct upload rejects aggregate attachment bytes above 4 MiB with no netwo
   await writeFile(join(root, "part-b.bin"), Buffer.alloc(2 * 1024 * 1024));
   let networkCalls = 0;
 
-  await expect(callOpenWorkCloudUploadAction(
+  await expect(callHarnessCloudUploadAction(
     testConfig(root),
     "gmail_create_draft_with_attachments",
     {
@@ -270,7 +270,7 @@ test("direct upload rejects symlinks that resolve outside authorized roots", asy
   await symlink(join(outside, "secret.txt"), join(root, "linked.txt"));
   let fetchCalled = false;
 
-  await expect(callOpenWorkCloudUploadAction(
+  await expect(callHarnessCloudUploadAction(
     testConfig(root),
     "drive_upload_file",
     { path: "linked.txt" },
@@ -292,7 +292,7 @@ test.each(["before-files", "during-credentials"])("Gmail cancellation %s prevent
   const controller = new AbortController();
   let remoteCalls = 0;
   if (when === "before-files") controller.abort();
-  await expect(callOpenWorkCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
+  await expect(callHarnessCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
     to: "recipient@example.com", subject: "Review", body: "Please review.", paths: ["notes.txt"],
   }, { directory: root }, {
     signal: controller.signal,
@@ -307,7 +307,7 @@ test("Gmail cancellation reaches an already dispatched multipart request without
   await writeFile(join(root, "notes.txt"), "notes");
   const controller = new AbortController();
   let remoteCalls = 0;
-  await expect(callOpenWorkCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
+  await expect(callHarnessCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
     to: "recipient@example.com", subject: "Review", body: "Please review.", paths: ["notes.txt"],
   }, { directory: root }, {
     signal: controller.signal,
@@ -327,20 +327,20 @@ test("Gmail transport preserves cloud rejection codes without asserting no creat
   const root = await tempRoot();
   await writeFile(join(root, "notes.txt"), "notes");
   for (const { status, error } of [{ status: 409, error: "needs_connection" }, { status: 502, error: "google_api_error" }]) {
-    await expect(callOpenWorkCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
+    await expect(callHarnessCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
       to: "recipient@example.com", subject: "Review", body: "Please review.", paths: ["notes.txt"],
     }, { directory: root }, {
       readCloudMcp: async () => cloudMcp(),
       fetchImpl: async () => Response.json({ error, message: "Actionable error." }, { status }),
-    })).rejects.toMatchObject({ status, code: "cloud_upload_failed", details: { upstreamCode: error }, message: "OpenWork Cloud could not upload the file: Actionable error." });
+    })).rejects.toMatchObject({ status, code: "cloud_upload_failed", details: { upstreamCode: error }, message: "Harness Cloud could not upload the file: Actionable error." });
   }
 });
 
 test("Gmail idle cancels the real loopback request before remote multipart dispatch", async () => {
   const root = await tempRoot();
   await writeFile(join(root, "notes.txt"), "notes");
-  const previousUrl = process.env.OPENWORK_SERVER_URL;
-  const previousToken = process.env.OPENWORK_SERVER_TOKEN;
+  const previousUrl = process.env.HARNESS_SERVER_URL;
+  const previousToken = process.env.HARNESS_SERVER_TOKEN;
   let markPreparing: () => void = () => {};
   const preparing = new Promise<void>((resolve) => { markPreparing = resolve; });
   let markFinished: () => void = () => {};
@@ -353,7 +353,7 @@ test("Gmail idle cancels the real loopback request before remote multipart dispa
     async fetch(request) {
       await request.json();
       try {
-        return Response.json(await callOpenWorkCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
+        return Response.json(await callHarnessCloudUploadAction(testConfig(root), "gmail_create_draft_with_attachments", {
           ...fields, paths: ["notes.txt"],
         }, { directory: root }, {
           signal: request.signal,
@@ -373,11 +373,11 @@ test("Gmail idle cancels the real loopback request before remote multipart dispa
     },
   });
   try {
-    process.env.OPENWORK_SERVER_URL = `http://127.0.0.1:${server.port}`;
-    process.env.OPENWORK_SERVER_TOKEN = "fixture-host-token";
-    const plugin = await OpenWorkExtensionsPreview({ directory: root }, {});
+    process.env.HARNESS_SERVER_URL = `http://127.0.0.1:${server.port}`;
+    process.env.HARNESS_SERVER_TOKEN = "fixture-host-token";
+    const plugin = await HarnessExtensionsPreview({ directory: root }, {});
     const input = {
-      tool: "openwork-cloud_execute_capability", sessionID: "ses_cancel", callID: "call_cancel",
+      tool: "harness-cloud_execute_capability", sessionID: "ses_cancel", callID: "call_cancel",
       args: { name: "native:emc_selected:postCapabilitiesGoogleWorkspaceGmailDrafts", body: { ...fields, attachments: ["notes.txt"] } },
     };
     const output = { content: [{ type: "text", text: JSON.stringify({ ok: false, error: "file_input_requires_host", created: false, message: "Host upload required." }) }] };
@@ -391,9 +391,9 @@ test("Gmail idle cancels the real loopback request before remote multipart dispa
     await expect(plugin["tool.execute.after"](input, output)).rejects.toThrow("already attempted");
   } finally {
     server.stop(true);
-    if (previousUrl === undefined) delete process.env.OPENWORK_SERVER_URL;
-    else process.env.OPENWORK_SERVER_URL = previousUrl;
-    if (previousToken === undefined) delete process.env.OPENWORK_SERVER_TOKEN;
-    else process.env.OPENWORK_SERVER_TOKEN = previousToken;
+    if (previousUrl === undefined) delete process.env.HARNESS_SERVER_URL;
+    else process.env.HARNESS_SERVER_URL = previousUrl;
+    if (previousToken === undefined) delete process.env.HARNESS_SERVER_TOKEN;
+    else process.env.HARNESS_SERVER_TOKEN = previousToken;
   }
 });

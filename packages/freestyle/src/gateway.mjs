@@ -5,9 +5,9 @@ import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 
-const cookieName = "__Host-openwork-preview";
-const configPath = process.env.OPENWORK_PREVIEW_ACCESS_FILE ?? "/opt/openwork-preview/access.json";
-const upstreamPort = Number(process.env.OPENWORK_PREVIEW_UPSTREAM_PORT ?? 5178);
+const cookieName = "__Host-harness-preview";
+const configPath = process.env.HARNESS_PREVIEW_ACCESS_FILE ?? "/opt/harness-preview/access.json";
+const upstreamPort = Number(process.env.HARNESS_PREVIEW_UPSTREAM_PORT ?? 5178);
 
 function equal(left, right) {
   if (typeof left !== "string" || typeof right !== "string") return false;
@@ -30,7 +30,7 @@ async function target(req, auth) {
   if (!auth?.config.origins) return { hostname: "127.0.0.1", port: upstreamPort };
   let name = Object.entries(auth.config.origins).find(([, origin]) => origin === `https://${req.headers.host}`)?.[0];
   if (!name) throw new Error("Unknown preview service");
-  const services = JSON.parse(await readFile(process.env.OPENWORK_PREVIEW_SERVICES_FILE ?? "/opt/openwork-preview/services.json", "utf8"));
+  const services = JSON.parse(await readFile(process.env.HARNESS_PREVIEW_SERVICES_FILE ?? "/opt/harness-preview/services.json", "utf8"));
   let path = req.url;
   if ((name === "app" || name === "den") && /^\/api\/den(?:\/|\?|$)/.test(path)) {
     name = "api";
@@ -86,7 +86,7 @@ export const server = createServer(async (req, res) => {
   res.setHeader("x-robots-tag", "noindex, nofollow, noarchive");
   const auth = await access(req);
   const url = new URL(req.url, "http://localhost");
-  if (url.pathname === "/__openwork_launch" && req.method === "GET" && auth
+  if (url.pathname === "/__harness_launch" && req.method === "GET" && auth
     && equal(url.searchParams.get("token"), auth.config.token)) {
     const seconds = Math.max(0, Math.floor((Date.parse(auth.config.expiresAt) - Date.now()) / 1000));
     res.writeHead(303, {
@@ -146,4 +146,4 @@ server.on("upgrade", async (req, socket, head) => {
   upstream.end();
 });
 
-server.listen(Number(process.env.OPENWORK_PREVIEW_GATEWAY_PORT ?? 8080), "0.0.0.0");
+server.listen(Number(process.env.HARNESS_PREVIEW_GATEWAY_PORT ?? 8080), "0.0.0.0");

@@ -1,4 +1,4 @@
-# OpenWork Corporate Contributor License Agreement
+# Harness Corporate Contributor License Agreement
 
 This version of the Agreement allows an entity (the "Corporation") to submit
 Contributions to Different AI, Inc., to authorize Contributions submitted by
@@ -42,7 +42,7 @@ in and to its Contributions.
    sublicense, and distribute the Corporation's Contributions and such
    derivative works. For clarity, this includes the right to distribute the
    Contributions under the licenses applicable to the Work — including the
-   OpenWork EE License's scheduled conversion of each released version to the
+   Harness EE License's scheduled conversion of each released version to the
    MIT license — and under such other license terms as Different AI, Inc.
    applies to the Work.
 

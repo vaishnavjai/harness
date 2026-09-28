@@ -1,5 +1,5 @@
 import type { DenBootstrapConfig } from "./den";
-import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@openwork/types/den/desktop-policies";
+import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@harness/types/den/desktop-policies";
 import type { DesktopDistributionInfo } from "./desktop";
 
 type ActivationBootstrap = Pick<DenBootstrapConfig, "requireActivation" | "enterpriseActivation">;

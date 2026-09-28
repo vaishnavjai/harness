@@ -1,9 +1,9 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { control, evalIn, go, listSessions, seedSessions, waitFor } from "@openwork/behaviors";
-import type { Surface } from "@openwork/cdp";
-import { setViewport } from "@openwork/cdp";
-import { screenshot } from "@openwork/test-evidence";
+import { control, evalIn, go, listSessions, seedSessions, waitFor } from "@harness/behaviors";
+import type { Surface } from "@harness/cdp";
+import { setViewport } from "@harness/cdp";
+import { screenshot } from "@harness/test-evidence";
 import {
   localMysqlIsRunning,
   localRedisIsRunning,
@@ -13,17 +13,17 @@ import {
   createOrg,
   server,
   test,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 
-const e2eTestsEnabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-const daytonaEnabled = process.env.OPENWORK_EVAL_DAYTONA === "1";
-const configuredDen = Boolean(process.env.OPENWORK_EVAL_DEN_API_URL?.trim());
+const e2eTestsEnabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
+const daytonaEnabled = process.env.HARNESS_EVAL_DAYTONA === "1";
+const configuredDen = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
 const localServicesRequired = !daytonaEnabled && !configuredDen;
 const mysqlOpen = await localMysqlIsRunning();
 const redisOpen = await localRedisIsRunning();
 const runnable = e2eTestsEnabled && (!localServicesRequired || (mysqlOpen && redisOpen));
 const skipSuffix = !e2eTestsEnabled
-  ? " skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1"
+  ? " skipped — needs: set HARNESS_EVAL_E2E_TESTS=1"
   : localServicesRequired && !mysqlOpen
     ? " skipped — needs MySQL on 127.0.0.1:3306"
     : localServicesRequired && !redisOpen
@@ -111,7 +111,7 @@ test.skipIf(!runnable)(
   `narrow session panes stay selectable, synchronized, and inside the viewport${skipSuffix}`,
   { timeout: 600_000 },
   async ({ evidence, place }) => {
-    needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+    needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
 
     await using stack = new AsyncDisposableStack();
     const den = stack.use(await server({ place, provision: false, web: true }));

@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import { currentTestEvidence } from "@openwork/test-evidence";
+import { spec } from "@harness/testkit";
+import { currentTestEvidence } from "@harness/test-evidence";
 import { queuedFollowUps } from "../worlds/session-draft.ts";
 
 const test = spec.world(queuedFollowUps, {
@@ -15,7 +15,7 @@ function assertObserved(assertion: string, observed: Record<string, unknown>, pa
 
 // Busy Enter queues ("Send when agent finishes"); Cmd/Ctrl+Enter would steer.
 const enter = "Enter";
-const draftsKey = "openwork.session-drafts.v2";
+const draftsKey = "harness.session-drafts.v2";
 
 type StoredDrafts = { text: string; queued: string[] }[];
 

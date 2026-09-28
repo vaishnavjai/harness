@@ -1,7 +1,7 @@
-import { denFetch, signIn } from "@openwork/behaviors";
-import type { DenFetchResult, DenRef, DenSession } from "@openwork/behaviors";
-import { eventually, needs, test, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { denFetch, signIn } from "@harness/behaviors";
+import type { DenFetchResult, DenRef, DenSession } from "@harness/behaviors";
+import { eventually, needs, test, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 import { expect } from "vitest";
 
 // Live lane: the production Den is attached and never owned by this spec. The
@@ -14,8 +14,8 @@ import { expect } from "vitest";
 const AGENTMAIL_API_URL = "https://api.agentmail.to/v0";
 const MAX_AGENTMAIL_INBOXES = 2;
 const requirements: TestNeeds = {
-  optIn: ["OPENWORK_EVAL_LIVE"],
-  env: ["OPENWORK_EVAL_LIVE_DEN_API_URL", "AGENTMAIL_API_KEY"],
+  optIn: ["HARNESS_EVAL_LIVE"],
+  env: ["HARNESS_EVAL_LIVE_DEN_API_URL", "AGENTMAIL_API_KEY"],
 };
 const missingRequirements = unmetNeeds(requirements, process.env);
 const title = missingRequirements.length > 0
@@ -330,13 +330,13 @@ async function deleteCreatedOrganization(session: DenSession, organizationId: st
 
 test(title, { timeout: 240_000 }, async ({ evidence }) => {
   needs(requirements);
-  const apiUrl = requiredEnv("OPENWORK_EVAL_LIVE_DEN_API_URL").replace(/\/+$/, "");
+  const apiUrl = requiredEnv("HARNESS_EVAL_LIVE_DEN_API_URL").replace(/\/+$/, "");
   const agentMailApiKey = requiredEnv("AGENTMAIL_API_KEY");
-  const webUrl = apiUrl === "https://api.openworklabs.com" ? "https://app.openworklabs.com" : apiUrl;
+  const webUrl = apiUrl === "https://api.harness.invalid" ? "https://app.harness.invalid" : apiUrl;
   const den: DenRef = { apiUrl, webUrl };
   const runStartedAt = new Date().toISOString();
   const timestamp = runStartedAt.replace(/\D/g, "");
-  const runPrefix = `openwork-live-${timestamp}`;
+  const runPrefix = `harness-live-${timestamp}`;
   const password = `ProdLive-${timestamp}!`;
   const organizationName = `Prod Live ${timestamp}`;
   const agentMailInboxes: AgentMailInbox[] = [];
@@ -384,8 +384,8 @@ test(title, { timeout: 240_000 }, async ({ evidence }) => {
       agentMailApiKey,
       ownerInbox,
       runStartedAt,
-      `OpenWork verification email in ${ownerInbox.email}`,
-      (message) => message.subject.toLowerCase().includes("openwork verification code"),
+      `Harness verification email in ${ownerInbox.email}`,
+      (message) => message.subject.toLowerCase().includes("harness verification code"),
     );
     const verified = await denFetch(den, "/api/auth/email-otp/verify-email", {
       method: "POST",
@@ -417,7 +417,7 @@ test(title, { timeout: 240_000 }, async ({ evidence }) => {
       agentMailApiKey,
       inviteeM1Inbox,
       runStartedAt,
-      `OpenWork organization invitation in ${inviteeM1Inbox.email}`,
+      `Harness organization invitation in ${inviteeM1Inbox.email}`,
       (message) => message.subject.includes(organizationName)
         && message.subject.toLowerCase().includes("invited")
         && message.to.some((recipient) => recipient.toLowerCase().includes(createdIdentity.invitees[0].toLowerCase())),

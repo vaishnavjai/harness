@@ -6,7 +6,7 @@ import { startDesktop } from "./desktop.mjs";
 import { inspectDesktop } from "./desktop-state.mjs";
 
 export async function bootDesktopOnly(stack, { start = startDesktop, inspect = inspectDesktop, write = writeFile } = {}) {
-  const root = "/opt/openwork-preview";
+  const root = "/opt/harness-preview";
   try {
     const desktop = await start(stack);
     await desktop.ready;

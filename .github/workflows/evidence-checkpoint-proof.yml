@@ -31,5 +31,5 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11.4.0
-      - run: pnpm --filter @openwork/freestyle... install --frozen-lockfile --ignore-scripts
-      - run: pnpm --filter @openwork/freestyle test
+      - run: pnpm --filter @harness/freestyle... install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @harness/freestyle test

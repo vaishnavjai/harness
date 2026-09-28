@@ -29,7 +29,7 @@ test("recovers the first move across paginated history and persists the home acr
   expect(paths).toHaveLength(2);
   const reopened = createV2SessionHomes(config, async () => { throw new Error("History must not be rescanned"); });
   expect(await reopened.resolve(session)).toBe("/home/original");
-  expect(await reopened.project({ info: session })).toEqual({ info: { ...session, openworkHomeDirectory: "/home/original" } });
+  expect(await reopened.project({ info: session })).toEqual({ info: { ...session, harnessHomeDirectory: "/home/original" } });
 });
 
 test("children created after a move inherit the parent's home, not a forged client label", async () => {
@@ -38,7 +38,7 @@ test("children created after a move inherit the parent's home, not a forged clie
   const homes = createV2SessionHomes(config, async () => parent);
   await homes.remember(parent.id, "/home/parent");
   expect(await homes.resolve({ id: "ses_child", parentID: parent.id, location: parent.location,
-    openworkHomeDirectory: "/foreign" })).toBe("/home/parent");
+    harnessHomeDirectory: "/foreign" })).toBe("/home/parent");
 });
 
 test("failed history reads cannot bind a moved session to its current folder", async () => {
@@ -80,14 +80,14 @@ test("the proxy keeps moved history, actions, active state and events in the hom
     return Response.json({ data: { interrupted: true } });
   } });
   const call = (path: string, method = "GET", workspace = home) => {
-    const request = new Request(`http://openwork.test${path}`, { method });
+    const request = new Request(`http://harness.test${path}`, { method });
     return proxyOpencodeV2Request({ config, workspace, request, url: new URL(request.url), proxyPath: `/opencode2${path}`,
       actor: { type: "host", scope: "owner" }, connection: { url: `http://127.0.0.1:${native.port}`, username: "opencode", password: "test" },
     });
   };
   try {
     const first = await call("/api/session");
-    expect(await first.json()).toMatchObject({ data: [{ id: "ses_moved", openworkHomeDirectory: home.path }] });
+    expect(await first.json()).toMatchObject({ data: [{ id: "ses_moved", harnessHomeDirectory: home.path }] });
     expect((await call("/api/session/ses_moved")).status).toBe(200);
     expect((await call("/api/session/ses_moved/interrupt", "POST")).status).toBe(200);
     expect(actions).toEqual([{ path: "/api/session/ses_moved/interrupt", directory: destination }]);
@@ -100,7 +100,7 @@ test("the proxy keeps moved history, actions, active state and events in the hom
     expect(stream).toContain('"session.execution.interrupted"');
     expect(stream).toContain('"session.deleted"');
     expect(stream).not.toContain("ses_foreign");
-    expect(stream).toContain(`"openworkHomeDirectory":${JSON.stringify(home.path)}`);
+    expect(stream).toContain(`"harnessHomeDirectory":${JSON.stringify(home.path)}`);
   } finally { native.stop(true); }
 });
 
@@ -148,7 +148,7 @@ test("moved questions and approvals are recovered by home, with nested form even
     return new Response(null, { status: 204 });
   } });
   const call = (path: string, method = "GET", workspace = home) => {
-    const request = new Request(`http://openwork.test${path}`, { method });
+    const request = new Request(`http://harness.test${path}`, { method });
     return proxyOpencodeV2Request({ config, workspace, request, url: new URL(request.url), proxyPath: `/opencode2${path}`,
       actor: { type: "host", scope: "owner" }, connection: { url: `http://127.0.0.1:${native.port}`, username: "opencode", password: "test" },
     });

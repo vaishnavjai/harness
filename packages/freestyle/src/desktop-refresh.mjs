@@ -10,7 +10,7 @@ export async function refreshDesktop(sha, {
 } = {}) {
   if (!/^[a-f0-9]{40}$/.test(sha ?? "") || head() !== sha) throw new Error("Desktop refresh requires the exact checked-out commit");
   await inspect({ reload: true });
-  const root = "/opt/openwork-preview";
+  const root = "/opt/harness-preview";
   const marker = JSON.parse(await read(`${root}/ready-world`, "utf8"));
   await write(`${root}/ready-world`, JSON.stringify({ ...marker, warmedAt: new Date().toISOString() }));
   await write(`${root}/source-sha`, sha);

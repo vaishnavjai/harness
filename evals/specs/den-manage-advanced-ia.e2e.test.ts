@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import { adminDashboardWeb } from "../worlds/den-admin-navigation.ts";
 

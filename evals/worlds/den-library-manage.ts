@@ -1,9 +1,9 @@
-import { allocateFreePorts, connect, debuggerUrlFor, listTargets } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
-import { faultProxy as startFaultProxy } from "@openwork/env";
-import type { DenSession } from "@openwork/behaviors";
-import type { Place, Seed } from "@openwork/env";
-import type { MockMcpTool } from "@openwork/labs";
+import { allocateFreePorts, connect, debuggerUrlFor, listTargets } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
+import { faultProxy as startFaultProxy } from "@harness/env";
+import type { DenSession } from "@harness/behaviors";
+import type { Place, Seed } from "@harness/env";
+import type { MockMcpTool } from "@harness/labs";
 import { isRecord, records, stringField } from "./library.ts";
 
 const people = {

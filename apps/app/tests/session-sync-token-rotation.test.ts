@@ -19,7 +19,7 @@ import { getReactQueryClient } from "../src/react-app/infra/query-client";
 type SyncInput = {
   workspaceId: string;
   baseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
 };
 
 type LiveSubscription = {
@@ -38,8 +38,8 @@ const syncInputs: SyncInput[] = [];
 const liveSubscriptions: LiveSubscription[] = [];
 let authRejections = 0;
 
-function createSyncInput(openworkToken: string): SyncInput {
-  const input = { workspaceId, baseUrl, openworkToken };
+function createSyncInput(harnessToken: string): SyncInput {
+  const input = { workspaceId, baseUrl, harnessToken };
   syncInputs.push(input);
   return input;
 }

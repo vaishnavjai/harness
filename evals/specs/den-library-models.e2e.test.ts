@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { denLibraryModels } from "../worlds/den-library-models.ts";
 
 // Models live in My Library, next to connectors, skills and plugins. A model
@@ -79,7 +79,7 @@ test("a member: I want to use Gemini, so I sign in with my own Google account ri
     const google = await world.googleAnswers(tab, "approve");
     await user.on(tab).see({ role: "button", label: "Continue to Google" }, { timeoutMs: 60_000 });
     await user.on(tab).click({ role: "button", label: "Continue to Google" });
-    await user.on(tab).see({ text: /is connected to OpenWork/ }, { timeoutMs: 60_000 });
+    await user.on(tab).see({ text: /is connected to Harness/ }, { timeoutMs: 60_000 });
     const [request] = google.seen();
     evidence.recordAssertionEvidence(
       "Google was asked to show its account chooser for this organization's OAuth client",

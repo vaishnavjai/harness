@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import type { ConnectionActionIntent } from "@openwork/types/connection-action-app";
+import type { ConnectionActionIntent } from "@harness/types/connection-action-app";
 import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -22,9 +22,9 @@ import { addMcp, listMcp } from "./mcp.js";
 import {
   CONNECT_MCP_SERVER_INDEX_URI,
   connectMcpAppHostName,
-  readOpenWorkConnectMcpAppHostCatalog,
-  writeOpenWorkConnectMcpAppHostAuthorization,
-  writeOpenWorkConnectMcpAppHostCatalog,
+  readHarnessConnectMcpAppHostCatalog,
+  writeHarnessConnectMcpAppHostAuthorization,
+  writeHarnessConnectMcpAppHostCatalog,
 } from "./connect-mcp-server-catalog.js";
 import { ENGINE_GLOBAL_RUNTIME_CONFIG_ID, readRuntimeOpencodeConfig, runtimeMcpMap, writeRuntimeOpencodeConfig, writeGlobalRuntimeOpencodeConfig } from "./runtime-opencode-config-store.js";
 import {
@@ -74,13 +74,13 @@ function serverConfig(root: string): ServerConfig {
   };
 }
 
-const CONNECTION_RESOURCE = "ui://openwork/connection-action/v2/view.html";
+const CONNECTION_RESOURCE = "ui://harness/connection-action/v2/view.html";
 const connectionIntent: ConnectionActionIntent = {
   schemaVersion: "1", kind: "connection_action_intent", action: "authenticate",
   connection: {
     schemaVersion: "1", connectionId: "conn_fixture", connectionName: "Fixture",
     state: "needs_connection", actor: "member", message: "Sign in",
-    action: { type: "connect", label: "Connect", surface: "openwork_your_connections" },
+    action: { type: "connect", label: "Connect", surface: "harness_your_connections" },
   },
 };
 type ConnectionFixtureOptions = {
@@ -276,7 +276,7 @@ async function startFixtureMcp(
               uri: CONNECT_MCP_SERVER_INDEX_URI,
               mimeType: "application/json",
               text: JSON.stringify({
-                schemaVersion: "openwork.connect/mcp-servers/1",
+                schemaVersion: "harness.connect/mcp-servers/1",
                 servers: [{
                   connectionId,
                   name: "Fixture provider",
@@ -348,17 +348,17 @@ async function configuredFixture(
   removeLaunch: () => void;
 }> {
   const root = await mkdtemp(join(tmpdir(), prefix));
-  const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
-  const previousDevMode = process.env.OPENWORK_DEV_MODE;
+  const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
+  const previousDevMode = process.env.HARNESS_DEV_MODE;
   const previousConfigDir = process.env.OPENCODE_CONFIG_DIR;
   process.env.OPENCODE_CONFIG_DIR = join(root, "isolated-opencode");
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
-  process.env.OPENWORK_DEV_MODE = "1";
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_DEV_MODE = "1";
   stops.push(async () => {
-    if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-    else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
-    if (previousDevMode === undefined) delete process.env.OPENWORK_DEV_MODE;
-    else process.env.OPENWORK_DEV_MODE = previousDevMode;
+    if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+    else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
+    if (previousDevMode === undefined) delete process.env.HARNESS_DEV_MODE;
+    else process.env.HARNESS_DEV_MODE = previousDevMode;
     if (previousConfigDir === undefined) delete process.env.OPENCODE_CONFIG_DIR;
     else process.env.OPENCODE_CONFIG_DIR = previousConfigDir;
     await rm(root, { recursive: true, force: true });
@@ -377,18 +377,18 @@ async function configuredFixture(
       ...current,
       mcp: {
         ...runtimeMcpMap(current),
-        "openwork-cloud": {
+        "harness-cloud": {
           ...mcpConfig,
           url: fixture.catalogUrl,
           headers: { Authorization: "Bearer member-token" },
         },
       },
     }));
-    await writeOpenWorkConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
-      schemaVersion: "openwork.connect/mcp-servers/1",
+    await writeHarnessConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
+      schemaVersion: "harness.connect/mcp-servers/1",
       servers: [{ connectionId, name: "Fixture provider", description: null, url: fixture.url }],
     });
-    await writeOpenWorkConnectMcpAppHostAuthorization(
+    await writeHarnessConnectMcpAppHostAuthorization(
       config,
       WORKSPACE_ID,
       "Bearer app-host-token",
@@ -441,7 +441,7 @@ async function fixtureDashboardLaunch(config: ServerConfig, root: string) {
   };
 }
 
-async function connectionFixture(options: ConnectionFixtureOptions = {}, serverName = "openwork-cloud", readOnly = false) {
+async function connectionFixture(options: ConnectionFixtureOptions = {}, serverName = "harness-cloud", readOnly = false) {
   const fixture = await configuredFixture("mcp-connection-action-", undefined, serverName, undefined, { endpoint: "/mcp/agent", ...options });
   const app = await resolveSameServerMcpAppResource({
     serverConfig: fixture.config, workspaceId: WORKSPACE_ID, workspaceRoot: fixture.root,
@@ -458,14 +458,14 @@ async function connectionFixture(options: ConnectionFixtureOptions = {}, serverN
 
 describe("connection action host authorization", () => {
   test("canonical origin, configured identity and exact binding are mandatory", async () => {
-    for (const serverName of ["openwork-cloud", "openwork"]) {
-      expect(await supportsHostConnectionActions(serverName, { url: "https://api.openworklabs.com/mcp/agent" }, "connection_action", CONNECTION_RESOURCE)).toBe(true);
+    for (const serverName of ["harness-cloud", "harness"]) {
+      expect(await supportsHostConnectionActions(serverName, { url: "https://api.harness.invalid/mcp/agent" }, "connection_action", CONNECTION_RESOURCE)).toBe(true);
     }
-    for (const url of ["https://foreign.invalid/mcp/agent", "https://api.openworklabs.com/mcp/agent/connections/conn_fixture", "https://api.openworklabs.com/api/den/mcp/agent", "https://api.openworklabs.com/mcp/agent?forged=true"]) {
-      expect(await supportsHostConnectionActions("openwork-cloud", { url, hostConnectionActions: true }, "connection_action", CONNECTION_RESOURCE)).toBe(false);
+    for (const url of ["https://foreign.invalid/mcp/agent", "https://api.harness.invalid/mcp/agent/connections/conn_fixture", "https://api.harness.invalid/api/den/mcp/agent", "https://api.harness.invalid/mcp/agent?forged=true"]) {
+      expect(await supportsHostConnectionActions("harness-cloud", { url, hostConnectionActions: true }, "connection_action", CONNECTION_RESOURCE)).toBe(false);
     }
-    expect(await supportsHostConnectionActions("foreign", { url: "https://api.openworklabs.com/mcp/agent" }, "connection_action", CONNECTION_RESOURCE)).toBe(false);
-    expect(await supportsHostConnectionActions("openwork-cloud", { url: "https://api.openworklabs.com/mcp/agent" }, "other", CONNECTION_RESOURCE)).toBe(false);
+    expect(await supportsHostConnectionActions("foreign", { url: "https://api.harness.invalid/mcp/agent" }, "connection_action", CONNECTION_RESOURCE)).toBe(false);
+    expect(await supportsHostConnectionActions("harness-cloud", { url: "https://api.harness.invalid/mcp/agent" }, "other", CONNECTION_RESOURCE)).toBe(false);
   });
 
   test("approved authenticate and skip call the real helper before promoting validated content", async () => {
@@ -491,7 +491,7 @@ describe("connection action host authorization", () => {
   });
 
   test("foreign same-URI and proxy apps cannot forge host support or host actions", async () => {
-    for (const entry of [{ name: "foreign", endpoint: "/mcp/agent" }, { name: "openwork-cloud", endpoint: "/mcp/agent/connections/conn_fixture" }]) {
+    for (const entry of [{ name: "foreign", endpoint: "/mcp/agent" }, { name: "harness-cloud", endpoint: "/mcp/agent/connections/conn_fixture" }]) {
       const fixture = await connectionFixture({ endpoint: entry.endpoint }, entry.name);
       expect(fixture.app.hostConnectionActions).toBeUndefined();
       const result = await callMcpAppTool(fixture.request);
@@ -528,7 +528,7 @@ describe("connection action host authorization", () => {
   });
 
   test("read-only, released, and mismatched session or engine leases deny execution", async () => {
-    const readOnly = await connectionFixture({}, "openwork-cloud", true);
+    const readOnly = await connectionFixture({}, "harness-cloud", true);
     await expect(callMcpAppTool(readOnly.request)).rejects.toMatchObject({ code: "missing_launch_context" });
     expect(readOnly.calls).toHaveLength(0);
     const fixture = await connectionFixture();
@@ -568,7 +568,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("negotiates and resolves one fixed remote MCP App fixture", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-");
+    const { config, root } = await configuredFixture("harness-mcp-app-host-");
 
     const app = await resolveMcpAppResource({
       serverConfig: config,
@@ -588,7 +588,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("lists cold-launchable MCP Apps with their input requirements", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-catalog-");
+    const { config, root } = await configuredFixture("harness-mcp-app-catalog-");
 
     const servers = await listMcpAppCatalog({
       serverConfig: config,
@@ -623,7 +623,7 @@ describe("MCP Apps host transport", () => {
     const connectionId = "emc_01mcpappcatalogfixture";
     const serverName = connectMcpAppHostName(connectionId);
     const { config, root } = await configuredFixture(
-      "openwork-mcp-app-catalog-connect-",
+      "harness-mcp-app-catalog-connect-",
       undefined,
       serverName,
       connectionId,
@@ -653,7 +653,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("reports an unreachable server in the MCP App catalog instead of failing it", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-catalog-ghost-");
+    const { config, root } = await configuredFixture("harness-mcp-app-catalog-ghost-");
     await addMcp(config, WORKSPACE_ID, "ghost", { type: "remote", url: "http://127.0.0.1:9/", enabled: true });
 
     const servers = await listMcpAppCatalog({
@@ -673,7 +673,7 @@ describe("MCP Apps host transport", () => {
     const connectionId = "emc_01mcpappgatewayfixture";
     const serverName = connectMcpAppHostName(connectionId);
     const { config, root, catalogReads } = await configuredFixture(
-      "openwork-mcp-app-host-gateway-",
+      "harness-mcp-app-host-gateway-",
       undefined,
       serverName,
       connectionId,
@@ -696,7 +696,7 @@ describe("MCP Apps host transport", () => {
       resourceUri: RESOURCE_URI,
       html: RESOURCE_HTML,
     });
-    expect(Object.keys(runtimeMcpMap(await readRuntimeOpencodeConfig(config, WORKSPACE_ID)))).toEqual(["openwork-cloud"]);
+    expect(Object.keys(runtimeMcpMap(await readRuntimeOpencodeConfig(config, WORKSPACE_ID)))).toEqual(["harness-cloud"]);
     expect(catalogReads()).toBe(0);
   });
 
@@ -704,13 +704,13 @@ describe("MCP Apps host transport", () => {
     const connectionId = "emc_01mcpappgatewayrefresh";
     const serverName = connectMcpAppHostName(connectionId);
     const { config, root, catalogReads } = await configuredFixture(
-      "openwork-mcp-app-host-gateway-refresh-",
+      "harness-mcp-app-host-gateway-refresh-",
       undefined,
       serverName,
       connectionId,
     );
-    await writeOpenWorkConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
-      schemaVersion: "openwork.connect/mcp-servers/1",
+    await writeHarnessConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
+      schemaVersion: "harness.connect/mcp-servers/1",
       servers: [],
     });
 
@@ -731,20 +731,20 @@ describe("MCP Apps host transport", () => {
       resourceUri: RESOURCE_URI,
       html: RESOURCE_HTML,
     });
-    expect((await readOpenWorkConnectMcpAppHostCatalog(config, WORKSPACE_ID)).servers[0]?.connectionId).toBe(connectionId);
+    expect((await readHarnessConnectMcpAppHostCatalog(config, WORKSPACE_ID)).servers[0]?.connectionId).toBe(connectionId);
     expect(catalogReads()).toBe(1);
   });
 
   test("rejects a stale private catalog endpoint outside the credential's trusted origin", async () => {
     const connectionId = "emc_01mcpappcrossorigin";
     const { config, root } = await configuredFixture(
-      "openwork-mcp-app-host-cross-origin-",
+      "harness-mcp-app-host-cross-origin-",
       undefined,
       connectMcpAppHostName(connectionId),
       connectionId,
     );
-    await writeOpenWorkConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
-      schemaVersion: "openwork.connect/mcp-servers/1",
+    await writeHarnessConnectMcpAppHostCatalog(config, WORKSPACE_ID, {
+      schemaVersion: "harness.connect/mcp-servers/1",
       servers: [{
         connectionId,
         name: "Untrusted provider",
@@ -766,7 +766,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("resolves a same-server MCP App through its capability gateway", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-same-server-");
+    const { config, root } = await configuredFixture("harness-mcp-app-host-same-server-");
     const app = await resolveSameServerMcpAppResource({
       serverConfig: config,
       workspaceId: WORKSPACE_ID,
@@ -786,17 +786,17 @@ describe("MCP Apps host transport", () => {
   });
 
   test("resolves and calls account-scoped gateway Apps from the effective runtime configuration", async () => {
-    const { config, root, activateUpdatedResource } = await configuredFixture("openwork-mcp-app-global-gateway-");
+    const { config, root, activateUpdatedResource } = await configuredFixture("harness-mcp-app-global-gateway-");
     const fixture = (await listMcp(config, WORKSPACE_ID, root)).find(item => item.name === "fixture");
     if (!fixture) throw new Error("Fixture server missing");
-    await writeGlobalRuntimeOpencodeConfig(config, () => ({ mcp: { "openwork-cloud": fixture.config } }));
+    await writeGlobalRuntimeOpencodeConfig(config, () => ({ mcp: { "harness-cloud": fixture.config } }));
     const app = await resolveSameServerMcpAppResource({
       serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root,
-      projectedToolName: "openwork-cloud_model_only_fixture",
+      projectedToolName: "harness-cloud_model_only_fixture",
       context: { sessionId: null, readOnly: false },
       launch: { toolName: "read_bound_detail", resourceUri: RESOURCE_URI },
     });
-    expect(app).toMatchObject({ serverName: "openwork-cloud", html: RESOURCE_HTML });
+    expect(app).toMatchObject({ serverName: "harness-cloud", html: RESOURCE_HTML });
     await activateUpdatedResource();
     expect(await callMcpAppTool({
       serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root,
@@ -815,7 +815,7 @@ describe("MCP Apps host transport", () => {
   test("rejects a stale gateway launch when the native tool changes its resource binding", async () => {
     const connectionId = "emc_01mcpappgatewaystale";
     const { config, root, activateUpdatedResource } = await configuredFixture(
-      "openwork-mcp-app-host-gateway-stale-",
+      "harness-mcp-app-host-gateway-stale-",
       undefined,
       connectMcpAppHostName(connectionId),
       connectionId,
@@ -835,7 +835,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("treats a management tool without a UI resource as a normal result", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-management-");
+    const { config, root } = await configuredFixture("harness-mcp-app-host-management-");
 
     expect(await resolveMcpAppResource({
       serverConfig: config,
@@ -846,7 +846,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("refreshes the current tool definition before reading its exact resource", async () => {
-    const { config, root, activateUpdatedResource } = await configuredFixture("openwork-mcp-app-host-refresh-");
+    const { config, root, activateUpdatedResource } = await configuredFixture("harness-mcp-app-host-refresh-");
 
     const first = await resolveMcpAppResource({
       serverConfig: config,
@@ -867,7 +867,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("reports an advertised resource that resources/read cannot load", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-missing-");
+    const { config, root } = await configuredFixture("harness-mcp-app-host-missing-");
 
     await expect(resolveMcpAppResource({
       serverConfig: config,
@@ -878,7 +878,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("decodes a stable-spec blob-backed HTML resource", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-blob-", {
+    const { config, root } = await configuredFixture("harness-mcp-app-host-blob-", {
       blob: Buffer.from(RESOURCE_HTML, "utf8").toString("base64"),
     });
 
@@ -892,7 +892,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("rejects non-UTF-8 blob-backed HTML", async () => {
-    const invalidUtf8 = await configuredFixture("openwork-mcp-app-host-bad-utf8-", {
+    const invalidUtf8 = await configuredFixture("harness-mcp-app-host-bad-utf8-", {
       blob: Buffer.from([0xff]).toString("base64"),
     });
     await expect(resolveMcpAppResource({
@@ -904,7 +904,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("preserves an unreachable provider error for host diagnostics", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-host-unreachable-");
+    const { config, root } = await configuredFixture("harness-mcp-app-host-unreachable-");
     await stops.pop()?.();
 
     await expect(resolveMcpAppResource({
@@ -922,7 +922,7 @@ describe("MCP Apps host transport", () => {
     { error: new SseError(401, "https://private.invalid Authorization: Bearer secret body", new Event("error")), code: "mcp_auth_required" },
     { error: new SseError(403, "https://private.invalid Authorization: Bearer secret body", new Event("error")), code: "mcp_access_denied" },
   ])("classifies $code without retry, fallback, or provider disclosure ($error.name)", async ({ error, code }) => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-auth-");
+    const { config, root } = await configuredFixture("harness-mcp-app-auth-");
     const connect = spyOn(Client.prototype, "connect").mockRejectedValue(error);
     stops.push(() => { connect.mockRestore(); });
     const failure = await resolveMcpAppResource({
@@ -940,7 +940,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test.each([400, 404, 405])("preserves legacy initialize fallback for HTTP %i but stops on SSE auth denial", async (status) => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-legacy-auth-");
+    const { config, root } = await configuredFixture("harness-mcp-app-legacy-auth-");
     const connect = spyOn(Client.prototype, "connect")
       .mockRejectedValueOnce(new StreamableHTTPError(status, "legacy"))
       .mockRejectedValueOnce(new SseError(403, "private provider body", new Event("error")));
@@ -953,7 +953,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test.each([500, 502, 503])("keeps HTTP %i transient without SSE fallback", async (status) => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-transient-");
+    const { config, root } = await configuredFixture("harness-mcp-app-transient-");
     const connect = spyOn(Client.prototype, "connect").mockRejectedValue(new StreamableHTTPError(status, "private body"));
     stops.push(() => { connect.mockRestore(); });
     await expect(resolveMcpAppResource({
@@ -964,7 +964,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("HTTP auth status contract preserves 401 and 403 instead of 502", async () => {
-    const { config } = await configuredFixture("openwork-mcp-app-auth-route-");
+    const { config } = await configuredFixture("harness-mcp-app-auth-route-");
     const { startServer } = await import("./server.js");
     const server = await startServer(config);
     stops.push(() => server.stop());
@@ -987,7 +987,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("mediates explicitly read-only same-server tool calls", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-call-");
+    const { config, root } = await configuredFixture("harness-mcp-app-call-");
 
     const result = await callMcpAppTool({
       ...await fixtureLaunch(config, root),
@@ -1005,7 +1005,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("surfaces a provider argument rejection as a typed host error, not an unhandled failure", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-call-rejected-");
+    const { config, root } = await configuredFixture("harness-mcp-app-call-rejected-");
 
     // A dashboard tile launched with input that omits a required argument must
     // show the provider's rejection, which names the missing key, instead of
@@ -1036,7 +1036,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("mediates a resource-bound same-server tool for its exact MCP App", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-bound-call-");
+    const { config, root } = await configuredFixture("harness-mcp-app-bound-call-");
 
     const result = await callMcpAppTool({
       ...await fixtureLaunch(config, root),
@@ -1055,7 +1055,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("rejects a resource-bound tool call from a different MCP App", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-cross-resource-");
+    const { config, root } = await configuredFixture("harness-mcp-app-cross-resource-");
 
     await expect(callMcpAppTool({
       ...await fixtureLaunch(config, root),
@@ -1069,7 +1069,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("prevents sandboxed Apps from calling model-only tools", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-model-only-");
+    const { config, root } = await configuredFixture("harness-mcp-app-model-only-");
     await expect(callMcpAppTool({
       ...await fixtureLaunch(config, root),
       serverConfig: config,
@@ -1081,7 +1081,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("rejects same-server tools that require approval", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-write-");
+    const { config, root } = await configuredFixture("harness-mcp-app-write-");
     await expect(callMcpAppTool({
       ...await fixtureLaunch(config, root),
       serverConfig: config,
@@ -1093,7 +1093,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("calls an approved write tool on the exact originating server", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-approved-write-");
+    const { config, root } = await configuredFixture("harness-mcp-app-approved-write-");
     const result = await callMcpAppTool({
       ...await fixtureLaunch(config, root),
       serverConfig: config,
@@ -1111,8 +1111,8 @@ describe("MCP Apps host transport", () => {
   });
 
   test("rejects private MCP egress outside explicit development mode", async () => {
-    const { config, root } = await configuredFixture("openwork-mcp-app-private-");
-    delete process.env.OPENWORK_DEV_MODE;
+    const { config, root } = await configuredFixture("harness-mcp-app-private-");
+    delete process.env.HARNESS_DEV_MODE;
 
     await expect(resolveMcpAppResource({
       serverConfig: config,
@@ -1123,7 +1123,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("rejects missing, cross-workspace, cross-session, cross-host and released launch contexts without dispatch", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-origin-");
+    const { config, root, calls } = await configuredFixture("harness-app-origin-");
     const launch = await fixtureLaunch(config, root);
     const request = { serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root, serverName: "fixture", name: "read_detail", ...launch };
     await expect(callMcpAppTool({ ...request, launchId: undefined })).rejects.toMatchObject({ code: "missing_launch_context" });
@@ -1137,7 +1137,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("read-only and old-client resolutions render HTML but issue no actionable lease", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-readonly-");
+    const { config, root, calls } = await configuredFixture("harness-app-readonly-");
     for (const context of [undefined, { sessionId: "archived", readOnly: true }]) {
       const app = await resolveMcpAppResource({ serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root, projectedToolName: "fixture_render_fixture", context });
       expect(app?.html).toBe(RESOURCE_HTML);
@@ -1148,7 +1148,7 @@ describe("MCP Apps host transport", () => {
 
   test("unbound helpers cannot outlive the original launch tool or resource binding", async () => {
     for (const change of ["hideLaunch", "removeLaunch", "activateUpdatedResource"] as const) {
-      const current = await configuredFixture("openwork-app-original-binding-");
+      const current = await configuredFixture("harness-app-original-binding-");
       const launch = await fixtureLaunch(current.config, current.root);
       await current[change]();
       await expect(callMcpAppTool({ serverConfig: current.config, workspaceId: WORKSPACE_ID, workspaceRoot: current.root,
@@ -1158,7 +1158,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("unrelated provider, plugin and other MCP runtime edits preserve a live App lease", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-unrelated-runtime-");
+    const { config, root, calls } = await configuredFixture("harness-app-unrelated-runtime-");
     const launch = await fixtureLaunch(config, root);
     const original = (await readRuntimeOpencodeConfig(config, WORKSPACE_ID)).mcp?.fixture;
     if (!original) throw new Error("Missing fixture config");
@@ -1178,7 +1178,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test.each([WORKSPACE_ID, ENGINE_GLOBAL_RUNTIME_CONFIG_ID])("target MCP replacement/removal and restoration in %s invalidate its lease", async (scope) => {
-    const { config, root, calls } = await configuredFixture("openwork-app-config-replaced-");
+    const { config, root, calls } = await configuredFixture("harness-app-config-replaced-");
     const original = (await readRuntimeOpencodeConfig(config, WORKSPACE_ID)).mcp?.fixture;
     if (!original) throw new Error("Missing fixture config");
     if (scope === ENGINE_GLOBAL_RUNTIME_CONFIG_ID) {
@@ -1203,20 +1203,20 @@ describe("MCP Apps host transport", () => {
   test("private App-host authorization rotation invalidates the old launch", async () => {
     const connectionId = "emc_fixture_rotation";
     const serverName = connectMcpAppHostName(connectionId);
-    const { config, root, calls } = await configuredFixture("openwork-app-private-rotation-", undefined, serverName, connectionId);
+    const { config, root, calls } = await configuredFixture("harness-app-private-rotation-", undefined, serverName, connectionId);
     const app = await resolveConnectMcpAppResource({ serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root,
       context: { sessionId: "session-a", readOnly: false }, launch: { connectionId, toolName: "render_fixture", resourceUri: RESOURCE_URI } });
     const runtime = await readRuntimeOpencodeConfig(config, WORKSPACE_ID);
-    const url = runtime.mcp?.["openwork-cloud"]?.url;
+    const url = runtime.mcp?.["harness-cloud"]?.url;
     if (typeof url !== "string") throw new Error("Missing fixture URL");
-    await writeOpenWorkConnectMcpAppHostAuthorization(config, WORKSPACE_ID, "Bearer replacement-fixture", url);
+    await writeHarnessConnectMcpAppHostAuthorization(config, WORKSPACE_ID, "Bearer replacement-fixture", url);
     await expect(callMcpAppTool({ serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root,
       serverName, name: "read_detail", resourceUri: RESOURCE_URI, launchId: app.launchId, sessionId: "session-a" })).rejects.toMatchObject({ code: "stale_launch_context" });
     expect(calls).toEqual([]);
   });
 
   test("session validation and release during validation prevent the final provider dispatch", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-dispatch-gate-");
+    const { config, root, calls } = await configuredFixture("harness-app-dispatch-gate-");
     const launch = await fixtureLaunch(config, root);
     const request = { serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root, serverName: "fixture", name: "write_detail", approved: true, ...launch };
     await expect(callMcpAppTool({ ...request, assertSessionActive: undefined })).rejects.toMatchObject({ code: "inactive_session" });
@@ -1226,7 +1226,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("launch leases expire without allowing an approved dispatch", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-expired-");
+    const { config, root, calls } = await configuredFixture("harness-app-expired-");
     const launch = await fixtureLaunch(config, root);
     const now = Date.now();
     const clock = spyOn(Date, "now").mockReturnValue(now + 30 * 60_000 + 1);
@@ -1238,7 +1238,7 @@ describe("MCP Apps host transport", () => {
   });
 
   test("a stable local gateway name exposes changing private credential and connection generations only to the host", async () => {
-    const { config, root } = await configuredFixture("openwork-app-managed-identity-");
+    const { config, root } = await configuredFixture("harness-app-managed-identity-");
     const key = randomBytes(32);
     config.localManagedMcpVaultKey = async () => key;
     const url = `http://127.0.0.1:${config.port}/mcp/managed/${WORKSPACE_ID}/fixture`;
@@ -1246,7 +1246,7 @@ describe("MCP Apps host transport", () => {
     for (const [id, revision] of [["connection-a", "credential-a"], ["connection-a", "credential-b"], ["connection-b", "credential-b"]]) {
       const iv = randomBytes(12);
       const cipher = createCipheriv("aes-256-gcm", key, iv);
-      cipher.setAAD(Buffer.from("openwork-local-managed-mcp-v1", "utf8"));
+      cipher.setAAD(Buffer.from("harness-local-managed-mcp-v1", "utf8"));
       const payload = JSON.stringify({ schemaVersion: 1, connections: {
         [`${WORKSPACE_ID.length}:${WORKSPACE_ID}fixture`]: {
           id, workspaceId: WORKSPACE_ID, name: "fixture", serverUrl: "https://fixture.invalid/mcp", enabled: true,
@@ -1270,7 +1270,7 @@ describe("MCP App guarded dashboard refresh", () => {
   test.each(["direct", "same-server", "connect"])("advertises a guard only for the original read-only launch tool: %s", async (route) => {
     const connectionId = route === "connect" ? "emc_fixture_refresh" : undefined;
     const serverName = connectionId ? connectMcpAppHostName(connectionId) : "fixture";
-    const { config, root, calls, resourceReads } = await configuredFixture("openwork-app-refresh-advertise-", undefined, serverName, connectionId);
+    const { config, root, calls, resourceReads } = await configuredFixture("harness-app-refresh-advertise-", undefined, serverName, connectionId);
     for (const toolName of ["render_fixture", "render_editor"]) {
       const input = { serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root, context: { sessionId: null, readOnly: false } };
       const startedAt = Date.now();
@@ -1295,7 +1295,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("does not advertise refresh for previews, chat origins, hidden or approval-required tools", async () => {
-    const { config, root, calls, hideLaunch, setLaunchAnnotations } = await configuredFixture("openwork-app-refresh-ineligible-");
+    const { config, root, calls, hideLaunch, setLaunchAnnotations } = await configuredFixture("harness-app-refresh-ineligible-");
     const input = { serverConfig: config, workspaceId: WORKSPACE_ID, workspaceRoot: root, projectedToolName: "fixture_render_fixture" };
     for (const context of [undefined, { sessionId: null, readOnly: true }, { sessionId: "session-a", readOnly: false }, { sessionId: "archived", readOnly: true }]) {
       const app = await resolveMcpAppResource({ ...input, context });
@@ -1316,7 +1316,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("dispatches the same-resource guarded launch once with only the existing revalidation read", async () => {
-    const { config, root, calls, resourceReads } = await configuredFixture("openwork-app-refresh-call-");
+    const { config, root, calls, resourceReads } = await configuredFixture("harness-app-refresh-call-");
     const { refresh, request } = await fixtureDashboardLaunch(config, root);
     expect(resourceReads()).toBe(1);
     expect(await callMcpAppTool({ ...request, expectedResourceDigest: refresh.resourceDigest.toUpperCase(), arguments: { id: "current" } })).toMatchObject({
@@ -1327,7 +1327,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("digests decoded HTML and normalized effective presentation, not wire encoding or CSP ordering", async () => {
-    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("openwork-app-refresh-normalized-");
+    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("harness-app-refresh-normalized-");
     setResourceMeta({ ui: { csp: { connectDomains: ["https://B.example:443", "https://a.example/", "https://b.example"] }, prefersBorder: true } });
     const { request } = await fixtureDashboardLaunch(config, root);
     setResourceContent({ blob: Buffer.from(RESOURCE_HTML, "utf8").toString("base64") });
@@ -1338,7 +1338,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test.each(["html", "connectDomains", "resourceDomains", "frameDomains", "baseUriDomains", "prefersBorder"])("retires document drift before dispatch: %s", async (change) => {
-    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("openwork-app-refresh-drift-");
+    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("harness-app-refresh-drift-");
     const { request } = await fixtureDashboardLaunch(config, root);
     if (change === "html") setResourceContent({ text: UPDATED_RESOURCE_HTML });
     else if (change === "prefersBorder") setResourceMeta({ ui: { prefersBorder: false } });
@@ -1356,7 +1356,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test.each(["permissions", "domain", "csp", "html"])("retires leases on resolve-time resource validation failures before guarded dispatch: %s", async (change) => {
-    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("openwork-app-refresh-validation-");
+    const { config, root, calls, resourceReads, setResourceContent, setResourceMeta } = await configuredFixture("harness-app-refresh-validation-");
     const { request } = await fixtureDashboardLaunch(config, root);
     if (change === "html") setResourceContent({ blob: Buffer.from([0xff]).toString("base64") });
     else setResourceMeta(change === "permissions" ? { ui: { permissions: { camera: {} } } }
@@ -1375,7 +1375,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("rejects malformed and incorrect expected digests without dispatch", async () => {
-    const { config, root, calls, resourceReads } = await configuredFixture("openwork-app-refresh-digest-");
+    const { config, root, calls, resourceReads } = await configuredFixture("harness-app-refresh-digest-");
     const { request } = await fixtureDashboardLaunch(config, root);
     for (const digest of ["", "sha256:" + "a".repeat(64), "g".repeat(64), "a".repeat(63), "a".repeat(65), "a".repeat(64) + "\n"]) {
       await expect(callMcpAppTool({ ...request, expectedResourceDigest: digest })).rejects.toMatchObject({ code: "invalid_resource_digest" });
@@ -1387,7 +1387,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("cannot substitute a current resource digest for the original leased document", async () => {
-    const { config, root, calls, setResourceContent } = await configuredFixture("openwork-app-refresh-original-");
+    const { config, root, calls, setResourceContent } = await configuredFixture("harness-app-refresh-original-");
     const original = await fixtureDashboardLaunch(config, root);
     setResourceContent({ text: UPDATED_RESOURCE_HTML });
     const current = await fixtureDashboardLaunch(config, root);
@@ -1397,7 +1397,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("rejects helper grants, approval overrides, chat origins and session mismatches", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-refresh-scope-");
+    const { config, root, calls } = await configuredFixture("harness-app-refresh-scope-");
     const { request } = await fixtureDashboardLaunch(config, root);
     for (const override of [{ name: "read_detail" }, { name: "read_bound_detail" }, { name: "render_report" }, { name: "write_detail", approved: true }, { approved: true }]) {
       await expect(callMcpAppTool({ ...request, ...override })).rejects.toMatchObject({ code: "mcp_app_refresh_denied" });
@@ -1412,7 +1412,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("rechecks current launch annotations and never permits a manual approval override", async () => {
-    const { config, root, calls, setLaunchAnnotations } = await configuredFixture("openwork-app-refresh-approval-");
+    const { config, root, calls, setLaunchAnnotations } = await configuredFixture("harness-app-refresh-approval-");
     const { request } = await fixtureDashboardLaunch(config, root);
     for (const annotations of [undefined, { readOnlyHint: false }, { readOnlyHint: true, destructiveHint: true }]) {
       setLaunchAnnotations(annotations);
@@ -1424,7 +1424,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("does not promote an originally manual lease when the tool later becomes read-only", async () => {
-    const { config, root, calls, setLaunchAnnotations } = await configuredFixture("openwork-app-refresh-manual-");
+    const { config, root, calls, setLaunchAnnotations } = await configuredFixture("harness-app-refresh-manual-");
     const { request } = await fixtureDashboardLaunch(config, root);
     setLaunchAnnotations({ readOnlyHint: false });
     const manual = await resolveMcpAppResource({
@@ -1439,7 +1439,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("preserves workspace tool policy checks during guarded refresh", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-refresh-policy-");
+    const { config, root, calls } = await configuredFixture("harness-app-refresh-policy-");
     const { request } = await fixtureDashboardLaunch(config, root);
     await Bun.write(opencodeConfigPath(root), JSON.stringify({ tools: { fixture_render_fixture: false } }));
     await expect(callMcpAppTool(request)).rejects.toMatchObject({ code: "tool_denied" });
@@ -1447,7 +1447,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test.each(["release", "config"])("retains the final live lease and config checks before guarded dispatch: %s", async (change) => {
-    const { config, root, calls } = await configuredFixture("openwork-app-refresh-final-gate-");
+    const { config, root, calls } = await configuredFixture("harness-app-refresh-final-gate-");
     const { request } = await fixtureDashboardLaunch(config, root);
     await expect(callMcpAppTool({ ...request, assertSessionActive: async () => {
       if (change === "release") releaseMcpAppLaunch(config, WORKSPACE_ID, request.launchId);
@@ -1457,7 +1457,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("a successful guarded refresh does not extend the fixed 30-minute lease", async () => {
-    const { config, root, calls } = await configuredFixture("openwork-app-refresh-expiry-");
+    const { config, root, calls } = await configuredFixture("harness-app-refresh-expiry-");
     const { refresh, request } = await fixtureDashboardLaunch(config, root);
     const clock = spyOn(Date, "now").mockReturnValue(refresh.expiresAt - 1);
     try {
@@ -1471,7 +1471,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("unguarded calls retain existing helper and approved-write behavior after HTML drift", async () => {
-    const { config, root, calls, setResourceContent } = await configuredFixture("openwork-app-refresh-legacy-");
+    const { config, root, calls, setResourceContent } = await configuredFixture("harness-app-refresh-legacy-");
     const { request } = await fixtureDashboardLaunch(config, root);
     setResourceContent({ text: UPDATED_RESOURCE_HTML });
     await callMcpAppTool({ ...request, expectedResourceDigest: undefined, name: "read_detail" });
@@ -1480,7 +1480,7 @@ describe("MCP App guarded dashboard refresh", () => {
   });
 
   test("the HTTP call contract rejects invalid guards and returns 422 for pre-dispatch resource changes", async () => {
-    const { config, root, calls, setResourceContent } = await configuredFixture("openwork-app-refresh-route-");
+    const { config, root, calls, setResourceContent } = await configuredFixture("harness-app-refresh-route-");
     const { startServer } = await import("./server.js");
     const server = await startServer(config);
     stops.push(() => server.stop());

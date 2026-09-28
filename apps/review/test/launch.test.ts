@@ -5,8 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { POST } from "../app/r/[id]/launch/route.ts";
 import { launchHandlers, type LaunchDependencies } from "../lib/launch.ts";
-import type { PreviewSession } from "@openwork/freestyle";
-import type { BuildProgress } from "@openwork/freestyle/progress";
+import type { PreviewSession } from "@harness/freestyle";
+import type { BuildProgress } from "@harness/freestyle/progress";
 
 const RUNNING: BuildProgress = { building: true, layer: "running-template", since: "2026-09-25T10:00:00Z", steps: [{ id: "checkout", ms: 5000 }] };
 
@@ -14,7 +14,7 @@ const sha = "c".repeat(40);
 function fakes(ready: boolean, building = false) {
   const scheduled: (() => Promise<void>)[] = [];
   const calls = { built: 0, launched: 0, scheduled };
-  const session: PreviewSession = { id: "vm-1", snapshotId: "sh-1", gitSha: sha, url: "https://ow-x.preview.openwork.software/", expiresAt: new Date(Date.now() + 3600_000).toISOString(), world: "app-web", outputs: {} };
+  const session: PreviewSession = { id: "vm-1", snapshotId: "sh-1", gitSha: sha, url: "https://ow-x.preview.harness-legacy.invalid/", expiresAt: new Date(Date.now() + 3600_000).toISOString(), world: "app-web", outputs: {} };
   const deps: LaunchDependencies = {
     readReview: async () => ({ gitSha: sha }),
     hasSnapshot: async () => ready,
@@ -89,21 +89,21 @@ test("launch rejects cross-site requests before looking up reports or creating V
 
 test("launch fails closed when disconnected, and refuses missing reports when connected", async () => {
   const savedKey = process.env.FREESTYLE_API_KEY;
-  const savedDirectory = process.env.OPENWORK_REVIEW_LOCAL_DIR;
-  const directory = await mkdtemp(join(tmpdir(), "openwork-review-launch-"));
+  const savedDirectory = process.env.HARNESS_REVIEW_LOCAL_DIR;
+  const directory = await mkdtemp(join(tmpdir(), "harness-review-launch-"));
   const request = () => new Request("https://review.example/r/test/launch", { method: "POST", headers: { origin: "https://review.example" } });
   const params = { params: Promise.resolve({ id: "a".repeat(32) }) };
   try {
     delete process.env.FREESTYLE_API_KEY;
     assert.equal((await POST(request(), params)).status, 503);
     process.env.FREESTYLE_API_KEY = "synthetic-not-a-real-key";
-    process.env.OPENWORK_REVIEW_LOCAL_DIR = directory;
+    process.env.HARNESS_REVIEW_LOCAL_DIR = directory;
     assert.equal((await POST(request(), params)).status, 404);
   } finally {
     if (savedKey === undefined) delete process.env.FREESTYLE_API_KEY;
     else process.env.FREESTYLE_API_KEY = savedKey;
-    if (savedDirectory === undefined) delete process.env.OPENWORK_REVIEW_LOCAL_DIR;
-    else process.env.OPENWORK_REVIEW_LOCAL_DIR = savedDirectory;
+    if (savedDirectory === undefined) delete process.env.HARNESS_REVIEW_LOCAL_DIR;
+    else process.env.HARNESS_REVIEW_LOCAL_DIR = savedDirectory;
     await rm(directory, { recursive: true, force: true });
   }
 });

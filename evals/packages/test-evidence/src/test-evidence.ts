@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveEvalEngine } from "@openwork/env/eval-engine";
-import type { EvalEngine } from "@openwork/env/eval-engine";
-import { resolveSandboxRef } from "@openwork/env/eval-ref";
+import { resolveEvalEngine } from "@harness/env/eval-engine";
+import type { EvalEngine } from "@harness/env/eval-engine";
+import { resolveSandboxRef } from "@harness/env/eval-ref";
 import type { ScreenshotArtifact } from "./screenshot.ts";
-import { parseEvidenceCheckpoint } from "@openwork/freestyle/checkpoint-schema";
+import { parseEvidenceCheckpoint } from "@harness/freestyle/checkpoint-schema";
 import { judgeVision } from "./validate.ts";
 import type { ValidateOptions, VisualEvidenceResult, VisualExpectationResult } from "./validate.ts";
 

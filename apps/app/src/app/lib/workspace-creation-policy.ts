@@ -1,5 +1,5 @@
-import { isOpenworkGatewayRuntime } from "./gateway-runtime";
+import { isHarnessGatewayRuntime } from "./gateway-runtime";
 
 export function canCreateWorkspaces() {
-  return !isOpenworkGatewayRuntime();
+  return !isHarnessGatewayRuntime();
 }

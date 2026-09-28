@@ -164,7 +164,7 @@ test('credentialed controllers use default-branch code; evidence publishing is i
   }
   const gate = publisher.split('  required-verification:')[1].split('  check-publisher:')[0];
   assert.match(gate, /checks: write/);
-  assert.doesNotMatch(gate, /OPENWORK_REVIEW_URL|BLOB|conclusion ==/);
+  assert.doesNotMatch(gate, /HARNESS_REVIEW_URL|BLOB|conclusion ==/);
   assert.match(publisher, /needs: required-verification[\s\S]*?if: >-\n      always\(\)/);
   assert.doesNotMatch(contracts, /secrets\.|checks: write|pull-requests: write|environment:/);
 });

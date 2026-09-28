@@ -3,9 +3,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import type { Surface } from "@openwork/cdp";
-import { CHECKPOINT_HOLD_MS, createTestEvidence, screenshot, takeCheckpoint, withTestEvidence, type CheckpointCapability } from "@openwork/test-evidence";
-import { assembleReview } from "@openwork/test-artifacts/review";
+import type { Surface } from "@harness/cdp";
+import { CHECKPOINT_HOLD_MS, createTestEvidence, screenshot, takeCheckpoint, withTestEvidence, type CheckpointCapability } from "@harness/test-evidence";
+import { assembleReview } from "@harness/test-artifacts/review";
 
 function surface(screen: { text: string }): Surface {
   return { handle: { kind: "chrome", hostKind: "synthetic", name: "unit", cdpUrl: "http://127.0.0.1:1" }, client: {

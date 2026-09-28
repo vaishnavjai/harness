@@ -1,10 +1,10 @@
 ---
 title: "Connect OpenCode"
 sidebarTitle: "OpenCode"
-description: "Add OpenWork MCP to OpenCode: add a remote MCP entry for https://api.openworklabs.com/mcp/agent to your OpenCode config, then run opencode mcp auth openwork."
+description: "Add Harness MCP to OpenCode: add a remote MCP entry for https://api.harness.invalid/mcp/agent to your OpenCode config, then run opencode mcp auth harness."
 ---
 
-Give OpenCode your organization's OpenWork skills, plugins, and connections. OpenCode is the verified client.
+Give OpenCode your organization's Harness skills, plugins, and connections. OpenCode is the verified client.
 
 <Steps>
 <Step title="Add the server to opencode.json">
@@ -12,10 +12,10 @@ Give OpenCode your organization's OpenWork skills, plugins, and connections. Ope
 ```json
 {
   "mcp": {
-    "openwork": {
+    "harness": {
       "type": "remote",
       "enabled": true,
-      "url": "https://api.openworklabs.com/mcp/agent",
+      "url": "https://api.harness.invalid/mcp/agent",
       "oauth": {}
     }
   }
@@ -26,14 +26,14 @@ Give OpenCode your organization's OpenWork skills, plugins, and connections. Ope
 <Step title="Sign in">
 
 ```sh
-opencode mcp auth openwork
+opencode mcp auth harness
 ```
 
-Sign in to OpenWork in the browser and pick your organization.
+Sign in to Harness in the browser and pick your organization.
 
 </Step>
 <Step title="Try it">
-Ask: "Which OpenWork organization am I connected to?"
+Ask: "Which Harness organization am I connected to?"
 </Step>
 </Steps>
 
@@ -41,12 +41,12 @@ Ask: "Which OpenWork organization am I connected to?"
   <Accordion title="Switch organizations">
 
 ```sh
-opencode mcp logout openwork
-opencode mcp auth openwork
+opencode mcp logout harness
+opencode mcp auth harness
 ```
 
   </Accordion>
   <Accordion title="OpenCode on a remote machine or SSH host">
-    Follow [Connect OpenWork MCP from a remote machine](/cloud/run-in-the-cloud/connect-openwork-mcp-remote-machine).
+    Follow [Connect Harness MCP from a remote machine](/cloud/run-in-the-cloud/connect-harness-mcp-remote-machine).
   </Accordion>
 </AccordionGroup>

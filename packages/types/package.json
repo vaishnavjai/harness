@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/types",
+  "name": "@harness/types",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,20 +21,20 @@
       "development": "./src/agent-context-diagnostics.ts",
       "default": "./src/agent-context-diagnostics.ts"
     },
-    "./openwork-affordance": {
-      "types": "./src/openwork-affordance.ts",
-      "development": "./src/openwork-affordance.ts",
-      "default": "./src/openwork-affordance.ts"
+    "./harness-affordance": {
+      "types": "./src/harness-affordance.ts",
+      "development": "./src/harness-affordance.ts",
+      "default": "./src/harness-affordance.ts"
     },
-    "./openwork-context": {
-      "types": "./src/openwork-context.ts",
-      "development": "./src/openwork-context.ts",
-      "default": "./src/openwork-context.ts"
+    "./harness-context": {
+      "types": "./src/harness-context.ts",
+      "development": "./src/harness-context.ts",
+      "default": "./src/harness-context.ts"
     },
-    "./openwork-provider": {
-      "types": "./src/openwork-provider.ts",
-      "development": "./src/openwork-provider.ts",
-      "default": "./src/openwork-provider.ts"
+    "./harness-provider": {
+      "types": "./src/harness-provider.ts",
+      "development": "./src/harness-provider.ts",
+      "default": "./src/harness-provider.ts"
     },
     "./automations": {
       "types": "./src/automations.ts",

@@ -99,18 +99,18 @@ function settle(predicate: () => boolean, timeoutMs = 5_000): Promise<boolean> {
 }
 
 const cleanups: Array<() => void | Promise<void>> = [];
-const previousDb = process.env.OPENWORK_RUNTIME_DB;
+const previousDb = process.env.HARNESS_RUNTIME_DB;
 
 afterEach(async () => {
   while (cleanups.length) await cleanups.pop()?.();
-  if (previousDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousDb;
+  if (previousDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousDb;
 });
 
 async function serverConfig(): Promise<ServerConfig> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-thread-approvals-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-thread-approvals-"));
   cleanups.push(() => rm(root, { recursive: true, force: true }));
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
   return {
     host: "127.0.0.1",
     port: 0,
@@ -226,7 +226,7 @@ describe("thread approval replayer", () => {
     expect(await settleAsync(async () => (await listThreadApprovals(config, WORKSPACE_ID, "ses_a")).length === 1)).toBe(true);
   });
 
-  test("ignores directories OpenWork does not own and reconnects after the stream drops", async () => {
+  test("ignores directories Harness does not own and reconnects after the stream drops", async () => {
     const config = await serverConfig();
     const engine = fakeEngine();
     cleanups.push(engine.stop);

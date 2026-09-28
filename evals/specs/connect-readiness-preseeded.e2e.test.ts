@@ -1,7 +1,7 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { readAvailableModels, selectModel } from "@openwork/behaviors";
-import { observeTranscript, spec } from "@openwork/testkit";
+import { readAvailableModels, selectModel } from "@harness/behaviors";
+import { observeTranscript, spec } from "@harness/testkit";
 import {
   cloudHealthExpression,
   isRecord,
@@ -46,7 +46,7 @@ test("bundled engine recovers from a startup outage and uses preseeded organizat
       until: (value) => value.heldForMs >= 10_000 && value.requests.length >= 3,
     });
     expect(outage.requests.every((request) => request.faulted && request.status === 503)).toBe(true);
-    expect(await probe.desktopApi(`/workspace/${world.workspaceId}/mcp/openwork-cloud/health`))
+    expect(await probe.desktopApi(`/workspace/${world.workspaceId}/mcp/harness-cloud/health`))
       .toMatchObject({ status: 200, body: { usable: false } });
     expect(await probe.hash()).toBe(taskRoute);
     return first;
@@ -80,15 +80,15 @@ test("bundled engine recovers from a startup outage and uses preseeded organizat
     () => probe.eval(browserScript(cloudHealthExpression, [world.workspaceId])),
     {
       within: 180_000,
-      label: "openwork-cloud engine and agent-tool readiness",
+      label: "harness-cloud engine and agent-tool readiness",
       until: (value) => {
         if (!isRecord(value) || !isRecord(value.engine) || !isRecord(value.tools)) return false;
         return value.phase === "ready"
           && value.usable === true
           && value.engine.status === "connected"
           && Array.isArray(value.tools.present)
-          && value.tools.present.includes("openwork-cloud_search_capabilities")
-          && value.tools.present.includes("openwork-cloud_execute_capability")
+          && value.tools.present.includes("harness-cloud_search_capabilities")
+          && value.tools.present.includes("harness-cloud_execute_capability")
           && isRecord(value.tools.direct)
           && Array.isArray(value.tools.direct.present)
           && value.tools.direct.present.includes("search_capabilities")
@@ -102,8 +102,8 @@ test("bundled engine recovers from a startup outage and uses preseeded organizat
   expect(health.engine.status).not.toBe("failed");
   expect(health.engine.status).not.toBe("needs_client_registration");
   expect(health.tools.present).toEqual(expect.arrayContaining([
-    "openwork-cloud_search_capabilities",
-    "openwork-cloud_execute_capability",
+    "harness-cloud_search_capabilities",
+    "harness-cloud_execute_capability",
   ]));
   const recoveredMint = (await tokenRequests()).find((request) => !request.faulted && request.status === 200);
   if (!recoveredMint) throw new Error("Connect became ready without a successful desktop token mint through the restored connection.");
@@ -176,7 +176,7 @@ test("bundled engine recovers from a startup outage and uses preseeded organizat
   expect(connectionStatus).toMatchObject({
     state: "needs_connection", actor: "member", credentialMode: "per_member",
     connectionId: world.connection.id, connectionName: world.connectionName,
-    action: { type: "connect", surface: "openwork_your_connections" },
+    action: { type: "connect", surface: "harness_your_connections" },
   });
   evidence.recordAssertionEvidence("An unconnected member-owned connection requires member sign-in",
     JSON.stringify(connectionStatus), true);

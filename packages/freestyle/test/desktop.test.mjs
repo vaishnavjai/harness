@@ -16,7 +16,7 @@ import { inspectDesktop } from "../src/desktop-state.mjs";
 import { refreshDesktop } from "../src/desktop-refresh.mjs";
 import { prepareBlankSlateProfile } from "../../../apps/desktop/electron/blank-slate-profile.mjs";
 import { isInteractive } from "../../../evals/packages/cdp/src/app-state.ts";
-import { desktopBootstrapPath, openworkServerConfigPath, openworkServerDataDir, globalOpencodeConfigDir } from "../../paths/index.mjs";
+import { desktopBootstrapPath, harnessServerConfigPath, harnessServerDataDir, globalOpencodeConfigDir } from "../../paths/index.mjs";
 
 test("desktop-only boot starts only Electron and publishes only desktop state", async () => {
   const files = new Map();
@@ -74,23 +74,23 @@ test("fresh profiles isolate every state path and do not inherit credentials or 
       assert.ok(value.startsWith(`${first.rootPath}/`), key);
       assert.notEqual(value, second.environment[key]);
     }
-    const env = desktopProfileEnvironment(first, { PATH: "/usr/bin", DEN_TOKEN: "synthetic", OPENAI_API_KEY: "synthetic", OPENWORK_ELECTRON_START_URL: "https://unwanted.invalid", DAYTONA_SECRETS_ENV: "/secrets" });
+    const env = desktopProfileEnvironment(first, { PATH: "/usr/bin", DEN_TOKEN: "synthetic", OPENAI_API_KEY: "synthetic", HARNESS_ELECTRON_START_URL: "https://unwanted.invalid", DAYTONA_SECRETS_ENV: "/secrets" });
     assert.equal(env.DEN_TOKEN, undefined);
     assert.equal(env.OPENAI_API_KEY, undefined);
-    assert.equal(env.OPENWORK_ELECTRON_START_URL, undefined);
+    assert.equal(env.HARNESS_ELECTRON_START_URL, undefined);
     assert.equal(env.DAYTONA_SECRETS_ENV, "/dev/null");
-    assert.equal(env.COREPACK_HOME, "/opt/openwork-preview/corepack");
+    assert.equal(env.COREPACK_HOME, "/opt/harness-preview/corepack");
     assert.equal(env.COREPACK_ENABLE_NETWORK, "0");
-    assert.equal(env.BROWSER, "/usr/local/bin/openwork-preview-browser");
+    assert.equal(env.BROWSER, "/usr/local/bin/harness-preview-browser");
     assert.equal(env.pnpm_config_verify_deps_before_run, "false");
-    const options = { env: { ...env, OPENWORK_DEV_MODE: "1" }, platform: "linux", userDataDir: first.userDataPath };
+    const options = { env: { ...env, HARNESS_DEV_MODE: "1" }, platform: "linux", userDataDir: first.userDataPath };
     assert.equal(first.userDataPath, join(first.rootPath, "electron", "user-data"));
     assert.equal(env.HOME, join(first.rootPath, "home"));
-    assert.equal(desktopBootstrapPath(options), join(first.rootPath, "openwork", "config", "desktop-bootstrap.json"));
-    assert.equal(openworkServerConfigPath(options), env.OPENWORK_SERVER_CONFIG);
-    assert.equal(openworkServerDataDir(options), env.OPENWORK_DATA_DIR);
+    assert.equal(desktopBootstrapPath(options), join(first.rootPath, "harness", "config", "desktop-bootstrap.json"));
+    assert.equal(harnessServerConfigPath(options), env.HARNESS_SERVER_CONFIG);
+    assert.equal(harnessServerDataDir(options), env.HARNESS_DATA_DIR);
     assert.equal(globalOpencodeConfigDir(options), env.OPENCODE_CONFIG_DIR);
-    await assert.rejects(readFile(env.OPENWORK_DESKTOP_BOOTSTRAP_PATH), { code: "ENOENT" });
+    await assert.rejects(readFile(env.HARNESS_DESKTOP_BOOTSTRAP_PATH), { code: "ENOENT" });
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
 
@@ -161,7 +161,7 @@ test("shared launcher has no Den front, sign-in or workspace side effects withou
   syncBuiltinESMExports();
   const stack = new AsyncDisposableStack();
   try {
-    const desktop = await startDesktop(stack, undefined, { prepareProfile: async () => ({ environment: { HOME: "/isolated", OPENWORK_ELECTRON_USERDATA: "/isolated/profile", OPENWORK_DESKTOP_BOOTSTRAP_PATH: "/isolated/missing-bootstrap.json" } }) });
+    const desktop = await startDesktop(stack, undefined, { prepareProfile: async () => ({ environment: { HOME: "/isolated", HARNESS_ELECTRON_USERDATA: "/isolated/profile", HARNESS_DESKTOP_BOOTSTRAP_PATH: "/isolated/missing-bootstrap.json" } }) });
     await desktop.ready;
     assert.equal(desktop.denUrl, undefined);
     assert.deepEqual(commands.map((item) => item.command), ["Xvfb", "startxfce4", "x11vnc", "websockify", "bash"]);
@@ -203,7 +203,7 @@ const pristineObserved = Object.fromEntries([
   "routeReady", "routeWorkspaceValid", "noRouteConversations", "nativeRead", "nativeLocalOnly", "nativeWorkspaceMatches",
   "noNativeCloudSession", "noProvisionedModel", "noCloudConfiguration", "noNativeConversations",
 ].map((key) => [key, true]));
-const pristineProfile = async () => ({ expectedWorkspacePath: "/isolated/OpenWork Chat", isolatedProfile: true, noBootstrap: true, noNativeProviderCredentials: true, nativeWorkspaceValid: true });
+const pristineProfile = async () => ({ expectedWorkspacePath: "/isolated/Harness Chat", isolatedProfile: true, noBootstrap: true, noNativeProviderCredentials: true, nativeWorkspaceValid: true });
 
 test("desktop reload proves a new document, never signs in, and releases CDP initialization", async () => {
   const events = [];

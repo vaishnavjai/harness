@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { allocateFreePort } from "@openwork/cdp";
-import type { Place, Seed } from "@openwork/env";
-import { readAvailableModels, selectModel, signInDesktopAs, waitUntilInteractive } from "@openwork/behaviors";
+import { allocateFreePort } from "@harness/cdp";
+import type { Place, Seed } from "@harness/env";
+import { readAvailableModels, selectModel, signInDesktopAs, waitUntilInteractive } from "@harness/behaviors";
 import { engineParity } from "./engine-parity.ts";
 
 export function parityRecord(value: unknown): Record<string, unknown> {
@@ -22,21 +22,21 @@ export async function engineGatewayParity(seed: Seed, context: { place: Place })
   const mock = (await seed.mock({ isolatedProcessEnv: true }).boot(context.place)).handle;
   setup.defer(() => mock.stop());
   const den = await seed.den({ web: true, env: {
-    NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
+    NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
     GATEWAY_ENABLED: "true", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl,
     GATEWAY_EGRESS_ALLOWED_ORIGINS: new URL(mock.url).origin,
   }, org: { name: "Engine parity", members: { member: { name: "Parity Member" } } } });
   const base = setup.use(await engineParity(seed, context, { mock, env: {
-    OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY: "1", OPENWORK_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
-    OPENWORK_DEV_HEADLESS_DEN_API_TARGET: den.ref.apiUrl,
+    HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
+    HARNESS_DEV_HEADLESS_DEN_API_TARGET: den.ref.apiUrl,
     VITE_DEN_BASE_URL: den.ref.webUrl, VITE_DEN_API_BASE_URL: "/api/den",
   } }));
   const databaseUrl = den.database?.url;
-  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/openwork_eval_")) throw new Error("Expected disposable Den database");
+  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/harness_eval_")) throw new Error("Expected disposable Den database");
   const child = spawn(process.execPath, ["--conditions=development", "--import", "tsx", "src/server.ts"], {
     cwd: fileURLToPath(new URL("../../ee/apps/gateway", import.meta.url)), stdio: ["ignore", "pipe", "pipe"],
     env: {
-      PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", OPENWORK_DEV_MODE: "1",
+      PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", HARNESS_DEV_MODE: "1",
       PORT: String(port), GATEWAY_PORT: String(port), GATEWAY_ENABLED: "true", DATABASE_URL: databaseUrl, DB_MODE: "mysql",
       DEN_DB_ENCRYPTION_KEY: "local-dev-db-encryption-key-please-change-1234567890",
       GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl, GATEWAY_EGRESS_ALLOWED_ORIGINS: new URL(base.mock.url).origin,

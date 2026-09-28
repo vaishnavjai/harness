@@ -67,17 +67,17 @@ export async function bootAcmeWeb(stack: AsyncDisposableStack, preview?: { app: 
     browserHostSuffix: preview ? `.${new URL(preview.app).hostname.split(".").slice(1).join(".")}` : undefined,
     env: {
       ...process.env,
-      OPENWORK_WEB_PORT: String(webPort),
-      OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY: "1",
-      OPENWORK_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
+      HARNESS_WEB_PORT: String(webPort),
+      HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1",
+      HARNESS_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
       VITE_DEN_BASE_URL: preview?.den ?? den.ref.webUrl,
       VITE_DEN_API_BASE_URL: preview ? "/api/den" : den.ref.apiUrl,
-      VITE_DISABLE_OPENWORK_MODELS: "0",
+      VITE_DISABLE_HARNESS_MODELS: "0",
     },
   });
   stack.adopt(web, (owned) => owned.stop());
-  const synced = await fetch(`${web.manifest.openworkUrl}/den-session`, {
-    method: "PUT", headers: { "x-openwork-host-token": web.manifest.hostToken, "content-type": "application/json" },
+  const synced = await fetch(`${web.manifest.harnessUrl}/den-session`, {
+    method: "PUT", headers: { "x-harness-host-token": web.manifest.hostToken, "content-type": "application/json" },
     body: JSON.stringify({ baseUrl: den.ref.apiUrl, token: den.admin.token, orgId: model.orgId }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -89,7 +89,7 @@ export function acmeWebOutputs(world: AcmeWebWorld) {
   const { den, web, model, gatewayUrl } = world;
   return {
       webUrl: output(web.manifest.webUrl, { group: "URLs" }),
-      openworkUrl: output(web.manifest.openworkUrl, { group: "URLs" }),
+      harnessUrl: output(web.manifest.harnessUrl, { group: "URLs" }),
       denWeb: output(den.ref.webUrl, { group: "URLs" }),
       denApi: output(den.ref.apiUrl, { group: "URLs" }),
       gatewayUrl: output(gatewayUrl, { group: "URLs" }),
@@ -100,8 +100,8 @@ export function acmeWebOutputs(world: AcmeWebWorld) {
       verified: output("OpenCode chat through AI Gateway", { group: "AI Gateway" }),
       alexEmail: output(den.admin.email, { group: "Accounts", note: "org owner (Acme)" }),
       denToken: secret(den.admin.token, { group: "Accounts", note: "Disposable demo bearer token" }),
-      openworkToken: secret(web.manifest.token, { group: "OpenWork" }),
-      openworkHostToken: secret(web.manifest.hostToken, { group: "OpenWork" }),
+      harnessToken: secret(web.manifest.token, { group: "Harness" }),
+      harnessHostToken: secret(web.manifest.hostToken, { group: "Harness" }),
       databaseUrl: secret(den.database?.url ?? "", { group: "Infrastructure", note: "Inside this VM; MySQL is not exposed publicly" }),
       redisUrl: output("redis://127.0.0.1:6379", { group: "Infrastructure", note: "Inside this VM" }),
       upstreamKey: secret(world.upstream.key, { group: "AI Gateway", note: "Synthetic upstream; no paid credentials" }),
@@ -112,7 +112,7 @@ export function acmeWebOutputs(world: AcmeWebWorld) {
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   await using stack = new AsyncDisposableStack();
-  if (process.env.OPENWORK_WORLD_PLACE === "freestyle") {
+  if (process.env.HARNESS_WORLD_PLACE === "freestyle") {
     const { parseAppWebOptions } = await import("./lib/app-web-options.ts");
     const { ensureSnapshot } = await import("../packages/freestyle/src/builder.ts");
     const { launchPreview, deletePreview } = await import("../packages/freestyle/src/index.ts");

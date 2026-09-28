@@ -5,7 +5,7 @@ export type ManualAuthInput = {
   baseUrl?: string;
 };
 
-/** Accept a raw handoff grant or an OpenWork desktop-auth deep link. */
+/** Accept a raw handoff grant or a Harness desktop-auth deep link. */
 export function parseManualAuthInput(value: string): ManualAuthInput | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -18,7 +18,7 @@ export function parseManualAuthInput(value: string): ManualAuthInput | null {
     const routeSegments = routePath.split("/").filter(Boolean);
     const routeTail = routeSegments[routeSegments.length - 1] ?? "";
     if (
-      (protocol === "openwork:" || protocol === "openwork-dev:") &&
+      (protocol === "harness:" || protocol === "harness-dev:") &&
       (routeHost === "den-auth" ||
         routePath === "den-auth" ||
         routeTail === "den-auth")

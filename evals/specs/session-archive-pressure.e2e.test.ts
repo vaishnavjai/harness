@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { archivePressureMode, sessionArchivePressure } from "../worlds/session-archive-pressure.ts";
 
 const mode = archivePressureMode();

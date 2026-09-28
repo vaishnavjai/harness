@@ -1,6 +1,6 @@
-import { denFetch } from "@openwork/behaviors";
-import { personDefaults, type Seed } from "@openwork/env";
-import { isRecord } from "./openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import { personDefaults, type Seed } from "@harness/env";
+import { isRecord } from "./harness-server-cli.ts";
 
 function stringAt(value: unknown, ...path: string[]): string {
   let current: unknown = value;
@@ -12,7 +12,7 @@ function stringAt(value: unknown, ...path: string[]): string {
 export type McpCall = { status: number; json: unknown; text: string };
 
 /**
- * An agent with no OpenWork account and a person who has never signed up.
+ * An agent with no Harness account and a person who has never signed up.
  * The agent talks to Den only over HTTP (bootstrap route, token endpoint, MCP
  * gateway), the person only through Den web in a browser.
  */
@@ -21,7 +21,7 @@ export async function claimableWorkspace(seed: Seed) {
   const person = personDefaults("claimer", undefined, runId);
   const den = await seed.den({
     org: { name: `Claim witness ${runId}`, members: {} },
-    env: { DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "false", OPENWORK_DEV_MODE: "1" },
+    env: { DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "false", HARNESS_DEV_MODE: "1" },
   });
   const web = await seed.web({ den, headless: true, viewport: { width: 1280, height: 900 } });
   const workspaceName = `Agent studio ${runId}`;

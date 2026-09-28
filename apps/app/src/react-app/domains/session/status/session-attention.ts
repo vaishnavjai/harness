@@ -1,4 +1,4 @@
-import type { OpenworkSessionActivityInventory } from "@openwork/types/openwork-affordance";
+import type { HarnessSessionActivityInventory } from "@harness/types/harness-affordance";
 import { getDisplaySessionTitle } from "../../../../app/lib/session-title";
 import { currentLocale, t } from "../../../../i18n";
 import type { SessionActivityStatus, SessionChildIds, SessionWaitingKind } from "./session-activity-store";
@@ -17,7 +17,7 @@ export type SessionAttentionSource = {
   relationship: "child" | "descendant";
 };
 
-export type SessionAttention = OpenworkSessionActivityInventory & {
+export type SessionAttention = HarnessSessionActivityInventory & {
   status: SessionActivityStatus;
   blockedBy: SessionAttentionSource | null;
 };

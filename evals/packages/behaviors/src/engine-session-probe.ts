@@ -1,5 +1,5 @@
-import { browserScript } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
+import { browserScript } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
 
 import { evalIn } from "./desktop.ts";
 
@@ -164,7 +164,7 @@ async function requestFromSurface(
     throw new Error(`Could not serialize engine session probe body for ${path}`);
   }
   const value = await evalIn(surface, browserScript(async (path, value, inputValue, inputValue2) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return { status: 0, body: { error: "local_server_unavailable" } };
     const baseUrl = String(info.baseUrl);
     let end = baseUrl.length;

@@ -1,4 +1,4 @@
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];

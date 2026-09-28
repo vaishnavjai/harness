@@ -1,8 +1,8 @@
-import { chrome } from '@openwork/hosts';
-import { evaluateOnSurface } from '@openwork/cdp';
+import { chrome } from '@harness/hosts';
+import { evaluateOnSurface } from '@harness/cdp';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
-import type { Place, Seed } from '@openwork/env';
+import type { Place, Seed } from '@harness/env';
 import { recoveryBuild } from '../fixtures/crash-recovery/build.mjs';
 import type { RecoverySnapshot } from '../fixtures/crash-recovery/state.ts';
 

@@ -63,7 +63,7 @@ test("requests that stay in the VM, name no template origin, or run before a clo
 });
 
 test("Den's preload translates through its access file", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openwork-egress-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-egress-"));
   try {
     const access = join(directory, "access.json");
     const recording = join(directory, "recorder.mjs");
@@ -72,7 +72,7 @@ test("Den's preload translates through its access file", async () => {
     const egress = new URL("../src/egress.mjs", import.meta.url).href;
     const script = `await fetch("https://mcp.example/register", { method: "POST", body: ${JSON.stringify(JSON.stringify({ redirect_uris: [callback(templateOrigins)] }))} }); console.log(JSON.stringify(globalThis.recorded));`;
     const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], {
-      env: { ...process.env, OPENWORK_PREVIEW_ACCESS_FILE: access, NODE_OPTIONS: `--import=${pathToFileURL(recording).href} --import=${egress}` },
+      env: { ...process.env, HARNESS_PREVIEW_ACCESS_FILE: access, NODE_OPTIONS: `--import=${pathToFileURL(recording).href} --import=${egress}` },
     });
     const recorded = JSON.parse(stdout);
     assert.equal(recorded.url, "https://mcp.example/register");

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createGmailAttachmentFulfillment, type GmailAttachmentRequest } from "./gmail-attachment-fulfillment.js";
-import { OpenWorkExtensionsPreview } from "./openwork-extensions-preview.js";
+import { HarnessExtensionsPreview } from "./harness-extensions-preview.js";
 import { ApiError } from "../errors.js";
 
 const marker = { ok: false, error: "file_input_requires_host", created: false, message: "Host file transport required." };
@@ -17,7 +17,7 @@ const receipt = { ok: true, draftId: "draft_1", draftUrl: "https://mail.google.c
 
 function invocation(body: unknown = draft, connectionId = "emc_selected") {
   return {
-    tool: "openwork-cloud_execute_capability",
+    tool: "harness-cloud_execute_capability",
     sessionID: "ses_current",
     callID: "call_current",
     args: { name: `native:${connectionId}:postCapabilitiesGoogleWorkspaceGmailDrafts`, body },
@@ -39,7 +39,7 @@ for (const connectionId of ["emc_selected", "google-workspace"]) {
       const output: Record<string, unknown> = { ...pending(), structuredContent: marker, output: JSON.stringify(marker) };
       await fulfill(invocation(body, connectionId), output);
       expect(requests).toEqual([{
-        extensionId: "openwork-cloud-uploads",
+        extensionId: "harness-cloud-uploads",
         action: "gmail_create_draft_with_attachments",
         args: {
           to: draft.to, cc: draft.cc, bcc: draft.bcc, subject: draft.subject,
@@ -61,9 +61,9 @@ test("only the managed execute tool and original native Gmail capability can ful
   let calls = 0;
   const fulfill = createGmailAttachmentFulfillment({ callExtension: async () => { calls++; return receipt; } });
   const inputs = [
-    { ...invocation(), tool: "openwork_cloud_execute_capability" },
+    { ...invocation(), tool: "harness_cloud_execute_capability" },
     { ...invocation(), tool: "external_execute_capability" },
-    { ...invocation(), tool: "openwork-cloud_execute_capability_script" },
+    { ...invocation(), tool: "harness-cloud_execute_capability_script" },
     { ...invocation(), args: { name: "mcp:emc_selected:postCapabilitiesGoogleWorkspaceGmailDrafts", body: draft } },
     { ...invocation(), args: { name: "native:emc_selected:deleteDraft", body: draft } },
     invocation(draft, "emc_selected:spoof"),
@@ -155,7 +155,7 @@ function statusEvent(sessionID: string, type: "busy" | "idle") {
 
 test("pinned idle cancellation between preflight and fulfillment prevents upload and cannot revive the call", async () => {
   let calls = 0;
-  const plugin = await OpenWorkExtensionsPreview({}, {}, {
+  const plugin = await HarnessExtensionsPreview({}, {}, {
     callExtension: async () => { calls++; return receipt; },
   });
   const input = invocation();
@@ -172,7 +172,7 @@ test("pinned idle cancellation between preflight and fulfillment prevents upload
 test("idle aborts only that session's dispatched handoff and preserves uncertainty without retry", async () => {
   let calls = 0;
   let aborted = false;
-  const plugin = await OpenWorkExtensionsPreview({}, {}, {
+  const plugin = await HarnessExtensionsPreview({}, {}, {
     callExtension: async (_request, signal) => {
       calls++;
       return new Promise((_resolve, reject) => {
@@ -194,7 +194,7 @@ test("idle aborts only that session's dispatched handoff and preserves uncertain
 test("disposal cancels a pending preflight and late success after cancellation is not projected", async () => {
   let release: () => void = () => {};
   const wait = new Promise<void>((resolve) => { release = resolve; });
-  const plugin = await OpenWorkExtensionsPreview({}, {}, { callExtension: async () => { await wait; return receipt; } });
+  const plugin = await HarnessExtensionsPreview({}, {}, { callExtension: async () => { await wait; return receipt; } });
   const input = invocation();
   const queued = { ...input, callID: "call_queued" };
   await plugin["tool.execute.before"](queued, { args: queued.args });
@@ -212,7 +212,7 @@ test("definite file, size, connection and policy rejections retain their actiona
     new ApiError(404, "file_not_found", "File was not found inside an authorized workspace root."),
     new ApiError(413, "file_too_large", "Direct uploads support files up to 4194304 bytes."),
     new ApiError(413, "files_too_large", "Attachments exceed 4 MiB."),
-    new ApiError(409, "cloud_not_connected", "Connect OpenWork Cloud before uploading files."),
+    new ApiError(409, "cloud_not_connected", "Connect Harness Cloud before uploading files."),
     new ApiError(409, "cloud_upload_failed", "Connect the selected Google account in Settings > Connect.", { upstreamCode: "needs_connection" }),
     new ApiError(401, "cloud_upload_failed", "Sign in again to renew your token.", { upstreamCode: "invalid_mcp_token" }),
     new ApiError(403, "cloud_upload_failed", "Connect is disabled for this organization. Ask your administrator to have it re-enabled.", { upstreamCode: "policy_blocked" }),
@@ -242,7 +242,7 @@ test("guard covers concurrent and successful replay, and is scoped by session an
 });
 
 test("real plugin fulfills before MCP App preservation and propagates hook failure", async () => {
-  const plugin = await OpenWorkExtensionsPreview({ directory: "/workspace", sessionID: "ses_factory" }, {}, {
+  const plugin = await HarnessExtensionsPreview({ directory: "/workspace", sessionID: "ses_factory" }, {}, {
     callExtension: async (request) => {
       expect(request.context.sessionId).toBe("ses_current");
       expect(request.context.callId).toBe("call_current");
@@ -252,7 +252,7 @@ test("real plugin fulfills before MCP App preservation and propagates hook failu
   });
   const output = pending();
   await plugin["tool.execute.after"](invocation(), output);
-  expect(output.metadata).toEqual({ openworkMcpApp: {
+  expect(output.metadata).toEqual({ harnessMcpApp: {
     isError: false,
     content: [{ type: "text", text: JSON.stringify(receipt) }], structuredContent: receipt,
   } });
@@ -261,8 +261,8 @@ test("real plugin fulfills before MCP App preservation and propagates hook failu
 });
 
 test("pinned loader options retain the authenticated default host transport", async () => {
-  const previousUrl = process.env.OPENWORK_SERVER_URL;
-  const previousToken = process.env.OPENWORK_SERVER_TOKEN;
+  const previousUrl = process.env.HARNESS_SERVER_URL;
+  const previousToken = process.env.HARNESS_SERVER_TOKEN;
   let calls = 0;
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0,
@@ -272,7 +272,7 @@ test("pinned loader options retain the authenticated default host transport", as
       expect(request.headers.get("authorization")).toBe("Bearer fixture-host-token");
       const body: unknown = await request.json();
       expect(body).toMatchObject({
-        extensionId: "openwork-cloud-uploads", action: "gmail_create_draft_with_attachments",
+        extensionId: "harness-cloud-uploads", action: "gmail_create_draft_with_attachments",
         args: { paths: ["notes.txt"], connectionId: "emc_selected" },
         context: { directory: "/workspace", sessionId: "ses_current", callId: "call_current" },
       });
@@ -280,41 +280,41 @@ test("pinned loader options retain the authenticated default host transport", as
     },
   });
   try {
-    process.env.OPENWORK_SERVER_URL = `http://127.0.0.1:${server.port}`;
-    process.env.OPENWORK_SERVER_TOKEN = "fixture-host-token";
-    const plugin = await OpenWorkExtensionsPreview({ directory: "/workspace" }, {});
+    process.env.HARNESS_SERVER_URL = `http://127.0.0.1:${server.port}`;
+    process.env.HARNESS_SERVER_TOKEN = "fixture-host-token";
+    const plugin = await HarnessExtensionsPreview({ directory: "/workspace" }, {});
     const output = pending();
     await plugin["tool.execute.after"](invocation(), output);
     expect(output.structuredContent).toEqual(receipt);
     expect(calls).toBe(1);
   } finally {
     server.stop(true);
-    if (previousUrl === undefined) delete process.env.OPENWORK_SERVER_URL;
-    else process.env.OPENWORK_SERVER_URL = previousUrl;
-    if (previousToken === undefined) delete process.env.OPENWORK_SERVER_TOKEN;
-    else process.env.OPENWORK_SERVER_TOKEN = previousToken;
+    if (previousUrl === undefined) delete process.env.HARNESS_SERVER_URL;
+    else process.env.HARNESS_SERVER_URL = previousUrl;
+    if (previousToken === undefined) delete process.env.HARNESS_SERVER_TOKEN;
+    else process.env.HARNESS_SERVER_TOKEN = previousToken;
   }
 });
 
 test.each([
   { status: 404, code: "file_not_found", message: "Choose a file inside an authorized workspace root.", details: undefined },
-  { status: 409, code: "cloud_not_connected", message: "Connect OpenWork Cloud before uploading files.", details: undefined },
+  { status: 409, code: "cloud_not_connected", message: "Connect Harness Cloud before uploading files.", details: undefined },
   { status: 409, code: "cloud_upload_failed", message: "Reconnect the selected account in Settings > Connect.", details: { upstreamCode: "needs_connection" } },
   { status: 403, code: "cloud_upload_failed", message: "Connect is disabled for this organization. Ask your administrator to have it re-enabled.", details: { upstreamCode: "policy_blocked" } },
 ])("Gmail loopback adapter preserves structured rejection $code", async ({ status, ...payload }) => {
-  const previousUrl = process.env.OPENWORK_SERVER_URL;
-  const previousToken = process.env.OPENWORK_SERVER_TOKEN;
+  const previousUrl = process.env.HARNESS_SERVER_URL;
+  const previousToken = process.env.HARNESS_SERVER_TOKEN;
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => Response.json(payload, { status }) });
   try {
-    process.env.OPENWORK_SERVER_URL = `http://127.0.0.1:${server.port}`;
-    process.env.OPENWORK_SERVER_TOKEN = "fixture-host-token";
-    const plugin = await OpenWorkExtensionsPreview({}, {});
+    process.env.HARNESS_SERVER_URL = `http://127.0.0.1:${server.port}`;
+    process.env.HARNESS_SERVER_TOKEN = "fixture-host-token";
+    const plugin = await HarnessExtensionsPreview({}, {});
     await expect(plugin["tool.execute.after"](invocation(), pending())).rejects.toThrow(`${payload.message} No draft created.`);
   } finally {
     server.stop(true);
-    if (previousUrl === undefined) delete process.env.OPENWORK_SERVER_URL;
-    else process.env.OPENWORK_SERVER_URL = previousUrl;
-    if (previousToken === undefined) delete process.env.OPENWORK_SERVER_TOKEN;
-    else process.env.OPENWORK_SERVER_TOKEN = previousToken;
+    if (previousUrl === undefined) delete process.env.HARNESS_SERVER_URL;
+    else process.env.HARNESS_SERVER_URL = previousUrl;
+    if (previousToken === undefined) delete process.env.HARNESS_SERVER_TOKEN;
+    else process.env.HARNESS_SERVER_TOKEN = previousToken;
   }
 });

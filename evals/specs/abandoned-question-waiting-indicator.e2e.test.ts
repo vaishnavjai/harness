@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { browserScript } from "@openwork/cdp";
-import { spec } from "@openwork/testkit";
+import { browserScript } from "@harness/cdp";
+import { spec } from "@harness/testkit";
 import { abandonedQuestion } from "../worlds/chat.ts";
 
 // OpenCode 1.18 marks a stopped question tool call as errored but never

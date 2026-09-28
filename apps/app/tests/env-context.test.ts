@@ -1,27 +1,27 @@
 import { describe, expect, test } from "bun:test";
 
-import type { OpenworkServerClient } from "../src/app/lib/openwork-server";
+import type { HarnessServerClient } from "../src/app/lib/harness-server";
 import {
-  buildOpenworkEnvSystemContext,
-  buildOpenworkSessionSystemContext,
-  clearOpenworkEnvSystemContextCache,
+  buildHarnessEnvSystemContext,
+  buildHarnessSessionSystemContext,
+  clearHarnessEnvSystemContextCache,
 } from "../src/react-app/domains/session/sync/env-context";
 
-function client(keys: string[], calls: { count: number }): OpenworkServerClient {
+function client(keys: string[], calls: { count: number }): HarnessServerClient {
   return {
     baseUrl: "http://127.0.0.1:3000",
     listUserEnvKeys: async () => {
       calls.count += 1;
       return { keys };
     },
-  } as OpenworkServerClient;
+  } as HarnessServerClient;
 }
 
-describe("buildOpenworkEnvSystemContext", () => {
+describe("buildHarnessEnvSystemContext", () => {
   test("lists configured key names without inventing secret values", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
-    const context = await buildOpenworkEnvSystemContext(
+    const context = await buildHarnessEnvSystemContext(
       client(["NBA_LIVE_KEY", "bad-key", "ANTHROPIC_API_KEY", "NBA_LIVE_KEY"], calls),
       {
         cacheKey: "session-a",
@@ -37,19 +37,19 @@ describe("buildOpenworkEnvSystemContext", () => {
   });
 
   test("caches key context per session", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
     const server = client(["OPENROUTER_API_KEY"], calls);
 
-    await buildOpenworkEnvSystemContext(server, {
+    await buildHarnessEnvSystemContext(server, {
       cacheKey: "session-a",
       readPendingChanges: () => false,
     });
-    await buildOpenworkEnvSystemContext(server, {
+    await buildHarnessEnvSystemContext(server, {
       cacheKey: "session-a",
       readPendingChanges: () => false,
     });
-    await buildOpenworkEnvSystemContext(server, {
+    await buildHarnessEnvSystemContext(server, {
       cacheKey: "session-b",
       readPendingChanges: () => false,
     });
@@ -58,10 +58,10 @@ describe("buildOpenworkEnvSystemContext", () => {
   });
 
   test("does not truncate long key lists", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
     const keys = Array.from({ length: 90 }, (_, index) => `KEY_${index}`);
-    const context = await buildOpenworkEnvSystemContext(client(keys, calls), {
+    const context = await buildHarnessEnvSystemContext(client(keys, calls), {
       cacheKey: "session-a",
       readPendingChanges: () => false,
     });
@@ -72,9 +72,9 @@ describe("buildOpenworkEnvSystemContext", () => {
   });
 
   test("skips context while environment changes are pending", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
-    const context = await buildOpenworkEnvSystemContext(client(["ANTHROPIC_API_KEY"], calls), {
+    const context = await buildHarnessEnvSystemContext(client(["ANTHROPIC_API_KEY"], calls), {
       cacheKey: "session-a",
       readPendingChanges: () => true,
     });
@@ -84,11 +84,11 @@ describe("buildOpenworkEnvSystemContext", () => {
   });
 });
 
-describe("buildOpenworkSessionSystemContext", () => {
+describe("buildHarnessSessionSystemContext", () => {
   test("always carries the user's time zone context and appends env keys when present", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
-    const context = await buildOpenworkSessionSystemContext(client(["ANTHROPIC_API_KEY"], calls), {
+    const context = await buildHarnessSessionSystemContext(client(["ANTHROPIC_API_KEY"], calls), {
       cacheKey: "session-a",
       readPendingChanges: () => false,
     });
@@ -98,21 +98,21 @@ describe("buildOpenworkSessionSystemContext", () => {
     expect(runtime).toContain(`- Time zone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} (UTC`);
     expect(runtime).toContain("- Today's date in that time zone: ");
     expect(runtime).toContain("Resolve \"today\", \"tomorrow\", \"this week\"");
-    expect(env).toContain("OpenWork environment variables configured:");
+    expect(env).toContain("Harness environment variables configured:");
     expect(env).toContain("- ANTHROPIC_API_KEY");
   });
 
   test("still returns the user context when there are no env keys, no client, or pending changes", async () => {
-    clearOpenworkEnvSystemContextCache();
+    clearHarnessEnvSystemContextCache();
     const calls = { count: 0 };
 
-    const noKeys = await buildOpenworkSessionSystemContext(client([], calls), { cacheKey: "s1", readPendingChanges: () => false });
-    const noClient = await buildOpenworkSessionSystemContext(null, { cacheKey: "s2", readPendingChanges: () => false });
-    const pending = await buildOpenworkSessionSystemContext(client(["KEY"], calls), { cacheKey: "s3", readPendingChanges: () => true });
+    const noKeys = await buildHarnessSessionSystemContext(client([], calls), { cacheKey: "s1", readPendingChanges: () => false });
+    const noClient = await buildHarnessSessionSystemContext(null, { cacheKey: "s2", readPendingChanges: () => false });
+    const pending = await buildHarnessSessionSystemContext(client(["KEY"], calls), { cacheKey: "s3", readPendingChanges: () => true });
 
     for (const context of [noKeys, noClient, pending]) {
       expect(context.startsWith("User context:")).toBe(true);
-      expect(context).not.toContain("OpenWork environment variables configured:");
+      expect(context).not.toContain("Harness environment variables configured:");
       expect(context).not.toContain("- KEY");
     }
   });

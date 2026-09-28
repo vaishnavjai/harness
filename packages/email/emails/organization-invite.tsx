@@ -8,9 +8,9 @@ export default function OrganizationInvitePreview(props: OrganizationInviteEmail
 }
 
 OrganizationInvitePreview.PreviewProps = {
-  inviteLink: "https://app.openworklabs.com/join-org?invite=invitation_preview",
+  inviteLink: "https://app.harness.invalid/join-org?invite=invitation_preview",
   invitedByName: "Ada Lovelace",
   invitedByEmail: "ada@example.com",
-  organizationName: "OpenWork Preview",
+  organizationName: "Harness Preview",
   role: "admin",
 } satisfies OrganizationInviteEmailProps

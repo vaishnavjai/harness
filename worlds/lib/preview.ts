@@ -159,12 +159,12 @@ export async function bootPreview(stack: AsyncDisposableStack, place: Place, sur
   if (release && place.kind !== "daytona") throw new Error("Published release previews require --place daytona.");
   const base = place.denBase();
   if (base.kind === "daytona" && !/^[0-9a-f]{40}$/.test(base.ref)) {
-    throw new Error("Set OPENWORK_EVAL_REF to the reviewed, pushed full 40-character commit SHA before booting a preview.");
+    throw new Error("Set HARNESS_EVAL_REF to the reviewed, pushed full 40-character commit SHA before booting a preview.");
   }
   // Local previews run this checkout: Den on the local MySQL/Redis and the
   // desktop as a native window on this machine.
   const ref = base.kind === "daytona" ? base.ref : await localSourceRef();
-  if (["OPENWORK_EVAL_DEN_API_URL", "OPENWORK_EVAL_DAYTONA_DEN_SANDBOX", "OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX", "OPENWORK_EVAL_DAYTONA_SANDBOX"].some((key) => process.env[key]?.trim())) {
+  if (["HARNESS_EVAL_DEN_API_URL", "HARNESS_EVAL_DAYTONA_DEN_SANDBOX", "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX", "HARNESS_EVAL_DAYTONA_SANDBOX"].some((key) => process.env[key]?.trim())) {
     throw new Error("Preview worlds require isolated infrastructure. Remove existing sandbox/reuse overrides before starting.");
   }
   const fresh = scenario === "fresh" || scenario === "blank";
@@ -172,7 +172,7 @@ export async function bootPreview(stack: AsyncDisposableStack, place: Place, sur
     place, provision: !fresh, web: true,
     daytonaAutoStopMinutes: 0,
     ...(!fresh ? { org: { name: "Preview team", admin: { name: "Preview owner", email: `preview-${randomBytes(6).toString("hex")}@example.test` } } } : {}),
-    env: { OPENWORK_DEV_MODE: "1", DEN_REQUIRE_EMAIL_VERIFICATION: "false", RESEND_API_KEY: "", SMTP_HOST: "" },
+    env: { HARNESS_DEV_MODE: "1", DEN_REQUIRE_EMAIL_VERIFICATION: "false", RESEND_API_KEY: "", SMTP_HOST: "" },
   }));
   if (scenario === "team" || scenario === "restricted") await setupTeam(den, scenario === "restricted");
   const outputs: Record<string, WorldOutput> = {
@@ -191,7 +191,7 @@ export async function bootPreview(stack: AsyncDisposableStack, place: Place, sur
   const windowsRelease = release && target.os === "windows"
     ? stack.use(await provisionWindowsReleaseSandbox({
         release,
-        lifetimeMinutes: Number(process.env.OPENWORK_WORLD_PREVIEW_LIFETIME_MINUTES ?? "120"),
+        lifetimeMinutes: Number(process.env.HARNESS_WORLD_PREVIEW_LIFETIME_MINUTES ?? "120"),
         onCreated: (sandbox, name) => trackResource({ kind: "daytona-windows-preview", id: sandbox, match: name, label: "Windows published desktop" }),
         step: (id, label) => previewSteps.step(id, label),
         // Provisioning chatter belongs in the world log, not over the live step list.
@@ -205,7 +205,7 @@ export async function bootPreview(stack: AsyncDisposableStack, place: Place, sur
     : undefined;
   const desktopHandle = releaseDesktop?.handle ?? desktop?.handle;
   if (desktopHandle && place.kind === "local") {
-    outputs.preview = output(den.ref.webUrl, { group: "Preview", note: "The OpenWork desktop window is open on this machine; Den web is linked here" });
+    outputs.preview = output(den.ref.webUrl, { group: "Preview", note: "The Harness desktop window is open on this machine; Den web is linked here" });
     outputs.cdp = secret(desktopHandle.cdpUrl, { group: "Services" });
   } else if (desktopHandle) {
     const sandbox = desktopHandle.sandboxId;
@@ -352,7 +352,7 @@ export async function runPreview(surface: PreviewSurface, argv = process.argv.sl
     }
     return;
   }
-  if (target.os === "windows" && target.provider === "daytona" && surface === "desktop") process.env.OPENWORK_WORLD_PREVIEW_DAYTONA = "1";
+  if (target.os === "windows" && target.provider === "daytona" && surface === "desktop") process.env.HARNESS_WORLD_PREVIEW_DAYTONA = "1";
   const sources = sourcesFromEnv();
   const parsed = parsePreviewOptions(argv, sourceFor(sources, "desktop")?.kind === "release");
   const seeds = seedsFromEnv();
@@ -375,10 +375,10 @@ export async function runPreview(surface: PreviewSurface, argv = process.argv.sl
   }
   if (parsed.release && desktopSource) throw new Error("Choose either --source desktop=release:... or -- --release, not both.");
   if (denSource?.kind === "sha") {
-    if (process.env.OPENWORK_EVAL_REF?.trim() && process.env.OPENWORK_EVAL_REF !== denSource.sha) {
-      throw new Error("Den --source conflicts with OPENWORK_EVAL_REF.");
+    if (process.env.HARNESS_EVAL_REF?.trim() && process.env.HARNESS_EVAL_REF !== denSource.sha) {
+      throw new Error("Den --source conflicts with HARNESS_EVAL_REF.");
     }
-    process.env.OPENWORK_EVAL_REF = denSource.sha;
+    process.env.HARNESS_EVAL_REF = denSource.sha;
   }
   if (denSource?.kind === "local" && target.provider === "daytona") {
     throw new Error("A remote Den requires a pushed SHA, not a local checkout.");
@@ -401,7 +401,7 @@ export async function runPreview(surface: PreviewSurface, argv = process.argv.sl
   if (scenario === "blank" && !release) throw new Error("The blank scenario requires an exact published release.");
   const { lifetimeMinutes } = parsed;
   if (target.os === "windows" && lifetimeMinutes > 1410) throw new Error("Windows previews support --lifetime 0-1410 (30 minutes reserved for sandbox startup).");
-  if (place.kind === "daytona" && !process.env.OPENWORK_EVAL_REF?.trim()) {
+  if (place.kind === "daytona" && !process.env.HARNESS_EVAL_REF?.trim()) {
     try {
       const { stdout } = await promisify(execFile)("git", ["ls-remote", "--exit-code", "origin", "refs/heads/dev"], {
         cwd: fileURLToPath(new URL("../..", import.meta.url)),
@@ -409,14 +409,14 @@ export async function runPreview(surface: PreviewSurface, argv = process.argv.sl
       });
       const ref = stdout.trim().split(/\s+/)[0];
       if (!ref || !/^[0-9a-f]{40}$/.test(ref)) throw new Error("Remote dev did not return a full commit SHA.");
-      process.env.OPENWORK_EVAL_REF = ref;
+      process.env.HARNESS_EVAL_REF = ref;
       console.error(`preview  defaulting to origin/dev at ${ref}`);
     } catch (cause) {
-      throw new Error("Could not resolve remote dev for this preview. Check access to origin or set OPENWORK_EVAL_REF to a reviewed, pushed full 40-character commit SHA.", { cause });
+      throw new Error("Could not resolve remote dev for this preview. Check access to origin or set HARNESS_EVAL_REF to a reviewed, pushed full 40-character commit SHA.", { cause });
     }
   }
-  if (place.kind === "daytona") process.env.OPENWORK_WORLD_PREVIEW_DAYTONA = "1";
-  process.env.OPENWORK_WORLD_PREVIEW_LIFETIME_MINUTES = String(lifetimeMinutes);
+  if (place.kind === "daytona") process.env.HARNESS_WORLD_PREVIEW_DAYTONA = "1";
+  process.env.HARNESS_WORLD_PREVIEW_LIFETIME_MINUTES = String(lifetimeMinutes);
   await using stack = new AsyncDisposableStack();
   const { outputs } = await bootPreview(stack, place, surface, scenario, release);
   const expires = lifetimeMinutes === 0 ? undefined : new Date(Date.now() + lifetimeMinutes * 60_000);

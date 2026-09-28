@@ -233,7 +233,7 @@ test("workflow keeps ordinary proof unprotected and gates all live PR code befor
   const windows = afterOrdinary.split("\n  windows-proof:\n")[1];
   assert.ok(live && windows);
   assert.doesNotMatch(workflow, /pull_request_target|continue-on-error/);
-  assert.doesNotMatch(ordinary, /environment:|secrets\.|OPENAI_API_KEY|OPENWORK_EVAL_LIVE_OPENAI/);
+  assert.doesNotMatch(ordinary, /environment:|secrets\.|OPENAI_API_KEY|HARNESS_EVAL_LIVE_OPENAI/);
   assert.match(ordinary, /if: needs.select.outputs.selected == 'true'/);
   assert.match(ordinary, /xvfb-run -a node evals\/bin\/evals.mjs "\$\{PROOF_SPEC#evals\/\}" --local\n/);
   assert.match(ordinary, /run-parity-proof.mjs --supports "\$PROOF_SPEC"/);
@@ -265,20 +265,20 @@ test("workflow keeps ordinary proof unprotected and gates all live PR code befor
   }
   const [preparation, executionAndUpload] = live.split("      - name: Run the whole selected live spec with real inference\n");
   const [execution, upload] = executionAndUpload.split("      - name: Save selected native testkit and Vitest records\n");
-  assert.doesNotMatch(preparation + upload, /secrets\.|OPENAI_API_KEY|OPENWORK_EVAL_LIVE_OPENAI/);
+  assert.doesNotMatch(preparation + upload, /secrets\.|OPENAI_API_KEY|HARNESS_EVAL_LIVE_OPENAI/);
   assert.match(execution, /OPENAI_API_KEY: \$\{\{ secrets.OPENAI_API_KEY \}\}/);
-  assert.match(execution, /OPENWORK_EVAL_LIVE_OPENAI: "1"/);
-  assert.match(execution, /OPENWORK_EVAL_OPENAI_MODEL: gpt-5\.4/);
+  assert.match(execution, /HARNESS_EVAL_LIVE_OPENAI: "1"/);
+  assert.match(execution, /HARNESS_EVAL_OPENAI_MODEL: gpt-5\.4/);
   assert.ok(execution.includes(`if [ "$PROOF_SPEC" != '${liveSpec}' ] && [ "$PROOF_SPEC" != 'evals/specs/engine-live-chat.e2e.test.ts' ]; then`));
-  assert.match(execution, /OPENWORK_LIVE_PROVIDER=OpenAI OPENWORK_LIVE_KEY_ENV=OPENAI_API_KEY/);
-  assert.match(execution, /OPENWORK_LIVE_MODELS=gpt-5\.4,gpt-4\.1-mini/);
+  assert.match(execution, /HARNESS_LIVE_PROVIDER=OpenAI HARNESS_LIVE_KEY_ENV=OPENAI_API_KEY/);
+  assert.match(execution, /HARNESS_LIVE_MODELS=gpt-5\.4,gpt-4\.1-mini/);
   assert.match(execution, /xvfb-run -a node evals\/scripts\/run-parity-proof.mjs "\$PROOF_SPEC"/);
   assert.match(execution, /\$\{OPENAI_API_KEY\/\/\[\[:space:\]\]\/\}/);
   assert.match(execution, /this proof cannot be skipped/);
   assert.match(execution, /xvfb-run -a node evals\/bin\/evals.mjs "\$\{PROOF_SPEC#evals\/\}" --local --engine v1 --surface web\n/);
   assert.doesNotMatch(execution, /--testNamePattern|--grep|--test-name|pnpm .*build|pnpm .*install/);
-  assert.doesNotMatch(preparation + upload, /OPENWORK_EVAL_CONTAINER_ELECTRON/);
-  assert.match(execution, /OPENWORK_EVAL_CONTAINER_ELECTRON=1/);
+  assert.doesNotMatch(preparation + upload, /HARNESS_EVAL_CONTAINER_ELECTRON/);
+  assert.match(execution, /HARNESS_EVAL_CONTAINER_ELECTRON=1/);
 });
 
 test("Windows proof only executes the exact reviewed spec after same-repo approval", async () => {
@@ -301,7 +301,7 @@ test("Windows proof only executes the exact reviewed spec after same-repo approv
   assert.match(windows, /sha256sum -c -/);
   assert.match(windows, /test "\$PROOF_SPEC" = 'evals\/specs\/windows-published-preview.e2e.test.ts'/);
   assert.match(windows, /--daytona --strict-ref/);
-  assert.match(windows, /OPENWORK_EVAL_REF: \$\{\{ github.event.pull_request.head.sha \}\}/);
+  assert.match(windows, /HARNESS_EVAL_REF: \$\{\{ github.event.pull_request.head.sha \}\}/);
 });
 
 test("both local proof jobs share verified Chrome setup, with system OAuth handoff only for desktop proof", async () => {
@@ -326,7 +326,7 @@ test("both local proof jobs share verified Chrome setup, with system OAuth hando
   assert.equal(setup.match(/command -v google-chrome \|\| command -v chromium \|\| command -v chromium-browser/g)?.length, 2);
   assert.match(setup, /if \[ -z "\$chrome" \]; then[\s\S]*https:\/\/dl\.google\.com\/linux\/linux_signing_key.pub/);
   assert.match(setup, /gpg --batch --yes --dearmor/);
-  assert.match(setup, /signed-by=\/usr\/share\/keyrings\/openwork-google-chrome.gpg/);
+  assert.match(setup, /signed-by=\/usr\/share\/keyrings\/harness-google-chrome.gpg/);
   assert.match(setup, /https:\/\/dl\.google\.com\/linux\/chrome\/deb\//);
   assert.match(setup, /apt-get install -y google-chrome-stable/);
   assert.match(setup, /Repair the runner browser installation and rerun this job/);
@@ -336,13 +336,13 @@ test("both local proof jobs share verified Chrome setup, with system OAuth hando
   const handoff = setup.split('if [ "$OAUTH_HANDOFF" = true ]; then')[1];
   assert.ok(handoff);
   assert.match(handoff, /sudo install -m 0755 "\$ACTION_PATH\/browser.sh" "\$browser"/);
-  assert.match(handoff, /\/usr\/share\/applications\/openwork-proof-browser.desktop/);
+  assert.match(handoff, /\/usr\/share\/applications\/harness-proof-browser.desktop/);
   assert.match(handoff, /\/etc\/xdg\/mimeapps.list/);
-  for (const scheme of ["http", "https"]) assert.ok(handoff.includes(`x-scheme-handler/${scheme}=openwork-proof-browser.desktop`));
+  for (const scheme of ["http", "https"]) assert.ok(handoff.includes(`x-scheme-handler/${scheme}=harness-proof-browser.desktop`));
   assert.match(handoff, /BROWSER=%s\\n' "\$browser" >> "\$GITHUB_ENV"/);
   const browser = await readFile(new URL("../actions/setup-browser/browser.sh", import.meta.url), "utf8");
   assert.match(browser, /exec "\$CHROME_BIN" --no-sandbox --disable-dev-shm-usage --no-first-run --no-default-browser-check/);
-  assert.ok(browser.includes('--user-data-dir="${OPENWORK_PROOF_BROWSER_PROFILE:-$RUNNER_TEMP/pr-proof-browser}" "$@"'));
+  assert.ok(browser.includes('--user-data-dir="${HARNESS_PROOF_BROWSER_PROFILE:-$RUNNER_TEMP/pr-proof-browser}" "$@"'));
 });
 
 const packagedSpec = "evals/specs/packaged-activated-launch.e2e.test.ts";
@@ -411,7 +411,7 @@ test("checkpoint lane is gated before credentials and publishes only through the
   assert.match(job, /ref: \$\{\{ github.event.pull_request.head.sha \}\}/);
   assert.match(job, /evals\/bin\/evals.mjs "\$\{PROOF_SPEC#evals\/\}" --local --engine v1 --surface web --checkpoints/);
   assert.match(job, /name: pr-proof-\$\{\{ github.run_attempt \}\}-\$\{\{ matrix.key \}\}/);
-  assert.doesNotMatch(job, /publish-checkpoint-evidence|vercel|OpenWork Checkpoints|gh pr comment|statuses: write|VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN/);
+  assert.doesNotMatch(job, /publish-checkpoint-evidence|vercel|Harness Checkpoints|gh pr comment|statuses: write|VERCEL_TOKEN|BLOB_READ_WRITE_TOKEN/);
   assert.doesNotMatch(job, /alias set|infisical|OPENAI_API_KEY|ANTHROPIC_API_KEY/);
 });
 

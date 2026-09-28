@@ -7,9 +7,7 @@ import { readGatewayUsageScope } from "@/app/lib/gateway-usage-scope";
 import { refreshGatewayUsageAfterCompletion } from "../../cloud/gateway-usage-refresh";
 import { gatewayUsageQueryPrefix } from "../../cloud/gateway-usage-state";
 import { closeSessionBrowserTabs } from "@/app/lib/desktop";
-import { captureAnalyticsEvent, takeTaskRunStart } from "@/app/lib/analytics";
-import { trackTaskCompleted, trackTaskFailed } from "@/app/lib/den-telemetry";
-import { observeModelsTaskEvent } from "@/app/lib/models-task-analytics";
+import { takeTaskRunStart } from "@/app/lib/task-run-clock";
 import { createClient, unwrap } from "@/app/lib/opencode";
 import { createClientV2, isOpencodeV2BaseUrl } from "@/app/lib/opencode-v2-adapter";
 import { perfNow, recordPerfLog } from "@/app/lib/perf-log";
@@ -31,7 +29,7 @@ import {
   parseStructuredOutputUIPart,
   STRUCTURED_OUTPUT_TOOL,
 } from "./parse-tool-parts";
-import type { OpenworkSessionHistory, OpenworkSessionSnapshot } from "@/app/lib/openwork-server";
+import type { HarnessSessionHistory, HarnessSessionSnapshot } from "@/app/lib/harness-server";
 import type { LatestSessionHistory } from "../surface/session-render-state";
 import { applyRevertCursor, reconcileTranscriptMessages } from "./transcript-reconcile";
 import { upsertMessageByChronology } from "./message-merge";
@@ -71,7 +69,7 @@ export {
 type SyncOptions = {
   workspaceId: string;
   baseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
   visibleSessionId?: string | null;
   onSessionCreated?: (session: Session) => void;
   onSessionUpdated?: (update: { sessionId: string; info: Record<string, unknown> }) => void;
@@ -83,7 +81,7 @@ type ListenerRegistry<Listener> = Map<Listener, number>;
 
 type SyncEntry = {
   input: SyncOptions;
-  openworkToken: string;
+  harnessToken: string;
   // Reattachment can rotate the token after the stream already failed. This
   // hook advances the stream lifecycle's connection generation so a stream
   // parked in auth backoff restarts immediately with the new credential.
@@ -136,8 +134,8 @@ function gatewayUsageProviderId(value: unknown): string | null {
 
 const idleStatus: SessionStatus = { type: "idle" };
 const syncs = new Map<string, SyncEntry>();
-const sessionSnapshotFetchStarts = new WeakMap<OpenworkSessionHistory, number>();
-const todoSnapshotFirstSeen = new WeakMap<OpenworkSessionHistory, number>();
+const sessionSnapshotFetchStarts = new WeakMap<HarnessSessionHistory, number>();
+const todoSnapshotFirstSeen = new WeakMap<HarnessSessionHistory, number>();
 const workspaceSyncDisposeGraceMs = 2_000;
 const retainedSessionTtlMs = 10 * 60_000;
 const idleRetainedSessionTtlMs = 10_000;
@@ -153,7 +151,7 @@ type SessionStatusSource = "stream" | "connect-reconcile" | "active-reconcile" |
 function developerDiagnosticsEnabled() {
   if (typeof window === "undefined") return false;
   try {
-    return window.localStorage.getItem("openwork.developerMode") === "1";
+    return window.localStorage.getItem("harness.developerMode") === "1";
   } catch {
     return false;
   }
@@ -196,30 +194,30 @@ function releaseListener<Listener>(registry: ListenerRegistry<Listener>, listene
 
 type SyncSubscriptionFactory = (
   baseUrl: string,
-  openworkToken: string,
+  harnessToken: string,
   signal: AbortSignal,
 ) => Promise<AsyncIterable<unknown>>;
 
 type SessionStatusFetcher = (
   baseUrl: string,
-  openworkToken: string,
+  harnessToken: string,
   signal: AbortSignal,
 ) => Promise<Record<string, SessionStatus>>;
 
-function createSyncClient(baseUrl: string, openworkToken: string) {
+function createSyncClient(baseUrl: string, harnessToken: string) {
   return isOpencodeV2BaseUrl(baseUrl)
-    ? createClientV2(baseUrl, undefined, { token: openworkToken })
-    : createClient(baseUrl, undefined, { token: openworkToken, mode: "openwork" });
+    ? createClientV2(baseUrl, undefined, { token: harnessToken })
+    : createClient(baseUrl, undefined, { token: harnessToken, mode: "harness" });
 }
 
-const defaultSyncSubscriptionFactory: SyncSubscriptionFactory = async (baseUrl, openworkToken, signal) => {
-  const client = createSyncClient(baseUrl, openworkToken);
+const defaultSyncSubscriptionFactory: SyncSubscriptionFactory = async (baseUrl, harnessToken, signal) => {
+  const client = createSyncClient(baseUrl, harnessToken);
   const subscription = await client.event.subscribe(undefined, { signal });
   return subscription.stream;
 };
 
-const defaultSessionStatusFetcher: SessionStatusFetcher = async (baseUrl, openworkToken, signal) => {
-  const client = createSyncClient(baseUrl, openworkToken);
+const defaultSessionStatusFetcher: SessionStatusFetcher = async (baseUrl, harnessToken, signal) => {
+  const client = createSyncClient(baseUrl, harnessToken);
   const result = await client.session.status(undefined, { signal });
   if (result.data !== undefined) return result.data;
   throw result.error;
@@ -256,7 +254,7 @@ const defaultDeltaFlushScheduler: DeltaFlushScheduler = (lane, run) => {
 
 let deltaFlushScheduler = defaultDeltaFlushScheduler;
 
-export function markSessionSnapshotFetchStart(snapshot: OpenworkSessionHistory, startedAt: number) {
+export function markSessionSnapshotFetchStart(snapshot: HarnessSessionHistory, startedAt: number) {
   sessionSnapshotFetchStarts.set(snapshot, startedAt);
 }
 
@@ -274,8 +272,8 @@ export function sessionHistoryCredential(token?: string | null) {
   return credential;
 }
 
-export const sessionMetadataKey = (input: Pick<SyncOptions, "workspaceId" | "baseUrl" | "openworkToken">, sessionId: string) =>
-  ["react-session-metadata", input.workspaceId, input.baseUrl, sessionHistoryCredential(input.openworkToken), sessionId] as const;
+export const sessionMetadataKey = (input: Pick<SyncOptions, "workspaceId" | "baseUrl" | "harnessToken">, sessionId: string) =>
+  ["react-session-metadata", input.workspaceId, input.baseUrl, sessionHistoryCredential(input.harnessToken), sessionId] as const;
 
 export const snapshotKey = (workspaceId: string, sessionId: string) =>
   ["react-session-snapshot", workspaceId, sessionId] as const;
@@ -932,7 +930,6 @@ function upsertPart(messages: UIMessage[], messageId: string, partId: string, ne
 }
 
 function applyEvent(entry: SyncEntry, workspaceId: string, event: OpencodeEvent) {
-  observeModelsTaskEvent(workspaceId, event);
   const queryClient = getReactQueryClient();
   const input = entry.input;
 
@@ -998,13 +995,13 @@ function applyEvent(entry: SyncEntry, workspaceId: string, event: OpencodeEvent)
     const title = typeof update.info.title === "string" ? update.info.title : "";
     if (title && !isGeneratedSessionTitle(title)) entry.titleRecovery?.resolve(update.sessionId);
     if (!isTrackedSession(entry, update.sessionId)) return;
-    const revert = (update.info as { revert?: OpenworkSessionSnapshot["session"]["revert"] }).revert;
+    const revert = (update.info as { revert?: HarnessSessionSnapshot["session"]["revert"] }).revert;
     queryClient.setQueryData(sessionMetadataKey(input, update.sessionId), { revert });
     // Keep the cached snapshot's revert cursor in sync with the server. The
     // renderer derives the visible transcript from this cursor, so a revert
     // (or its cleanup on the next prompt) must reach the snapshot cache or
     // the transcript stays frozen on stale history.
-    queryClient.setQueryData<OpenworkSessionHistory>(
+    queryClient.setQueryData<HarnessSessionHistory>(
       snapshotKey(workspaceId, update.sessionId),
       (current) => {
         if (!current) return current;
@@ -1054,13 +1051,7 @@ function applyEvent(entry: SyncEntry, workspaceId: string, event: OpencodeEvent)
       const errorPresentation = presentOpencodeSessionError(sessionError);
       if (errorPresentation.gatewayUsage) void queryClient.invalidateQueries({ queryKey: gatewayUsageQueryPrefix });
       const errorText = describeOpencodeSessionError(sessionError);
-      const runStartedAt = takeTaskRunStart(sessionId);
-      if (runStartedAt !== null) {
-        captureAnalyticsEvent("task_run_errored", {
-          duration_ms: Date.now() - runStartedAt,
-        });
-        trackTaskFailed(sessionId, Date.now() - runStartedAt);
-      }
+      takeTaskRunStart(sessionId);
       notifyDesktopEvent({ type: "task.failed", sessionId, errorText });
       useSessionActivityStore.getState().setError(workspaceId, sessionId, errorText);
       stopTrackingLiveSession(entry, sessionId);
@@ -1268,7 +1259,7 @@ function applyEvent(entry: SyncEntry, workspaceId: string, event: OpencodeEvent)
       source: applyRevertCursor(current.source, messageID),
     } : current);
     queryClient.setQueryData<UIMessage[]>(transcriptKey(workspaceId, sessionID), (current = []) => applyRevertCursor(current, messageID));
-    queryClient.setQueryData<OpenworkSessionHistory>(fullKey, current => {
+    queryClient.setQueryData<HarnessSessionHistory>(fullKey, current => {
       if (!current) return current;
       const boundary = current.messages.findIndex(message => message.info.id === messageID);
       return boundary < 0 ? current : { ...current, messages: current.messages.slice(0, boundary) };
@@ -1295,7 +1286,7 @@ function applyEvent(entry: SyncEntry, workspaceId: string, event: OpencodeEvent)
     queryClient.setQueryData<UIMessage[]>(transcriptKey(workspaceId, props.sessionID), (current = []) =>
       current.filter(keep),
     );
-    queryClient.setQueryData<OpenworkSessionHistory>(
+    queryClient.setQueryData<HarnessSessionHistory>(
       snapshotKey(workspaceId, props.sessionID),
       (current) => {
         if (!current) return current;
@@ -1496,7 +1487,7 @@ function startSync(input: SyncOptions, entry: SyncEntry) {
   const lifecycle = startSyncStreamLifecycle({
     // Read the token at connect time so every retry — including a
     // generation-triggered restart — uses the latest credential.
-    subscribe: (signal) => syncSubscriptionFactory(input.baseUrl, entry.openworkToken, signal),
+    subscribe: (signal) => syncSubscriptionFactory(input.baseUrl, entry.harnessToken, signal),
     onEvent: (raw) => {
       const event = normalizeEvent(raw);
       if (!event) return;
@@ -1588,10 +1579,6 @@ function applySessionRunStatus(
     // flushes final deltas and refreshes any final persisted message parts.
     const runStartedAt = takeTaskRunStart(sessionId);
     if (runStartedAt !== null && (options.completed ?? !v2)) {
-      captureAnalyticsEvent("task_run_completed", {
-        duration_ms: Date.now() - runStartedAt,
-      });
-      trackTaskCompleted(sessionId, Date.now() - runStartedAt);
       notifyDesktopEvent({ type: "task.completed", sessionId });
       entry.titleRecovery?.observe(sessionId);
     }
@@ -1653,7 +1640,7 @@ async function reconcileSessionPermissions(entry: SyncEntry, sessionId: string) 
   const snapshotStartedAt = Date.now();
   const snapshotRevision = getReactQueryClient().getQueryState(permissionKey(entry.input.workspaceId, sessionId))?.dataUpdateCount ?? 0;
   try {
-    const permissions = await sessionPermissionFetcher(entry.input.baseUrl, entry.openworkToken, sessionId,
+    const permissions = await sessionPermissionFetcher(entry.input.baseUrl, entry.harnessToken, sessionId,
       AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
     if (controller.signal.aborted || syncs.get(syncKey(entry.input)) !== entry) return;
     seedPermissionState(entry.input.workspaceId, sessionId, permissions, { snapshotStartedAt, snapshotRevision });
@@ -1695,7 +1682,7 @@ async function reconcileSessionRunStatuses(
   }
   let statuses: Record<string, SessionStatus>;
   try {
-    statuses = await sessionStatusFetcher(input.baseUrl, entry.openworkToken, signal);
+    statuses = await sessionStatusFetcher(input.baseUrl, entry.harnessToken, signal);
   } catch {
     // The run state itself is deliberately left untouched: a failed fetch is
     // not evidence that work stopped. It is evidence that the busy state can
@@ -1828,11 +1815,11 @@ export function ensureWorkspaceSessionSync(input: SyncOptions) {
   const existing = syncs.get(key);
   if (existing) {
     existing.input = input;
-    if (existing.openworkToken !== input.openworkToken) {
+    if (existing.harnessToken !== input.harnessToken) {
       // Reattachment with a rotated token (or a restarted runtime's fresh
       // credential) is a new connection generation: restart a stream parked
       // in auth backoff instead of leaving the task streaming nowhere.
-      existing.openworkToken = input.openworkToken;
+      existing.harnessToken = input.harnessToken;
       existing.notifyStreamGenerationChanged?.();
     }
     if (existing.disposeTimer) {
@@ -1850,7 +1837,7 @@ export function ensureWorkspaceSessionSync(input: SyncOptions) {
 
   const created: SyncEntry = {
     input,
-    openworkToken: input.openworkToken,
+    harnessToken: input.harnessToken,
     notifyStreamGenerationChanged: null,
     refs: 1,
     dispose: () => {},
@@ -1879,7 +1866,7 @@ export function ensureWorkspaceSessionSync(input: SyncOptions) {
   };
   created.titleRecovery = createSessionTitleRecovery({
     fetch: async (sessionId) => {
-      const client = createSyncClient(input.baseUrl, created.openworkToken);
+      const client = createSyncClient(input.baseUrl, created.harnessToken);
       const [session, messages] = await Promise.all([
         client.session.get({ sessionID: sessionId }).then(unwrap),
         client.session.messages({ sessionID: sessionId, limit: 20 }).then(unwrap),
@@ -1894,7 +1881,7 @@ export function ensureWorkspaceSessionSync(input: SyncOptions) {
       };
     },
     onResolved: (sessionId, title) => {
-      getReactQueryClient().setQueryData<OpenworkSessionHistory>(
+      getReactQueryClient().setQueryData<HarnessSessionHistory>(
         snapshotKey(input.workspaceId, sessionId),
         (current) => current
           ? { ...current, session: { ...current.session, title } }
@@ -2007,7 +1994,7 @@ async function refreshSessionTodos(workspaceId: string, sessionId: string) {
   await queryClient.invalidateQueries({ queryKey });
 }
 
-export function seedSessionState(workspaceId: string, snapshot: OpenworkSessionHistory, options: { preview?: boolean } = {}) {
+export function seedSessionState(workspaceId: string, snapshot: HarnessSessionHistory, options: { preview?: boolean } = {}) {
   // A reverted window cannot establish which messages are still visible.
   if (options.preview && snapshot.session.revert?.messageID) return;
   const queryClient = getReactQueryClient();
@@ -2096,7 +2083,7 @@ export function seedSessionState(workspaceId: string, snapshot: OpenworkSessionH
  * that is already on screen.
  */
 export function seedCreatedSessionSnapshot(workspaceId: string, session: Session) {
-  getReactQueryClient().setQueryData<OpenworkSessionSnapshot>(
+  getReactQueryClient().setQueryData<HarnessSessionSnapshot>(
     snapshotKey(workspaceId, session.id),
     { session, messages: [], todos: [], status: { type: "idle" } },
     { updatedAt: 0 },
@@ -2116,7 +2103,7 @@ export function applySessionRevert(workspaceId: string, session: Session) {
   const queryClient = getReactQueryClient();
   const revertMessageId = session.revert?.messageID ?? null;
 
-  queryClient.setQueryData<OpenworkSessionHistory>(
+  queryClient.setQueryData<HarnessSessionHistory>(
     snapshotKey(workspaceId, session.id),
     (current) => (current ? { ...current, session: { ...current.session, revert: session.revert } } : current),
   );
@@ -2133,7 +2120,7 @@ export async function applySessionArchived(workspaceId: string, sessionId: strin
   const queryKey = snapshotKey(workspaceId, sessionId);
   // An older in-flight snapshot must not put the archived flag back after Restore.
   await queryClient.cancelQueries({ queryKey, exact: true });
-  queryClient.setQueryData<OpenworkSessionHistory>(queryKey, current => current ? {
+  queryClient.setQueryData<HarnessSessionHistory>(queryKey, current => current ? {
     ...current,
     session: { ...current.session, time: { ...current.session.time, archived: archived ? Date.now() : 0 } },
   } : current);
@@ -2144,7 +2131,7 @@ export async function applySessionArchived(workspaceId: string, sessionId: strin
 export function applySessionUnrevert(workspaceId: string, sessionId: string) {
   const queryClient = getReactQueryClient();
   void queryClient.cancelQueries({ queryKey: snapshotKey(workspaceId, sessionId) });
-  queryClient.setQueryData<OpenworkSessionHistory>(
+  queryClient.setQueryData<HarnessSessionHistory>(
     snapshotKey(workspaceId, sessionId),
     (current) => (current ? { ...current, session: { ...current.session, revert: undefined } } : current),
   );
@@ -2196,7 +2183,7 @@ export function __createWorkspaceSessionSyncForTest(input: SyncOptions) {
   const key = syncKey(input);
   syncs.set(key, {
     input,
-    openworkToken: input.openworkToken,
+    harnessToken: input.harnessToken,
     notifyStreamGenerationChanged: null,
     refs: 1,
     dispose: () => {},

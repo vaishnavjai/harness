@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer, request as httpRequest } from "node:http";
 import test from "node:test";
-import { denFetch } from "@openwork/behaviors";
+import { denFetch } from "@harness/behaviors";
 import type { Place } from "../src/place.ts";
 import { faultProxy } from "../src/faults.ts";
 import type { Server } from "node:http";
@@ -56,7 +56,7 @@ test("faultProxy sends /api/den straight to a split local Den API and keeps the 
     });
     // den-web would answer this with a cross-origin 307 that drops the bearer;
     // the proxy hands it to den-api directly, prefix stripped, header intact.
-    const handoff = await fetch(`${proxy.ref.webUrl}/api/den/v1/auth/desktop-handoff?scheme=openwork`, {
+    const handoff = await fetch(`${proxy.ref.webUrl}/api/den/v1/auth/desktop-handoff?scheme=harness`, {
       method: "POST",
       headers: { authorization: "Bearer member-session" },
     });
@@ -64,10 +64,10 @@ test("faultProxy sends /api/den straight to a split local Den API and keeps the 
     const page = await fetch(`${proxy.ref.webUrl}/api/runtime-config`);
     assert.deepEqual(await page.json(), { server: "web" });
     assert.deepEqual(seen, [
-      { server: "api", path: "/v1/auth/desktop-handoff?scheme=openwork", authorization: "Bearer member-session" },
+      { server: "api", path: "/v1/auth/desktop-handoff?scheme=harness", authorization: "Bearer member-session" },
       { server: "web", path: "/api/runtime-config", authorization: undefined },
     ]);
-    assert.deepEqual(proxy.requests.map(({ path }) => path), ["/api/den/v1/auth/desktop-handoff?scheme=openwork", "/api/runtime-config"]);
+    assert.deepEqual(proxy.requests.map(({ path }) => path), ["/api/den/v1/auth/desktop-handoff?scheme=harness", "/api/runtime-config"]);
   } finally {
     web.close();
     api.close();

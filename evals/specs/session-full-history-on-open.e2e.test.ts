@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import {
   longHistory,
   longHistoryCount,
@@ -14,7 +14,7 @@ const test = spec.world((seed) => longHistory(seed, { holdAncillaryReads: true }
 const warmTest = spec.world(warmCachedLongHistory, { timeout: 600_000 });
 
 const pageSize = 24;
-const scrollStorageKey = "openwork:session-scroll:v1";
+const scrollStorageKey = "harness:session-scroll:v1";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -173,7 +173,7 @@ test("a long conversation pages on demand, restores its saved page cold and load
   };
   const readFault = () => probe.storage(world.ancillaryFaultKey, ancillaryFault);
   const savedScroll = async () => {
-    const port = await probe.storage("openwork.server.port");
+    const port = await probe.storage("harness.server.port");
     if ((typeof port !== "string" && typeof port !== "number") || !/^\d+$/.test(String(port))) throw new Error("Native server port is missing");
     const endpoint = `http://127.0.0.1:${port}/workspace/${encodeURIComponent(world.workspace.workspaceId)}/opencode`;
     return probe.storage(scrollStorageKey, (value) => savedPagePosition(value, world.workspace.workspaceId, world.session.sessionId, endpoint));

@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { Agent } from "@opencode-ai/sdk/v2/client";
 
-import type { OpenworkServerClient } from "@/app/lib/openwork-server";
+import type { HarnessServerClient } from "@/app/lib/harness-server";
 import { useOpencodeEngineControls } from "./opencode-engine-controls";
 import { t } from "@/i18n";
 import {
@@ -88,7 +88,7 @@ export type SessionGroupOption = {
 };
 
 export type CommandPaletteProps = {
-  engineClient?: OpenworkServerClient | null;
+  engineClient?: HarnessServerClient | null;
   open: boolean;
   onClose: () => void;
   developerMode: boolean;
@@ -312,7 +312,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       group: ACTIONS_GROUP,
       action: () => {
         props.onClose();
-        openUrl("https://openwork.dev/docs");
+        openUrl("https://github.com/vaishnavjai/harness/tree/dev/packages/docs");
       },
     },
     {
@@ -323,7 +323,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       group: ACTIONS_GROUP,
       action: () => {
         props.onClose();
-        openUrl("https://openwork.dev/feedback");
+        openUrl("https://github.com/vaishnavjai/harness/issues");
       },
     },
   ], [accessibleTargetCount, canMoveCurrentSessionToGroup, hasNestedModelPicker, props, sessionGroupCount]);
@@ -403,7 +403,7 @@ export function CommandPalette(props: CommandPaletteProps) {
       : []),
     {
       id: "cloud.sign_in",
-      title: "Sign in to OpenWork Cloud",
+      title: "Sign in to Harness Cloud",
       keywords: ["login", "account", "organization", "org", "den", "cloud"],
       group: ACTIONS_GROUP,
       action: () => {

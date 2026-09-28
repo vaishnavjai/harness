@@ -1,5 +1,5 @@
 /**
- * Single entry point for embedding the OpenWork server in-process.
+ * Single entry point for embedding the Harness server in-process.
  *
  * Handles config resolution, managed OpenCode spawn, and server start
  * in one call -- mirrors what cli.ts does but returns a handle instead
@@ -35,8 +35,8 @@ import {
 import { ensureLocalWorkspaceFiles } from "./workspace-init.js";
 import { findManagedEngineWorkspace, resolveManagedEngineCwd, shouldStartManagedEngine } from "./workspaces.js";
 import { runtimeStorageDir } from "./runtime-db.js";
-import { keepOpenworkRuntimeConfigFileFresh, writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
-import { migrateOpenworkCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
+import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
+import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
 import { resolveOpencodeModelsUrl } from "./opencode-models-url.js";
 import type { LocalManagedMcpVaultKeyProvider, ServerConfig } from "./types.js";
@@ -44,7 +44,7 @@ import type { LocalManagedMcpVaultKeyProvider, ServerConfig } from "./types.js";
 export type EmbeddedServerOptions = CliArgs & {
   /** When true, spawn a managed OpenCode child process. */
   manageOpencode?: boolean;
-  /** Path to the OpenCode binary. Falls back to OPENWORK_OPENCODE_BIN env. */
+  /** Path to the OpenCode binary. Falls back to HARNESS_OPENCODE_BIN env. */
   opencodeBin?: string;
   /** Working directory for the managed OpenCode process. */
   opencodeCwd?: string;
@@ -151,7 +151,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
 
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1) {
-      throw new AggregateError(errors, "Failed to stop embedded OpenWork server");
+      throw new AggregateError(errors, "Failed to stop embedded Harness server");
     }
   };
 
@@ -169,7 +169,7 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
       } catch (cleanupError) {
         throw new AggregateError(
           [startupError, cleanupError],
-          "Embedded OpenWork server startup failed and cleanup was incomplete",
+          "Embedded Harness server startup failed and cleanup was incomplete",
         );
       }
       throw startupError;
@@ -178,13 +178,13 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
 
   if (!config.readOnly) {
     await ensureLocalWorkspaceFiles(config.workspaces);
-    await migrateOpenworkCloudMcpRuntimeConfig(config);
+    await migrateHarnessCloudMcpRuntimeConfig(config);
     await migrateWorkspaceRuntimeConfigToEngineGlobal(config);
   }
 
   // Bind the HTTP server before spawning the engine: serve-node may fall back
   // to an OS-assigned port on EADDRINUSE, and the engine's spawn-time env
-  // (OPENWORK_SERVER_URL) must point at the port that actually bound, not the
+  // (HARNESS_SERVER_URL) must point at the port that actually bound, not the
   // requested one. Proxy requests that land in the short window before the
   // engine is ready fail with opencode_unconfigured and clients retry; the
   // desktop only learns the server URL after this function returns.
@@ -202,26 +202,26 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
     // effort: a failed reap must never block startup.
     await reapOrphanEngineInstances(config).catch(() => undefined);
     // Server-managed config file: the engine re-reads it from disk on every
-    // instance rebuild, and keepOpenworkRuntimeConfigFileFresh synchronizes it
+    // instance rebuild, and keepHarnessRuntimeConfigFileFresh synchronizes it
     // on every runtime-DB write — so disposes always pick up current state.
-    const { path: runtimeConfigPath } = await writeOpenworkRuntimeConfigFile(config);
-    stopRuntimeConfigFileRefresh = keepOpenworkRuntimeConfigFileFresh(config);
+    const { path: runtimeConfigPath } = await writeHarnessRuntimeConfigFile(config);
+    stopRuntimeConfigFileRefresh = keepHarnessRuntimeConfigFileFresh(config);
     const cwd = resolveManagedEngineCwd({
-      explicit: options.opencodeCwd || process.env.OPENWORK_MANAGED_OPENCODE_CWD,
+      explicit: options.opencodeCwd || process.env.HARNESS_MANAGED_OPENCODE_CWD,
       workspace: findManagedEngineWorkspace(config.workspaces),
       fallbackDir: join(runtimeStorageDir(config), "managed-opencode-workdir"),
     });
     await duringStartup(() => mkdir(cwd, { recursive: true }));
     const opencodeModelsUrl = await duringStartup(() => resolveOpencodeModelsUrl());
 
-    const opencodeBin = options.opencodeBin || process.env.OPENWORK_OPENCODE_BIN;
+    const opencodeBin = options.opencodeBin || process.env.HARNESS_OPENCODE_BIN;
     // Shared by the first spawn and by any later rollover standby, so a
     // replacement engine is identical apart from its port.
     const engineEnv: Record<string, string | undefined> = {
-      ...(process.env.OPENWORK_DEV_MODE ? { OPENWORK_DEV_MODE: process.env.OPENWORK_DEV_MODE } : {}),
-      ...(process.env.OPENWORK_UI_CONTROL_DISCOVERY ? { OPENWORK_UI_CONTROL_DISCOVERY: process.env.OPENWORK_UI_CONTROL_DISCOVERY } : {}),
-      OPENWORK_SERVER_URL: serverUrl,
-      OPENWORK_SERVER_TOKEN: config.token,
+      ...(process.env.HARNESS_DEV_MODE ? { HARNESS_DEV_MODE: process.env.HARNESS_DEV_MODE } : {}),
+      ...(process.env.HARNESS_UI_CONTROL_DISCOVERY ? { HARNESS_UI_CONTROL_DISCOVERY: process.env.HARNESS_UI_CONTROL_DISCOVERY } : {}),
+      HARNESS_SERVER_URL: serverUrl,
+      HARNESS_SERVER_TOKEN: config.token,
       OPENCODE_CONFIG: runtimeConfigPath,
       OPENCODE_MODELS_URL: opencodeModelsUrl,
     };

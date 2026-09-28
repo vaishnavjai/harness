@@ -1,6 +1,6 @@
 # Missing CodeQL results despite successful jobs
 
-OpenWork uses GitHub's CodeQL **default setup**, not a checked-in analysis workflow.
+Harness uses GitHub's CodeQL **default setup**, not a checked-in analysis workflow.
 GitHub can add a language automatically when repository contents change. Existing
 PRs may have successful scans from before that change and still lack the newly
 required result. The code-scanning merge rule checks uploaded analyses, not just

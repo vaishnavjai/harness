@@ -1,7 +1,7 @@
-import { allocateFreePorts, connect, debuggerUrlFor, listTargets } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
-import { faultProxy as startFaultProxy, mcpMock } from "@openwork/env";
-import type { MockHandle, Place, Seed } from "@openwork/env";
+import { allocateFreePorts, connect, debuggerUrlFor, listTargets } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
+import { faultProxy as startFaultProxy, mcpMock } from "@harness/env";
+import type { MockHandle, Place, Seed } from "@harness/env";
 
 function windowId(response: unknown): number {
   if (typeof response !== "object" || response === null || !("windowId" in response) || typeof response.windowId !== "number") {
@@ -60,7 +60,7 @@ export async function oauthStartUnreadableWeb(seed: Seed, ctx: { place: Place })
     async stopProvider(): Promise<void> {
       await provider.stop();
     },
-    /** The OpenWork sign-in tab opened by Connect, once the browser has created and navigated it (null after the wait). */
+    /** The Harness sign-in tab opened by Connect, once the browser has created and navigated it (null after the wait). */
     async signInTab({ timeoutMs = 15_000 }: { timeoutMs?: number } = {}): Promise<Surface | null> {
       const startedAt = Date.now();
       while (true) {

@@ -20,18 +20,18 @@ const originalWindow = globalThis.window;
 
 const publicDistribution = {
   flavor: "public" as const,
-  appName: "OpenWork",
-  appIdentifier: "com.differentai.openwork",
-  protocolScheme: "openwork",
+  appName: "Harness",
+  appIdentifier: "com.vaishnavjai.harness",
+  protocolScheme: "harness",
   requireSignin: false,
   requireActivation: false,
 };
 
 const enterpriseDistribution = {
   flavor: "enterprise" as const,
-  appName: "OpenWork Enterprise",
-  appIdentifier: "com.differentai.openwork",
-  protocolScheme: "openwork",
+  appName: "Harness Enterprise",
+  appIdentifier: "com.vaishnavjai.harness",
+  protocolScheme: "harness",
   requireSignin: true,
   requireActivation: true,
 };
@@ -79,7 +79,7 @@ describe("pre-activation outbound egress", () => {
       value: {
         localStorage: memoryStorage(),
         dispatchEvent: () => true,
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           meta: { distribution },
           invokeDesktop: async (command: string, ...args: unknown[]) => {
             if (command === "getDesktopBootstrapConfig") return shellBootstrap;
@@ -107,9 +107,9 @@ describe("pre-activation outbound egress", () => {
 
   beforeEach(() => {
     fetches = [];
-    // What the shell hands a machine that has never run OpenWork: the build
+    // What the shell hands a machine that has never run Harness: the build
     // default, which for the hosted deployment is a host nobody chose.
-    shellBootstrap = { baseUrl: "https://app.openworklabs.com", requireSignin: true };
+    shellBootstrap = { baseUrl: "https://app.harness.invalid", requireSignin: true };
   });
 
   afterEach(() => {
@@ -126,7 +126,7 @@ describe("pre-activation outbound egress", () => {
     await refreshDenBootstrapConfigFromShell();
 
     expect(fetches).toEqual([]);
-    expect(readDenBootstrapConfig().baseUrl).toBe("https://app.openworklabs.com");
+    expect(readDenBootstrapConfig().baseUrl).toBe("https://app.harness.invalid");
   });
 
   test("an activated enterprise install resolves its Den's runtime config at boot", async () => {
@@ -155,7 +155,7 @@ describe("pre-activation outbound egress", () => {
 
     await initializeDenBootstrapConfig();
 
-    expect(fetches).toEqual(["https://app.openworklabs.com/api/runtime-config"]);
+    expect(fetches).toEqual(["https://app.harness.invalid/api/runtime-config"]);
   });
 });
 

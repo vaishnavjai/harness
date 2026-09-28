@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import type * as React from "react";
 import { Lock, Pencil, Plus, Trash2, Zap } from "lucide-react";
-import { FAST_DEFAULT_VARIANT, FAST_VARIANT_PREFIX } from "@openwork/types/cloud-model-fast";
+import { FAST_DEFAULT_VARIANT, FAST_VARIANT_PREFIX } from "@harness/types/cloud-model-fast";
 
 import type { Client, ModelRef } from "@/app/types";
 import { getModelBehaviorSummary } from "@/app/lib/model-behavior";

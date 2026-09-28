@@ -91,7 +91,7 @@ describe("finished turn step fold (single OpenCode message per turn)", () => {
     const assistant: UIMessage = {
       id: "unfinished-assistant", role: "assistant",
       parts: [{
-        type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "unfinished-probe",
+        type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "unfinished-probe",
         state: "input-available", input: { name: "mcp:emc_probe:*" },
       }],
     };
@@ -185,22 +185,22 @@ describe("native connection card in the transcript", () => {
   const stripeStatus = {
     name: "mcp:emc_stripe:*", kind: "connection_status", status: "needs_connection",
     connectionStatus: {
-      version: 1, kind: "connection_action", source: "openwork-cloud", connectionId: "emc_stripe", connectionName: "Stripe",
+      version: 1, kind: "connection_action", source: "harness-cloud", connectionId: "emc_stripe", connectionName: "Stripe",
       authType: "oauth", credentialMode: "per_member", state: "needs_connection", actor: "member",
       message: "You haven't connected your Stripe account yet.",
-      action: { type: "connect", label: "Connect Stripe", surface: "openwork_your_connections", retry: "search_capabilities" },
+      action: { type: "connect", label: "Connect Stripe", surface: "harness_your_connections", retry: "search_capabilities" },
     },
   };
   const discovery: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId: "call_stripe_discovery",
+    type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId: "call_stripe_discovery",
     state: "output-available", input: { query: "Stripe weekly revenue growth", type: "mcp", limit: 10 }, output: { matches: [stripeStatus] },
   };
   const stripeAction = {
     schemaVersion: "1", connectionId: "emc_stripe", connectionName: "Stripe", state: "needs_connection", actor: "member",
-    message: "Connect Stripe to continue.", action: { type: "connect", label: "Connect Stripe", surface: "openwork_your_connections" },
+    message: "Connect Stripe to continue.", action: { type: "connect", label: "Connect Stripe", surface: "harness_your_connections" },
   };
   const statusProbe: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "call_stripe_status",
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "call_stripe_status",
     state: "output-available", input: { name: "mcp:emc_stripe:*" },
     output: { connectionAction: stripeAction },
   };
@@ -216,27 +216,27 @@ describe("native connection card in the transcript", () => {
     const markup = renderList(turn(statusProbe));
     expect(cards(markup)).toBe(1);
     expect(markup).toContain("Connect Stripe");
-    expect(markup).not.toContain('data-capability-call="openwork-cloud_execute_capability"');
+    expect(markup).not.toContain('data-capability-call="harness-cloud_execute_capability"');
     expect(markup).not.toContain("text-destructive");
   });
 
   test("ordinary discovery stays a quiet sentence line until the native question binds to it", () => {
     const quiet = renderList(turn(discovery));
     expect(cards(quiet)).toBe(0);
-    expect(quiet).toContain('data-capability-call="openwork-cloud_search_capabilities"');
+    expect(quiet).toContain('data-capability-call="harness-cloud_search_capabilities"');
     expect(quiet).toContain("Searched your connections");
     expect(quiet).not.toContain(">Authenticate</button>");
 
     const otherCall = renderList(turn(discovery), false, { uiStateOwner: owner, getConnectionDecision: id => id === "another-call" ? binding("another-call") : null });
     expect(cards(otherCall)).toBe(0);
-    expect(otherCall).toContain('data-capability-call="openwork-cloud_search_capabilities"');
+    expect(otherCall).toContain('data-capability-call="harness-cloud_search_capabilities"');
 
     const bound = renderList(turn(discovery), false, { uiStateOwner: owner, getConnectionDecision: id => id === discovery.toolCallId ? binding(discovery.toolCallId) : null });
     expect(cards(bound)).toBe(1);
     expect(bound).toContain("Connect Stripe to continue");
     expect(bound).toContain(">Skip</button>");
     expect(bound).toContain(">Authenticate</button>");
-    expect(bound).not.toContain('data-capability-call="openwork-cloud_search_capabilities"');
+    expect(bound).not.toContain('data-capability-call="harness-cloud_search_capabilities"');
     expect(bound).not.toContain("Checking connection request");
   });
 
@@ -249,12 +249,12 @@ describe("native connection card in the transcript", () => {
   });
 
   const connectSearch: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId: "call_stripe_connect_search",
+    type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId: "call_stripe_connect_search",
     state: "output-available", input: { query: "Stripe", intent: "connect" },
     output: { matches: [stripeStatus], connectionAction: stripeAction },
   };
-  const searchLine = 'data-capability-call="openwork-cloud_search_capabilities"';
-  const executeLine = 'data-capability-call="openwork-cloud_execute_capability"';
+  const searchLine = 'data-capability-call="harness-cloud_search_capabilities"';
+  const executeLine = 'data-capability-call="harness-cloud_execute_capability"';
 
   test("two reports of one connection in a turn render one card on the latest report", () => {
     const markup = renderList(turn(connectSearch, statusProbe));
@@ -285,7 +285,7 @@ describe("native connection card in the transcript", () => {
       ...statusProbe, toolCallId: "call_notion_status", input: { name: "mcp:emc_notion:*" },
       output: { connectionAction: {
         schemaVersion: "1", connectionId: "emc_notion", connectionName: "Notion", state: "needs_connection", actor: "member",
-        message: "Connect Notion to continue.", action: { type: "connect", label: "Connect Notion", surface: "openwork_your_connections" },
+        message: "Connect Notion to continue.", action: { type: "connect", label: "Connect Notion", surface: "harness_your_connections" },
       } },
     };
     const markup = renderList(turn(statusProbe, notionProbe));

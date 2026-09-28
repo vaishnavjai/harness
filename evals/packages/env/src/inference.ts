@@ -3,8 +3,8 @@ import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { createConnection } from "mysql2/promise";
-import { allocateFreePort } from "@openwork/cdp";
-import { startInferenceWitness } from "@openwork/labs";
+import { allocateFreePort } from "@harness/cdp";
+import { startInferenceWitness } from "@harness/labs";
 import type { Place } from "./place.ts";
 import { ephemeralDatabaseName, localMysqlIsRunning } from "./place.ts";
 import { SkipError } from "./needs.ts";
@@ -29,11 +29,11 @@ function encrypted(value: string) {
 /** Real HTTP service with disposable baseline SQL for auth; generation is local. */
 export async function managedInference(place: Place) {
   if (place.kind !== "local") throw new SkipError("managed inference fixture requires a local MySQL service and loopback provider");
-  if (!await localMysqlIsRunning()) throw new SkipError("MySQL is not reachable at OPENWORK_EVAL_MYSQL_URL or the default local port");
+  if (!await localMysqlIsRunning()) throw new SkipError("MySQL is not reachable at HARNESS_EVAL_MYSQL_URL or the default local port");
   const stack = new AsyncDisposableStack();
   try {
     const database = stack.use(await place.db(ephemeralDatabaseName("inference_eval")));
-    await exec("pnpm", ["--filter", "@openwork-ee/den-db", "db:push"], {
+    await exec("pnpm", ["--filter", "@harness-ee/den-db", "db:push"], {
       cwd: root, timeout: 120_000, maxBuffer: 4 * 1024 * 1024,
       env: { ...process.env, DATABASE_URL: database.url, DEN_DB_ENCRYPTION_KEY: encryptionSecret },
     });
@@ -44,7 +44,7 @@ export async function managedInference(place: Place) {
     const child = spawn(process.execPath, ["--conditions=development", "--import", "tsx", "src/server.ts"], {
       cwd: `${root}/ee/apps/gateway`, stdio: ["ignore", "pipe", "pipe"],
       env: {
-        PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", OPENWORK_DEV_MODE: "1",
+        PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", HARNESS_DEV_MODE: "1",
         PORT: String(port), DB_MODE: "mysql", DATABASE_URL: database.url,
         DEN_DB_ENCRYPTION_KEY: encryptionSecret, OPENROUTER_UPSTREAM_URL: witness.url,
         GATEWAY_EGRESS_ALLOWED_ORIGINS: new URL(witness.url).origin,

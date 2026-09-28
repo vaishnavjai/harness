@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { allocateFreePorts } from "@openwork/cdp";
-import { SkipError, ephemeralDatabaseName, localMysqlIsRunning, localRedisIsRunning, trustedOrigins } from "@openwork/env";
-import { freePort, killLocalPid } from "@openwork/hosts";
+import { allocateFreePorts } from "@harness/cdp";
+import { SkipError, ephemeralDatabaseName, localMysqlIsRunning, localRedisIsRunning, trustedOrigins } from "@harness/env";
+import { freePort, killLocalPid } from "@harness/hosts";
 import type { ChildProcess } from "node:child_process";
-import type { DenRef } from "@openwork/behaviors";
-import type { DbHandle, Place } from "@openwork/env";
+import type { DenRef } from "@harness/behaviors";
+import type { DbHandle, Place } from "@harness/env";
 
 const execFileAsync = promisify(execFile);
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -59,11 +59,11 @@ function spawnService(
   logPath: string,
 ): SpawnedService {
   const logFd = openSync(logPath, "a");
-  const prepared = process.env.OPENWORK_EVAL_DEN_RUNTIME_PREPARED === "1";
+  const prepared = process.env.HARNESS_EVAL_DEN_RUNTIME_PREPARED === "1";
   const args = prepared
     ? label === "den-api"
-      ? ["--filter", "@openwork-ee/den-api", "exec", "tsx", "src/main.ts"]
-      : ["--filter", "@openwork-ee/den-web", "exec", "next", "start", "--hostname", "127.0.0.1", "--port", String(port)]
+      ? ["--filter", "@harness-ee/den-api", "exec", "tsx", "src/main.ts"]
+      : ["--filter", "@harness-ee/den-web", "exec", "next", "start", "--hostname", "127.0.0.1", "--port", String(port)]
     : [script];
   const child = spawn("pnpm", args, {
     cwd: REPO_ROOT,
@@ -114,7 +114,7 @@ async function waitForAuthProbe(ref: DenRef, service: SpawnedService): Promise<v
       const response = await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json", origin: ref.webUrl },
-        body: JSON.stringify({ email: `probe-${Date.now()}@openwork.test`, password: "not-a-real-password" }),
+        body: JSON.stringify({ email: `probe-${Date.now()}@harness.test`, password: "not-a-real-password" }),
         signal: AbortSignal.timeout(5_000),
       });
       if (response.status !== 403 && response.status < 500) return;
@@ -130,12 +130,12 @@ async function waitForAuthProbe(ref: DenRef, service: SpawnedService): Promise<v
 // mirrored from server.ts (keep in sync)
 async function runDbPush(databaseUrl: string): Promise<void> {
   try {
-    const commands = process.env.OPENWORK_EVAL_DEN_RUNTIME_PREPARED === "1"
+    const commands = process.env.HARNESS_EVAL_DEN_RUNTIME_PREPARED === "1"
       ? [
-          ["--filter", "@openwork-ee/den-db", "exec", "node", "--import", "tsx", "./node_modules/drizzle-kit/bin.cjs", "push", "--config", "drizzle.config.ts"],
-          ["--filter", "@openwork-ee/den-db", "exec", "node", "--import", "tsx", "scripts/ensure-schema-repairs.ts"],
+          ["--filter", "@harness-ee/den-db", "exec", "node", "--import", "tsx", "./node_modules/drizzle-kit/bin.cjs", "push", "--config", "drizzle.config.ts"],
+          ["--filter", "@harness-ee/den-db", "exec", "node", "--import", "tsx", "scripts/ensure-schema-repairs.ts"],
         ]
-      : [["--filter", "@openwork-ee/den-db", "db:push"]];
+      : [["--filter", "@harness-ee/den-db", "db:push"]];
     for (const args of commands) {
       await execFileAsync("pnpm", args, {
         cwd: REPO_ROOT,
@@ -159,16 +159,16 @@ async function runDbPush(databaseUrl: string): Promise<void> {
 // mirrored from server.ts (keep in sync)
 async function stopServices(services: SpawnedService[]): Promise<void> {
   for (const service of services) {
-    await killLocalPid(service.pid, { log: (line) => console.error(`[openwork/testkit] ${line}`) })
-      .catch((error: unknown) => console.error(`[openwork/testkit] ${service.label} cleanup failed: ${messageText(error)}`));
+    await killLocalPid(service.pid, { log: (line) => console.error(`[harness/testkit] ${line}`) })
+      .catch((error: unknown) => console.error(`[harness/testkit] ${service.label} cleanup failed: ${messageText(error)}`));
     await freePort(service.port)
-      .catch((error: unknown) => console.error(`[openwork/testkit] ${service.label} port cleanup failed: ${messageText(error)}`));
+      .catch((error: unknown) => console.error(`[harness/testkit] ${service.label} port cleanup failed: ${messageText(error)}`));
   }
 }
 
 export async function selfHostServer(options: SelfHostServerOptions): Promise<SelfHostDen & AsyncDisposable> {
   if (options.place.kind === "daytona") {
-    throw new SkipError("selfHostServer requires local placement; unset OPENWORK_EVAL_DAYTONA");
+    throw new SkipError("selfHostServer requires local placement; unset HARNESS_EVAL_DAYTONA");
   }
   if (!await localMysqlIsRunning()) {
     throw new Error("Local Den requires MySQL on 127.0.0.1:3306. Run: pnpm dev:den:mysql");
@@ -180,7 +180,7 @@ export async function selfHostServer(options: SelfHostServerOptions): Promise<Se
   const services: SpawnedService[] = [];
   let database: DbHandle | undefined;
   try {
-    database = await options.place.db(ephemeralDatabaseName("openwork_selfhost_eval"));
+    database = await options.place.db(ephemeralDatabaseName("harness_selfhost_eval"));
     await runDbPush(database.url);
     const [apiPort, webPort] = await allocateFreePorts(2);
     if (apiPort === undefined || webPort === undefined) throw new Error("Could not allocate Den API/Web ports.");
@@ -214,7 +214,7 @@ export async function selfHostServer(options: SelfHostServerOptions): Promise<Se
       SMTP_HOST: "",
       DEN_REQUIRE_EMAIL_VERIFICATION: "false",
       DEN_PASSWORD_BREACH_SCREENING_ENABLED: "false",
-      OPENWORK_DEV_MODE: "1",
+      HARNESS_DEV_MODE: "1",
       PROVISIONER_MODE: "stub",
     };
 
@@ -246,7 +246,7 @@ export async function selfHostServer(options: SelfHostServerOptions): Promise<Se
         disposed = true;
         await stopServices(services);
         await database?.drop().catch((error: unknown) => {
-          console.error(`[openwork/testkit] ephemeral database cleanup failed: ${messageText(error)}`);
+          console.error(`[harness/testkit] ephemeral database cleanup failed: ${messageText(error)}`);
         });
       },
     };

@@ -19,26 +19,24 @@ import { useLocal } from "../kernel/local-provider";
 import { usePlatform } from "../kernel/platform";
 import { WelcomePage } from "../domains/onboarding/welcome-page";
 import { ProviderSelectionStep } from "../domains/onboarding/provider-selection-step";
-import { AttributionStep, type AttributionSource } from "../domains/onboarding/attribution-step";
 import { CreateWorkspaceModal } from "../domains/workspace/create-workspace-modal";
 import type { CreateWorkspaceOptions } from "../domains/workspace/types";
 import {
-  getOpenWorkModelsActionUrl,
-  hideOpenWorkModelsPromo,
-  useOpenWorkModelsPromoEligibility,
-  markOpenWorkModelsStartupPromoShown,
-} from "../domains/cloud/openwork-models-promo";
+  getHarnessModelsActionUrl,
+  hideHarnessModelsPromo,
+  useHarnessModelsPromoEligibility,
+  markHarnessModelsStartupPromoShown,
+} from "../domains/cloud/harness-models-promo";
 import { useDenAuth } from "../domains/cloud/den-auth-provider";
 import { JoinOrganizationDialog } from "../domains/cloud/join-organization-dialog";
-import { resolveOpenworkConnection } from "./openwork-connection";
-import { captureAnalyticsEvent } from "../../app/lib/analytics";
-import { buildOpenworkWorkspaceBaseUrl, createOpenworkServerClient } from "../../app/lib/openwork-server";
+import { resolveHarnessConnection } from "./harness-connection";
+import { buildHarnessWorkspaceBaseUrl, createHarnessServerClient } from "../../app/lib/harness-server";
 import { buildDenAuthUrl, DEFAULT_DEN_BASE_URL, readDenSettings } from "../../app/lib/den";
 import { markDesktopSignInInitiated } from "../../app/lib/den-sign-in-intent";
 import { denSettingsChangedEvent } from "../../app/lib/den-session-events";
 import { writeActiveWorkspaceId, writeLastSessionFor, writeWorkspaceProjectDimension } from "./session-memory";
 import { workspaceSessionRoute } from "./workspace-routes";
-import { ensureDesktopLocalOpenworkConnection } from "./desktop-local-openwork";
+import { ensureDesktopLocalHarnessConnection } from "./desktop-local-harness";
 import { shouldHoldWelcomeForDenSession } from "./welcome-den-session";
 
 function subscribeToDenSettings(onStoreChange: () => void) {
@@ -59,7 +57,7 @@ function folderNameFromPath(path: string) {
 
 function focusPromptSoon() {
   if (typeof window === "undefined") return;
-  const focus = () => window.dispatchEvent(new Event("openwork:focusPrompt"));
+  const focus = () => window.dispatchEvent(new Event("harness:focusPrompt"));
   [0, 80, 240, 600].forEach((delay) => window.setTimeout(focus, delay));
 }
 
@@ -70,8 +68,6 @@ type WelcomeState = {
   remoteBusy: boolean;
   remoteError: string | null;
   providerStep: boolean;
-  attributionStep: boolean;
-  pendingRoute: string | null;
   pendingWorkspaceId: string | null;
   pendingSessionId: string | null;
 };
@@ -85,8 +81,7 @@ type WelcomeAction =
   | { type: "remote:start" }
   | { type: "remote:error"; error: string }
   | { type: "remote:finish" }
-  | { type: "provider-step"; workspaceId: string; sessionId: string | null }
-  | { type: "attribution-step"; route: string };
+  | { type: "provider-step"; workspaceId: string; sessionId: string | null };
 
 const initialWelcomeState: WelcomeState = {
   modalOpen: false,
@@ -95,8 +90,6 @@ const initialWelcomeState: WelcomeState = {
   remoteBusy: false,
   remoteError: null,
   providerStep: false,
-  attributionStep: false,
-  pendingRoute: null,
   pendingWorkspaceId: null,
   pendingSessionId: null,
 };
@@ -121,8 +114,6 @@ function welcomeReducer(state: WelcomeState, action: WelcomeAction): WelcomeStat
       return { ...state, remoteBusy: false };
     case "provider-step":
       return { ...state, providerStep: true, pendingWorkspaceId: action.workspaceId, pendingSessionId: action.sessionId };
-    case "attribution-step":
-      return { ...state, providerStep: false, attributionStep: true, pendingRoute: action.route };
   }
 }
 
@@ -131,7 +122,7 @@ function welcomeReducer(state: WelcomeState, action: WelcomeAction): WelcomeStat
  * the user has no workspaces and has not completed onboarding.
  *
  * Clicking "Get started" opens the CreateWorkspaceModal. Once a
- * workspace is created, provider and attribution onboarding runs before
+ * workspace is created, provider onboarding runs before
  * hasCompletedOnboarding is set and the user is redirected to /session.
  */
 export function WelcomeRoute() {
@@ -142,7 +133,7 @@ export function WelcomeRoute() {
   const [state, dispatch] = useReducer(welcomeReducer, initialWelcomeState);
   const [manualFolder, setManualFolder] = useState("");
   const [joinOrganizationOpen, setJoinOrganizationOpen] = useState(false);
-  const showOpenWorkModelsPromo = useOpenWorkModelsPromoEligibility();
+  const showHarnessModelsPromo = useHarnessModelsPromoEligibility();
   const denAuthTokenSnapshot = useSyncExternalStore(
     subscribeToDenSettings,
     readDenAuthTokenSnapshot,
@@ -183,14 +174,14 @@ export function WelcomeRoute() {
         let sessionToken = "";
         try {
           const { normalizedBaseUrl, resolvedToken, resolvedHostToken } =
-            await resolveOpenworkConnection();
+            await resolveHarnessConnection();
           if (normalizedBaseUrl && (resolvedToken || resolvedHostToken)) {
-            const openworkClient = createOpenworkServerClient({
+            const harnessClient = createHarnessServerClient({
               baseUrl: normalizedBaseUrl,
               token: resolvedToken || undefined,
               hostToken: resolvedHostToken || undefined,
             });
-            list = await openworkClient.createLocalWorkspace({
+            list = await harnessClient.createLocalWorkspace({
               folderPath: folder,
               name: workspaceName,
               preset: "starter",
@@ -202,7 +193,7 @@ export function WelcomeRoute() {
           list = null;
         }
         if (!list) {
-          throw new Error("OpenWork server is unavailable. Start or reconnect the server before creating a workspace.");
+          throw new Error("Harness server is unavailable. Start or reconnect the server before creating a workspace.");
         }
         const createdId =
           resolveWorkspaceListSelectedId(list) ||
@@ -217,12 +208,12 @@ export function WelcomeRoute() {
           writeActiveWorkspaceId(createdId);
         }
         if (targetWorkspace) {
-          await ensureDesktopLocalOpenworkConnection({
+          await ensureDesktopLocalHarnessConnection({
             route: "session",
             workspace: targetWorkspace,
             allWorkspaces: list.workspaces,
           }).catch(() => undefined);
-          const fresh = await resolveOpenworkConnection().catch(() => null);
+          const fresh = await resolveHarnessConnection().catch(() => null);
           if (fresh?.normalizedBaseUrl && fresh.resolvedToken) {
             sessionBaseUrl = fresh.normalizedBaseUrl;
             sessionToken = fresh.resolvedToken;
@@ -232,12 +223,11 @@ export function WelcomeRoute() {
           try {
             const workspacePath = targetWorkspace?.path?.trim() || folder;
             const session = unwrap(await createClient(
-              `${(buildOpenworkWorkspaceBaseUrl(sessionBaseUrl, targetWorkspaceId) ?? sessionBaseUrl).replace(/\/+$/, "")}/opencode`,
+              `${(buildHarnessWorkspaceBaseUrl(sessionBaseUrl, targetWorkspaceId) ?? sessionBaseUrl).replace(/\/+$/, "")}/opencode`,
               workspacePath || undefined,
-              { token: sessionToken, mode: "openwork" },
+              { token: sessionToken, mode: "harness" },
             ).session.create({ directory: workspacePath || undefined }));
             targetSessionId = session.id;
-            captureAnalyticsEvent("task_created", { source: "onboarding", workspace_type: "local" });
           } catch {
             // Best-effort first task creation.
           }
@@ -269,20 +259,20 @@ export function WelcomeRoute() {
 
   const handleCreateRemote = useCallback(
     async (input: {
-      openworkHostUrl?: string | null;
-      openworkToken?: string | null;
+      harnessHostUrl?: string | null;
+      harnessToken?: string | null;
       directory?: string | null;
       displayName?: string | null;
     }) => {
-      const baseUrlValue = input.openworkHostUrl?.trim() ?? "";
+      const baseUrlValue = input.harnessHostUrl?.trim() ?? "";
       if (!baseUrlValue) return false;
       dispatch({ type: "remote:start" });
       try {
-        const remoteType: "openwork" = "openwork";
+        const remoteType: "harness" = "harness";
         const payload = {
           baseUrl: baseUrlValue,
-          openworkHostUrl: baseUrlValue,
-          openworkToken: input.openworkToken?.trim() || null,
+          harnessHostUrl: baseUrlValue,
+          harnessToken: input.harnessToken?.trim() || null,
           displayName: input.displayName?.trim() || null,
           directory: input.directory?.trim() || null,
           remoteType,
@@ -293,9 +283,9 @@ export function WelcomeRoute() {
         } else {
           try {
             const { normalizedBaseUrl, resolvedToken, resolvedHostToken } =
-              await resolveOpenworkConnection();
+              await resolveHarnessConnection();
             if (normalizedBaseUrl && (resolvedToken || resolvedHostToken)) {
-              list = await createOpenworkServerClient({
+              list = await createHarnessServerClient({
                 baseUrl: normalizedBaseUrl,
                 token: resolvedToken || undefined,
                 hostToken: resolvedHostToken || undefined,
@@ -306,7 +296,7 @@ export function WelcomeRoute() {
           }
         }
         if (!list) {
-          throw new Error("OpenWork server is unavailable. Start or reconnect the server before connecting a remote workspace.");
+          throw new Error("Harness server is unavailable. Start or reconnect the server before connecting a remote workspace.");
         }
         const createdId =
           resolveWorkspaceListSelectedId(list) ||
@@ -360,30 +350,11 @@ export function WelcomeRoute() {
     platform.openLink(buildDenAuthUrl(settings.baseUrl || DEFAULT_DEN_BASE_URL, "sign-in"));
   }, [markOnboardingComplete, platform]);
 
-  const finishOnboarding = useCallback(() => {
+  const finishOnboarding = useCallback((route: string) => {
     markOnboardingComplete();
-    navigate(state.pendingRoute ?? "/session", { replace: true });
+    navigate(route, { replace: true });
     if (state.pendingSessionId) focusPromptSoon();
-  }, [markOnboardingComplete, navigate, state.pendingRoute, state.pendingSessionId]);
-
-  const handleAttributionSubmit = useCallback(
-    (source: AttributionSource, aiPrompt?: string) => {
-      const prompt = aiPrompt?.trim().slice(0, 500) ?? "";
-      captureAnalyticsEvent("attribution_survey_submitted", {
-        source,
-        // User-volunteered survey answer (not session content); see survey UI.
-        ai_prompt: prompt || null,
-        ai_prompt_length: prompt.length,
-      });
-      finishOnboarding();
-    },
-    [finishOnboarding],
-  );
-
-  const handleAttributionSkip = useCallback(() => {
-    captureAnalyticsEvent("attribution_survey_skipped");
-    finishOnboarding();
-  }, [finishOnboarding]);
+  }, [markOnboardingComplete, navigate, state.pendingSessionId]);
 
   if (holdSignedOutSurface) {
     return null;
@@ -433,37 +404,31 @@ export function WelcomeRoute() {
       />
       {state.providerStep ? (
         <ProviderSelectionStep
-          showOpenWorkModels={showOpenWorkModelsPromo}
-          onOpenWorkModels={() => {
-            // Land on the OpenWork Models value-prop page when already
+          showHarnessModels={showHarnessModelsPromo}
+          onHarnessModels={() => {
+            // Land on the Harness Models value-prop page when already
             // signed in to Den; otherwise start sign-up. Previously this
             // always opened a bare sign-up page — payment before value.
-            platform.openLink(getOpenWorkModelsActionUrl(denAuth.isSignedIn, "sign-up"));
+            platform.openLink(getHarnessModelsActionUrl(denAuth.isSignedIn, "sign-up"));
             const route = state.pendingWorkspaceId
               ? workspaceSessionRoute(state.pendingWorkspaceId, state.pendingSessionId)
               : "/session";
-            dispatch({ type: "attribution-step", route });
+            finishOnboarding(route);
           }}
           onBringYourOwn={() => {
-            markOpenWorkModelsStartupPromoShown();
-            hideOpenWorkModelsPromo();
+            markHarnessModelsStartupPromoShown();
+            hideHarnessModelsPromo();
             const route = state.pendingWorkspaceId
               ? workspaceSessionRoute(state.pendingWorkspaceId, state.pendingSessionId)
               : "/session";
-            dispatch({ type: "attribution-step", route: `${route}?onboarding=1` });
+            finishOnboarding(`${route}?onboarding=1`);
           }}
           onSkip={() => {
             const route = state.pendingWorkspaceId
               ? workspaceSessionRoute(state.pendingWorkspaceId, state.pendingSessionId)
               : "/session";
-            dispatch({ type: "attribution-step", route });
+            finishOnboarding(route);
           }}
-        />
-      ) : null}
-      {state.attributionStep ? (
-        <AttributionStep
-          onSubmit={handleAttributionSubmit}
-          onSkip={handleAttributionSkip}
         />
       ) : null}
     </>

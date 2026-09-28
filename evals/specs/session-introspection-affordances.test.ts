@@ -1,12 +1,12 @@
 import { createServer } from "node:http";
 import { afterEach, expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 
-import { OpenWorkExtensionsPreview } from "../../apps/server/src/opencode-plugins/openwork-extensions-preview";
+import { HarnessExtensionsPreview } from "../../apps/server/src/opencode-plugins/harness-extensions-preview";
 import {
-  buildOpenworkProviderContributions,
+  buildHarnessProviderContributions,
   sessionAffordanceArgsSchemas,
-} from "../../apps/server/src/opencode-plugins/openwork-provider-adapters";
+} from "../../apps/server/src/opencode-plugins/harness-provider-adapters";
 
 // Mirrors the audited inventory: one workspace with far more root sessions
 // than the default transcript scan window, the wanted session archived and
@@ -31,7 +31,7 @@ const sessions = Array.from({ length: ROOT_SESSIONS }, (_, index) => {
   return {
     id: probe ? "ses_probe" : `ses_${rank}`,
     title: probe ? "variant probe 2 (safe to archive)" : `Routine task ${rank}`,
-    directory: "/tmp/openwork",
+    directory: "/tmp/harness",
     time: { created: 5_000_000 - rank * 1000, updated: 9_000_000 - rank * 1000, ...(probe ? { archived: 9_500_000 } : {}) },
   };
 });
@@ -40,18 +40,18 @@ const transcripts = new Map<string, Message[]>([
   ["ses_probe", transcript("ses_probe", 2)],
 ]);
 
-const originalEnv = { url: process.env.OPENWORK_SERVER_URL, token: process.env.OPENWORK_SERVER_TOKEN };
+const originalEnv = { url: process.env.HARNESS_SERVER_URL, token: process.env.HARNESS_SERVER_TOKEN };
 let stop: (() => Promise<void>) | null = null;
 afterEach(async () => {
   await stop?.();
   stop = null;
-  if (originalEnv.url === undefined) delete process.env.OPENWORK_SERVER_URL;
-  else process.env.OPENWORK_SERVER_URL = originalEnv.url;
-  if (originalEnv.token === undefined) delete process.env.OPENWORK_SERVER_TOKEN;
-  else process.env.OPENWORK_SERVER_TOKEN = originalEnv.token;
+  if (originalEnv.url === undefined) delete process.env.HARNESS_SERVER_URL;
+  else process.env.HARNESS_SERVER_URL = originalEnv.url;
+  if (originalEnv.token === undefined) delete process.env.HARNESS_SERVER_TOKEN;
+  else process.env.HARNESS_SERVER_TOKEN = originalEnv.token;
 });
 
-async function startFakeOpenWorkServer() {
+async function startFakeHarnessServer() {
   const requests: Array<{ pathname: string; search: string }> = [];
   const server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -61,7 +61,7 @@ async function startFakeOpenWorkServer() {
       response.end(JSON.stringify(body));
     };
     if (request.headers.authorization !== "Bearer test-token") return json(401, { message: "Unauthorized" });
-    if (url.pathname === "/workspaces") return json(200, { items: [{ id: "ws_1", name: "openwork", path: "/tmp/openwork" }] });
+    if (url.pathname === "/workspaces") return json(200, { items: [{ id: "ws_1", name: "harness", path: "/tmp/harness" }] });
     if (url.pathname === "/workspace/ws_1/opencode/session") {
       const limit = Number(url.searchParams.get("limit") ?? ROOT_SESSIONS);
       return json(200, sessions.slice(0, limit));
@@ -86,8 +86,8 @@ async function startFakeOpenWorkServer() {
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("fake server did not bind a port");
   stop = () => new Promise<void>((resolve) => server.close(() => resolve()));
-  process.env.OPENWORK_SERVER_URL = `http://127.0.0.1:${address.port}`;
-  process.env.OPENWORK_SERVER_TOKEN = "test-token";
+  process.env.HARNESS_SERVER_URL = `http://127.0.0.1:${address.port}`;
+  process.env.HARNESS_SERVER_TOKEN = "test-token";
   return { requests };
 }
 
@@ -113,15 +113,15 @@ function ids(result: Record<string, unknown>): string[] {
 }
 
 async function plugin() {
-  const instance = await OpenWorkExtensionsPreview();
+  const instance = await HarnessExtensionsPreview();
   return {
-    search: async (args: Record<string, unknown>) => resultOf(await instance.tool.openwork_query.execute({ id: "session.search", args }), "session.search"),
-    read: async (args: Record<string, unknown>) => resultOf(await instance.tool.openwork_query.execute({ id: "session.read", args }), "session.read"),
+    search: async (args: Record<string, unknown>) => resultOf(await instance.tool.harness_query.execute({ id: "session.search", args }), "session.search"),
+    read: async (args: Record<string, unknown>) => resultOf(await instance.tool.harness_query.execute({ id: "session.read", args }), "session.read"),
   };
 }
 
 test("session.search advertises every schema argument so agents can widen a truncated scan", async ({ evidence }) => {
-  const contributions = buildOpenworkProviderContributions([]);
+  const contributions = buildHarnessProviderContributions([]);
   const affordances = contributions.find((contribution) => contribution.featureId === "sessions")?.affordances ?? [];
   const drift: string[] = [];
   for (const [id, schema] of Object.entries(sessionAffordanceArgsSchemas)) {
@@ -145,7 +145,7 @@ test("session.search advertises every schema argument so agents can widen a trun
 });
 
 test("session.search finds a session by title far beyond the default scan window and reports the window honestly", async ({ evidence }) => {
-  const fake = await startFakeOpenWorkServer();
+  const fake = await startFakeHarnessServer();
   const { search } = await plugin();
 
   const byDefault = await search({ query: "variant probe" });
@@ -171,7 +171,7 @@ test("session.search finds a session by title far beyond the default scan window
 });
 
 test("session.search match, time and archived filters narrow results instead of OR-ing terms", async ({ evidence }) => {
-  await startFakeOpenWorkServer();
+  await startFakeHarnessServer();
   const { search } = await plugin();
   const found = async (args: Record<string, unknown>) => ids(await search(args));
 
@@ -193,7 +193,7 @@ test("session.search match, time and archived filters narrow results instead of 
 });
 
 test("session.read reads from the start of a long transcript and summarizes asked/concluded in one call", async ({ evidence }) => {
-  const fake = await startFakeOpenWorkServer();
+  const fake = await startFakeHarnessServer();
   const { read } = await plugin();
 
   const tail = await read({ sessionId: "ses_1", count: 2 });

@@ -13,24 +13,24 @@ import { promisify } from "node:util";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const exec = promisify(execFile);
 const lifetimeMs = 120 * 60_000;
-const ownerEmail = "gateway-owner@openwork.test";
+const ownerEmail = "gateway-owner@harness.test";
 const inheritedKeys = new Set([
   "PATH", "HOME", "TMPDIR", "SHELL", "LANG", "TERM", "PNPM_HOME",
-  "OPENWORK_WORLD_STAGE", "OPENWORK_WORLD_PLACE", "OPENWORK_WORLD_RECIPE_HASH",
-  "OPENWORK_WORLD_INVOCATION_HASH", "OPENWORK_WORLD_EVENTS", "OPENWORK_WORLD_LEDGER",
+  "HARNESS_WORLD_STAGE", "HARNESS_WORLD_PLACE", "HARNESS_WORLD_RECIPE_HASH",
+  "HARNESS_WORLD_INVOCATION_HASH", "HARNESS_WORLD_EVENTS", "HARNESS_WORLD_LEDGER",
 ]);
 
 export function preflight(): void {
-  if (process.env.OPENWORK_WORLD_SNAPSHOT_DIR && resolve(process.env.OPENWORK_WORLD_SNAPSHOT_DIR) !== join(root, "evals/results/.worlds/scripts")) {
+  if (process.env.HARNESS_WORLD_SNAPSHOT_DIR && resolve(process.env.HARNESS_WORLD_SNAPSHOT_DIR) !== join(root, "evals/results/.worlds/scripts")) {
     throw new Error("gateway-local requires worktree-local world receipts.");
   }
-  if (process.env.OPENWORK_WORLD_PLACE && process.env.OPENWORK_WORLD_PLACE !== "local") {
+  if (process.env.HARNESS_WORLD_PLACE && process.env.HARNESS_WORLD_PLACE !== "local") {
     throw new Error("gateway-local requires --place local.");
   }
   for (const key of [
-    "OPENWORK_EVAL_DEN_API_URL", "OPENWORK_EVAL_DEN_WEB_URL", "OPENWORK_EVAL_MYSQL_URL",
-    "OPENWORK_EVAL_DAYTONA", "OPENWORK_EVAL_ELECTRON_BINARY", "OPENWORK_DEV_SHARED_STATE",
-    "OPENWORK_DEN_DB_ENV_PATH", "DATABASE_ENV_FILE",
+    "HARNESS_EVAL_DEN_API_URL", "HARNESS_EVAL_DEN_WEB_URL", "HARNESS_EVAL_MYSQL_URL",
+    "HARNESS_EVAL_DAYTONA", "HARNESS_EVAL_ELECTRON_BINARY", "HARNESS_DEV_SHARED_STATE",
+    "HARNESS_DEN_DB_ENV_PATH", "DATABASE_ENV_FILE",
     "DOCKER_HOST", "DOCKER_CONTEXT", "GATEWAY_EGRESS_ALLOWED_ORIGINS", "OPENROUTER_UPSTREAM_URL",
   ]) {
     if (process.env[key]?.trim()) throw new Error(`Unset ${key}; this world never attaches shared services or overrides upstreams.`);
@@ -82,16 +82,16 @@ export async function main(): Promise<void> {
   const endpoint = await docker(["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"]);
   if (!endpoint.startsWith("unix://")) throw new Error("gateway-local requires a local Unix-socket Docker daemon.");
   await using stack = new AsyncDisposableStack();
-  const privateRoot = await mkdtemp(join(tmpdir(), "openwork-gateway-local-"));
+  const privateRoot = await mkdtemp(join(tmpdir(), "harness-gateway-local-"));
   stack.defer(() => rm(privateRoot, { recursive: true, force: true }));
   const pnpmHome = process.env.PNPM_HOME ?? join(process.env.HOME ?? "", "Library/pnpm");
   const home = join(privateRoot, "home");
   await mkdir(home);
   Object.assign(process.env, {
-    HOME: home, PNPM_HOME: pnpmHome, NODE_ENV: "development", OPENWORK_DEV_MODE: "1",
+    HOME: home, PNPM_HOME: pnpmHome, NODE_ENV: "development", HARNESS_DEV_MODE: "1",
     NEXT_TELEMETRY_DISABLED: "1",
-    OPENWORK_DEN_DB_ENV_PATH: join(privateRoot, "no-env"),
-    OPENWORK_EVAL_SURFACES_DIR: join(privateRoot, "surfaces"),
+    HARNESS_DEN_DB_ENV_PATH: join(privateRoot, "no-env"),
+    HARNESS_EVAL_SURFACES_DIR: join(privateRoot, "surfaces"),
   });
   const { progress, trackResource } = await import("../packages/world/src/index.ts");
   const { allocateFreePort } = await import("../evals/packages/cdp/src/index.ts");
@@ -114,11 +114,11 @@ export async function main(): Promise<void> {
     await docker(["start", id]);
     return id;
   };
-  const mysql = await startContainer(`openwork-gateway-mysql-${nonce}`, [
+  const mysql = await startContainer(`harness-gateway-mysql-${nonce}`, [
     "--publish", "127.0.0.1::3306", "--tmpfs", "/var/lib/mysql",
     "--env", "MYSQL_ROOT_PASSWORD", "mysql:8.4@sha256:c592c15aaf4a1961e15d82eb31ea5987dda862d1c4b1e93424438c0e91dc1f8d",
   ], { MYSQL_ROOT_PASSWORD: password });
-  const redis = await startContainer(`openwork-gateway-redis-${nonce}`, [
+  const redis = await startContainer(`harness-gateway-redis-${nonce}`, [
     "--publish", "127.0.0.1::6379", "--tmpfs", "/data", "redis:7-alpine@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
     "redis-server", "--save", "", "--appendonly", "no",
   ]);
@@ -136,14 +136,14 @@ export async function main(): Promise<void> {
     } catch { return false; }
   });
   await waitUntil("Redis", async () => (await docker(["exec", redis, "redis-cli", "ping"]).catch(() => "")) === "PONG");
-  process.env.OPENWORK_EVAL_MYSQL_URL = `mysql://root:${password}@${mysqlAddress}`;
+  process.env.HARNESS_EVAL_MYSQL_URL = `mysql://root:${password}@${mysqlAddress}`;
   process.env.DATABASE_REDIS_URL = `redis://${redisAddress}`;
   await infra.ok();
   const place = resolvePlace();
   const port = await allocateFreePort();
   const gatewayUrl = `http://127.0.0.1:${port}`;
   const commonEnv = {
-    NODE_ENV: "development", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql",
+    NODE_ENV: "development", HARNESS_DEV_MODE: "1", DB_MODE: "mysql",
     DEN_ORG_MODE: "multi_org", DEN_PLAN_GATING_ENABLED: "false",
     DEN_REQUIRE_EMAIL_VERIFICATION: "false", DEN_BOOTSTRAP_ADMIN_EMAILS: ownerEmail,
     GATEWAY_ENABLED: "true", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl,
@@ -155,7 +155,7 @@ export async function main(): Promise<void> {
     DEN_AUTOMATIONS_ENABLED: "false", DEN_AUTOMATIONS_RUNTIME_ENABLED: "false",
   };
   const den = stack.use(await server({ place, provision: false, web: true, env: commonEnv }));
-  if (!den.database || !new URL(den.database.url).pathname.startsWith("/openwork_eval_")) {
+  if (!den.database || !new URL(den.database.url).pathname.startsWith("/harness_eval_")) {
     throw new Error("Expected an owned disposable Den database.");
   }
   const gatewayStep = steps.step("gateway-local", "Gateway (real public provider egress)");
@@ -185,11 +185,11 @@ export async function main(): Promise<void> {
     return httpReady(`${gatewayUrl}/ready`);
   });
   await gatewayStep.ok(gatewayUrl);
-  delete process.env.OPENWORK_EVAL_MYSQL_URL;
+  delete process.env.HARNESS_EVAL_MYSQL_URL;
   delete process.env.DATABASE_REDIS_URL;
   const desktop = stack.use(await app({
     den, place, signIn: false, workspacePath: join(privateRoot, "workspace"),
-    env: { SENTRY_DSN: "", OPENWORK_DESKTOP_SENTRY_DSN: "", VITE_DISABLE_OPENWORK_MODELS: "1" },
+    env: { SENTRY_DSN: "", HARNESS_DESKTOP_SENTRY_DSN: "", VITE_DISABLE_HARNESS_MODELS: "1" },
   }));
   for (const url of [`${den.ref.apiUrl}/health`, `${den.ref.webUrl}/api/ready`, `${den.ref.webUrl}/`, `${gatewayUrl}/ready`]) {
     await waitUntil("Final HTTP verification", () => httpReady(url));
@@ -201,10 +201,10 @@ export async function main(): Promise<void> {
       denWeb: den.ref.webUrl, denApi: den.ref.apiUrl, gatewayUrl,
       signup: `${den.ref.webUrl}/`, ownerEmail,
       gatewayProviders: `${den.ref.webUrl}/dashboard/ai-gateway?tab=ai-providers`,
-      desktop: "Isolated OpenWork Eval testkit-fresh window; sign in to the local Den manually",
+      desktop: "Isolated Harness Eval testkit-fresh window; sign in to the local Den manually",
       desktopState: desktop.readiness?.state ?? "workspace created", expires,
       status: "HTTP readiness and isolated Electron workspace verified; no account, provider key, policy, or inference request seeded",
-      stop: `pnpm world down gateway-local${process.env.OPENWORK_WORLD_STAGE ? ` --stage ${process.env.OPENWORK_WORLD_STAGE}` : ""}`,
+      stop: `pnpm world down gateway-local${process.env.HARNESS_WORLD_STAGE ? ` --stage ${process.env.HARNESS_WORLD_STAGE}` : ""}`,
     } });
   } finally { clearTimeout(timer); }
 }

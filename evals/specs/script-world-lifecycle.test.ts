@@ -3,13 +3,13 @@ import { access, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { eventually, test } from "@openwork/testkit";
+import { eventually, test } from "@harness/testkit";
 import {
   isProcessAlive,
   main,
   readScriptWorldSnapshot,
   type WorldCliOptions,
-} from "@openwork/world";
+} from "@harness/world";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -28,7 +28,7 @@ async function probe(url: string): Promise<number | "rejected"> {
 }
 
 test("detached script worlds own one runtime through launch, isolation, and graceful teardown", async ({ evidence }) => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-script-world-lifecycle-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-script-world-lifecycle-"));
   const worldsDirectory = join(root, "worlds");
   const scriptsDirectory = join(root, ".worlds", "scripts");
   const fixtureName = "healthy-world";
@@ -42,7 +42,7 @@ test("detached script worlds own one runtime through launch, isolation, and grac
   const sentinelText = "gracefully disposed\n";
   const markerText = "keep this file\n";
   const holdUrl = pathToFileURL(join(REPO_ROOT, "packages", "world", "src", "hold.ts")).href;
-  const previousSnapshotDirectory = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
+  const previousSnapshotDirectory = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
   let launchedPid: number | undefined;
   let printedLines: string[] = [];
 
@@ -60,7 +60,7 @@ test("detached script worlds own one runtime through launch, isolation, and grac
   };
 
   try {
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = scriptsDirectory;
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = scriptsDirectory;
     await mkdir(worldsDirectory);
     await writeFile(fixturePath, `
 import { createServer } from "node:http";
@@ -199,8 +199,8 @@ if (import.meta.main) await main();
         });
       } catch {}
     }
-    if (previousSnapshotDirectory === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
+    if (previousSnapshotDirectory === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
     await rm(root, { recursive: true, force: true });
   }
 }, 120_000);

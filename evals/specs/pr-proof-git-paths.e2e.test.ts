@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 import { selectProof } from "../../.github/scripts/pr-proof.mjs";
 import { reviewWorld } from "../worlds/evidence-review.ts";
 

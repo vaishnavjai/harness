@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 
 import { useSessionActivityStore } from "../../apps/app/src/react-app/domains/session/status/session-activity-store";
 import { selectSessionAttention, sessionAttentionLabel } from "../../apps/app/src/react-app/domains/session/status/session-attention";

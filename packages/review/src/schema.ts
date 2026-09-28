@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { parseEvidenceCheckpoint } from "@openwork/freestyle/checkpoint-schema";
+import { parseEvidenceCheckpoint } from "@harness/freestyle/checkpoint-schema";
 export const checkpointSchema = z.unknown().transform((value, ctx) => {
   try { return parseEvidenceCheckpoint(value); }
   catch { ctx.addIssue({ code: "custom", message: "Invalid evidence checkpoint" }); return z.NEVER; }

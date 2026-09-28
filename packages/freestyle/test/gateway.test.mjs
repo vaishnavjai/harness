@@ -9,7 +9,7 @@ import { gzipSync } from "node:zlib";
 import { templateOrigins } from "../src/origins.mjs";
 
 test("preview gateway requires its own token, strips it upstream, rejects cross-site sockets and expires", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openwork-gateway-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-gateway-"));
   const path = join(directory, "access.json");
   const upstream = createServer(async (req, res) => {
     if (req.url === "/api/auth/origin-test") {
@@ -32,10 +32,10 @@ test("preview gateway requires its own token, strips it upstream, rejects cross-
   await once(upstream, "listening");
   const address = upstream.address();
   assert.ok(address && typeof address !== "string");
-  process.env.OPENWORK_PREVIEW_UPSTREAM_PORT = String(address.port);
-  process.env.OPENWORK_PREVIEW_GATEWAY_PORT = "0";
-  process.env.OPENWORK_PREVIEW_ACCESS_FILE = path;
-  process.env.OPENWORK_PREVIEW_SERVICES_FILE = join(directory, "services.json");
+  process.env.HARNESS_PREVIEW_UPSTREAM_PORT = String(address.port);
+  process.env.HARNESS_PREVIEW_GATEWAY_PORT = "0";
+  process.env.HARNESS_PREVIEW_ACCESS_FILE = path;
+  process.env.HARNESS_PREVIEW_SERVICES_FILE = join(directory, "services.json");
   const { server } = await import("../src/gateway.mjs");
   await once(server, "listening");
   const gate = server.address();
@@ -44,14 +44,14 @@ test("preview gateway requires its own token, strips it upstream, rejects cross-
   try {
     assert.equal((await fetch(origin)).status, 401);
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString() }));
-    assert.equal((await fetch(`${origin}/__openwork_launch?token=other-sandbox-token`, { redirect: "manual" })).status, 401);
-    const launch = await fetch(`${origin}/__openwork_launch?token=first-sandbox-token`, { redirect: "manual" });
+    assert.equal((await fetch(`${origin}/__harness_launch?token=other-sandbox-token`, { redirect: "manual" })).status, 401);
+    const launch = await fetch(`${origin}/__harness_launch?token=first-sandbox-token`, { redirect: "manual" });
     assert.equal(launch.status, 303);
     assert.equal(launch.headers.get("location"), "/");
     assert.match(launch.headers.get("set-cookie"), /HttpOnly; Secure; SameSite=Lax/);
     const cookie = launch.headers.get("set-cookie").split(";")[0];
-    const response = await fetch(`${origin}/api/openwork/test`, { headers: { cookie: `${cookie}; app=kept`, authorization: "Bearer app-token" } });
-    assert.deepEqual(await response.json(), { cookie: "app=kept", path: "/api/openwork/test", authorization: "Bearer app-token" });
+    const response = await fetch(`${origin}/api/harness/test`, { headers: { cookie: `${cookie}; app=kept`, authorization: "Bearer app-token" } });
+    assert.deepEqual(await response.json(), { cookie: "app=kept", path: "/api/harness/test", authorization: "Bearer app-token" });
     await writeFile(join(directory, "services.json"), JSON.stringify({ app: `http://127.0.0.1:${address.port}`, api: `http://127.0.0.1:${address.port}` }));
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString(), origins: { app: `https://127.0.0.1:${gate.port}` } }));
     const routed = await fetch(`${origin}/api/den/v1/me`, { headers: { cookie } });
@@ -59,7 +59,7 @@ test("preview gateway requires its own token, strips it upstream, rejects cross-
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString(), origins: { app: "https://unrelated.example" } }));
     assert.equal((await fetch(origin, { headers: { cookie } })).status, 503);
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString() }));
-    assert.equal((await fetch(origin, { headers: { cookie, origin: "https://another-clone.preview.openwork.software" } })).status, 403);
+    assert.equal((await fetch(origin, { headers: { cookie, origin: "https://another-clone.preview.harness-legacy.invalid" } })).status, 403);
     await writeFile(join(directory, "services.json"), JSON.stringify({ den: `http://127.0.0.1:${address.port}` }));
     const actualDen = `https://127.0.0.1:${gate.port}`;
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString(), origins: { den: actualDen }, templateOrigins }));
@@ -89,7 +89,7 @@ test("preview gateway requires its own token, strips it upstream, rejects cross-
     await writeFile(join(directory, "services.json"), JSON.stringify({ desktop: `http://127.0.0.1:${address.port}` }));
     await writeFile(path, JSON.stringify({ token: "first-sandbox-token", expiresAt: new Date(Date.now() + 60000).toISOString(), origins: { desktop: actualDen } }));
     assert.equal((await fetch(`${origin}/vnc.html`)).status, 401);
-    assert.equal((await fetch(`${origin}/vnc.html`, { headers: { cookie: "__Host-openwork-preview=another-clone" } })).status, 401);
+    assert.equal((await fetch(`${origin}/vnc.html`, { headers: { cookie: "__Host-harness-preview=another-clone" } })).status, 401);
     const viewer = await fetch(`${origin}/vnc.html`, { headers: { cookie } });
     assert.equal(viewer.status, 200);
     assert.deepEqual(await viewer.json(), { path: "/vnc.html", cookie: "" });

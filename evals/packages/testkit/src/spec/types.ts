@@ -1,12 +1,12 @@
-import type { DenSession, DenFetchResult, FieldTypingOptions } from "@openwork/behaviors";
-import type { BrowserEvaluation, Surface, Target } from "@openwork/cdp";
+import type { DenSession, DenFetchResult, FieldTypingOptions } from "@harness/behaviors";
+import type { BrowserEvaluation, Surface, Target } from "@harness/cdp";
 import type {
   MockHandle,
   Place,
   Seed,
   TestNeeds,
-} from "@openwork/env";
-import type { ScreenshotArtifact, StepRecord, TestEvidenceRecorder, TestOutcome, TraceEntry } from "@openwork/test-evidence";
+} from "@harness/env";
+import type { ScreenshotArtifact, StepRecord, TestEvidenceRecorder, TestOutcome, TraceEntry } from "@harness/test-evidence";
 import type { TestAPI } from "vitest";
 import type { EventuallyOptions } from "../eventually.ts";
 
@@ -57,7 +57,7 @@ export interface User {
 }
 
 export interface Agent {
-  browserTask(input: import("@openwork/behaviors").BrowserTaskInput): Promise<import("@openwork/behaviors").BrowserTaskReply>;
+  browserTask(input: import("@harness/behaviors").BrowserTaskInput): Promise<import("@harness/behaviors").BrowserTaskReply>;
   browserRequest(input: { url: string; method?: string; body?: string }): Promise<{ reached: boolean; error?: string }>;
   desktopApi(path: string, input: { method: string; body?: unknown }): Promise<{ status: number; body: unknown }>;
   run(action: string, args?: unknown): Promise<unknown>;
@@ -71,15 +71,15 @@ export interface Agent {
 export interface Probe {
   /** Applied CSS-to-DIP page zoom from Chromium, not the stored zoom preference. */
   zoom(): Promise<number>;
-  browserState(): Promise<import("@openwork/behaviors").BrowserState>;
-  browserTabMetrics(targetId: string): ReturnType<typeof import("@openwork/behaviors").readBrowserTabMetrics>;
-  browserFixtureState(origin: string): Promise<import("@openwork/env").BrowserFixtureState>;
+  browserState(): Promise<import("@harness/behaviors").BrowserState>;
+  browserTabMetrics(targetId: string): ReturnType<typeof import("@harness/behaviors").readBrowserTabMetrics>;
+  browserFixtureState(origin: string): Promise<import("@harness/env").BrowserFixtureState>;
   text(): Promise<string>;
   /** Fixed, read-only DOM projection for layout, focus and element presence assertions. */
-  dom(selector: string): ReturnType<typeof import("@openwork/cdp").readDom>;
+  dom(selector: string): ReturnType<typeof import("@harness/cdp").readDom>;
   has(text: string): Promise<boolean>;
-  composer(): ReturnType<typeof import("@openwork/behaviors").readComposerState>;
-  connectorCatalog(): ReturnType<typeof import("@openwork/behaviors").readConnectorCatalog>;
+  composer(): ReturnType<typeof import("@harness/behaviors").readComposerState>;
+  connectorCatalog(): ReturnType<typeof import("@harness/behaviors").readConnectorCatalog>;
   storage(key: string): Promise<unknown>;
   storage<T>(key: string, pick: (value: unknown) => T): Promise<T>;
   hash(): Promise<string>;
@@ -136,7 +136,7 @@ export interface SpecAdapters {
 
 export interface SpecWorldOptions {
   /** Frozen at registration and shared by arrangement/body. Omit only for bounded legacy migration. */
-  readonly resources?: import("@openwork/env").WorldResources;
+  readonly resources?: import("@harness/env").WorldResources;
   needs?: TestNeeds;
   timeout?: number;
   scope?: "test" | "file";
@@ -144,4 +144,4 @@ export interface SpecWorldOptions {
   adapters?: SpecAdapters;
 }
 
-export type { OrgConnectionInput, Seed, SeedAppWebOptions, SeedDesktopOptions, SeedWebOptions } from "@openwork/env";
+export type { OrgConnectionInput, Seed, SeedAppWebOptions, SeedDesktopOptions, SeedWebOptions } from "@harness/env";

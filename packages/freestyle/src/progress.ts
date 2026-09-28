@@ -21,9 +21,9 @@ export interface BuildProgress {
 
 type ProgressApi = { vms: Pick<Freestyle["vms"], "list" | "ref"> };
 
-// cache.ts names each builder VM "OpenWork <layer> builder".
-const LAYER_BY_NAME = new Map<string, BuildLayer>(BUILD_LAYERS.map((layer) => [`OpenWork ${layer} builder`, layer]));
-const ROOT = "/opt/openwork-preview";
+// cache.ts names each builder VM "Harness <layer> builder".
+const LAYER_BY_NAME = new Map<string, BuildLayer>(BUILD_LAYERS.map((layer) => [`Harness ${layer} builder`, layer]));
+const ROOT = "/opt/harness-preview";
 
 async function finishedSteps(api: ProgressApi, vmId: string, file: string): Promise<BuildStep[]> {
   try {
@@ -51,7 +51,7 @@ async function finishedSteps(api: ProgressApi, vmId: string, file: string): Prom
  * is read, no builder is alive; callers keep the furthest progress they saw.
  */
 export async function buildProgress(sha: string, world: PreviewWorld, api: ProgressApi = client()): Promise<BuildProgress> {
-  const { vms } = await api.vms.list({ metadata: `openworkBuild:${buildLabel(sha, world).openworkBuild}`, limit: 20 });
+  const { vms } = await api.vms.list({ metadata: `harnessBuild:${buildLabel(sha, world).harnessBuild}`, limit: 20 });
   const live = vms.filter((vm) => vm.state === "starting" || vm.state === "running")
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   const newest = live[0];

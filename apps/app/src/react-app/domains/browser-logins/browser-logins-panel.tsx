@@ -96,7 +96,7 @@ export function BrowserLoginsPanel() {
         <LayoutSectionItemHeader>
           <LayoutSectionItemTitle>Browser login sync</LayoutSectionItemTitle>
           <LayoutSectionItemDescription>
-            Keep selected sites signed in by reading one browser profile. OpenWork never changes the source browser, and sync starts only after you choose sites and enable it.
+            Keep selected sites signed in by reading one browser profile. Harness never changes the source browser, and sync starts only after you choose sites and enable it.
           </LayoutSectionItemDescription>
         </LayoutSectionItemHeader>
         <LayoutSectionItemContent className="gap-3">
@@ -138,7 +138,7 @@ export function BrowserLoginsPanel() {
                   <p className="text-dls-text">{formatLastSync(syncState.lastSyncedAt)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Synced cookies managed by OpenWork</p>
+                  <p className="text-xs text-muted-foreground">Synced cookies managed by Harness</p>
                   <p className="text-dls-text">{syncState.managedCookieCount}</p>
                 </div>
               </div>

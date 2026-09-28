@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { browserConversation, spec } from "@openwork/testkit";
+import { browserConversation, spec } from "@harness/testkit";
 import { browserConsentSummaryWorld } from "../worlds/browser-webmcp.ts";
 
 const test = spec.world(browserConsentSummaryWorld, {

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { readReview } from "@openwork/review/storage";
+import { readReview } from "@harness/review/storage";
 import { Report } from "../../../components/report";
 
 export const dynamic = "force-dynamic";

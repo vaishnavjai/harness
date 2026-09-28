@@ -1,12 +1,12 @@
 import { expect } from "vitest";
-import { denFetch, evalIn, fill, waitFor, type DenSession } from "@openwork/behaviors";
-import { browserScript, navigate } from "@openwork/cdp";
-import { chrome } from "@openwork/hosts";
-import { eventually, needs, server, test } from "@openwork/testkit";
+import { denFetch, evalIn, fill, waitFor, type DenSession } from "@harness/behaviors";
+import { browserScript, navigate } from "@harness/cdp";
+import { chrome } from "@harness/hosts";
+import { eventually, needs, server, test } from "@harness/testkit";
 import { parseTeamAdminContext } from "./helpers/team-admin-context.ts";
 
 test("owners toggle team Admin in Den Web while inherited admins see a disabled checkbox and provenance", { timeout: 600_000 }, async ({ place, evidence }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
   await using den = await server({ place, web: true, org: { name: "Team Admin UI", members: { teammate: { name: "Inherited Teammate" } } } });
   const teammate = den.members.teammate;
   if (!teammate) throw new Error("Missing teammate");
@@ -45,7 +45,7 @@ test("owners toggle team Admin in Den Web while inherited admins see a disabled 
   const showAs = async (session: DenSession) => {
     await evalIn(browser, async () => {
       await fetch("/api/auth/sign-out", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}" });
-      localStorage.removeItem("openwork:web:auth-token");
+      localStorage.removeItem("harness:web:auth-token");
     }, { awaitPromise: true, timeoutMs: 30_000 });
     await navigate(browser.client, den.ref.webUrl);
     await waitFor(browser, () => Boolean(document.querySelector('input[type="email"]')), { timeoutMs: 30_000, label: "email sign-in step" });

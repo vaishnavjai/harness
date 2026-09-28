@@ -1,4 +1,4 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect } from "vitest";
@@ -7,7 +7,7 @@ import {
   renderPrMarkdown,
   spec,
   test,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 import type {
   Surface,
   StepRecord,
@@ -15,7 +15,7 @@ import type {
   TestOutcome,
   TraceEntry,
   User,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 
 const trace: TraceEntry[] = [];
 const steps: StepRecord[] = [];
@@ -212,7 +212,7 @@ let skippedWorldRuns = 0;
 const skippedWorldTest = spec.world(async () => {
   skippedWorldRuns += 1;
   return { app: fakeSurface };
-}, { needs: { optIn: ["OPENWORK_SPEC_PRIMITIVES_MISSING_OPT_IN"] } });
+}, { needs: { optIn: ["HARNESS_SPEC_PRIMITIVES_MISSING_OPT_IN"] } });
 
 skippedWorldTest("unmet needs skip before building the world", () => {
   throw new Error("body must not run");

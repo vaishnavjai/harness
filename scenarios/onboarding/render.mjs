@@ -8,7 +8,7 @@ import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { recordingFromCapture } from "@openwork/presentation/recording";
+import { recordingFromCapture } from "@harness/presentation/recording";
 
 const [directory, ...flags] = process.argv.slice(2);
 if (!directory || flags.some((flag) => !/^--still=\d+$/.test(flag))) {
@@ -25,7 +25,7 @@ if (recording.downloads.length > 0) {
     "Use an onboarding capture that completes setup without downloading an installer",
   );
 }
-const temporary = await mkdtemp(join(tmpdir(), "openwork-onboarding-render-"));
+const temporary = await mkdtemp(join(tmpdir(), "harness-onboarding-render-"));
 try {
   const publicDir = join(temporary, "public");
   await mkdir(publicDir);

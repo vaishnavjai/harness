@@ -15,11 +15,11 @@ on both engines.
 
 ## What migration does
 
-Migration requires the OpenWork host token and explicit confirmation. It snapshots
+Migration requires the Harness host token and explicit confirmation. It snapshots
 the active profile's v1 SQLite database using SQLite backup (or `VACUUM INTO` on Bun), including committed
 WAL writes, without modifying the original. A temporary, isolated instance of the
 pinned v2 engine opens that snapshot and performs OpenCode's native conversion.
-OpenWork waits for `/api/experimental/migration/v1` to report completion, then
+Harness waits for `/api/experimental/migration/v1` to report completion, then
 exports converted chats and imports them into the existing v2 engine using its
 native APIs. Parents precede children. Existing IDs return a conflict and are
 skipped, so retries preserve v2 conversations and do not duplicate imports.
@@ -53,8 +53,8 @@ Implementation was checked against the published `@opencode-ai/core`,
 `apps/server/src/opencode-v2-migration.test.ts` checks WAL snapshots and missing
 history. Its opt-in real-engine test creates v1 parent/child sessions, verifies
 converted text, keeps an existing v2 chat, retries without duplicates, and checks
-the source database hash. Run it with `OPENWORK_MIGRATION_LIVE_TEST=1`,
-`OPENWORK_MIGRATION_V1_BIN`, and `OPENWORK_OPENCODE2_BIN` set to the pinned binaries.
+the source database hash. Run it with `HARNESS_MIGRATION_LIVE_TEST=1`,
+`HARNESS_MIGRATION_V1_BIN`, and `HARNESS_OPENCODE2_BIN` set to the pinned binaries.
 
 The desktop `opencode-v2-chat-routing.e2e.test.ts` exercises both palette switches,
 the warning and cancellation from settings and palette, and real chat turns on

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { backgroundUpdateWorld, savedUpdatePolicyWorld } from "../worlds/first-run.ts";
 import { restartUpdateTaskWorld } from "../worlds/chat.ts";
 
@@ -8,7 +8,7 @@ const policyTest = spec.world(savedUpdatePolicyWorld);
 
 policyTest("a downloaded update is not installed once the organization revokes its version", async ({ world, user, probe, step, evidence }) => {
   const readyText = "Ready to install: v9.9.9";
-  const blockedText = "OpenWork 9.9.9 is available, but this installation is not eligible for it yet.";
+  const blockedText = "Harness 9.9.9 is available, but this installation is not eligible for it yet.";
   const downloaded = (count: number) => (value: unknown) =>
     typeof value === "object" && value !== null && Reflect.get(value, "downloads") === count;
 
@@ -35,7 +35,7 @@ policyTest("a downloaded update is not installed once the organization revokes i
     expect(policy.response.status).toBe(200);
     expect(policy.body).toMatchObject({ allowedDesktopVersions: ["0.18.0"] });
     await user.click("Restart to update");
-    await user.see({ text: "Restart OpenWork?" });
+    await user.see({ text: "Restart Harness?" });
     await user.click("Restart & update");
     await user.see({ text: blockedText }, { timeoutMs: 30_000 });
     await user.notSee({ text: readyText });
@@ -81,7 +81,7 @@ test("updates download outside Settings and offer a persistent, optional restart
     within: 15_000, label: "background download without opening Settings",
     until: (value) => typeof value === "object" && value !== null && Reflect.get(value, "downloads") === 1,
   });
-  expect(await world.snapshot()).toMatchObject({ checks: 4, downloads: 1, installs: 0, sidebarName: "OpenWork" });
+  expect(await world.snapshot()).toMatchObject({ checks: 4, downloads: 1, installs: 0, sidebarName: "Harness" });
   await user.notSee({ text: "Restart to update" });
   await world.returnToApp();
   expect(await world.snapshot()).toMatchObject({ checks: 4, downloads: 1, installs: 0 });
@@ -91,7 +91,7 @@ test("updates download outside Settings and offer a persistent, optional restart
   await world.openSettings();
   await user.click({ role: "switch", label: "Check automatically" });
   expect(await world.snapshot()).toMatchObject({ automaticChecksEnabled: false, checks: 4, downloads: 1 });
-  await world.openWorkspace();
+  await world.harnessspace();
   for (const [index, message] of [
     "Update native preparation failed.",
     "Update download connection failed.",
@@ -108,7 +108,7 @@ test("updates download outside Settings and offer a persistent, optional restart
       within: 5_000, label: "the user retries the failed download through Settings",
       until: (value) => typeof value === "object" && value !== null && Reflect.get(value, "downloads") === index + 2,
     });
-    await world.openWorkspace();
+    await world.harnessspace();
     await user.notSee({ text: "Restart to update" });
   }
   await world.finishDownload();
@@ -118,7 +118,7 @@ test("updates download outside Settings and offer a persistent, optional restart
   await user.see({ text: "Restart to update" });
   await user.click({ role: "switch", label: "Check automatically" });
   expect(await world.snapshot()).toMatchObject({ automaticChecksEnabled: true, checks: 6, downloads: 3 });
-  await world.openWorkspace();
+  await world.harnessspace();
   await world.returnToApp();
   await user.see({ text: "Restart to update" });
   const ready = await world.snapshot();
@@ -126,15 +126,15 @@ test("updates download outside Settings and offer a persistent, optional restart
   evidence.recordAssertionEvidence("Manual download retries reach one ready update with automatic checks enabled again", JSON.stringify(ready), true);
   await user.looks([
     "A compact neutral Restart to update button sits in the titlebar with the app's other controls",
-    "The OpenWork name remains above the sidebar navigation and no update card or banner covers the workspace",
+    "The Harness name remains above the sidebar navigation and no update card or banner covers the workspace",
   ]);
   await user.click("Restart to update");
   await user.notSee({ text: "Ready when you are." });
-  await user.see({ text: "Restart OpenWork?" });
+  await user.see({ text: "Restart Harness?" });
   await user.see({ text: /Eligible running tasks resume gradually after restart/ });
   await user.click("Keep working");
   await probe.eventually(async () => {
-    await user.notSee({ text: "Restart OpenWork?" }, { timeoutMs: 100 });
+    await user.notSee({ text: "Restart Harness?" }, { timeoutMs: 100 });
     return true;
   }, { within: 5_000, label: "Keep working dismisses the restart dialog", until: Boolean });
   expect(await world.snapshot()).toMatchObject({ installs: 0, installAttempts: 0 });
@@ -186,7 +186,7 @@ test("updates download outside Settings and offer a persistent, optional restart
     });
     await user.notSee({ text: "Restart to update" });
     await world.finishDownload();
-    await world.openWorkspace();
+    await world.harnessspace();
     await user.see({ text: "Restart to update" });
     expect(await world.snapshot()).toMatchObject({ installAttempts: index + 1, installs: 0 });
   }
@@ -268,7 +268,7 @@ recoveryTest("a confirmed update relaunch resumes only the unfinished task on it
     await user.click({ role: "button", text: "Check now" });
     await user.see({ text: "Restart to update" }, { timeoutMs: 30_000 });
     await user.click({ text: "Restart to update" });
-    await user.see({ text: "Restart OpenWork?" });
+    await user.see({ text: "Restart Harness?" });
     await user.click("Restart & update");
   });
   await step("a new renderer continues once without touching stopped or completed work", async () => {

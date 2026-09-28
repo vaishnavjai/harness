@@ -8,7 +8,7 @@ const summary = (rows: ReturnType<typeof readinessRows>) => rows.map((row) => `$
 
 test("before any builder appears, the commit is being read", () => {
   assert.deepEqual(summary(readinessRows(startTracking(t0), at(12))), [
-    "running:Read this commit 12s", "pending:Dependencies", "pending:Build OpenWork", "pending:Start services", "pending:Apply this commit",
+    "running:Read this commit 12s", "pending:Dependencies", "pending:Build Harness", "pending:Start services", "pending:Apply this commit",
   ]);
 });
 
@@ -17,7 +17,7 @@ test("skipped layers show as cached and the running step shows its elapsed time"
   tracker = advance(tracker, { layer: "running-template", steps: [] }, at(20));
   tracker = advance(tracker, { layer: "running-template", steps: [{ id: "checkout", ms: 5000 }] }, at(40));
   assert.deepEqual(summary(readinessRows(tracker, at(95))), [
-    "done:Read this commit 20s", "done:Dependencies cached", "done:Build OpenWork cached", "running:Start services 1m 15s", "pending:Apply this commit",
+    "done:Read this commit 20s", "done:Dependencies cached", "done:Build Harness cached", "running:Start services 1m 15s", "pending:Apply this commit",
   ]);
   assert.deepEqual(tracker.steps, [{ id: "checkout", ms: 5000 }]);
 });
@@ -29,7 +29,7 @@ test("progress never moves backwards when no builder is alive between layers", (
   assert.equal(tracker.furthest, 2);
   tracker = advance(tracker, { layer: "world", steps: [] }, at(60));
   const rows = summary(readinessRows(tracker, at(70)));
-  assert.deepEqual(rows, ["done:Read this commit 10s", "done:Dependencies cached", "done:Build OpenWork 50s", "done:Start services cached", "running:Apply this commit 10s"]);
+  assert.deepEqual(rows, ["done:Read this commit 10s", "done:Dependencies cached", "done:Build Harness 50s", "done:Start services cached", "running:Apply this commit 10s"]);
 });
 
 test("a failed build marks the step it stopped at", () => {

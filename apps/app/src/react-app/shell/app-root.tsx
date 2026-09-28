@@ -4,7 +4,6 @@ import { ComputerUseControls } from "../domains/session/surface/computer-use-con
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 
-import { captureAnalyticsEvent, initAnalytics } from "../../app/lib/analytics";
 import {
   readDenBootstrapConfig,
   readDenSettings,
@@ -28,7 +27,7 @@ import {
 } from "../domains/connections/cloud-inventory-cache";
 import { ForcedSigninPage } from "../domains/cloud/forced-signin-page";
 import { EnterpriseActivationGate } from "../domains/cloud/enterprise-activation-gate";
-import { OpenWorkWebAccessGate } from "../domains/cloud/openwork-web-access-gate";
+import { HarnessWebAccessGate } from "../domains/cloud/harness-web-access-gate";
 import { OrgOnboardingPage } from "../domains/cloud/org-onboarding-page";
 import { ChatDeepLinkListener } from "./chat-deep-link-listener";
 import { NewProvidersListener } from "./new-providers-listener";
@@ -40,12 +39,12 @@ import { ReactRenderWatchdogOverlay } from "./react-render-watchdog-overlay";
 import { CloudWorkspaceOverlay, CloudWorkspaceStatusProvider } from "./cloud-workspace-overlay";
 import { AppMenuProvider } from "./app-menu";
 import {
-  OpenworkControlProvider,
-  OpenworkRouteControlActions,
+  HarnessControlProvider,
+  HarnessRouteControlActions,
   useControlAction,
-  type OpenworkControlAction,
+  type HarnessControlAction,
 } from "./control/control-provider";
-import { OpenworkContextPublisher } from "./openwork-context-publisher";
+import { HarnessContextPublisher } from "./harness-context-publisher";
 import { SessionRoute } from "./session-route";
 import { DesktopUpdaterProvider } from "../domains/settings/state/desktop-updater-provider";
 import { SettingsRoute } from "./settings-route";
@@ -55,7 +54,7 @@ import { readOrgSelectionPending } from "../../app/lib/den-sign-in-intent";
 import { signedInRoute } from "./den-signin-routing";
 import { StartupScreen } from "./startup-screen";
 import { WebStartupScreen } from "./workspace-startup-status";
-import { isOpenworkGatewayRuntime } from "../../app/lib/gateway-runtime";
+import { isHarnessGatewayRuntime } from "../../app/lib/gateway-runtime";
 
 
 type DenSigninGateProps = {
@@ -196,7 +195,7 @@ function DenSigninGate({ children }: DenSigninGateProps) {
   }, [navigate]);
 
   if (requireSignin && denAuth.status === "checking") {
-    if (isOpenworkGatewayRuntime()) return <WebStartupScreen message="Checking sign-in…" />;
+    if (isHarnessGatewayRuntime()) return <WebStartupScreen message="Checking sign-in…" />;
     return <StartupScreen message="Checking your sign-in" />;
   }
 
@@ -232,13 +231,13 @@ function DenSigninGate({ children }: DenSigninGateProps) {
 }
 
 /**
- * Control actions for cloud auth. Placed inside OpenworkControlProvider so
+ * Control actions for cloud auth. Placed inside HarnessControlProvider so
  * the actions are available on every route (including /welcome and /signin).
  */
 function DenAuthControlActions() {
   const denAuth = useDenAuth();
 
-  const exchangeGrantAction = useMemo<OpenworkControlAction>(() => ({
+  const exchangeGrantAction = useMemo<HarnessControlAction>(() => ({
     id: "auth.exchange-grant",
     label: "Sign in with a handoff grant",
     description: "Exchange a desktop handoff grant string to sign in without the browser flow.",
@@ -271,7 +270,7 @@ function DenAuthControlActions() {
   }), []);
   useControlAction(exchangeGrantAction);
 
-  const authStatusAction = useMemo<OpenworkControlAction>(() => ({
+  const authStatusAction = useMemo<HarnessControlAction>(() => ({
     id: "auth.status",
     label: "Get auth status",
     description: "Return the current cloud sign-in status and user.",
@@ -285,7 +284,7 @@ function DenAuthControlActions() {
   }), [denAuth.status, denAuth.user]);
   useControlAction(authStatusAction);
 
-  const setEvalBaseUrlAction = useMemo<OpenworkControlAction | null>(() => {
+  const setEvalBaseUrlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.auth.set-base-url",
@@ -324,10 +323,10 @@ function DenAuthControlActions() {
 
 /**
  * Control action for eval automation: inject brand theme (logo, icon, accent color)
- * via the dev-only desktop config bridge. Placed inside OpenworkControlProvider.
+ * via the dev-only desktop config bridge. Placed inside HarnessControlProvider.
  */
 function BrandThemeControlActions() {
-  const applyAction = useMemo<OpenworkControlAction | null>(() => {
+  const applyAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.brand_theme.apply",
@@ -340,7 +339,7 @@ function BrandThemeControlActions() {
         { name: "brandAccentColor", type: "string", description: "Radix color family" },
       ],
       execute: (args) => {
-        const bridge = (window as unknown as Record<string, unknown>).__openworkApplyDesktopConfig;
+        const bridge = (window as unknown as Record<string, unknown>).__harnessApplyDesktopConfig;
         if (typeof bridge !== "function") {
           return { ok: false, error: "Desktop config bridge not available (dev mode only)." };
         }
@@ -351,7 +350,7 @@ function BrandThemeControlActions() {
   }, []);
   useControlAction(applyAction);
 
-  const relaunchAction = useMemo<OpenworkControlAction | null>(() => {
+  const relaunchAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.app.relaunch",
@@ -364,7 +363,7 @@ function BrandThemeControlActions() {
   useControlAction(relaunchAction);
 
   const [renderThrow, setRenderThrow] = useState<string | null>(null);
-  const renderThrowAction = useMemo<OpenworkControlAction | null>(() => {
+  const renderThrowAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.app.render_throw",
@@ -388,10 +387,8 @@ function BrandThemeControlActions() {
   return null;
 }
 
-let appOpenedCaptured = false;
-
 /**
- * Analytics and the Cloud inventory prefetch mount above the activation gate.
+ * The Cloud inventory prefetch mounts above the activation gate.
  * An activation-required install holds them back until it is activated.
  * Desktop policy readiness is optional while enforcement is suspended.
  */
@@ -411,14 +408,6 @@ export function AppRoot() {
   useDesktopFontZoomBehavior();
   useVisualViewportInset();
   const egressAllowed = useOutboundEgressAllowed();
-
-  // Module-level dedupe keeps StrictMode double-mounts from double-counting.
-  useEffect(() => {
-    if (!egressAllowed || appOpenedCaptured) return;
-    appOpenedCaptured = true;
-    initAnalytics();
-    captureAnalyticsEvent("app_opened", {});
-  }, [egressAllowed]);
 
   // Fetch what the organization shares with this member up front. Settings
   // mounts cold every time the extensions panel opens, so without this the
@@ -440,15 +429,15 @@ export function AppRoot() {
         <DesktopUpdaterProvider>
         <ShellConfigProvider>
         <AppMenuProvider>
-        <OpenworkControlProvider>
-          <OpenworkRouteControlActions />
+        <HarnessControlProvider>
+          <HarnessRouteControlActions />
           <ChatDeepLinkListener />
-          <OpenworkContextPublisher />
+          <HarnessContextPublisher />
           <DenAuthControlActions />
           <BrandThemeControlActions />
           <EnterpriseActivationGate>
             <DenSigninGate>
-              <OpenWorkWebAccessGate>
+              <HarnessWebAccessGate>
                 <CloudWorkspaceStatusProvider>
                   <ComputerUseControls />
                   <Routes>
@@ -568,10 +557,10 @@ export function AppRoot() {
                   <LoadingOverlay />
                   <CloudWorkspaceOverlay />
                 </CloudWorkspaceStatusProvider>
-              </OpenWorkWebAccessGate>
+              </HarnessWebAccessGate>
             </DenSigninGate>
           </EnterpriseActivationGate>
-        </OpenworkControlProvider>
+        </HarnessControlProvider>
         </AppMenuProvider>
         </ShellConfigProvider>
         </DesktopUpdaterProvider>

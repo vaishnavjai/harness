@@ -18,8 +18,8 @@ afterAll(async () => {
 });
 
 const importedCloudProviders = {
-  ipr_openai: { providerId: "gateway-openai", sourceProviderId: "openai", source: "openwork_gateway" },
-  ipr_anthropic: { providerId: "gateway-anthropic", sourceProviderId: "anthropic", source: "openwork_gateway" },
+  ipr_openai: { providerId: "gateway-openai", sourceProviderId: "openai", source: "harness_gateway" },
+  ipr_anthropic: { providerId: "gateway-anthropic", sourceProviderId: "anthropic", source: "harness_gateway" },
   lpr_custom: { providerId: "custom-endpoint", sourceProviderId: "openai", source: "custom" },
 };
 const gatewayProviderIds = resolveGatewayProviderIds(importedCloudProviders);

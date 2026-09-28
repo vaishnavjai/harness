@@ -1,11 +1,11 @@
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 import { reviewWorld } from "../worlds/evidence-review.ts";
 
 test("A reviewer can inspect two runs and a DocShot with honest results and private evidence", async ({
   evidence,
 }) => {
-  needs({ optIn: ["OPENWORK_EVAL_REVIEW"] });
+  needs({ optIn: ["HARNESS_EVAL_REVIEW"] });
   await using world = await reviewWorld();
   console.log(
     "placement: local (isolated production review app; no external services)",

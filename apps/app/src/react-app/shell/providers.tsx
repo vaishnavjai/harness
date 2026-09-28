@@ -3,8 +3,8 @@ import { useEffect, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 
-import { isWebDeployment } from "@/app/lib/openwork-deployment";
-import { hydrateOpenworkServerSettingsFromEnv } from "@/app/lib/openwork-server";
+import { isWebDeployment } from "@/app/lib/harness-deployment";
+import { hydrateHarnessServerSettingsFromEnv } from "@/app/lib/harness-server";
 import { isDesktopRuntime } from "@/app/utils";
 import { ConnectLinkProvider } from "@/react-app/domains/cloud/connect-link-provider";
 import { DenAuthProvider } from "@/react-app/domains/cloud/den-auth-provider";
@@ -20,21 +20,21 @@ import { ArchitectureMismatchGate } from "./architecture-mismatch-gate";
 import { BootStateProvider } from "./boot-state";
 import { DesktopRuntimeBoot } from "./desktop-runtime-boot";
 import { startDebugLogger, stopDebugLogger } from "./debug-logger";
-import { resolveOpenworkConnection } from "./openwork-connection";
+import { resolveHarnessConnection } from "./harness-connection";
 import { ReloadCoordinatorProvider } from "./reload-coordinator";
 import { LinkOpenDialog } from "./link-open-dialog";
 
 export function resolveDefaultServerUrl(): string {
   if (isDesktopRuntime()) return "http://127.0.0.1:4096";
 
-  const openworkUrl =
-    typeof import.meta.env?.VITE_OPENWORK_URL === "string"
-      ? import.meta.env.VITE_OPENWORK_URL.trim()
+  const harnessUrl =
+    typeof import.meta.env?.VITE_HARNESS_URL === "string"
+      ? import.meta.env.VITE_HARNESS_URL.trim()
       : "";
-  if (openworkUrl) {
-    const baseUrl = openworkUrl === "/api/openwork" && typeof window !== "undefined"
-      ? new URL(openworkUrl, window.location.origin).href
-      : openworkUrl;
+  if (harnessUrl) {
+    const baseUrl = harnessUrl === "/api/harness" && typeof window !== "undefined"
+      ? new URL(harnessUrl, window.location.origin).href
+      : harnessUrl;
     return `${baseUrl.replace(/\/+$/, "")}/opencode`;
   }
 
@@ -83,14 +83,14 @@ export function EnterpriseAwareAppProviders({ children }: AppProvidersProps) {
 }
 
 export function AppProviders({ children }: AppProvidersProps) {
-  hydrateOpenworkServerSettingsFromEnv();
+  hydrateHarnessServerSettingsFromEnv();
 
   useEffect(() => {
-    // Start the dev observability forwarder. Reads the current openwork-server
+    // Start the dev observability forwarder. Reads the current harness-server
     // URL on every flush so reconnects after port changes still work. In prod
     // builds `startDebugLogger` is a no-op.
     startDebugLogger({
-      serverUrl: async () => (await resolveOpenworkConnection()).normalizedBaseUrl,
+      serverUrl: async () => (await resolveHarnessConnection()).normalizedBaseUrl,
     });
     return () => {
       stopDebugLogger();

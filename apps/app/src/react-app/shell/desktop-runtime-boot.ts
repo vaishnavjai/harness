@@ -4,24 +4,24 @@ import { createElement, useEffect } from "react";
 import {
   engineInfo,
   engineStart,
-  openworkServerInfo,
-  openworkServerRestart,
+  harnessServerInfo,
+  harnessServerRestart,
   resolveWorkspaceListSelectedId,
   runtimeBootstrap,
   workspaceBootstrap,
   workspaceSetRuntimeActive,
   workspaceSetSelected,
   type EngineInfo,
-  type OpenworkServerInfo,
+  type HarnessServerInfo,
   type WorkspaceInfo,
   type WorkspaceList,
 } from "../../app/lib/desktop";
 import { ingestMigrationSnapshotOnElectronBoot } from "../../app/lib/migration";
 import {
-  hydrateOpenworkServerSettingsFromEnv,
-  readOpenworkServerSettings,
-  writeOpenworkServerSettings,
-} from "../../app/lib/openwork-server";
+  hydrateHarnessServerSettingsFromEnv,
+  readHarnessServerSettings,
+  writeHarnessServerSettings,
+} from "../../app/lib/harness-server";
 import { isDesktopRuntime, isElectronRuntime, safeStringify } from "../../app/utils";
 import { useEnterpriseActivationRequired } from "../domains/cloud/enterprise-activation-gate";
 import { useServer } from "../kernel/server-provider";
@@ -32,7 +32,7 @@ import { useBootState } from "./boot-state";
 // keeps running across the transient unmount.
 let BOOT_STARTED = false;
 
-type BootOpenworkServerInfo = {
+type BootHarnessServerInfo = {
   running?: boolean | null;
   baseUrl?: string | null;
   ownerToken?: string | null;
@@ -42,11 +42,11 @@ type BootOpenworkServerInfo = {
   remoteAccessEnabled?: boolean;
 };
 
-function isOpenworkServerInfoLike(info: unknown): info is BootOpenworkServerInfo {
+function isHarnessServerInfoLike(info: unknown): info is BootHarnessServerInfo {
   return typeof info === "object" && info !== null;
 }
 
-function isOpenworkServerReady(info?: BootOpenworkServerInfo) {
+function isHarnessServerReady(info?: BootHarnessServerInfo) {
   return Boolean(
     info?.running === true &&
       info.baseUrl?.trim() &&
@@ -57,12 +57,12 @@ function isOpenworkServerReady(info?: BootOpenworkServerInfo) {
 /**
  * On desktop (Tauri) startup:
  *   1) bootstrap the workspace list
- *   2) if a local workspace is selected, restart the embedded OpenWork server
+ *   2) if a local workspace is selected, restart the embedded Harness server
  *   3) start the OpenCode engine pointed at the workspace
- *   4) activate the workspace on the running OpenWork server
+ *   4) activate the workspace on the running Harness server
  *   5) notify React routes that fresh desktop runtime info is available. Electron
  *      routes read live runtime info directly instead of persisting ephemeral
- *      localhost ports/tokens into OpenWork settings.
+ *      localhost ports/tokens into Harness settings.
  *
  * Safe to call multiple times — gated by a `didBoot` ref so it runs once per mount.
  */
@@ -81,7 +81,7 @@ export function useDesktopRuntimeBoot() {
 
     void (async () => {
       try {
-        const evalFatalFailure = window.__OPENWORK_ELECTRON__?.meta?.evalFatalBootstrapFailure;
+        const evalFatalFailure = window.__HARNESS_ELECTRON__?.meta?.evalFatalBootstrapFailure;
         if (evalFatalFailure) throw new Error(evalFatalFailure);
         // On Electron specifically: if the previous Tauri install dropped
         // a migration snapshot, fold it into localStorage before any of
@@ -95,12 +95,12 @@ export function useDesktopRuntimeBoot() {
             console.info(`[migration] hydrated ${hydrated} localStorage keys from Tauri snapshot`);
           }
         }
-        hydrateOpenworkServerSettingsFromEnv();
-        const preferredRemoteAccess = readOpenworkServerSettings().remoteAccessEnabled === true;
+        hydrateHarnessServerSettingsFromEnv();
+        const preferredRemoteAccess = readHarnessServerSettings().remoteAccessEnabled === true;
 
-        const publishOpenworkServerInfo = (serverInfo: BootOpenworkServerInfo | null | undefined) => {
+        const publishHarnessServerInfo = (serverInfo: BootHarnessServerInfo | null | undefined) => {
           if (!serverInfo?.baseUrl) return;
-          writeOpenworkServerSettings({
+          writeHarnessServerSettings({
             urlOverride: serverInfo.baseUrl,
             token:
               serverInfo.ownerToken?.trim() ||
@@ -111,7 +111,7 @@ export function useDesktopRuntimeBoot() {
             remoteAccessEnabled: serverInfo.remoteAccessEnabled === true,
           });
           try {
-            window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
+            window.dispatchEvent(new CustomEvent("harness-server-settings-changed"));
           } catch {
             /* ignore */
           }
@@ -122,28 +122,28 @@ export function useDesktopRuntimeBoot() {
           // exists in the server registry (workspaces created from the app are
           // server-owned). The server is already serving it: restarting would
           // kill the engine and every in-flight run for nothing.
-          const running = await openworkServerInfo().catch(() => null);
+          const running = await harnessServerInfo().catch(() => null);
           if (
-            isOpenworkServerInfoLike(running)
-            && isOpenworkServerReady(running)
+            isHarnessServerInfoLike(running)
+            && isHarnessServerReady(running)
             && (running.remoteAccessEnabled === true) === preferredRemoteAccess
           ) {
-            publishOpenworkServerInfo(running);
-            await window.__OPENWORK_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
+            publishHarnessServerInfo(running);
+            await window.__HARNESS_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
             markReady();
             return;
           }
-          setPhase("starting-engine", "Starting OpenWork server");
-          const serverInfo = await openworkServerRestart({ remoteAccessEnabled: preferredRemoteAccess }).catch((error) => {
-            console.warn("[desktop-boot] openworkServerRestart failed:", error);
+          setPhase("starting-engine", "Starting Harness server");
+          const serverInfo = await harnessServerRestart({ remoteAccessEnabled: preferredRemoteAccess }).catch((error) => {
+            console.warn("[desktop-boot] harnessServerRestart failed:", error);
             return null;
           });
-          if (!isOpenworkServerInfoLike(serverInfo) || !isOpenworkServerReady(serverInfo)) {
-            setError("OpenWork server did not finish starting. Please restart OpenWork.");
+          if (!isHarnessServerInfoLike(serverInfo) || !isHarnessServerReady(serverInfo)) {
+            setError("Harness server did not finish starting. Please restart Harness.");
             return;
           }
-          publishOpenworkServerInfo(serverInfo);
-          await window.__OPENWORK_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
+          publishHarnessServerInfo(serverInfo);
+          await window.__HARNESS_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
           markReady();
         };
 
@@ -179,48 +179,48 @@ export function useDesktopRuntimeBoot() {
             skipped?: boolean;
             error?: string;
             engine?: { baseUrl?: string | null };
-            openworkServer?: BootOpenworkServerInfo;
+            harnessServer?: BootHarnessServerInfo;
           };
 
           if (boot.ok === false) {
-            setError(boot.error || "Failed to start OpenWork runtime");
+            setError(boot.error || "Failed to start Harness runtime");
             return;
           }
 
-          if (!boot.skipped && !isOpenworkServerReady(boot.openworkServer)) {
-            setError("OpenWork server did not finish starting. Please restart OpenWork.");
+          if (!boot.skipped && !isHarnessServerReady(boot.harnessServer)) {
+            setError("Harness server did not finish starting. Please restart Harness.");
             return;
           }
 
           if (boot.engine?.baseUrl) {
             setActive(boot.engine.baseUrl);
           }
-          let serverInfo = boot.openworkServer;
+          let serverInfo = boot.harnessServer;
           if (preferredRemoteAccess && serverInfo?.remoteAccessEnabled !== true) {
-            const restarted = await openworkServerRestart({ remoteAccessEnabled: true }).catch((error) => {
-              console.warn("[desktop-boot] openworkServerRestart failed:", error);
+            const restarted = await harnessServerRestart({ remoteAccessEnabled: true }).catch((error) => {
+              console.warn("[desktop-boot] harnessServerRestart failed:", error);
               return null;
             });
-            if (isOpenworkServerInfoLike(restarted)) serverInfo = restarted;
+            if (isHarnessServerInfoLike(restarted)) serverInfo = restarted;
           }
-          publishOpenworkServerInfo(serverInfo);
-          await window.__OPENWORK_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
+          publishHarnessServerInfo(serverInfo);
+          await window.__HARNESS_ELECTRON__?.recovery?.recordHealthy?.().catch(() => undefined);
           markReady();
           return;
         }
 
         // FAST PATH ─────────────────────────────────────────────────────
         // Cheap status probe: if engine is already running just publish the
-        // current openwork-server base URL + token and finish in <1s.
+        // current harness-server base URL + token and finish in <1s.
         // This mirrors Solid's bootstrap at context/workspace.ts:3883-3907
         // ("localAttachExisting"), which never restarts a running stack.
         try {
           const engine = await engineInfo() as EngineInfo | null;
           if (engine?.running && engine.baseUrl) {
             setActive(engine.baseUrl);
-            const fresh = await openworkServerInfo().catch(() => null) as OpenworkServerInfo | null;
+            const fresh = await harnessServerInfo().catch(() => null) as HarnessServerInfo | null;
             if (fresh?.baseUrl) {
-              writeOpenworkServerSettings({
+              writeHarnessServerSettings({
                 urlOverride: fresh.baseUrl,
                 token:
                   fresh.ownerToken?.trim() ||
@@ -232,7 +232,7 @@ export function useDesktopRuntimeBoot() {
               });
               try {
                 window.dispatchEvent(
-                  new CustomEvent("openwork-server-settings-changed"),
+                  new CustomEvent("harness-server-settings-changed"),
                 );
               } catch {
                 /* ignore */
@@ -247,7 +247,7 @@ export function useDesktopRuntimeBoot() {
 
         // SLOW PATH ─────────────────────────────────────────────────────
         // No running engine. Tauri now mirrors Electron: engine_start boots
-        // openwork-server and lets that server manage OpenCode.
+        // harness-server and lets that server manage OpenCode.
         const localPaths = list.workspaces.flatMap((entry: WorkspaceInfo) => {
           const path = entry.workspaceType !== "remote" ? entry.path?.trim() ?? "" : "";
           return path ? [path] : [];
@@ -267,7 +267,7 @@ export function useDesktopRuntimeBoot() {
         let engineStartResult = await engineStart(workspaceRoot, {
           runtime: "direct",
           workspacePaths: workspacePathsFor(workspaceRoot),
-          openworkRemoteAccess: readOpenworkServerSettings().remoteAccessEnabled === true,
+          harnessRemoteAccess: readHarnessServerSettings().remoteAccessEnabled === true,
         }).catch((error) => {
           console.warn("[desktop-boot] engineStart failed:", error);
           return null;
@@ -288,7 +288,7 @@ export function useDesktopRuntimeBoot() {
             engineStartResult = await engineStart(fallbackRoot, {
               runtime: "direct",
               workspacePaths: workspacePathsFor(fallbackRoot).filter((path) => path !== workspaceRoot),
-              openworkRemoteAccess: readOpenworkServerSettings().remoteAccessEnabled === true,
+              harnessRemoteAccess: readHarnessServerSettings().remoteAccessEnabled === true,
             }).catch((error) => {
               console.warn("[desktop-boot] fallback engineStart failed:", error);
               setError(error instanceof Error ? error.message : safeStringify(error));
@@ -308,9 +308,9 @@ export function useDesktopRuntimeBoot() {
             setActive(engineStartResult.baseUrl);
           }
           try {
-            const freshInfo = await openworkServerInfo() as OpenworkServerInfo | null;
+            const freshInfo = await harnessServerInfo() as HarnessServerInfo | null;
             if (freshInfo?.baseUrl) {
-              writeOpenworkServerSettings({
+              writeHarnessServerSettings({
                 urlOverride: freshInfo.baseUrl,
                 token:
                   freshInfo.ownerToken?.trim() ||
@@ -321,13 +321,13 @@ export function useDesktopRuntimeBoot() {
                 remoteAccessEnabled: freshInfo.remoteAccessEnabled === true,
               });
               try {
-                window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
+                window.dispatchEvent(new CustomEvent("harness-server-settings-changed"));
               } catch {
                 /* ignore */
               }
             }
           } catch (error) {
-            console.warn("[desktop-boot] post-engineStart openworkServerInfo failed:", error);
+            console.warn("[desktop-boot] post-engineStart harnessServerInfo failed:", error);
           }
         }
 

@@ -3,8 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { reviewSchema } from "@openwork/review";
-import { uploadReview } from "@openwork/review/storage";
+import { reviewSchema } from "@harness/review";
+import { uploadReview } from "@harness/review/storage";
 import { POST } from "../app/r/[id]/checkpoint/[evidenceId]/route.ts";
 
 const sha = "a".repeat(40);
@@ -38,11 +38,11 @@ test("cross-origin checkpoint requests are rejected before reading the report", 
 });
 
 test("expired, missing and disconnected checkpoints never allocate a VM", async () => {
-  const previousDirectory = process.env.OPENWORK_REVIEW_LOCAL_DIR;
+  const previousDirectory = process.env.HARNESS_REVIEW_LOCAL_DIR;
   const previousKey = process.env.FREESTYLE_API_KEY;
   const directory = await mkdtemp(join(tmpdir(), "review-checkpoint-test-"));
   try {
-    process.env.OPENWORK_REVIEW_LOCAL_DIR = directory;
+    process.env.HARNESS_REVIEW_LOCAL_DIR = directory;
     delete process.env.FREESTYLE_API_KEY;
     const assets = [{ name: "source.json", body: Buffer.from("{}") }, { name: `${imageHash}.png`, body: Buffer.from("fixture") }];
     const current = await uploadReview(report(), assets);
@@ -59,7 +59,7 @@ test("expired, missing and disconnected checkpoints never allocate a VM", async 
     assert.equal((await POST(oversized, { params: Promise.resolve({ id: current, evidenceId: "picture" }) })).status, 400);
   } finally {
     if (previousKey === undefined) delete process.env.FREESTYLE_API_KEY; else process.env.FREESTYLE_API_KEY = previousKey;
-    if (previousDirectory === undefined) delete process.env.OPENWORK_REVIEW_LOCAL_DIR; else process.env.OPENWORK_REVIEW_LOCAL_DIR = previousDirectory;
+    if (previousDirectory === undefined) delete process.env.HARNESS_REVIEW_LOCAL_DIR; else process.env.HARNESS_REVIEW_LOCAL_DIR = previousDirectory;
     await rm(directory, { recursive: true, force: true });
   }
 });

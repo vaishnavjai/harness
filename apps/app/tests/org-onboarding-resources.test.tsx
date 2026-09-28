@@ -5,7 +5,7 @@ import { act } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { DenOrgLlmProvider, DenOrgMarketplace } from "../src/app/lib/den";
-import type { GatewayProviderSummary } from "@openwork/types/den/gateway";
+import type { GatewayProviderSummary } from "@harness/types/den/gateway";
 
 GlobalRegistrator.register({ url: "http://localhost/" });
 Object.defineProperty(globalThis, "IS_REACT_ACT_ENVIRONMENT", { configurable: true, value: true });
@@ -32,12 +32,12 @@ let marketplaces: DenOrgMarketplace[];
 let gatewayResponse: () => Promise<Response>;
 let requests: string[];
 
-function legacyProvider(source: DenOrgLlmProvider["source"] = "openwork", modelCount = 0): DenOrgLlmProvider {
+function legacyProvider(source: DenOrgLlmProvider["source"] = "harness", modelCount = 0): DenOrgLlmProvider {
   return {
     id: `lpr_${source}`,
     source,
-    providerId: source === "openwork" ? "openwork" : "openai",
-    name: source === "openwork" ? "Managed workspace models" : "Legacy team AI",
+    providerId: source === "harness" ? "harness" : "openai",
+    name: source === "harness" ? "Managed workspace models" : "Legacy team AI",
     providerConfig: {},
     hasApiKey: true,
     models: Array.from({ length: modelCount }, (_, index) => ({
@@ -51,7 +51,7 @@ function legacyProvider(source: DenOrgLlmProvider["source"] = "openwork", modelC
 function gatewayProvider(id = "ipr_test", credentialStatus: GatewayProviderSummary["credentialStatus"] = "ready"): GatewayProviderSummary {
   return {
     id,
-    source: "openwork_gateway",
+    source: "harness_gateway",
     providerId: "openai",
     name: `Gateway ${id}`,
     credentialMode: "per_member",
@@ -153,10 +153,10 @@ afterAll(async () => {
 });
 
 describe("organization resource overview", () => {
-  test("shows accessible OpenWork Models without card or aggregate model counts", async () => {
+  test("shows accessible Harness Models without card or aggregate model counts", async () => {
     providers = [legacyProvider()];
     await showResources();
-    await expand("OpenWork Models");
+    await expand("Harness Models");
     expect(host.textContent).toContain("Managed workspace models");
     expect(host.textContent).not.toMatch(/\d+ models?/i);
     expect(host.textContent).not.toContain("AI Gateway");
@@ -166,7 +166,7 @@ describe("organization resource overview", () => {
 
   test("counts Gateway-only access as providers, lists names, and finishes with reload and seen IDs", async () => {
     gatewayProviders = [gatewayProvider("ipr_first"), gatewayProvider("ipr_second")];
-    window.localStorage.setItem("openwork.seenProviderIds", JSON.stringify(["lpr_existing"]));
+    window.localStorage.setItem("harness.seenProviderIds", JSON.stringify(["lpr_existing"]));
     await showResources();
     expect(button("AI Gateway").textContent).toContain("2 AI providers");
     expect(host.textContent).not.toContain("No resources");
@@ -177,8 +177,8 @@ describe("organization resource overview", () => {
     expect(host.textContent).not.toContain("Use as default");
     await act(async () => { button("Continue to workspace").click(); });
     expect(host.textContent).toContain("Workspace destination");
-    expect(window.localStorage.getItem("openwork.reloadAfterOrgOnboarding")).toBe("1");
-    expect(JSON.parse(window.localStorage.getItem("openwork.seenProviderIds") ?? "[]")).toEqual([
+    expect(window.localStorage.getItem("harness.reloadAfterOrgOnboarding")).toBe("1");
+    expect(JSON.parse(window.localStorage.getItem("harness.seenProviderIds") ?? "[]")).toEqual([
       "lpr_existing", "ipr_first", "ipr_second",
     ]);
     expect(requests).toContain("/v1/inference-providers?scope=usable");
@@ -193,14 +193,14 @@ describe("organization resource overview", () => {
     expect(host.querySelector('[data-slot="accordion-item"]')).toBeNull();
   });
 
-  test("preserves legacy model counts and marketplaces but excludes OpenWork models from every count", async () => {
-    providers = [legacyProvider("openwork", 7), legacyProvider("custom", 2)];
+  test("preserves legacy model counts and marketplaces but excludes Harness models from every count", async () => {
+    providers = [legacyProvider("harness", 7), legacyProvider("custom", 2)];
     marketplaces = [{ id: "mkt_test", name: "Team tools", description: "Shared tools", pluginCount: 3, status: "active", updatedAt: null }];
     await showResources();
     expect(button("AI Providers").textContent).toContain("2 models");
-    expect(button("OpenWork Models").textContent).not.toMatch(/\d/);
+    expect(button("Harness Models").textContent).not.toMatch(/\d/);
     expect(button("Collections").textContent).toContain("1 marketplace");
-    await expand("OpenWork Models");
+    await expand("Harness Models");
     await expand("AI Providers");
     await expand("Collections");
     expect(host.textContent).not.toContain("7 models");
@@ -246,8 +246,8 @@ describe("organization resource overview", () => {
     expect(host.textContent).not.toContain("Workspace destination");
     await act(async () => { resolveGateway(Response.json({ inferenceProviders: [gatewayProvider()] })); });
     await settle(() => host.textContent?.includes("Workspace destination") === true);
-    expect(JSON.parse(window.localStorage.getItem("openwork.seenProviderIds") ?? "[]")).toEqual(["ipr_test"]);
-    expect(window.localStorage.getItem("openwork.reloadAfterOrgOnboarding")).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem("harness.seenProviderIds") ?? "[]")).toEqual(["ipr_test"]);
+    expect(window.localStorage.getItem("harness.reloadAfterOrgOnboarding")).toBeNull();
   });
 
   test("preserves legacy resources when Gateway is unavailable on an older server", async () => {
@@ -262,8 +262,8 @@ describe("organization resource overview", () => {
     await act(async () => { button("Continue to workspace").click(); });
     expect(host.textContent).toContain("Workspace destination");
     expect(readStoredDefaultModel()).toEqual({ providerID: "lpr_models_dev", modelID: "model-0" });
-    expect(JSON.parse(window.localStorage.getItem("openwork.seenProviderIds") ?? "[]")).toEqual(["lpr_models_dev"]);
-    expect(window.localStorage.getItem("openwork.reloadAfterOrgOnboarding")).toBe("1");
+    expect(JSON.parse(window.localStorage.getItem("harness.seenProviderIds") ?? "[]")).toEqual(["lpr_models_dev"]);
+    expect(window.localStorage.getItem("harness.reloadAfterOrgOnboarding")).toBe("1");
   });
 
   test("keeps loaded legacy resources visible alongside a Gateway access error", async () => {

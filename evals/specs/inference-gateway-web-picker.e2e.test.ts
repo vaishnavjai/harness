@@ -1,12 +1,12 @@
 import { expect } from "vitest";
-import { denFetch, grantOpenWorkWebAccess, readAvailableModels } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { addInitScript, navigate } from "@openwork/cdp";
-import { checkedExec, defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
-import { browserScript, eventually, spec } from "@openwork/testkit";
-import type { Seed } from "@openwork/testkit";
+import { denFetch, grantHarnessWebAccess, readAvailableModels } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { addInitScript, navigate } from "@harness/cdp";
+import { checkedExec, defaultDaytonaExec, execInSandbox } from "@harness/hosts";
+import { browserScript, eventually, spec } from "@harness/testkit";
+import type { Seed } from "@harness/testkit";
 
-const PROVIDER_NAME = "Anthropic via OpenWork Gateway";
+const PROVIDER_NAME = "Anthropic via Harness Gateway";
 const PROVIDER_ID = "anthropic";
 const UPSTREAM_SECRET = "sk-ant-fake-upstream-key-never-reaches-a-worker";
 const GATEWAY_ORIGIN = "http://127.0.0.1:18791";
@@ -27,7 +27,7 @@ function auth(session: DenSession): Record<string, string> {
 }
 
 function orgHeaders(session: DenSession, orgId: string): Record<string, string> {
-  return { ...auth(session), "x-openwork-org-id": orgId };
+  return { ...auth(session), "x-harness-org-id": orgId };
 }
 
 async function organizationId(session: DenSession): Promise<string> {
@@ -84,7 +84,7 @@ async function connectProvider(member: DenSession, orgId: string, providerId: st
 
 async function resolveGateway(member: DenSession, orgId: string) {
   const result = await denFetch(member, "/v1/cloud/gateway/resolve", {
-    headers: { ...orgHeaders(member, orgId), "x-openwork-gateway-key": "synthetic-cloud-gateway-key" },
+    headers: { ...orgHeaders(member, orgId), "x-harness-gateway-key": "synthetic-cloud-gateway-key" },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   return { status: result.response.status, body: isRecord(result.body) ? result.body : {}, text: result.text };
@@ -94,14 +94,14 @@ async function gatewayWebPicker(seed: Seed) {
   const den = await seed.den({
     web: false,
     env: {
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
       GATEWAY_ENABLED: "true",
       GATEWAY_PROXY_BASE_URL: GATEWAY_ORIGIN,
       GATEWAY_PUBLIC_BASE_URL: GATEWAY_ORIGIN,
       DEN_GATEWAY_KEY: "synthetic-cloud-gateway-key",
-      DEN_OPENWORK_WEB_ENABLED: "true",
-      DEN_BOOTSTRAP_ADMIN_EMAILS: "gateway-picker-admin@openwork.test",
-      STRIPE_OPENWORK_WEB_PRICE_ID: "price_gateway_picker_witness",
+      DEN_HARNESS_WEB_ENABLED: "true",
+      DEN_BOOTSTRAP_ADMIN_EMAILS: "gateway-picker-admin@harness.test",
+      STRIPE_HARNESS_WEB_PRICE_ID: "price_gateway_picker_witness",
       PROVISIONER_MODE: "daytona",
       DAYTONA_API_KEY: process.env.DAYTONA_API_KEY,
       DAYTONA_API_URL: process.env.DAYTONA_API_URL,
@@ -114,14 +114,14 @@ async function gatewayWebPicker(seed: Seed) {
     },
     org: {
       name: "Inference Gateway Web Picker",
-      admin: { name: "Gateway Picker Admin", email: "gateway-picker-admin@openwork.test" },
+      admin: { name: "Gateway Picker Admin", email: "gateway-picker-admin@harness.test" },
       members: { member: { name: "Gateway Picker Member" } },
     },
   });
   const member = den.members.member;
   if (!member) throw new Error("The isolated Den did not provision its member.");
   const orgId = await organizationId(den.admin);
-  await grantOpenWorkWebAccess(den.admin, orgId, "Synthetic hosted-web Gateway picker coverage");
+  await grantHarnessWebAccess(den.admin, orgId, "Synthetic hosted-web Gateway picker coverage");
   const catalogModel = await firstCatalogModel(den.admin, orgId);
   const providerId = await createProvider(den.admin, orgId, catalogModel.id);
   const model = await connectProvider(member, orgId, providerId, catalogModel.id);
@@ -136,7 +136,7 @@ async function gatewayWebPicker(seed: Seed) {
   const app = await seed.appWeb({ name: "gateway-web-picker", workspacePath: seed.tmpPath("gateway-web-picker") });
   const sandboxId = app.handle.sandboxId;
   if (!sandboxId) throw new Error("The appWeb surface did not expose its Daytona sandbox.");
-  const command = `pnpm --filter @openwork/app build:web >/tmp/gateway-picker-app-build.log 2>&1 && pnpm --filter @openwork-ee/utils build >/tmp/gateway-picker-utils-build.log 2>&1 && pnpm --filter @openwork-ee/den-gateway build >/tmp/gateway-picker-build.log 2>&1 || exit 1; nohup env PORT=8789 DEN_API_BASE=${den.ref.apiUrl} DEN_GATEWAY_KEY=synthetic-cloud-gateway-key DEN_GATEWAY_WEB_ROOT=/workspace/apps/app/dist DEN_GATEWAY_RESOLVE_TTL_MS=1000 node /workspace/ee/apps/den-gateway/dist/server.js </dev/null >/tmp/gateway-picker.log 2>&1 &`;
+  const command = `pnpm --filter @harness/app build:web >/tmp/gateway-picker-app-build.log 2>&1 && pnpm --filter @harness-ee/utils build >/tmp/gateway-picker-utils-build.log 2>&1 && pnpm --filter @harness-ee/den-gateway build >/tmp/gateway-picker-build.log 2>&1 || exit 1; nohup env PORT=8789 DEN_API_BASE=${den.ref.apiUrl} DEN_GATEWAY_KEY=synthetic-cloud-gateway-key DEN_GATEWAY_WEB_ROOT=/workspace/apps/app/dist DEN_GATEWAY_RESOLVE_TTL_MS=1000 node /workspace/ee/apps/den-gateway/dist/server.js </dev/null >/tmp/gateway-picker.log 2>&1 &`;
   await execInSandbox(defaultDaytonaExec, sandboxId, command, { context: "build and start hosted-web gateway", timeoutMs: 240_000 });
   await execInSandbox(defaultDaytonaExec, sandboxId, `for attempt in $(seq 1 30); do curl -fsS http://127.0.0.1:8789/__gw/health >/dev/null && exit 0; sleep 1; done; grep -E Error\\|error\\|Cannot\\|ERR_ /tmp/gateway-picker.log || true; exit 1`, { context: "hosted-web gateway loopback health", timeoutMs: 45_000 });
   const preview = await checkedExec(defaultDaytonaExec, ["preview-url", sandboxId, "-p", "8789"], "hosted-web gateway preview URL", { timeoutMs: 30_000 });
@@ -146,8 +146,8 @@ async function gatewayWebPicker(seed: Seed) {
     within: 60_000, intervalMs: 1_000, label: "hosted-web gateway health", until: (status) => status === 200,
   });
   await addInitScript(app.client, browserScript((input) => {
-    window.localStorage.setItem("openwork.den.authToken", input.token);
-    window.localStorage.setItem("openwork.den.activeOrgId", input.orgId);
+    window.localStorage.setItem("harness.den.authToken", input.token);
+    window.localStorage.setItem("harness.den.activeOrgId", input.orgId);
   }, [{ token: member.token, orgId }]));
   await navigate(app.client, gatewayUrl);
 

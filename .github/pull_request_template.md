@@ -25,7 +25,7 @@
 
 ## Release note
 
-<!-- One sentence for people who use OpenWork, e.g. "You can now run OpenWork on your own server with `openwork-server web`."
+<!-- One sentence for people who use Harness, e.g. "You can now run Harness on your own server with `harness-server web`."
      Write "none" if users will not notice (CI, tests, review tooling). -->
 
 

@@ -11,16 +11,16 @@ for (const world of worlds) {
     execFileSync("bash", ["-n"], { input: recipe });
     assert.equal(recipe.includes("google-chrome-stable"), world !== "app-web");
     if (world !== "app-web") {
-      assert.ok(recipe.includes('"${OPENWORK_PREVIEW_BROWSER_PROFILE:-${XDG_CONFIG_HOME:-$HOME/.config}/openwork-preview-browser}"'));
+      assert.ok(recipe.includes('"${HARNESS_PREVIEW_BROWSER_PROFILE:-${XDG_CONFIG_HOME:-$HOME/.config}/harness-preview-browser}"'));
       assert.match(recipe, /X-XFCE-CommandsWithParameter=.*"%s"/);
-      assert.match(recipe, /x-scheme-handler\/https=openwork-preview-browser.desktop/);
+      assert.match(recipe, /x-scheme-handler\/https=harness-preview-browser.desktop/);
     }
   });
 }
 
 test("old browserless desktop snapshots cannot satisfy the new image version", () => {
   const sha = "a".repeat(40);
-  assert.equal(snapshotSlug(sha, "app-web"), `openwork-app-web-v6-${sha}`);
-  assert.equal(snapshotSlug(sha, "desktop"), `openwork-desktop-v7-${sha}`);
-  assert.equal(snapshotSlug(sha, "acme-web"), `openwork-acme-web-v7-${sha}`);
+  assert.equal(snapshotSlug(sha, "app-web"), `harness-app-web-v6-${sha}`);
+  assert.equal(snapshotSlug(sha, "desktop"), `harness-desktop-v7-${sha}`);
+  assert.equal(snapshotSlug(sha, "acme-web"), `harness-acme-web-v7-${sha}`);
 });

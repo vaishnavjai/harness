@@ -2,7 +2,7 @@
 
 Status: implemented first pass
 Owner: self-host / enterprise
-Related: `packaging/helm/openwork-ee`, `ee/apps/den-api/src/auth.ts`, `ee/apps/den-api/src/orgs.ts`, `ee/apps/den-web/app/(den)`
+Related: `packaging/helm/harness-ee`, `ee/apps/den-api/src/auth.ts`, `ee/apps/den-api/src/orgs.ts`, `ee/apps/den-web/app/(den)`
 
 Implementation note: this document started as the plan for the subagent split.
 The first pass now implements the default `single_org` mode, singleton org
@@ -13,8 +13,8 @@ behavior and production bootstrap-token UX remain follow-up work.
 
 ## Goal
 
-Make self-hosted OpenWork EE deployments behave like one customer-owned
-workspace by default, while keeping hosted OpenWork Cloud multi-org.
+Make self-hosted Harness EE deployments behave like one customer-owned
+workspace by default, while keeping hosted Harness Cloud multi-org.
 
 The internal model should still use organizations, members, roles, SSO, SCIM,
 workers, plugins, API keys, and MCP resources. The product experience should
@@ -34,7 +34,7 @@ Recommended defaults:
 
 - Helm chart: `single_org`
 - Local development: `single_org` unless a developer opts into multi-org
-- Hosted OpenWork Cloud: `multi_org`
+- Hosted Harness Cloud: `multi_org`
 
 Suggested Helm values:
 
@@ -42,7 +42,7 @@ Suggested Helm values:
 config:
   tenancy:
     mode: single_org
-    singleOrgName: OpenWork
+    singleOrgName: Harness
     singleOrgSlug: default
     ownerEmails: ""
     allowPublicSignup: "false"
@@ -158,9 +158,9 @@ Frontend:
 
 Packaging and docs:
 
-- `packaging/helm/openwork-ee/values.yaml`
-- `packaging/helm/openwork-ee/templates/configmap.yaml`
-- `packaging/helm/openwork-ee/README.md`
+- `packaging/helm/harness-ee/values.yaml`
+- `packaging/helm/harness-ee/templates/configmap.yaml`
+- `packaging/helm/harness-ee/README.md`
 - `packages/docs/start-here/self-host.mdx`
 
 ## Implementation Work Packages
@@ -175,9 +175,9 @@ Owner: Helm/config worker
 Files:
 
 - `ee/apps/den-api/src/env.ts`
-- `packaging/helm/openwork-ee/values.yaml`
-- `packaging/helm/openwork-ee/templates/configmap.yaml`
-- `packaging/helm/openwork-ee/README.md`
+- `packaging/helm/harness-ee/values.yaml`
+- `packaging/helm/harness-ee/templates/configmap.yaml`
+- `packaging/helm/harness-ee/README.md`
 - `packages/docs/start-here/self-host.mdx`
 
 Tasks:
@@ -362,8 +362,8 @@ Baseline check on 2026-07-05 after dependency repair:
 
 1. `pnpm install --frozen-lockfile` completed successfully with pnpm 11.7.0.
 2. First `pnpm dev:web-local` runtime attempt started MySQL and schema sync but
-   `den-api` failed because `@openwork/install-config` had no `dist/index.js`.
-3. `pnpm --filter @openwork/install-config build` fixed the missing package
+   `den-api` failed because `@harness/install-config` had no `dist/index.js`.
+3. `pnpm --filter @harness/install-config build` fixed the missing package
    artifact.
 4. Restarted `pnpm dev:web-local`; all services came up:
    - Den API: `http://127.0.0.1:8788`
@@ -380,8 +380,8 @@ Baseline check on 2026-07-05 after dependency repair:
 Helm render checks after config work:
 
 ```bash
-helm template openwork-ee ./packaging/helm/openwork-ee --set image.tag=test | rg "DEN_ORG_MODE|DEN_SINGLE"
-helm template openwork-ee ./packaging/helm/openwork-ee --set config.tenancy.mode=multi_org --set image.tag=test | rg "DEN_ORG_MODE"
+helm template harness-ee ./packaging/helm/harness-ee --set image.tag=test | rg "DEN_ORG_MODE|DEN_SINGLE"
+helm template harness-ee ./packaging/helm/harness-ee --set config.tenancy.mode=multi_org --set image.tag=test | rg "DEN_ORG_MODE"
 ```
 
 Local `helm` is not installed in the current Codex environment, so use CI or an
@@ -395,10 +395,10 @@ Current test-evidence follow-up:
 
 Validation update on 2026-07-05:
 
-1. `pnpm --filter @openwork-ee/den-api exec bun test test/single-org-mode.test.ts test/single-org-route-guards.test.ts`
+1. `pnpm --filter @harness-ee/den-api exec bun test test/single-org-mode.test.ts test/single-org-route-guards.test.ts`
    passed 8 tests.
-2. `pnpm --filter @openwork-ee/den-api exec tsc --noEmit` passed.
-3. `pnpm --filter @openwork-ee/den-web exec tsc --noEmit` passed.
+2. `pnpm --filter @harness-ee/den-api exec tsc --noEmit` passed.
+3. `pnpm --filter @harness-ee/den-web exec tsc --noEmit` passed.
 4. `git diff --check` passed.
 5. `bash -n packaging/docker/den-dev-up.sh` passed.
 6. `docker compose -f packaging/docker/docker-compose.den-dev.yml config | rg "DEN_ORG_MODE|DEN_SINGLE_ORG|DEN_REQUIRE_EMAIL_VERIFICATION"`
@@ -411,13 +411,13 @@ Validation update on 2026-07-05:
     `evals/results/2026-07-05T15-25-15-884Z/fraimz.html`.
 9. Native `helm version --short` failed because Helm is not installed locally.
    Helm validation was completed through OrbStack Docker instead:
-   - `docker run --rm -v /Users/omar/code/openwork/packaging/helm/openwork-ee:/chart:ro alpine/helm:3.15.4 version --short`
+   - `docker run --rm -v /Users/omar/code/harness/packaging/helm/harness-ee:/chart:ro alpine/helm:3.15.4 version --short`
      returned `v3.15.4+gfa9efb0`.
-   - `docker run --rm -v /Users/omar/code/openwork/packaging/helm/openwork-ee:/chart:ro alpine/helm:3.15.4 lint /chart --set image.tag=test`
+   - `docker run --rm -v /Users/omar/code/harness/packaging/helm/harness-ee:/chart:ro alpine/helm:3.15.4 lint /chart --set image.tag=test`
      passed with 0 chart failures.
-   - `docker run --rm -v /Users/omar/code/openwork/packaging/helm/openwork-ee:/chart:ro alpine/helm:3.15.4 template openwork-ee /chart --set image.tag=test --show-only templates/configmap.yaml`
+   - `docker run --rm -v /Users/omar/code/harness/packaging/helm/harness-ee:/chart:ro alpine/helm:3.15.4 template harness-ee /chart --set image.tag=test --show-only templates/configmap.yaml`
      rendered `DEN_ORG_MODE: "single_org"` and singleton settings.
-   - `docker run --rm -v /Users/omar/code/openwork/packaging/helm/openwork-ee:/chart:ro alpine/helm:3.15.4 template openwork-ee /chart --set image.tag=test --set config.tenancy.mode=multi_org --show-only templates/configmap.yaml`
+   - `docker run --rm -v /Users/omar/code/harness/packaging/helm/harness-ee:/chart:ro alpine/helm:3.15.4 template harness-ee /chart --set image.tag=test --set config.tenancy.mode=multi_org --show-only templates/configmap.yaml`
      rendered `DEN_ORG_MODE: "multi_org"`.
 
 ## Orchestration Plan
@@ -450,9 +450,9 @@ validating worker output.
 6. How should existing customer DBs with multiple orgs behave when
    `DEN_ORG_MODE=single_org` is enabled: fail fast, choose a configured slug, or
    migrate one org?
-7. Should self-host docs call Den web "OpenWork Cloud" after Helm defaults to
-   single-org mode, or rename that surface in docs to "OpenWork web" /
-   "OpenWork admin" for private deployments?
+7. Should self-host docs call Den web "Harness Cloud" after Helm defaults to
+   single-org mode, or rename that surface in docs to "Harness web" /
+   "Harness admin" for private deployments?
 
 ## Documentation Updates Needed
 
@@ -460,7 +460,7 @@ Self-host and packaging docs need to stop describing the Helm path as if users
 must understand multi-org creation.
 
 - `packages/docs/start-here/self-host.mdx`: distinguish single-org private
-  deployments from hosted OpenWork Cloud. The current "Cloud-style accounts,
+  deployments from hosted Harness Cloud. The current "Cloud-style accounts,
   teams, and organization management" wording conflicts with a single-org Helm
   default.
 - `packages/docs/start-here/self-host.mdx`: fix the "Minimal Working Stack"
@@ -469,7 +469,7 @@ must understand multi-org creation.
   single-org deployments still use org-scoped RBAC internally, while hosted cloud
   remains multi-org.
 - `packaging/docker/README.md`: avoid calling every local/private web surface
-  "OpenWork Cloud web app" after single-org mode lands.
+  "Harness Cloud web app" after single-org mode lands.
 
 ## Proposed First Milestone
 

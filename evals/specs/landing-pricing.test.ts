@@ -1,11 +1,11 @@
 import { expect } from "vitest";
-import { chrome } from "@openwork/hosts";
-import { clickAt, evaluateOnSurface, freezeMotion, locate, navigate, reload, setViewport, waitForLocated } from "@openwork/cdp";
-import { eventually, needs, test } from "@openwork/testkit";
+import { chrome } from "@harness/hosts";
+import { clickAt, evaluateOnSurface, freezeMotion, locate, navigate, reload, setViewport, waitForLocated } from "@harness/cdp";
+import { eventually, needs, test } from "@harness/testkit";
 
 test("visitors see consistent monthly Team and Enterprise pricing", async ({ evidence }) => {
-  needs({ env: ["OPENWORK_EVAL_LANDING_URL"] });
-  const origin = process.env.OPENWORK_EVAL_LANDING_URL;
+  needs({ env: ["HARNESS_EVAL_LANDING_URL"] });
+  const origin = process.env.HARNESS_EVAL_LANDING_URL;
   await using browser = await chrome({ startUrl: `${origin}/pricing`, headless: true });
   const visible = await eventually(async () => evaluateOnSurface(browser, () => (document.body.innerText)), {
     within: 30_000,
@@ -45,8 +45,8 @@ test("visitors see consistent monthly Team and Enterprise pricing", async ({ evi
 });
 
 test("visitors can read the trust badge and access every footer link at responsive widths", async ({ evidence }) => {
-  needs({ env: ["OPENWORK_EVAL_LANDING_URL"] });
-  const origin = process.env.OPENWORK_EVAL_LANDING_URL;
+  needs({ env: ["HARNESS_EVAL_LANDING_URL"] });
+  const origin = process.env.HARNESS_EVAL_LANDING_URL;
   await using browser = await chrome({ startUrl: `${origin}/pricing`, headless: true });
   await eventually(() => evaluateOnSurface(browser, () => Boolean(document.querySelector('footer img[src="/soc-2-type-ii.svg"]'))), {
     within: 30_000,
@@ -108,7 +108,7 @@ test("visitors can read the trust badge and access every footer link at responsi
     expect(facts.links).toEqual([
       ["/docs", "Docs"], ["/pricing", "Pricing"], ["/roadmap", "Roadmap"],
       ["/download", "Desktop"], ["/alternatives/claude-cowork", "Claude Cowork alternative"],
-      ["https://app.openworklabs.com", "Cloud"],
+      ["https://app.harness.invalid", "Cloud"],
       ["/dashboard", "Dashboard"], ["/enterprise", "Enterprise"], ["/contact", "Contact"],
       ["/trust", "Trust Center"], ["/privacy", "Privacy"], ["/terms", "Terms"],
       ["https://opencode.ai", "OpenCode"], ["/trust", "SOC 2 Type II. View Trust Center"],
@@ -123,7 +123,7 @@ test("visitors can read the trust badge and access every footer link at responsi
     return section.innerText;
   }), {
     within: 30_000,
-    until: (text) => typeof text === "string" && text.includes("OpenWork Enterprise"),
+    until: (text) => typeof text === "string" && text.includes("Harness Enterprise"),
   });
   expect(hero).not.toMatch(/SOC 2 Type I\b/);
   for (const badge of ["SOC 2 Type II", "SAML SSO + SCIM", "Audit logs", "Self-host or managed", "White labeling"]) {
@@ -133,8 +133,8 @@ test("visitors can read the trust badge and access every footer link at responsi
 });
 
 test("download CTAs request the detected installer once and retain the alternative downloads", async ({ evidence }) => {
-  needs({ env: ["OPENWORK_EVAL_LANDING_URL"] });
-  const origin = process.env.OPENWORK_EVAL_LANDING_URL;
+  needs({ env: ["HARNESS_EVAL_LANDING_URL"] });
+  const origin = process.env.HARNESS_EVAL_LANDING_URL;
   await using browser = await chrome({ startUrl: "about:blank", headless: true });
   const version = await (await fetch(`${browser.handle.cdpUrl}/json/version`, { signal: AbortSignal.timeout(10_000) })).json();
   const socketUrl = new URL(version.webSocketDebuggerUrl);
@@ -162,7 +162,7 @@ test("download CTAs request the detected installer once and retain the alternati
       enabling.set(id, { sessionId, primary: targetInfo.targetId === browser.client.targetId });
       // Include cross-origin frames and alternate links opened in a new tab.
       socket.send(JSON.stringify({ id, sessionId, method: "Fetch.enable", params: {
-        patterns: [{ urlPattern: "https://github.com/different-ai/openwork/releases*", requestStage: "Request" }]
+        patterns: [{ urlPattern: "https://github.com/vaishnavjai/harness/releases*", requestStage: "Request" }]
       } }));
       return;
     }
@@ -223,10 +223,10 @@ test("download CTAs request the detected installer once and retain the alternati
       });
       const before = requests.length;
       await navigate(browser.client, `${origin}/download${attribution}`);
-      await eventually(() => evaluateOnSurface(browser, () => Boolean(document.querySelector('[data-testid="download-openwork-card"][data-detection-source]'))), {
+      await eventually(() => evaluateOnSurface(browser, () => Boolean(document.querySelector('[data-testid="download-harness-card"][data-detection-source]'))), {
         within: 30_000, until: Boolean
       });
-      const alternatives = await evaluateOnSurface(browser, () => Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-download-openwork-link]'), (link) => ({
+      const alternatives = await evaluateOnSurface(browser, () => Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-download-harness-link]'), (link) => ({
         label: link.textContent?.trim(), href: link.href, target: link.target
       })));
       expect(alternatives).toHaveLength(8);
@@ -255,12 +255,12 @@ test("download CTAs request the detected installer once and retain the alternati
       }
       const afterClick = requests.length;
       await reload(browser);
-      await eventually(() => evaluateOnSurface(browser, () => Boolean(document.querySelector('[data-testid="download-openwork-card"][data-detection-source]'))), {
+      await eventually(() => evaluateOnSurface(browser, () => Boolean(document.querySelector('[data-testid="download-harness-card"][data-detection-source]'))), {
         within: 30_000, until: Boolean
       });
       await new Promise((resolve) => setTimeout(resolve, 1700));
       expect(requests).toHaveLength(afterClick);
-      expect(await evaluateOnSurface(browser, () => Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-download-openwork-link]'), (link) => ({
+      expect(await evaluateOnSurface(browser, () => Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-download-harness-link]'), (link) => ({
         label: link.textContent?.trim(), href: link.href, target: link.target
       })))).toEqual(alternatives);
       if (device.platform === "Windows" && device.architecture === "x86" && expected) {
@@ -288,8 +288,8 @@ test("download CTAs request the detected installer once and retain the alternati
 
 
 test("visitors can explore the sovereign AI homepage without losing comparison or download paths", async ({ evidence }) => {
-  needs({ env: ["OPENWORK_EVAL_LANDING_URL"] });
-  const origin = process.env.OPENWORK_EVAL_LANDING_URL;
+  needs({ env: ["HARNESS_EVAL_LANDING_URL"] });
+  const origin = process.env.HARNESS_EVAL_LANDING_URL;
   await using browser = await chrome({ startUrl: `${origin}/`, headless: true });
   await eventually(() => evaluateOnSurface(browser, () => document.querySelector("h1")?.textContent), {
     within: 30_000, until: (value) => typeof value === "string" && value.includes("vendor lock-in"),
@@ -332,8 +332,8 @@ test("visitors can explore the sovereign AI homepage without losing comparison o
     });
     expect(facts).toMatchObject({
       headings: 1,
-      title: "OpenWork — Open source Claude Cowork alternative for teams",
-      canonical: "https://openworklabs.com/",
+      title: "Harness — Open source Claude Cowork alternative for teams",
+      canonical: "https://github.com/vaishnavjai/harness",
       comparison: true, migration: true, modelSection: true,
       pageFits: true, headingFits: true, demoFits: true, linksFit: true,
     });

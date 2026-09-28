@@ -9,7 +9,7 @@ export type FeedbackEmailProps = {
   entrypoint: string
   deployment: string
   appVersion: string
-  openworkServerVersion: string
+  harnessServerVersion: string
   opencodeVersion: string
   osName: string
   osVersion: string
@@ -27,7 +27,7 @@ export function FeedbackEmail({
   entrypoint,
   deployment,
   appVersion,
-  openworkServerVersion,
+  harnessServerVersion,
   opencodeVersion,
   osName,
   osVersion,
@@ -43,7 +43,7 @@ export function FeedbackEmail({
     ["Entrypoint", entrypoint],
     ["Deployment", deployment],
     ["App version", appVersion],
-    ["OpenWork server", openworkServerVersion],
+    ["Harness server", harnessServerVersion],
     ["OpenCode", opencodeVersion],
     ["OS", osLabel],
     ["Platform", platform],
@@ -53,10 +53,10 @@ export function FeedbackEmail({
   return (
     <Html>
       <Head />
-      <Preview>{name} sent an OpenWork {label} from {entrypoint || source || "unknown"}</Preview>
+      <Preview>{name} sent a Harness {label} from {entrypoint || source || "unknown"}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Text style={styles.eyebrow}>{isContact ? "OpenWork contact" : "OpenWork feedback"}</Text>
+          <Text style={styles.eyebrow}>{isContact ? "Harness contact" : "Harness feedback"}</Text>
           <Heading style={styles.heading}>{isContact ? "Contact message" : "Feedback"} from {name}</Heading>
           <Text style={styles.contact}>{email}</Text>
 

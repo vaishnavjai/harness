@@ -9,19 +9,19 @@ import {
   commandMatchesPackagedSidecar,
   createRuntimeManager,
   embeddedServerImportUrl,
-  migrateOpenworkServerTokenStore,
+  migrateHarnessServerTokenStore,
   orphanedPackagedSidecarPids,
   prepareRuntimeWorkspaceRoot,
   prioritizeWorkspacePaths,
   resetRuntimeStatesAfterFailedServerStart,
   resolveEvalLocalServerDelayMs,
-  resolveOpenworkServerConfigPath,
-  resolveOpenworkServerLogFile,
-  resolveOpenworkServerReuse,
+  resolveHarnessServerConfigPath,
+  resolveHarnessServerLogFile,
+  resolveHarnessServerReuse,
   seedWorkspacePathsForEmbeddedServer,
-  selectStickyOpenworkPortWorkspace,
+  selectStickyHarnessPortWorkspace,
   snapshotEngineState,
-  snapshotOpenworkServerState,
+  snapshotHarnessServerState,
 } from "./runtime.mjs";
 
 describe("workspace root preparation", () => {
@@ -51,11 +51,11 @@ describe("workspace root preparation", () => {
   });
 
   it("returns the runtime lifecycle to idle after root preparation fails", async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "openwork-runtime-root-"));
+    const root = await mkdtemp(path.join(os.tmpdir(), "harness-runtime-root-"));
     try {
       const manager = createRuntimeManager({
         app: {
-          getPath: (name) => name === "exe" ? path.join(root, "OpenWork.exe") : root,
+          getPath: (name) => name === "exe" ? path.join(root, "Harness.exe") : root,
           isPackaged: false,
         },
         desktopRoot: path.dirname(fileURLToPath(import.meta.url)),
@@ -75,7 +75,7 @@ describe("workspace root preparation", () => {
       assert.equal(status.lifecycleState, "idle");
       assert.equal(status.engine.running, false);
       assert.equal(status.engine.projectDir, null);
-      assert.equal(status.openworkServer.running, false);
+      assert.equal(status.harnessServer.running, false);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -95,9 +95,9 @@ describe("bundled OpenCode runtime", () => {
   });
 });
 
-describe("openwork server snapshot", () => {
+describe("harness server snapshot", () => {
   it("reports a running in-process server", () => {
-    const snapshot = snapshotOpenworkServerState({
+    const snapshot = snapshotHarnessServerState({
       child: null,
       childExited: true,
       inProcess: true,
@@ -106,39 +106,39 @@ describe("openwork server snapshot", () => {
   });
 
   it("exposes the server log file so Settings > Debug can point at it", () => {
-    const withLog = snapshotOpenworkServerState({
+    const withLog = snapshotHarnessServerState({
       child: null,
       childExited: true,
       inProcess: true,
-      logFilePath: "/tmp/userData/logs/openwork-server.log",
+      logFilePath: "/tmp/userData/logs/harness-server.log",
     });
-    assert.equal(withLog.logFilePath, "/tmp/userData/logs/openwork-server.log");
-    const withoutLog = snapshotOpenworkServerState({ child: null, childExited: true, inProcess: false });
+    assert.equal(withLog.logFilePath, "/tmp/userData/logs/harness-server.log");
+    const withoutLog = snapshotHarnessServerState({ child: null, childExited: true, inProcess: false });
     assert.equal(withoutLog.logFilePath, null);
   });
 });
 
-describe("resolveOpenworkServerLogFile", () => {
-  it("defaults to logs/openwork-server.log under the user data dir", () => {
+describe("resolveHarnessServerLogFile", () => {
+  it("defaults to logs/harness-server.log under the user data dir", () => {
     assert.equal(
-      resolveOpenworkServerLogFile("/tmp/userData", {}),
-      path.join("/tmp/userData", "logs", "openwork-server.log"),
+      resolveHarnessServerLogFile("/tmp/userData", {}),
+      path.join("/tmp/userData", "logs", "harness-server.log"),
     );
   });
 
-  it("prefers an explicit OPENWORK_SERVER_LOG_FILE", () => {
+  it("prefers an explicit HARNESS_SERVER_LOG_FILE", () => {
     assert.equal(
-      resolveOpenworkServerLogFile("/tmp/userData", { OPENWORK_SERVER_LOG_FILE: "  /var/log/ow.log " }),
+      resolveHarnessServerLogFile("/tmp/userData", { HARNESS_SERVER_LOG_FILE: "  /var/log/ow.log " }),
       "/var/log/ow.log",
     );
     assert.equal(
-      resolveOpenworkServerLogFile("/tmp/userData", { OPENWORK_SERVER_LOG_FILE: "   " }),
-      path.join("/tmp/userData", "logs", "openwork-server.log"),
+      resolveHarnessServerLogFile("/tmp/userData", { HARNESS_SERVER_LOG_FILE: "   " }),
+      path.join("/tmp/userData", "logs", "harness-server.log"),
     );
   });
 });
 
-describe("resolveOpenworkServerReuse", () => {
+describe("resolveHarnessServerReuse", () => {
   const healthy = {
     forceRestart: undefined,
     inProcess: true,
@@ -151,7 +151,7 @@ describe("resolveOpenworkServerReuse", () => {
   };
 
   it("reuses the running server for the same workspace", () => {
-    assert.deepEqual(resolveOpenworkServerReuse(healthy), { reuse: true, retarget: false });
+    assert.deepEqual(resolveHarnessServerReuse(healthy), { reuse: true, retarget: false });
   });
 
   it("retargets instead of restarting when a different workspace is requested", () => {
@@ -159,7 +159,7 @@ describe("resolveOpenworkServerReuse", () => {
     // workspace is routed) used to tear the server down here, aborting every
     // in-flight run in the workspace being left.
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, requestedProjectDir: "/Users/person/workspace-b" }),
+      resolveHarnessServerReuse({ ...healthy, requestedProjectDir: "/Users/person/workspace-b" }),
       { reuse: true, retarget: true },
     );
   });
@@ -168,14 +168,14 @@ describe("resolveOpenworkServerReuse", () => {
     // The server runs its managed engine with no workspace; the first
     // workspace must take the same retarget path as a workspace switch.
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, currentProjectDir: null, requestedProjectDir: "/Users/person/OpenWork Chat" }),
+      resolveHarnessServerReuse({ ...healthy, currentProjectDir: null, requestedProjectDir: "/Users/person/Harness Chat" }),
       { reuse: true, retarget: true },
     );
   });
 
   it("treats case-only path differences as the same workspace on win32", () => {
     assert.deepEqual(
-      resolveOpenworkServerReuse({
+      resolveHarnessServerReuse({
         ...healthy,
         platform: "win32",
         currentProjectDir: "C:\\Work\\Space",
@@ -187,19 +187,19 @@ describe("resolveOpenworkServerReuse", () => {
 
   it("gives up the server only for an explicit restart, host rebind, or unhealthy runtime", () => {
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, forceRestart: true }),
+      resolveHarnessServerReuse({ ...healthy, forceRestart: true }),
       { reuse: false, retarget: false },
     );
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, requestedRemoteAccess: true }),
+      resolveHarnessServerReuse({ ...healthy, requestedRemoteAccess: true }),
       { reuse: false, retarget: false },
     );
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, lifecycleState: "starting" }),
+      resolveHarnessServerReuse({ ...healthy, lifecycleState: "starting" }),
       { reuse: false, retarget: false },
     );
     assert.deepEqual(
-      resolveOpenworkServerReuse({ ...healthy, inProcess: false }),
+      resolveHarnessServerReuse({ ...healthy, inProcess: false }),
       { reuse: false, retarget: false },
     );
   });
@@ -237,17 +237,17 @@ describe("seedWorkspacePathsForEmbeddedServer", () => {
   });
 });
 
-describe("selectStickyOpenworkPortWorkspace", () => {
+describe("selectStickyHarnessPortWorkspace", () => {
   it("uses the requested workspace even when server config owns workspace loading", () => {
     assert.equal(
-      selectStickyOpenworkPortWorkspace(["/workspace/current"], []),
+      selectStickyHarnessPortWorkspace(["/workspace/current"], []),
       "/workspace/current",
     );
   });
 
   it("falls back to server workspace paths when no requested path is available", () => {
     assert.equal(
-      selectStickyOpenworkPortWorkspace([], ["/workspace/from-server"]),
+      selectStickyHarnessPortWorkspace([], ["/workspace/from-server"]),
       "/workspace/from-server",
     );
   });
@@ -255,11 +255,11 @@ describe("selectStickyOpenworkPortWorkspace", () => {
 
 describe("resolveEvalLocalServerDelayMs", () => {
   it("enables only positive finite eval delays", () => {
-    assert.equal(resolveEvalLocalServerDelayMs({ OPENWORK_EVAL_LOCAL_SERVER_DELAY_MS: "3000" }), 3000);
-    assert.equal(resolveEvalLocalServerDelayMs({ OPENWORK_EVAL_LOCAL_SERVER_DELAY_MS: "0" }), 0);
-    assert.equal(resolveEvalLocalServerDelayMs({ OPENWORK_EVAL_LOCAL_SERVER_DELAY_MS: "-1" }), 0);
-    assert.equal(resolveEvalLocalServerDelayMs({ OPENWORK_EVAL_LOCAL_SERVER_DELAY_MS: "Infinity" }), 0);
-    assert.equal(resolveEvalLocalServerDelayMs({ OPENWORK_EVAL_LOCAL_SERVER_DELAY_MS: "invalid" }), 0);
+    assert.equal(resolveEvalLocalServerDelayMs({ HARNESS_EVAL_LOCAL_SERVER_DELAY_MS: "3000" }), 3000);
+    assert.equal(resolveEvalLocalServerDelayMs({ HARNESS_EVAL_LOCAL_SERVER_DELAY_MS: "0" }), 0);
+    assert.equal(resolveEvalLocalServerDelayMs({ HARNESS_EVAL_LOCAL_SERVER_DELAY_MS: "-1" }), 0);
+    assert.equal(resolveEvalLocalServerDelayMs({ HARNESS_EVAL_LOCAL_SERVER_DELAY_MS: "Infinity" }), 0);
+    assert.equal(resolveEvalLocalServerDelayMs({ HARNESS_EVAL_LOCAL_SERVER_DELAY_MS: "invalid" }), 0);
   });
 });
 
@@ -267,8 +267,8 @@ describe("commandMatchesPackagedSidecar", () => {
   it("matches packaged opencode sidecars with platform suffixes", () => {
     assert.equal(
       commandMatchesPackagedSidecar(
-        "/Applications/OpenWork.app/Contents/Resources/sidecars/opencode-aarch64-apple-darwin serve --hostname 127.0.0.1 --port 49174 --cors *",
-        ["/Applications/OpenWork.app/Contents/Resources/sidecars"],
+        "/Applications/Harness.app/Contents/Resources/sidecars/opencode-aarch64-apple-darwin serve --hostname 127.0.0.1 --port 49174 --cors *",
+        ["/Applications/Harness.app/Contents/Resources/sidecars"],
       ),
       true,
     );
@@ -278,7 +278,7 @@ describe("commandMatchesPackagedSidecar", () => {
     assert.equal(
       commandMatchesPackagedSidecar(
         "/usr/local/bin/opencode serve --hostname 127.0.0.1 --port 49174",
-        ["/Applications/OpenWork.app/Contents/Resources/sidecars"],
+        ["/Applications/Harness.app/Contents/Resources/sidecars"],
       ),
       false,
     );
@@ -286,7 +286,7 @@ describe("commandMatchesPackagedSidecar", () => {
 });
 
 describe("orphanedPackagedSidecarPids", () => {
-  const app = "/opt/smoke/linux-unpacked/openwork-enterprise";
+  const app = "/opt/smoke/linux-unpacked/harness-enterprise";
   const sidecars = "/opt/smoke/linux-unpacked/resources/sidecars";
   const engine = `${sidecars}/opencode serve --hostname 127.0.0.1 --port 49174`;
 
@@ -320,7 +320,7 @@ describe("orphanedPackagedSidecarPids", () => {
 
 describe("embeddedServerImportUrl", () => {
   it("returns the same file URL for unchanged metadata", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "openwork-runtime-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "harness-runtime-"));
     try {
       const embeddedPath = path.join(dir, "embedded.js");
       await writeFile(embeddedPath, "export const value = 1;\n");
@@ -340,7 +340,7 @@ describe("embeddedServerImportUrl", () => {
   });
 
   it("changes when the file metadata changes", async () => {
-    const dir = await mkdtemp(path.join(os.tmpdir(), "openwork-runtime-"));
+    const dir = await mkdtemp(path.join(os.tmpdir(), "harness-runtime-"));
     try {
       const embeddedPath = path.join(dir, "embedded.js");
       await writeFile(embeddedPath, "export const value = 1;\n");
@@ -355,32 +355,32 @@ describe("embeddedServerImportUrl", () => {
   });
 
   it("falls back to the plain file URL if stat fails", () => {
-    const missingPath = path.join(os.tmpdir(), "openwork-missing-embedded.js");
+    const missingPath = path.join(os.tmpdir(), "harness-missing-embedded.js");
 
     assert.equal(embeddedServerImportUrl(missingPath), pathToFileURL(missingPath).href);
   });
 });
 
-describe("resolveOpenworkServerConfigPath", () => {
+describe("resolveHarnessServerConfigPath", () => {
   it("respects explicit server config path", () => {
     assert.equal(
-      resolveOpenworkServerConfigPath({ OPENWORK_SERVER_CONFIG: "/tmp/openwork/server.json" }),
-      "/tmp/openwork/server.json",
+      resolveHarnessServerConfigPath({ HARNESS_SERVER_CONFIG: "/tmp/harness/server.json" }),
+      "/tmp/harness/server.json",
     );
   });
 
   it("uses XDG config home on Unix", () => {
     if (process.platform === "win32") return;
     assert.equal(
-      resolveOpenworkServerConfigPath({ XDG_CONFIG_HOME: "/tmp/xdg" }),
-      "/tmp/xdg/openwork/server.json",
+      resolveHarnessServerConfigPath({ XDG_CONFIG_HOME: "/tmp/xdg" }),
+      "/tmp/xdg/harness/server.json",
     );
   });
 });
 
-describe("OpenWork server credential persistence", () => {
+describe("Harness server credential persistence", () => {
   it("deterministically migrates legacy workspace credentials into one server bundle", () => {
-    const migrated = migrateOpenworkServerTokenStore({
+    const migrated = migrateHarnessServerTokenStore({
       version: 1,
       workspaces: {
         "/workspace/z": {
@@ -413,7 +413,7 @@ describe("OpenWork server credential persistence", () => {
         updatedAt: 20,
       },
     });
-    assert.deepEqual(migrateOpenworkServerTokenStore(migrated), migrated);
+    assert.deepEqual(migrateHarnessServerTokenStore(migrated), migrated);
   });
 });
 

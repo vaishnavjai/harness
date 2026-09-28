@@ -16,7 +16,7 @@ import {
 } from "./selfhost-web.js";
 import { parseCliArgs } from "./config.js";
 
-describe("openwork-server web", () => {
+describe("harness-server web", () => {
   test("parses the web subcommand and its flags", () => {
     const args = parseCliArgs(["web", "--open", "--no-bootstrap-token", "--port", "9000"]);
     expect(args.web).toBe(true);
@@ -47,7 +47,7 @@ describe("openwork-server web", () => {
     expect(await checkForUpdate({ currentVersion: "0.18.0", env: {}, fetchImpl })).toBe("0.19.0");
     expect(await checkForUpdate({ currentVersion: "0.19.0", env: {}, fetchImpl })).toBeNull();
     expect(await checkForUpdate({ currentVersion: "0.0.0-dev", env: {}, fetchImpl })).toBeNull();
-    expect(await checkForUpdate({ currentVersion: "0.18.0", env: { OPENWORK_NO_UPDATE_CHECK: "1" }, fetchImpl })).toBeNull();
+    expect(await checkForUpdate({ currentVersion: "0.18.0", env: { HARNESS_NO_UPDATE_CHECK: "1" }, fetchImpl })).toBeNull();
     const failing: FetchLike = async () => { throw new Error("offline"); };
     expect(await checkForUpdate({ currentVersion: "0.18.0", env: {}, fetchImpl: failing })).toBeNull();
   });
@@ -59,14 +59,14 @@ describe("openwork-server web", () => {
     await writeFile(join(root, "package.json"), "{}");
     await writeFile(join(root, "web", "index.html"), "<html></html>");
 
-    expect(await resolvePackageRoot({ env: { OPENWORK_PACKAGE_ROOT: root }, execPath: "/usr/bin/bun" })).toBe(root);
-    expect(await resolvePackageRoot({ env: {}, execPath: join(root, "dist", "bin", "openwork-server") })).toBe(root);
+    expect(await resolvePackageRoot({ env: { HARNESS_PACKAGE_ROOT: root }, execPath: "/usr/bin/bun" })).toBe(root);
+    expect(await resolvePackageRoot({ env: {}, execPath: join(root, "dist", "bin", "harness-server") })).toBe(root);
     expect(await resolvePackageRoot({ env: {}, execPath: "/usr/bin/bun" })).toBeNull();
 
     expect(await resolveWebRoot({ env: {}, packageRoot: root, sourceDir: "/nowhere/src" })).toBe(join(root, "web"));
     const override = await mkdtemp(join(tmpdir(), "ow-web-"));
     await writeFile(join(override, "index.html"), "<html></html>");
-    expect(await resolveWebRoot({ env: { OPENWORK_WEB_ROOT: override }, packageRoot: root, sourceDir: "/nowhere" })).toBe(override);
+    expect(await resolveWebRoot({ env: { HARNESS_WEB_ROOT: override }, packageRoot: root, sourceDir: "/nowhere" })).toBe(override);
     expect(await resolveWebRoot({ env: {}, packageRoot: null, sourceDir: "/nowhere/src" })).toBeNull();
   });
 

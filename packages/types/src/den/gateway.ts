@@ -124,9 +124,9 @@ export interface GatewaySelection {
   accessGrantId?: string;
 }
 
-export const GATEWAY_GRANT_HEADER = "x-openwork-gateway-grant-id";
+export const GATEWAY_GRANT_HEADER = "x-harness-gateway-grant-id";
 // Diagnostic request metadata only; never authorizes or selects an upstream.
-export const GATEWAY_REQUEST_MODEL_HEADER = "x-openwork-gateway-request-model";
+export const GATEWAY_REQUEST_MODEL_HEADER = "x-harness-gateway-request-model";
 
 export interface GatewaySelectionConflict {
   error: "gateway_selection_required";
@@ -175,7 +175,7 @@ export interface GatewayProviderSummary {
   id: string;
   providerId: string;
   name: string;
-  source: "openwork_gateway";
+  source: "harness_gateway";
   /** Aggregate compatibility hints only; individual sets are authoritative. */
   credentialMode: InferenceProviderCredentialMode;
   credentialStatus: GatewayCredentialStatus;

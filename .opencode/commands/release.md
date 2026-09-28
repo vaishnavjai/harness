@@ -1,8 +1,8 @@
 ---
-description: Run the OpenWork release flow
+description: Run the Harness release flow
 ---
 
-You are running the OpenWork release flow in this repo.
+You are running the Harness release flow in this repo.
 
 Arguments: `$ARGUMENTS`
 - If empty, default to a patch release.
@@ -27,7 +27,7 @@ PR-first.
 5. Get the version backfill PR approved and merged. If the workflow opens an
    AUR packaging PR, report its URL, wait for it to merge, then rerun Release
    App with the same tag as described by the release skill.
-6. Verify the public release assets resolve, `npm view openwork-server version`
+6. Verify the public release assets resolve, `npm view harness-server version`
    matches the tag, and the latest relevant Daytona snapshot run is green.
 
 Diagnose unexpected failures instead of treating Node runtime deprecation

@@ -25,14 +25,14 @@ focus-bound, not session-bound.
   at execution time. Neither action takes a `sessionId`.
 - Therefore the navigation was **incidental, not intrinsic**: the engine can accept a
   prompt for any session (`POST /session/{id}/prompt_async`, already used by
-  `session.create` in `apps/server/src/opencode-plugins/openwork-extensions-preview.ts`),
+  `session.create` in `apps/server/src/opencode-plugins/harness-extensions-preview.ts`),
   but no affordance exposed it, so the agent navigated to make the target the focused
   composer.
 - Any focus change between `set_text` and `send` re-pointed both actions at the newly
   focused session (`apps/app/tests/control-focus-bound-composer.test.tsx` reproduces
   this deterministically). `composer.send` is also disabled while the visible session's
   `model.transitionState !== "idle"`, which is the `Action is disabled` error.
-- `effects.ui` in `packages/types/src/openwork-affordance.ts` is descriptive metadata for
+- `effects.ui` in `packages/types/src/harness-affordance.ts` is descriptive metadata for
   the model: nothing in `executeAction`/`executeCommand` reads it. It was also untruthful
   for `session.create_task` (declared `ui: none`, opens the new session in the focused
   pane).
@@ -58,8 +58,8 @@ The same split exists in comparable products:
 ## What changed
 
 - **A. `session.send { sessionId, text, workspaceId?, reveal? }`** — a server-executed
-  command (`provider: openwork-server`, same trust as `session.create`) in
-  `openwork-extensions-preview.ts`. It resolves the session across workspaces with the
+  command (`provider: harness-server`, same trust as `session.create`) in
+  `harness-extensions-preview.ts`. It resolves the session across workspaces with the
   same ownership check as `session.read`, posts `prompt_async` with a generated
   `messageID`, and returns `{ accepted: true, sessionId, workspaceId, title, messageId }`.
   With `reveal: true` it sends first, then issues one `session.open` through the UI

@@ -14,13 +14,13 @@ const sessionsSchema = z.array(z.object({
 }));
 export function ComputerUseControls() {
   const [windows, setWindows] = useState<Record<string, number>>({});
-  const state = useQuery({ queryKey: ["computer-use", "host"], enabled: Boolean(window.__OPENWORK_ELECTRON__?.invokeDesktop),
+  const state = useQuery({ queryKey: ["computer-use", "host"], enabled: Boolean(window.__HARNESS_ELECTRON__?.invokeDesktop),
     queryFn: async () => {
-      const invoke = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+      const invoke = window.__HARNESS_ELECTRON__?.invokeDesktop;
       return invoke ? sessionsSchema.parse(await invoke("getComputerUseState")) : [];
     }, refetchInterval: 750, refetchIntervalInBackground: true, retry: false });
   const action = useMutation({ mutationFn: async (value: { connectionId: string; id: string; action: string; windowId?: number }) => {
-    const invoke = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+    const invoke = window.__HARNESS_ELECTRON__?.invokeDesktop;
     if (!invoke) throw new Error("Computer Use requires the desktop app.");
     await invoke("computerUseAction", value);
   }, onSuccess: () => state.refetch() });
@@ -43,7 +43,7 @@ export function ComputerUseControls() {
               {session.windows?.map((window) => <option key={window.id} value={window.id}>{window.title}</option>)}
             </select>
           </label>
-          <p className="my-3 text-xs text-muted-foreground">{session.mode === "observe" ? "Read this window. No clicks or typing." : session.mode === "assist" ? "Read and use this window’s app controls." : "Use this window’s mouse and keyboard. OpenWork yields to your input, then refreshes the window before continuing. Stop ends access."} Access lasts up to 15 minutes. Window content goes to your selected model provider.</p>
+          <p className="my-3 text-xs text-muted-foreground">{session.mode === "observe" ? "Read this window. No clicks or typing." : session.mode === "assist" ? "Read and use this window’s app controls." : "Use this window’s mouse and keyboard. Harness yields to your input, then refreshes the window before continuing. Stop ends access."} Access lasts up to 15 minutes. Window content goes to your selected model provider.</p>
           <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => send("deny")}>Cancel</Button><Button disabled={selectedWindow === undefined || action.isPending} onClick={() => send("approve")}>Allow and start</Button></div>
         </> : <>
           <p className="mt-2 truncate text-xs text-muted-foreground">{session.windowTitle} · {session.mode === "observe" ? "Read only" : session.mode === "assist" ? "App controls" : "Mouse and keyboard"}</p>

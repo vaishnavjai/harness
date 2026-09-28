@@ -36,9 +36,9 @@ export function parallelSuite(argv: readonly string[]): boolean {
 }
 
 function configuredWorkerCount(env: NodeJS.ProcessEnv): number {
-  const configured = Number.parseInt(env.OPENWORK_EVAL_MAX_WORKERS?.trim() ?? "", 10);
+  const configured = Number.parseInt(env.HARNESS_EVAL_MAX_WORKERS?.trim() ?? "", 10);
   if (Number.isInteger(configured) && configured > 0) return configured;
-  return env.OPENWORK_EVAL_DAYTONA?.trim() === "1" ? 2 : 3;
+  return env.HARNESS_EVAL_DAYTONA?.trim() === "1" ? 2 : 3;
 }
 
 export function suiteWorkerCount(argv: readonly string[], env: NodeJS.ProcessEnv): number {
@@ -56,8 +56,8 @@ export function planSuite(files: readonly string[], options: { pattern?: RegExp;
     ...plan,
     preparation: "none",
     diagnostic: [
-      "[openwork/evals] world plan: lazy per-world allocation; suite preparation=none",
-      ...plan.worlds.map(world => `[openwork/evals] ${world.file}:${world.line} ${worldContract(world)}`),
+      "[harness/evals] world plan: lazy per-world allocation; suite preparation=none",
+      ...plan.worlds.map(world => `[harness/evals] ${world.file}:${world.line} ${worldContract(world)}`),
     ].join("\n"),
   };
 }

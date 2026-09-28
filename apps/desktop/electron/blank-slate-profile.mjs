@@ -13,13 +13,13 @@ export const BLANK_SLATE_PATH_ENV_KEYS = Object.freeze([
   "XDG_STATE_HOME",
   "APPDATA",
   "LOCALAPPDATA",
-  "OPENWORK_ELECTRON_USERDATA",
-  "OPENWORK_DESKTOP_BOOTSTRAP_PATH",
-  "OPENWORK_SERVER_CONFIG",
-  "OPENWORK_ENV_STORE",
-  "OPENWORK_TOKEN_STORE",
-  "OPENWORK_RUNTIME_DB",
-  "OPENWORK_DATA_DIR",
+  "HARNESS_ELECTRON_USERDATA",
+  "HARNESS_DESKTOP_BOOTSTRAP_PATH",
+  "HARNESS_SERVER_CONFIG",
+  "HARNESS_ENV_STORE",
+  "HARNESS_TOKEN_STORE",
+  "HARNESS_RUNTIME_DB",
+  "HARNESS_DATA_DIR",
   "OPENCODE_CONFIG_DIR",
   "OPENCODE_DB",
 ]);
@@ -43,10 +43,10 @@ export function prepareBlankSlateProfile({
   }
 
   const paths = pathApi(platform);
-  const rootPath = createTempRoot(paths.join(temporaryDirectory, "openwork-test-profile-"));
+  const rootPath = createTempRoot(paths.join(temporaryDirectory, "harness-test-profile-"));
   const userDataPath = paths.join(rootPath, "electron", "user-data");
   const homePath = paths.join(rootPath, "home");
-  const openworkConfigPath = paths.join(rootPath, "openwork", "config");
+  const harnessConfigPath = paths.join(rootPath, "harness", "config");
   const opencodeDataPath = paths.join(rootPath, "opencode", "data");
   const environment = {
     HOME: homePath,
@@ -57,13 +57,13 @@ export function prepareBlankSlateProfile({
     XDG_STATE_HOME: paths.join(rootPath, "xdg", "state"),
     APPDATA: paths.join(rootPath, "windows", "app-data", "roaming"),
     LOCALAPPDATA: paths.join(rootPath, "windows", "app-data", "local"),
-    OPENWORK_ELECTRON_USERDATA: userDataPath,
-    OPENWORK_DESKTOP_BOOTSTRAP_PATH: paths.join(openworkConfigPath, "desktop-bootstrap.json"),
-    OPENWORK_SERVER_CONFIG: paths.join(openworkConfigPath, "server.json"),
-    OPENWORK_ENV_STORE: paths.join(openworkConfigPath, "env.json"),
-    OPENWORK_TOKEN_STORE: paths.join(openworkConfigPath, "tokens.json"),
-    OPENWORK_RUNTIME_DB: paths.join(openworkConfigPath, "runtime.sqlite"),
-    OPENWORK_DATA_DIR: paths.join(rootPath, "openwork", "data"),
+    HARNESS_ELECTRON_USERDATA: userDataPath,
+    HARNESS_DESKTOP_BOOTSTRAP_PATH: paths.join(harnessConfigPath, "desktop-bootstrap.json"),
+    HARNESS_SERVER_CONFIG: paths.join(harnessConfigPath, "server.json"),
+    HARNESS_ENV_STORE: paths.join(harnessConfigPath, "env.json"),
+    HARNESS_TOKEN_STORE: paths.join(harnessConfigPath, "tokens.json"),
+    HARNESS_RUNTIME_DB: paths.join(harnessConfigPath, "runtime.sqlite"),
+    HARNESS_DATA_DIR: paths.join(rootPath, "harness", "data"),
     OPENCODE_CONFIG_DIR: paths.join(rootPath, "opencode", "config"),
     OPENCODE_DB: paths.join(opencodeDataPath, "opencode.db"),
   };
@@ -77,8 +77,8 @@ export function prepareBlankSlateProfile({
     environment.XDG_STATE_HOME,
     environment.APPDATA,
     environment.LOCALAPPDATA,
-    openworkConfigPath,
-    environment.OPENWORK_DATA_DIR,
+    harnessConfigPath,
+    environment.HARNESS_DATA_DIR,
     environment.OPENCODE_CONFIG_DIR,
     opencodeDataPath,
   ]);

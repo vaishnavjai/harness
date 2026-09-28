@@ -44,5 +44,5 @@ test("timeout kills descendants holding the command output open", { timeout: 10_
 });
 
 test("spawn failures reject instead of hanging a smoke worker", async () => {
-  await assert.rejects(runCommand("/missing/openwork-smoke-command", [], { timeout: 5_000, stdio: "ignore" }), { code: "ENOENT" });
+  await assert.rejects(runCommand("/missing/harness-smoke-command", [], { timeout: 5_000, stdio: "ignore" }), { code: "ENOENT" });
 });

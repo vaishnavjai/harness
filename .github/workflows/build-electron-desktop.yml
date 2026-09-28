@@ -61,14 +61,14 @@ jobs:
 
       - name: Package Electron desktop (unpacked)
         env:
-          OPENWORK_DESKTOP_SENTRY_DSN: ${{ secrets.OPENWORK_DESKTOP_SENTRY_DSN || vars.OPENWORK_DESKTOP_SENTRY_DSN }}
-          OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
-        run: pnpm --filter @openwork/desktop package:electron:dir
+          HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
+          HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
+        run: pnpm --filter @harness/desktop package:electron:dir
 
       - name: Upload Electron artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: openwork-electron-${{ matrix.artifact }}
+          name: harness-electron-${{ matrix.artifact }}
           path: apps/desktop/dist-electron/**
 
   electron-macos-notarization-smoke:
@@ -117,9 +117,9 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_NOTARY_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_NOTARY_API_ISSUER_ID }}
           APPLE_API_KEY_PATH: ${{ env.NOTARY_KEY_PATH }}
-          OPENWORK_DESKTOP_SENTRY_DSN: ${{ secrets.OPENWORK_DESKTOP_SENTRY_DSN || vars.OPENWORK_DESKTOP_SENTRY_DSN }}
-          OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
+          HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
+          HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
         run: |
           set -euo pipefail
-          pnpm --filter @openwork/desktop run build:electron
+          pnpm --filter @harness/desktop run build:electron
           pnpm --dir apps/desktop exec electron-builder --config electron-builder.yml --mac dmg zip --publish never

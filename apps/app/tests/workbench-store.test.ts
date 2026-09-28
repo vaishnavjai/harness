@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   closeWorkbenchTab,
   focusWorkbenchPane,
-  openWorkbenchTab,
+  harnessbenchTab,
   setWorkbenchSplit,
   setWorkbenchSideChat,
   syncWorkbenchSnapshot,
@@ -28,7 +28,7 @@ describe("workbench store", () => {
       sessionsKnown: true,
       sessions: [{ workspaceId: "workspace-a", sessionId: "session-a", title: "Primary" }],
     });
-    state = openWorkbenchTab(state, {
+    state = harnessbenchTab(state, {
       workspaceId: "workspace-b",
       workspaceTitle: "Workspace B",
       sessionId: "session-b",
@@ -52,7 +52,7 @@ describe("workbench store", () => {
       sessionsKnown: true,
       sessions: [{ workspaceId: "workspace-a", sessionId: "session-a" }],
     });
-    state = openWorkbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
+    state = harnessbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
     state = setWorkbenchSplit(state, { workspaceId: "workspace-b", sessionId: "session-b" });
 
     const synchronized = syncWorkbenchSnapshot(state, {
@@ -74,7 +74,7 @@ describe("workbench store", () => {
       sessionsKnown: true,
       sessions: [{ workspaceId: "workspace-a", sessionId: "session-shared" }],
     });
-    state = openWorkbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-shared" });
+    state = harnessbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-shared" });
     state = setWorkbenchSplit(state, { workspaceId: "workspace-b", sessionId: "session-shared" });
 
     const sideChats = state.sideChats;
@@ -105,7 +105,7 @@ describe("workbench store", () => {
       sessionsKnown: true, sessions: [owner, side],
     };
     let state = syncWorkbenchSnapshot(emptyWorkbench, input);
-    state = setWorkbenchSplit(openWorkbenchTab(state, side), side);
+    state = setWorkbenchSplit(harnessbenchTab(state, side), side);
     const refreshed = syncWorkbenchSnapshot(state, input);
 
     expect(refreshed.primary).toMatchObject(owner);
@@ -156,7 +156,7 @@ describe("workbench store", () => {
       sessionsKnown: true,
       sessions: [{ workspaceId: "workspace-a", sessionId: "session-a" }],
     });
-    state = openWorkbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
+    state = harnessbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
     state = setWorkbenchSplit(state, { workspaceId: "workspace-b", sessionId: "session-b" });
     state = focusWorkbenchPane(state, "primary");
     state = focusWorkbenchPane(state, "secondary");
@@ -174,7 +174,7 @@ describe("workbench store", () => {
       sessionsKnown: true,
       sessions: [{ workspaceId: "workspace-a", sessionId: "session-a" }],
     });
-    state = openWorkbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
+    state = harnessbenchTab(state, { workspaceId: "workspace-b", sessionId: "session-b" });
     state = setWorkbenchSplit(state, { workspaceId: "workspace-b", sessionId: "session-b" });
     state = closeWorkbenchTab(state, { workspaceId: "workspace-a", sessionId: "session-a" });
 
@@ -212,7 +212,7 @@ describe("workbench store", () => {
       workspaceId: owner.workspaceId, primarySessionId: owner.sessionId,
       sessionsKnown: true, sessions: [owner, other],
     });
-    for (const tab of [side, other, otherSide]) state = openWorkbenchTab(state, tab);
+    for (const tab of [side, other, otherSide]) state = harnessbenchTab(state, tab);
     state = setWorkbenchSideChat(state, other, otherSide);
     state = setWorkbenchSideChat(state, owner, side);
     const archivedSide = closeWorkbenchTab(state, side, false);
@@ -243,7 +243,7 @@ describe("workbench store", () => {
         workspaceId: primary.workspaceId, primarySessionId: primary.sessionId,
         sessionsKnown: true, sessions: [primary],
       });
-      for (const tab of [owner, side, unknown, otherWorkspace]) state = openWorkbenchTab(state, tab);
+      for (const tab of [owner, side, unknown, otherWorkspace]) state = harnessbenchTab(state, tab);
       state = setWorkbenchSideChat(state, owner, side);
       state = setWorkbenchSideChat(state, primary, otherWorkspace);
       state = syncWorkbenchSnapshot(state, {
@@ -266,7 +266,7 @@ describe("workbench store", () => {
       workspaceId: primary.workspaceId, primarySessionId: primary.sessionId,
       sessionsKnown: true, sessions: [primary, side],
     });
-    state = setWorkbenchSplit(openWorkbenchTab(state, side), side);
+    state = setWorkbenchSplit(harnessbenchTab(state, side), side);
     state = syncWorkbenchSnapshot(state, {
       workspaceId: primary.workspaceId, primarySessionId: primary.sessionId,
       sessionsKnown: true, sessions: [primary, side], archivedSessionIds: [side.sessionId],
@@ -301,7 +301,7 @@ describe("workbench store", () => {
         { workspaceId: "workspace-a", sessionId: "session-b" },
       ],
     });
-    state = openWorkbenchTab(state, { workspaceId: "workspace-a", sessionId: "session-b" });
+    state = harnessbenchTab(state, { workspaceId: "workspace-a", sessionId: "session-b" });
     state = setWorkbenchSplit(state, { workspaceId: "workspace-a", sessionId: "session-b" });
 
     const loading = syncWorkbenchSnapshot(state, {
@@ -325,7 +325,7 @@ describe("workbench store", () => {
       workspaceId: first.workspaceId, primarySessionId: first.sessionId,
       sessionsKnown: true, sessions: [first, second],
     });
-    state = openWorkbenchTab(state, second);
+    state = harnessbenchTab(state, second);
     state = syncWorkbenchSnapshot(state, {
       workspaceId: upgraded.workspaceId, primarySessionId: upgraded.sessionId,
       sessionsKnown: true, sessions: [upgraded],
@@ -354,7 +354,7 @@ describe("workbench store", () => {
       workspaceId: owner.workspaceId, primarySessionId: owner.sessionId,
       sessionsKnown: true, sessions: [owner, side],
     });
-    state = setWorkbenchSplit(openWorkbenchTab(state, side), side);
+    state = setWorkbenchSplit(harnessbenchTab(state, side), side);
     // These are the only fields persisted across a renderer reload.
     const restored = { ...emptyWorkbench, tabs: state.tabs, sideChats: state.sideChats };
     const initial = syncWorkbenchSnapshot(restored, {
@@ -379,11 +379,11 @@ test("restores each main session's own side chat and removes closed references",
     workspaceId: "workspace", primarySessionId, sessionsKnown: true, sessions,
   });
   let state = sync(emptyWorkbench, "a");
-  state = openWorkbenchTab(state, sessions[2]!);
+  state = harnessbenchTab(state, sessions[2]!);
   state = setWorkbenchSplit(state, sessions[2]!);
   state = sync(state, "b");
   expect(state.secondary).toBeNull();
-  state = openWorkbenchTab(state, sessions[3]!);
+  state = harnessbenchTab(state, sessions[3]!);
   state = setWorkbenchSplit(state, sessions[3]!);
   state = sync(state, "a");
   expect(state.secondary?.sessionId).toBe("side-a");
@@ -406,7 +406,7 @@ test("a side chat created after navigating attaches to its original owner", () =
   state = syncWorkbenchSnapshot(state, {
     workspaceId: "workspace", primarySessionId: "b", sessionsKnown: true, sessions: [owner, other, chat],
   });
-  state = openWorkbenchTab(state, chat);
+  state = harnessbenchTab(state, chat);
   state = setWorkbenchSideChat(state, owner, chat);
   expect(state.primary?.sessionId).toBe("b");
   expect(state.secondary).toBeNull();

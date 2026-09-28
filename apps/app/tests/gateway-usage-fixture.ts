@@ -1,4 +1,4 @@
-import type { GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import type { GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 
 export function usageStatus(overrides: Partial<GatewayUsageStatus> = {}): GatewayUsageStatus {
   return {

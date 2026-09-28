@@ -12,11 +12,11 @@ COPY packages/ui/package.json /app/packages/ui/package.json
 COPY ee/packages/utils/package.json /app/ee/packages/utils/package.json
 # Client-safe telemetry contracts: source-only package (no build step) that
 # den-web compiles through transpilePackages. Keep the server-side
-# @openwork-ee/telemetry package (and its den-db graph) out of this image.
+# @harness-ee/telemetry package (and its den-db graph) out of this image.
 COPY ee/packages/telemetry-contracts/package.json /app/ee/packages/telemetry-contracts/package.json
 COPY ee/apps/den-web/package.json /app/ee/apps/den-web/package.json
 
-RUN pnpm install --frozen-lockfile --trust-lockfile --filter @openwork-ee/den-web...
+RUN pnpm install --frozen-lockfile --trust-lockfile --filter @harness-ee/den-web...
 
 COPY packages/types /app/packages/types
 COPY packages/ui /app/packages/ui
@@ -24,9 +24,9 @@ COPY ee/packages/utils /app/ee/packages/utils
 COPY ee/packages/telemetry-contracts /app/ee/packages/telemetry-contracts
 COPY ee/apps/den-web /app/ee/apps/den-web
 
-# @openwork-ee/utils resolves to dist/ in production builds and nothing else in
+# @harness-ee/utils resolves to dist/ in production builds and nothing else in
 # this image builds it; without this step a cold (cache-miss) image build fails
-# in next build with "Can't resolve '@openwork-ee/utils'".
+# in next build with "Can't resolve '@harness-ee/utils'".
 RUN pnpm --dir /app/ee/packages/utils run build
 
 WORKDIR /app/ee/apps/den-web

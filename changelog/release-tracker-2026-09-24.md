@@ -59,18 +59,18 @@ The desktop Library can add, share, edit and delete items, the composer has one 
 | #5232 | MCP clients | Included | Agents are told when long results are cut and how to read the rest |
 | #5139 | admins | Included | AI Gateway becomes a sidebar page available to every organization |
 | #5237 | self-hosters | Omitted | npm package change; the npm package was not republished for this release |
-| #5223 | desktop users | Included | Link destinations simplified to OpenWork or your browser, saved in Preferences |
+| #5223 | desktop users | Included | Link destinations simplified to Harness or your browser, saved in Preferences |
 
 #### Behavior changes and removals
 - The composer's paperclip and tools buttons are replaced by one **+** menu; attach files from its first row or with ⌘U / Ctrl+U.
 - The built-in browser toolbar no longer has a **Suspend** button.
-- Link menus no longer list individual installed browsers; the choices are OpenWork or your default browser.
+- Link menus no longer list individual installed browsers; the choices are Harness or your default browser.
 - The Library says **Remove** instead of **Uninstall** (connections still say **Disconnect**).
 - Den's **My Model Connections** page now opens the Models section of My Library.
 - AI Gateway's old Gateway pages are gone; old list, new, detail and edit links return 404, and `/dashboard/inference` links forward to the Models tab.
 - Users & Teams in AI Gateway is read-only; access is changed in AI Providers and limits in Limits.
 - Manage › Plugins no longer shows GitHub sources and marketplaces; they remain reachable at their old links.
-- Removing a connector or plugin in OpenWork Cloud now asks for confirmation.
+- Removing a connector or plugin in Harness Cloud now asks for confirmation.
 
 #### Lines of code changed since previous release
 93509 lines changed since `v0.18.50` (83894 insertions, 9615 deletions).

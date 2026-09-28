@@ -1,5 +1,5 @@
-import { browserScript } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
+import { browserScript } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
 import { control, evalIn, waitFor } from "./desktop.ts";
 
 export interface ComposerState {
@@ -85,7 +85,7 @@ async function waitForComposerReady(app: Surface, timeoutMs: number): Promise<Co
       lastState = await readComposerState(app);
       lastError = null;
       if (lastState.composerEditable && (lastState.runTaskVisible
-        || await evalIn(app, () => (Boolean(window.__openworkControl?.listActions?.()
+        || await evalIn(app, () => (Boolean(window.__harnessControl?.listActions?.()
           .find((entry) => entry.id === "composer.set_text" && entry.disabled === false)))).catch(() => false))) {
         return lastState;
       }
@@ -108,7 +108,7 @@ async function tryWriteComposerText(app: Surface, text: string, readinessTimeout
   // contenteditable paste below stays as a fallback for surfaces that do not
   // register the action.
   let controlError = "composer.set_text was not available";
-  const hasControl = await evalIn(app, () => (Boolean(window.__openworkControl?.listActions?.()
+  const hasControl = await evalIn(app, () => (Boolean(window.__harnessControl?.listActions?.()
     .find((entry) => entry.id === "composer.set_text" && entry.disabled === false)))).catch(() => false);
   if (hasControl === true) {
     try {

@@ -8,14 +8,14 @@ import { chrome, localHost } from "/workspace/evals/packages/hosts/src/index.ts"
 import { signInDesktopAs, selectModel, waitUntilInteractive, evalIn } from "/workspace/evals/packages/behaviors/src/index.ts";
 import { browserScript } from "/workspace/evals/packages/cdp/src/index.ts";
 
-const root = "/opt/openwork-preview";
-process.env.OPENWORK_WORLD_PLACE = "local";
-process.env.OPENWORK_EVAL_DEN_API_PREPARED = "1";
+const root = "/opt/harness-preview";
+process.env.HARNESS_WORLD_PLACE = "local";
+process.env.HARNESS_EVAL_DEN_API_PREPARED = "1";
 process.env.pnpm_config_verify_deps_before_run = "false";
-process.env.OPENWORK_EVAL_MYSQL_URL = "mysql://root:password@127.0.0.1:3306";
+process.env.HARNESS_EVAL_MYSQL_URL = "mysql://root:password@127.0.0.1:3306";
 process.env.DATABASE_REDIS_URL = "redis://127.0.0.1:6379";
 process.env.DISPLAY = ":99";
-process.env.CHROME_BIN = "/opt/openwork-preview/evidence-chrome";
+process.env.CHROME_BIN = "/opt/harness-preview/evidence-chrome";
 process.env.GOMEMLIMIT = "512MiB";
 const stack = new AsyncDisposableStack();
 function service(command, args, name) {
@@ -50,7 +50,7 @@ try {
   await signInDesktopAs(browser, world.den.ref, world.den.admin);
   // bootAcmeWeb already owns a fresh workspace. The desktop workspace helper
   // waits on hash routes; app-web uses pathname routes and needs no second one.
-  await evalIn(browser, browserScript((value) => { localStorage.setItem("openwork.defaultModel", value); window.dispatchEvent(new Event("openwork.defaultModelChanged")); }, [`${world.model.providerId}/${world.model.modelId}`]));
+  await evalIn(browser, browserScript((value) => { localStorage.setItem("harness.defaultModel", value); window.dispatchEvent(new Event("harness.defaultModelChanged")); }, [`${world.model.providerId}/${world.model.modelId}`]));
   await selectModel(browser, world.model.modelName, { provider: "Acme AI Gateway" });
   // The viewer keeps the saved Chromium tab. A direct app link would open a new
   // document and is deliberately not presented as an exact checkpoint restore.
@@ -59,7 +59,7 @@ try {
     if (req.url === "/__evidence/continue" && req.method === "POST") { release?.(); res.end("continued"); return; }
     if (req.url === "/") {
       res.setHeader("content-type", "text/html");
-      res.end(`<!doctype html><html><head><title>Saved OpenWork browser</title><meta name="viewport" content="width=device-width"></head>
+      res.end(`<!doctype html><html><head><title>Saved Harness browser</title><meta name="viewport" content="width=device-width"></head>
 <body style="margin:0;font:13px system-ui;background:Canvas;color:CanvasText"><header style="display:flex;align-items:center;gap:16px;padding:12px"><strong>Saved browser</strong><button id="continue" hidden>Continue response</button><span id="state" role="status"></span></header><iframe title="Saved browser (noVNC)" src="/vnc.html?autoconnect=1&resize=scale" style="border:0;width:100%;height:calc(100vh - 55px)"></iframe><script>
 const button=document.getElementById('continue');const label=document.getElementById('state');
 async function state(){try{const s=await fetch('/__evidence/state').then(r=>r.json());button.hidden=!s.held;label.textContent=s.held?'Response paused at checkpoint':s.complete?'Response continued':'';}catch{label.textContent='Connection lost. Reopen this checkpoint from its report.';}}

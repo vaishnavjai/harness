@@ -1,4 +1,4 @@
-export * from "@openwork/types/automations"
+export * from "@harness/types/automations"
 export * from "./contracts.js"
 export * from "./engine.js"
 export * from "./ports.js"

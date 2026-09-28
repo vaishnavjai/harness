@@ -42,9 +42,9 @@ describe("connector composer token", () => {
 
 describe("takePendingDeepLinks", () => {
   test("removes only the links a consumer owns and leaves the rest queued", () => {
-    const target = { __OPENWORK__: { deepLinks: ["openwork://chat?prompt=hi", "openwork://connect?token=abc"] } } as unknown as Window;
-    expect(takePendingDeepLinks(target, (url) => url.startsWith("openwork://chat"))).toEqual(["openwork://chat?prompt=hi"]);
-    expect(target.__OPENWORK__?.deepLinks).toEqual(["openwork://connect?token=abc"]);
-    expect(takePendingDeepLinks(target, (url) => url.startsWith("openwork://chat"))).toEqual([]);
+    const target = { __HARNESS__: { deepLinks: ["harness://chat?prompt=hi", "harness://connect?token=abc"] } } as unknown as Window;
+    expect(takePendingDeepLinks(target, (url) => url.startsWith("harness://chat"))).toEqual(["harness://chat?prompt=hi"]);
+    expect(target.__HARNESS__?.deepLinks).toEqual(["harness://connect?token=abc"]);
+    expect(takePendingDeepLinks(target, (url) => url.startsWith("harness://chat"))).toEqual([]);
   });
 });

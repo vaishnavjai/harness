@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
-import { allocateFreePort } from "@openwork/cdp";
-import { killLocalPid } from "@openwork/hosts";
-import { trackResource } from "@openwork/world";
+import { allocateFreePort } from "@harness/cdp";
+import { killLocalPid } from "@harness/hosts";
+import { trackResource } from "@harness/world";
 import mysql from "mysql2/promise";
 
 export async function nativeMysql0097(options: { mysqld: string; pnpm: string }) {

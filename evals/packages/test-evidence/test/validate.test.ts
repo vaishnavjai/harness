@@ -17,7 +17,7 @@ function testScreenshot(hash: string): ScreenshotArtifact {
     png: Buffer.from("canned png"),
     hash,
     route: "#/workspace/ws_test/session",
-    visibleText: "OpenWork composer",
+    visibleText: "Harness composer",
     at: "2026-07-29T12:00:00.000Z",
   };
 }
@@ -68,9 +68,9 @@ test("validate rejects malformed model verdicts clearly", async () => {
 });
 
 test("defer mode judges a caller-provided deterministic witness inline", async () => {
-  const previousMode = process.env.OPENWORK_EVAL_VISION;
+  const previousMode = process.env.HARNESS_EVAL_VISION;
   try {
-    process.env.OPENWORK_EVAL_VISION = "defer";
+    process.env.HARNESS_EVAL_VISION = "defer";
     const expectation = `Synthetic screenshot is visible ${randomUUID()}`;
     let calls = 0;
     const visualEvidence = await validate(testScreenshot(randomUUID()), [expectation], {
@@ -88,20 +88,20 @@ test("defer mode judges a caller-provided deterministic witness inline", async (
     assert.equal(visualEvidence.deferred, undefined);
     assert.equal(calls, 2);
   } finally {
-    if (previousMode === undefined) delete process.env.OPENWORK_EVAL_VISION;
-    else process.env.OPENWORK_EVAL_VISION = previousMode;
+    if (previousMode === undefined) delete process.env.HARNESS_EVAL_VISION;
+    else process.env.HARNESS_EVAL_VISION = previousMode;
   }
 });
 
 test("deferred validation records pending expectations that the judge resolves", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-deferred-vision-"));
-  const previousMode = process.env.OPENWORK_EVAL_VISION;
+  const dir = await mkdtemp(join(tmpdir(), "harness-deferred-vision-"));
+  const previousMode = process.env.HARNESS_EVAL_VISION;
   try {
     const expectation = `Synthetic screenshot is visible ${randomUUID()}`;
     const screenshot = testScreenshot(randomUUID());
     const testEvidence = createTestEvidence({ name: "deferred vision", outDir: dir });
     testEvidence.recordScreenshot(screenshot);
-    process.env.OPENWORK_EVAL_VISION = "defer";
+    process.env.HARNESS_EVAL_VISION = "defer";
     const deferred = await withTestEvidence(testEvidence, () => validate(screenshot, [expectation], { bypassCache: true }));
     assert.equal(deferred.ok, true);
     assert.equal(deferred.deferred, true);
@@ -175,8 +175,8 @@ test("deferred validation records pending expectations that the judge resolves",
     assert.equal(forced.pendingValidations, 0);
     assert.equal(forcedCalls, 2, "--force must bypass the cached judgment");
   } finally {
-    if (previousMode === undefined) delete process.env.OPENWORK_EVAL_VISION;
-    else process.env.OPENWORK_EVAL_VISION = previousMode;
+    if (previousMode === undefined) delete process.env.HARNESS_EVAL_VISION;
+    else process.env.HARNESS_EVAL_VISION = previousMode;
     await rm(dir, { recursive: true, force: true });
   }
 });

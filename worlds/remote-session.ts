@@ -7,7 +7,7 @@ import type { HeadlessWebHandle } from "../packages/world/src/headless-web.ts";
 
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REMOTE_SESSION_NAME = "remote-session";
-const REMOTE_SESSION_WORKSPACE = "/tmp/openwork-remote-session-world";
+const REMOTE_SESSION_WORKSPACE = "/tmp/harness-remote-session-world";
 
 export interface RemoteSessionOptions {
   name?: string;
@@ -18,7 +18,7 @@ export interface RemoteSessionOptions {
 }
 
 /**
- * Real source-first openwork-server and browser UI used by remote-session
+ * Real source-first harness-server and browser UI used by remote-session
  * gateway capabilities and their real-server spec.
  */
 export async function bootRemoteSession(
@@ -44,7 +44,7 @@ export async function main(): Promise<void> {
     name: REMOTE_SESSION_NAME,
     outputs: {
       webUrl: handle.manifest.webUrl,
-      openworkUrl: handle.manifest.openworkUrl,
+      harnessUrl: handle.manifest.harnessUrl,
       workspace: handle.manifest.workspace,
       runtimeManifest: handle.manifest.runtimeManifestPath,
     },

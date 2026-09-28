@@ -1,6 +1,6 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { workspaceNewTask } from "../worlds/session-shell.ts";
 
 const sampleCount = 12;
@@ -92,7 +92,7 @@ test("workspace New task is instantly typable and every v1 send paints before en
   };
 
   const activeSessionId = () => probe.eval(browserScript((workspaceId) => {
-    if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId) return "";
+    if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId) return "";
     const persistedPrefix = `#/workspace/${workspaceId}/session/`;
     if (!location.hash.startsWith(persistedPrefix)) return "";
     const sessionId = location.hash.slice(persistedPrefix.length);
@@ -132,7 +132,7 @@ test("workspace New task is instantly typable and every v1 send paints before en
         && style.display !== "none" && style.visibility !== "hidden";
     };
     let root: HTMLElement | null = null;
-    if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") === workspaceId) {
+    if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") === workspaceId) {
       const sessionlessRoute = `#/workspace/${workspaceId}/session`;
       if (location.hash === sessionlessRoute) {
         const heading = [...document.querySelectorAll<HTMLElement>("h2")]
@@ -183,7 +183,7 @@ test("workspace New task is instantly typable and every v1 send paints before en
         && rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight
         && style.display !== "none" && style.visibility !== "hidden";
     };
-    if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId) return false;
+    if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId) return false;
     let root: HTMLElement | null = null;
     const sessionlessRoute = `#/workspace/${workspaceId}/session`;
     if (location.hash === sessionlessRoute) {
@@ -674,7 +674,7 @@ test("workspace New task is instantly typable and every v1 send paints before en
       };
       let root: HTMLElement | null = null;
       const sessionlessRoute = `#/workspace/${workspaceId}/session`;
-      if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") === workspaceId) {
+      if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") === workspaceId) {
         if (location.hash === sessionlessRoute) {
           const heading = [...document.querySelectorAll<HTMLElement>("h2")]
             .find((candidate) => candidate.textContent?.trim() === "What do you need done?" && visible(candidate));

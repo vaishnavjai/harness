@@ -18,13 +18,13 @@ function stripTrailingSlashes(value: string): string {
 export type HeadlessRuntimePids = {
   launcher: number;
   web: number | null;
-  openworkServer: number | null;
+  harnessServer: number | null;
 };
 
 export type HeadlessRuntimeManifest = {
   mode: "local-server";
   webUrl: string;
-  openworkUrl: string;
+  harnessUrl: string;
   healthUrl: string;
   workspace: string;
   token: string;
@@ -51,14 +51,14 @@ export function buildDetachedRespawnArgs(argv: string[]): string[] {
 }
 
 export function normalizeDenTarget(value: string | undefined): string {
-  const raw = (value ?? "https://app.openworklabs.com").trim();
+  const raw = (value ?? "https://app.harness.invalid").trim();
   const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   return new URL(withProtocol).origin;
 }
 
 export function isHeadlessStackCommand(command: string): boolean {
   return command.includes("dev-headless-web")
-    || command.includes("openwork-server")
+    || command.includes("harness-server")
     || command.includes("apps/server/src/cli.ts")
     || command.includes("packages/world")
     || command.includes("vite");
@@ -148,7 +148,7 @@ export function buildHeadlessCorsOrigins(input: {
   ]));
 }
 
-export function buildOpenworkServerArgs(input: {
+export function buildHarnessServerArgs(input: {
   host: string;
   port: number;
   configPath: string;
@@ -171,7 +171,7 @@ export function buildOpenworkServerArgs(input: {
 
 export function buildHeadlessRuntimeManifest(input: {
   webUrl: string;
-  openworkUrl: string;
+  harnessUrl: string;
   workspace: string;
   token: string;
   hostToken: string;
@@ -182,7 +182,7 @@ export function buildHeadlessRuntimeManifest(input: {
   denTarget?: string | null;
   pid?: number;
   webPid?: number | null;
-  openworkServerPid?: number | null;
+  harnessServerPid?: number | null;
   startedAt?: string;
   supervisorPid?: number | null;
   world?: { name: string; state: HeadlessWebState; launchId?: string };
@@ -192,8 +192,8 @@ export function buildHeadlessRuntimeManifest(input: {
   return {
     mode: "local-server",
     webUrl: input.webUrl,
-    openworkUrl: input.openworkUrl,
-    healthUrl: `${stripTrailingSlashes(input.openworkUrl)}/health`,
+    harnessUrl: input.harnessUrl,
+    healthUrl: `${stripTrailingSlashes(input.harnessUrl)}/health`,
     workspace: path.resolve(input.workspace),
     token: input.token,
     hostToken: input.hostToken,
@@ -203,13 +203,13 @@ export function buildHeadlessRuntimeManifest(input: {
     headlessLogPath: input.headlessLogPath,
     denTarget,
     denApiUrl: denTarget ? `${stripTrailingSlashes(input.webUrl)}/api/den` : null,
-    notes: "Local openwork-server session. Workspace auth uses token/hostToken; the server config and state selection are owned by the selected world. Den/Cloud API calls go same-origin through denApiUrl (Vite proxies them to denTarget; the app is pinned there via VITE_DEN_API_BASE_URL).",
+    notes: "Local harness-server session. Workspace auth uses token/hostToken; the server config and state selection are owned by the selected world. Den/Cloud API calls go same-origin through denApiUrl (Vite proxies them to denTarget; the app is pinned there via VITE_DEN_API_BASE_URL).",
     startedAt: input.startedAt ?? new Date().toISOString(),
     pid: launcherPid,
     pids: {
       launcher: launcherPid,
       web: input.webPid ?? null,
-      openworkServer: input.openworkServerPid ?? null,
+      harnessServer: input.harnessServerPid ?? null,
     },
     ...(input.supervisorPid === undefined ? {} : { supervisorPid: input.supervisorPid }),
     ...(input.world ? { world: input.world } : {}),

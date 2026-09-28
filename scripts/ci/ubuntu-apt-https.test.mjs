@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 
 const workflow = await fs.readFile(new URL('../../.github/workflows/ci-tests.yml', import.meta.url), 'utf8');
-const job = workflow.match(/^  openwork-tests-build:\n(?:(?!^  \S)[\s\S])*/m)?.[0];
+const job = workflow.match(/^  harness-tests-build:\n(?:(?!^  \S)[\s\S])*/m)?.[0];
 assert.ok(job, 'build job exists');
 const step = job.match(/^      - name: Prepare virtual display\n(?:(?!^      - name:)[\s\S])*/m)?.[0];
 assert.ok(step, 'inline display step exists');
@@ -143,11 +143,11 @@ if (command === 'dpkg') {
     .replace('PATH=/usr/sbin:/usr/bin:/sbin:/bin', `PATH='${bin}'`)
     .replace('/etc/os-release', `'${release}'`)
     .replaceAll(keyring, testKeyring)
-    .replace('/tmp/openwork-apt.XXXXXXXX', `'${root}/apt.XXXXXXXX'`)
+    .replace('/tmp/harness-apt.XXXXXXXX', `'${root}/apt.XXXXXXXX'`)
     .replaceAll('/usr/bin/dpkg', `'${bin}/dpkg'`)
     .replaceAll('/usr/bin/timeout', `'${bin}/timeout'`)
     .replaceAll('/usr/bin/apt-get', `'${bin}/apt-get'`);
-  assert.doesNotMatch(fixtureScript, /\/usr\/bin\/(?:apt-get|sudo|timeout|dpkg)|\/etc\/os-release|\/tmp\/openwork-apt/);
+  assert.doesNotMatch(fixtureScript, /\/usr\/bin\/(?:apt-get|sudo|timeout|dpkg)|\/etc\/os-release|\/tmp\/harness-apt/);
   const result = spawnSync('/bin/bash', ['--noprofile', '--norc', '-euo', 'pipefail'], {
     input: fixtureScript,
     env: { PATH: bin, TEST_ROOT: root, APT_CONFIG: '/must-not-be-used.conf' },

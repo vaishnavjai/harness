@@ -1,4 +1,4 @@
-// In-process stand-in for the OpenWork Cloud `/mcp/agent` endpoint, scoped to
+// In-process stand-in for the Harness Cloud `/mcp/agent` endpoint, scoped to
 // what the desktop host needs for just-in-time Cloud skills: a Streamable HTTP
 // MCP server that serves `skill://index.json` and each `skill://<name>/SKILL.md`
 // per bearer identity, advertises the two Connect routing tools, and records
@@ -161,7 +161,7 @@ const CONNECT_TOOLS = [
   },
   {
     name: "list_skills",
-    description: "List every skill available to the signed-in OpenWork member.",
+    description: "List every skill available to the signed-in Harness member.",
     inputSchema: { type: "object", properties: { query: { type: "string" }, limit: { type: "number" } } },
   },
   {
@@ -223,7 +223,7 @@ export async function startMockCloudSkills(options: StartMockCloudSkillsOptions 
         return { result: {
           protocolVersion: SUPPORTED_PROTOCOL_VERSIONS.includes(requested) ? requested : DEFAULT_PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: true }, resources: { listChanged: true } },
-          serverInfo: { name: "mock-openwork-cloud-skills", version: "1.0.0" },
+          serverInfo: { name: "mock-harness-cloud-skills", version: "1.0.0" },
         } };
       }
       case "ping":

@@ -10,7 +10,7 @@ import { resolve } from "node:path";
  * neither typechecks nor bun tests take that route, so nothing catches it
  * before merge. Keep every subpath resolvable from source.
  */
-describe("@openwork/types package exports", () => {
+describe("@harness/types package exports", () => {
   const manifest = JSON.parse(
     readFileSync(resolve(import.meta.dir, "../../../packages/types/package.json"), "utf8"),
   ) as { exports: Record<string, Record<string, string> | string> };

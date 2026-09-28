@@ -8,7 +8,7 @@ import { buildReport, renderSummary } from "./warden-report.mjs";
 
 const now = Date.parse("2026-09-22T12:00:00Z");
 const metadata = {
-  repository: "different-ai/openwork", pr: 42, head: "a".repeat(40), base: "b".repeat(40),
+  repository: "vaishnavjai/harness", pr: 42, head: "a".repeat(40), base: "b".repeat(40),
   runId: "123456", attempt: 2, outcome: "success", started: now / 1000 - 14, analysisStarted: now / 1000 - 10,
 };
 const finding = {
@@ -56,7 +56,7 @@ test("security findings on CI files are reported without path or author-based ap
   const summary = renderSummary(report, raw);
   assert.match(summary, /Unsafe input/);
   assert.match(summary, /\.github\/workflows\/example.yml:12/);
-  assert.match(summary, /Merge approval stays with the OpenWork admin team/);
+  assert.match(summary, /Merge approval stays with the Harness admin team/);
 });
 
 test("retains every security severity and omits identity text and locations from measurements", () => {

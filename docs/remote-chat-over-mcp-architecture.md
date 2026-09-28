@@ -1,19 +1,19 @@
-# Remote Chat over MCP — sessions on another surface via the OpenWork MCP Gateway
+# Remote Chat over MCP — sessions on another surface via the Harness MCP Gateway
 
 Status: proposal
 Owner: TBD
 Related: `docs/marketplace-capabilities-architecture.md`, `ee/apps/den-api/src/mcp/README.md`
 
 Covers two execution targets behind the same gateway capabilities:
-`target: "cloud"` (session on the member's OpenWork Web cloud worker) and
+`target: "cloud"` (session on the member's Harness Web cloud worker) and
 `target: "desktop"` (session on one of the member's signed-in desktop apps,
 dispatched over the existing Desktop Automation runner channel).
 
 ## Problem
 
-OpenWork Desktop and OpenWork Web are both live chat surfaces, but they cannot
+Harness Desktop and Harness Web are both live chat surfaces, but they cannot
 talk to each other. A member working in a desktop chat has no way to start or
-continue a conversation that runs on their OpenWork Web cloud worker — for
+continue a conversation that runs on their Harness Web cloud worker — for
 example to hand long-running work to the cloud, to make a session visible to
 teammates in the browser, or to keep work running after the laptop closes.
 
@@ -27,18 +27,18 @@ workspace engine. Anything we build as a gateway capability works from desktop
 From a desktop chat (or any MCP client connected to the gateway), the agent
 can:
 
-1. Create a chat session on the member's OpenWork Web cloud worker.
+1. Create a chat session on the member's Harness Web cloud worker.
 2. Send prompts to it.
 3. Read back status and transcript.
-4. Hand the member a link/card to open that session live in OpenWork Web.
+4. Hand the member a link/card to open that session live in Harness Web.
 
 Non-goals (v1):
 
 - Streaming token-by-token output back over MCP (poll/read instead).
 - Cross-member or cross-org sessions. Everything is scoped to the signed-in
   member's own worker.
-- A new chat UI. OpenWork Web renders the session with its existing UI because
-  the session is a native openwork-server session — no sync layer needed.
+- A new chat UI. Harness Web renders the session with its existing UI because
+  the session is a native harness-server session — no sync layer needed.
 
 ## What exists today (reused, not rebuilt)
 
@@ -46,16 +46,16 @@ Non-goals (v1):
 | --- | --- | --- |
 | MCP gateway | `ee/apps/den-api/src/mcp/agent.ts` | Hosts `search_capabilities` / `execute_capability`; new work plugs in behind them |
 | Capability registry | `ee/apps/den-api/src/mcp/capability-registry.ts` | Fan-out to capability sources — **the extension point** |
-| Worker resolution | den-api `/v1/cloud/gateway/resolve` (used by `ee/apps/den-gateway/src/app.ts`) | Maps a member to their cloud openwork-server instance + auth |
-| openwork-server session API | `apps/server` (`POST /workspace/:id/opencode/session`, native prompt/transcript/status routes) | The actual chat runtime on the worker |
+| Worker resolution | den-api `/v1/cloud/gateway/resolve` (used by `ee/apps/den-gateway/src/app.ts`) | Maps a member to their cloud harness-server instance + auth |
+| harness-server session API | `apps/server` (`POST /workspace/:id/opencode/session`, native prompt/transcript/status routes) | The actual chat runtime on the worker |
 | Programmatic session client | `packages/headless-threads` | Typed client for driving native sessions from code |
 | Desktop → gateway attach | `apps/app/src/react-app/domains/connections/cloud-mcp-reconciler.ts` + `apps/server/src/routes/cloud-mcp.ts` (token mint: `POST /v1/mcp/token`) | Desktop engines already have `/mcp/agent`; zero desktop changes required for v1 |
-| MCP App cards | `ee/apps/den-api/src/mcp/plugin-flow-app.ts` pattern + `packages/mcp-apps` | Render an "Open in OpenWork Web" card |
+| MCP App cards | `ee/apps/den-api/src/mcp/plugin-flow-app.ts` pattern + `packages/mcp-apps` | Render an "Open in Harness Web" card |
 
 ## Architecture
 
 ```
-Desktop chat (engine)                den-api (/mcp/agent)              Cloud worker (openwork-server)
+Desktop chat (engine)                den-api (/mcp/agent)              Cloud worker (harness-server)
 ─────────────────────                ────────────────────              ──────────────────────────────
 agent calls                          capability-registry
 search_capabilities ───────────────▶  └─ remote-session source
@@ -64,15 +64,15 @@ execute_capability                       │ resolve member worker
  "remoteSession.send" ─────────────▶     │                        ───▶ POST /workspace/:id/opencode/session/:id/prompt_async
  "remoteSession.read" ─────────────▶     │                        ───▶ GET  native session/message/todo/status routes
                                          └ returns result + MCP App
-                                           card linking to OpenWork Web
-                                                                        OpenWork Web (apps/app via
+                                           card linking to Harness Web
+                                                                        Harness Web (apps/app via
                                                                         den-gateway) shows the session
                                                                         live — same server, no sync
 ```
 
 Key property: the "web MCP" is not a second MCP server. The gateway is the
-single MCP surface; OpenWork Web sees the session because the session lives on
-the same openwork-server the web UI already reads through den-gateway.
+single MCP surface; Harness Web sees the session because the session lives on
+the same harness-server the web UI already reads through den-gateway.
 
 ### 1. New capability source: `remote-session-capabilities.ts`
 
@@ -97,7 +97,7 @@ Execution path inside the source:
    (`auth.ts`) — never from arguments.
 2. Resolve the worker exactly as den-gateway does (`/v1/cloud/gateway/resolve`)
    via a shared internal helper; do not duplicate resolution logic.
-3. Call openwork-server using the `packages/headless-threads` client (or its
+3. Call harness-server using the `packages/headless-threads` client (or its
    underlying HTTP shape) with the resolved worker URL + token.
 4. On the first `remote-session:create`, provision the member's workspace
    through the browser's shared `ensureCloudWorker` path. Return
@@ -121,7 +121,7 @@ exists: `automation-index.ts`, `resource.ts`) — explicitly out of scope for v1
 `remoteSession.create` and `remoteSession.send` results include a standard
 MCP Apps `ui://` card (pattern: `plugin-flow-app.ts` +
 `packages/mcp-apps` renderer): session title, state, last activity, and an
-**Open in OpenWork Web** link (`https://web.openworklabs.com/...` deep link,
+**Open in Harness Web** link (`https://web.harness.invalid/...` deep link,
 resolved from runtime config — same origin den-web's "Web tab" uses). Clients
 without MCP Apps get text fallback with the same URL.
 
@@ -133,11 +133,11 @@ without MCP Apps get text fallback with the same URL.
   off via the existing exposure allowlist mechanics (`policy.ts` conventions).
 - **Cloud entitlement**: Cloud is hosted-only (`cloud-hosting.ts`, multi-org
   deployments with a Daytona provisioner) and entitled per organization by
-  OpenWork Web access — a paid Web subscription or the platform-admin
+  Harness Web access — a paid Web subscription or the platform-admin
   complimentary grant — rather than a separate per-organization rollout flag.
   When the deployment cannot host Cloud, the source is invisible in
   `search_capabilities` and execute reports `unknown_capability`. Execution
-  re-checks Web access live (`openwork_web_access_required`) and the runtime
+  re-checks Web access live (`harness_web_access_required`) and the runtime
   re-checks hosting availability (`cloud_not_available`) as defense in depth;
   first-use provisioning requires a valid `create` request with `mcp:write`
   and active Web access. Concurrent first-use requests and browser access use
@@ -159,7 +159,7 @@ not launch a live Daytona VM or run a model.
 
 ### 5. Desktop side (v1: zero code)
 
-Desktop engines already carry the `openwork-cloud` MCP entry. The agent
+Desktop engines already carry the `harness-cloud` MCP entry. The agent
 discovers `remoteSession.*` via `search_capabilities` naturally. Optional
 polish, in order:
 
@@ -255,7 +255,7 @@ Deltas required (small, additive):
    most-recently-seen runner within the presence window
    (`GET /v1/automation-runners/presence`, 10 min window); allow explicit
    `runnerId` (from `remoteSession.list`) to pin a machine. No runner in the
-   presence window → actionable "open OpenWork Desktop and sign in" result,
+   presence window → actionable "open Harness Desktop and sign in" result,
    never a silent queue-forever.
 5. **Transcript reads:** Den cannot query the desktop, so `remoteSession.read`
    for desktop targets reads the ordered task events the runner posted
@@ -319,7 +319,7 @@ pulls. Therefore:
 
 - **Default: fail fast.** No runner inside the 10-min presence window →
   `remoteSession.create {target:"desktop"}` returns the exact human action
-  ("open OpenWork Desktop on <machine> and sign in"). Conversations are not
+  ("open Harness Desktop on <machine> and sign in"). Conversations are not
   silently queued against machines that may be off for days.
 - **Sleeping ≠ offline.** A running app on a sleeping laptop wakes and polls
   immediately on `powerMonitor` resume/unlock, so delivery after lid-open is
@@ -339,7 +339,7 @@ pulls. Therefore:
 | Worker unreachable / asleep | Retryable error with `referenceId`; no partial session creation |
 | Session deleted on web | `remoteSession.send`/`read` return `unknown_session`, prompting `remoteSession.list` |
 | Token expiry mid-flow | Standard gateway 401 semantics; desktop reconciler already auto-refreshes |
-| No desktop runner in presence window | `remoteSession.create {target:"desktop"}` returns actionable "open OpenWork Desktop and sign in on <machine>" — never queues forever |
+| No desktop runner in presence window | `remoteSession.create {target:"desktop"}` returns actionable "open Harness Desktop and sign in on <machine>" — never queues forever |
 | Desktop task unclaimed past deadline | Marked missed with cause, same as missed desktop automation runs; surfaced via `remoteSession.read` |
 | Desktop goes offline mid-task | Lease expires (60 s heartbeat loss) → task marked interrupted with last posted events preserved |
 
@@ -347,7 +347,7 @@ pulls. Therefore:
 
 1. **Phase 1** — capability source + worker routing + text results. Proof:
    testkit spec in `evals/specs/` driving desktop engine → gateway → mock
-   worker (witness for openwork-server, per `write-a-spec` mocks), asserting
+   worker (witness for harness-server, per `write-a-spec` mocks), asserting
    session creation, prompt receipt, transcript read, and member-scoping
    (cross-member 404).
 2. **Phase 2** — MCP App card + built-in skill. Proof: MCP App render spec
@@ -370,7 +370,7 @@ pulls. Therefore:
 ## Alternatives considered
 
 - **Desktop talks to the worker directly (connect-link handoff), skipping the
-  gateway.** Fewer hops, but only works from OpenWork Desktop, duplicates
+  gateway.** Fewer hops, but only works from Harness Desktop, duplicates
   worker resolution/auth in the client, and bypasses org policy. Rejected.
 - **New top-level MCP tools (`create_remote_chat`, `send_to_session`).**
   Breaks the gateway's deliberate two-tool discovery contract and bloats
@@ -402,6 +402,6 @@ pulls. Therefore:
   (2) only if the Workflows product ever needs true sagas, an internal
   orchestration seam with Postgres as the default implementation and an
   engine as an optional adapter, so self-deploy stays vanilla Postgres.
-- **A separate MCP server hosted by OpenWork Web.** There is no web MCP
+- **A separate MCP server hosted by Harness Web.** There is no web MCP
   server today (den-web is dashboard-only); building one duplicates auth,
   policy, and exposure logic the gateway already owns. Rejected.

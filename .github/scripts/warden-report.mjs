@@ -87,7 +87,7 @@ export function renderSummary(report, raw) {
     ? `${report.findings_count} finding(s)` : "incomplete";
   const lines = [
     `Warden security: **${label}** · ${duration(report.timing.analysis_ms)} analysis · ${duration(report.timing.review_to_summary_ms)} through summary.`,
-    "", "Merge approval stays with the OpenWork admin team.", "",
+    "", "Merge approval stays with the Harness admin team.", "",
     "<details><summary>Review details and timing</summary>", "",
     "| Review | Result | Findings | Duration |", "| --- | --- | --- | --- |",
     ...report.skills.map((skill) => `| ${skill.name} | ${skill.status} | ${skill.findings_count ?? "unknown"} | ${duration(skill.duration_ms)} |`),

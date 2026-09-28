@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { denComposeEval } from "../worlds/den-compose-eval.ts";
 
 // Legacy /api/den/* callers (older desktop builds) receive a 307 to the Den API.
@@ -9,7 +9,7 @@ import { denComposeEval } from "../worlds/den-compose-eval.ts";
 // container from the host: the redirect lands on a reachable API, and the auth
 // proxy keeps answering through the in-network upstream.
 const test = spec.world(denComposeEval, {
-  needs: { commands: ["docker"], env: ["OPENWORK_EVAL_DEN_WEB_IMAGE"] },
+  needs: { commands: ["docker"], env: ["HARNESS_EVAL_DEN_WEB_IMAGE"] },
   timeout: 600_000,
 });
 

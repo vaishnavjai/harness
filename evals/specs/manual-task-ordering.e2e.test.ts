@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { browserScript, spec } from "@openwork/testkit";
+import { browserScript, spec } from "@harness/testkit";
 import { groupedTaskOrdering, manualTaskOrdering } from "../worlds/manual-task-ordering.ts";
 import { nativeDrag as drag } from "../helpers/native-drag.ts";
 
@@ -108,7 +108,7 @@ test("a workspace member keeps new tasks visible and chooses an order that survi
     const limit = expected.length;
     expected = [paletteId, ...expected];
     await seeOrder(expected.slice(0, limit));
-    const stored = await probe.storage("openwork.react.sessionManagement");
+    const stored = await probe.storage("harness.react.sessionManagement");
     expect(stored).toMatchObject({ state: { orderByWorkspace: {
       [world.otherWorkspace.workspaceId]: world.otherSessions.map(session => session.sessionId),
     } } });
@@ -137,7 +137,7 @@ test("a workspace member keeps new tasks visible and chooses an order that survi
     const to = (await probe.dom(`[data-testid="sidebar-session-${world.pinned.sessionId}"]`)).elements[0]!.rect;
     await drag(world.app, { x: from.left + from.width / 2, y: from.top + from.height / 2 },
       { x: to.left + to.width / 2, y: to.top + 4 });
-    await probe.eventually(() => probe.storage("openwork.react.sessionManagement"), { within: 10_000, label: "pin order saved",
+    await probe.eventually(() => probe.storage("harness.react.sessionManagement"), { within: 10_000, label: "pin order saved",
       until: value => JSON.stringify(value).includes(`"pinnedIds":["${pinnedId}","${world.pinned.sessionId}"]`) });
     await user.reload();
     await user.see(row(pinnedId));
@@ -226,7 +226,7 @@ groupedTest("a workspace member orders grouped tasks without disturbing other gr
     const to = (await probe.dom('[data-session-group="grp_other"]')).elements[0]!.rect;
     await drag(world.app, { x: from.left + from.width / 2, y: from.top + from.height / 2 },
       { x: to.left + to.width / 2, y: to.top + to.height / 2 });
-    const stored = await probe.eventually(() => probe.storage("openwork.react.sessionManagement"), {
+    const stored = await probe.eventually(() => probe.storage("harness.react.sessionManagement"), {
       within: 10_000, label: "group assignment persisted", until: value => JSON.stringify(value).includes(`"${original[0]}":"grp_other"`),
     });
     expect(stored).toMatchObject({ state: { pinnedIds: [world.pinned.sessionId], orderByWorkspace: {

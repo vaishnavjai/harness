@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec, type Target } from "@openwork/testkit";
+import { spec, type Target } from "@harness/testkit";
 import { reviewSandboxWorld } from "../worlds/review-sandbox.ts";
 
 const test = spec.world(reviewSandboxWorld, {
@@ -9,7 +9,7 @@ const test = spec.world(reviewSandboxWorld, {
 const picker = { role: "combobox", label: "Preview world" } satisfies Target;
 
 test("sandbox controls preserve a launched environment and recover from failures and expiry", async ({ world, user, probe, step, evidence }) => {
-  const url = `https://ow-${"a".repeat(32)}.preview.openwork.software/__openwork_launch?token=synthetic`;
+  const url = `https://ow-${"a".repeat(32)}.preview.harness-legacy.invalid/__harness_launch?token=synthetic`;
   function ready(expiresAt: string) {
     return { url, world: "app-web", expiresAt, outputs: {
       webUrl: { value: url, group: "Services", secret: true },

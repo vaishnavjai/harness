@@ -2,7 +2,7 @@
 
 ## Verdict
 
-**Two mechanisms reproduced; original installed incident not attributed.** PR #5014 is merged: `d16d4a1aa9b4d8b8cf081b213ac9fa50628032b0`. [Follow-up #5063](https://github.com/different-ai/openwork/pull/5063) isolates archive transport, with passing pressure proof and a revert-fails control. Final-head verification, CI/review gates and merge status are recorded in that PR's immutable test-evidence comments; until those gates are satisfied the mission is **Incomplete**.
+**Two mechanisms reproduced; original installed incident not attributed.** PR #5014 is merged: `d16d4a1aa9b4d8b8cf081b213ac9fa50628032b0`. [Follow-up #5063](https://github.com/vaishnavjai/harness/pull/5063) isolates archive transport, with passing pressure proof and a revert-fails control. Final-head verification, CI/review gates and merge status are recorded in that PR's immutable test-evidence comments; until those gates are satisfied the mission is **Incomplete**.
 
 Local isolated source-built Electron was used, as authorized. No installed-app CDP, engine database access, private transcript capture, main-checkout edits (except fetch), or other worktree edits. Public examples contain only test-generated identities.
 
@@ -20,8 +20,8 @@ Do **not** just replace renderer fetch with the existing generic main fetch: the
 ## Timeline (EDT)
 
 - September 14, approximately 22:50: RCA v1's reported idle pinned archive timed out; first affordance attempt reported no connected window, next hit the five-second mailbox deadline. The report was developed September 14–15; this is the earlier incident, not a fabricated September 15 timestamp.
-- September 16, approximately 14:00: user reports an idle, short, non-pinned session in OpenWork Chat repeatedly failed from the UI with `Couldn't archive session — Request timed out.`. Seconds later the audit archived the same session through `session.archive`. These are reported observations, not newly replayed installed-app operations.
-- 14:45: audit reports a transient `session.read` result `No OpenWork window is connected to this server...` while the installed app was open and idle; subsequent calls worked. Separate hypothesis, not proof of socket exhaustion.
+- September 16, approximately 14:00: user reports an idle, short, non-pinned session in Harness Chat repeatedly failed from the UI with `Couldn't archive session — Request timed out.`. Seconds later the audit archived the same session through `session.archive`. These are reported observations, not newly replayed installed-app operations.
+- 14:45: audit reports a transient `session.read` result `No Harness window is connected to this server...` while the installed app was open and idle; subsequent calls worked. Separate hypothesis, not proof of socket exhaustion.
 - 14:45: #5014 updated via signed/DCO merge of current dev to `eb24c339fee929402e5957cb29d5944ac166bc9e`.
 - 14:59–15:02: final-head local testkit deadline wrapper and isolated Electron pinned E2E passed, no skips. Native wrapper: 117 tests passed. Held preflight returned structured failure in 3606.7 ms, then recovered in 451.8 ms with exactly one PATCH and no late mutation.
 - 15:16: #5014 squash merged after all authorized gates were checked, including exact-head Warden approval and evidence comments.
@@ -47,7 +47,7 @@ Source evidence: `evals/results/test-runs/2026-09-16T19-18-54-591Z-investigative
 
 ## Important correction: what the main-process affordance proves
 
-`apps/desktop/electron/ui-control-server.mjs` hosts the control bridge, but forwards `command` to `window.__openworkControl.command`. `session-control-actions.ts` invokes `useSessionArchive`, the same hook used by the human sidebar. Likewise, server `UiControlMailbox` delivers into the renderer. There is no separate native archive state machine on the inspected dev tree.
+`apps/desktop/electron/ui-control-server.mjs` hosts the control bridge, but forwards `command` to `window.__harnessControl.command`. `session-control-actions.ts` invokes `useSessionArchive`, the same hook used by the human sidebar. Likewise, server `UiControlMailbox` delivers into the renderer. There is no separate native archive state machine on the inspected dev tree.
 
 Thus, success through a main-hosted affordance seconds after UI failure is **not proof of a different request pool**. The controlled recovery explicitly observes that affordance's successful PATCH in Chromium after pressure is released. Historical timing or route/registration recovery could explain the difference; the installed request path/timing was not captured.
 
@@ -109,12 +109,12 @@ The separate mailbox-liveness fixture deliberately remains unchanged in producti
 
 ## Commands and failures retained
 
-Use mise pnpm 11.4.0, Bun 1.4.0, Node 24.20.0. Isolate all app env paths as in RCA v1, unset `OPENWORK_EVAL_ELECTRON_BINARY`, `OPENWORK_EVAL_SURFACES_DIR`, `OPENWORK_EVAL_DAYTONA`, and set `OPENWORK_DEV_SHARED_STATE=0`.
+Use mise pnpm 11.4.0, Bun 1.4.0, Node 24.20.0. Isolate all app env paths as in RCA v1, unset `HARNESS_EVAL_ELECTRON_BINARY`, `HARNESS_EVAL_SURFACES_DIR`, `HARNESS_EVAL_DAYTONA`, and set `HARNESS_DEV_SHARED_STATE=0`.
 
 ```sh
 pnpm evals:pr specs/session-archive-mailbox.test.ts
-OPENWORK_ARCHIVE_PRESSURE_MODE=baseline pnpm evals:e2e session-archive-pressure --local --engine v1 --surface electron
-OPENWORK_ARCHIVE_PRESSURE_MODE=fixed pnpm evals:e2e session-archive-pressure --local --engine v1 --surface electron
+HARNESS_ARCHIVE_PRESSURE_MODE=baseline pnpm evals:e2e session-archive-pressure --local --engine v1 --surface electron
+HARNESS_ARCHIVE_PRESSURE_MODE=fixed pnpm evals:e2e session-archive-pressure --local --engine v1 --surface electron
 pnpm evals:e2e session-mailbox-liveness --local --engine v1 --surface electron
 ```
 
@@ -124,7 +124,7 @@ Baseline mode is an investigative assertion of failure/recovery, **not** a passi
 
 Final-head evidence is regenerated after every commit; do not substitute the historical control receipt for the final fixed-head tests.
 
-Retained red runs: first bootstrap lacked the separate evals workspace install (`vitest` missing); installing `pnpm --dir evals install --frozen-lockfile` repaired that prerequisite. First pressure run's unchanged-count oracle rejected a fifth stream establishing after four original blockers; corrected to require all original blockers still live. A subsequent #5014-only run failed during setup navigation, before pressure; row hover-preview read succeeded but route stayed sessionless. Setup now uses the existing `session.open` affordance; the archive action remains a trusted UI click. None is labeled pre-existing without a clean control. Follow-up CI caught two introduced JS-test type errors in the new native transport test (listener callback arity and accessing an unknown error's name). The exact `pnpm --filter @openwork/desktop typecheck:electron` command reproduced both locally; callback wrapping and an `instanceof Error` guard repair them without changing production code or the test assertions.
+Retained red runs: first bootstrap lacked the separate evals workspace install (`vitest` missing); installing `pnpm --dir evals install --frozen-lockfile` repaired that prerequisite. First pressure run's unchanged-count oracle rejected a fifth stream establishing after four original blockers; corrected to require all original blockers still live. A subsequent #5014-only run failed during setup navigation, before pressure; row hover-preview read succeeded but route stayed sessionless. Setup now uses the existing `session.open` affordance; the archive action remains a trusted UI click. None is labeled pre-existing without a clean control. Follow-up CI caught two introduced JS-test type errors in the new native transport test (listener callback arity and accessing an unknown error's name). The exact `pnpm --filter @harness/desktop typecheck:electron` command reproduced both locally; callback wrapping and an `instanceof Error` guard repair them without changing production code or the test assertions.
 
 The broader working-session E2E caught an introduced transport regression before merge: a held Stop POST remained in main after its ten-second timeout because IPC transfer cancellation only recognized GET/PATCH. The witness refused to replace the still-held request rather than hiding it. Exact failure: `Release the previous main archive fault before replacing it`; the accepted-command/Undo case passed in that same run. The fix narrowly enables transfer cancellation for the session-abort POST at both IPC ends, with a unit test that asserts its deadline reaches `__cancelTransfer` while prompt/command POSTs do not gain read cancellation. The Stop/admission/queue assertions remain unchanged and are rerun on the final head. The next full run passed those Stop cases, then exposed an older unmount oracle that still expected a held PATCH to succeed after leaving for Settings. A separate initially clean worktree at #5014 merge `d16d4a1aa` ran the identical `pnpm evals:e2e session-archive-button --local --engine v1` command: that same unmount step failed waiting 30000 ms for `Session archived`, with Settings still visible. Its receipt is `evals/results/test-runs/2026-09-16T20-18-39-627Z-archiving-exits-only-the-viewed-conversation-and-working-sessions-require-a-conf/` in the dedicated `archive-5063-dev-control` worktree. The main witness exposes cancellation earlier (`No pending archive request to release`); the old renderer witness could release its uncooperative promise but could not produce the obsolete successful-completion toast. These are different boundary errors at the same incompatible oracle, not claimed identical signatures. #5014 deliberately cancels in-flight archive on unmount and treats dispatched writes as unknown. The updated E2E therefore asserts that cancellation reaches the pre-dispatch native hold, zero late mutation/retry occurs over two seconds, no success is announced, Settings retains navigation, and the original unarchived session remains accessible. It does not change production to resurrect a canceled archive or silently drop the navigation safety claim.
 
@@ -132,4 +132,4 @@ The broader working-session E2E caught an introduced transport regression before
 
 #5014 final head `eb24c339fee929402e5957cb29d5944ac166bc9e`; merge `d16d4a1aa9b4d8b8cf081b213ac9fa50628032b0`.
 
-Verified required set via live dev rules: `openwork-tests-required`; it passed. Exact-head Warden APPROVED, zero failed required checks, zero review threads, every branch commit signed and DCO, no `.github/`, `.warden/`, `warden.toml` changes in PR diff. No Cloudflare failure was ignored on this final head. Head evidence comments: [deadline](https://github.com/different-ai/openwork/pull/5014#issuecomment-5703156344), [Electron](https://github.com/different-ai/openwork/pull/5014#issuecomment-5703157059), [gate summary](https://github.com/different-ai/openwork/pull/5014#issuecomment-5703167373).
+Verified required set via live dev rules: `harness-tests-required`; it passed. Exact-head Warden APPROVED, zero failed required checks, zero review threads, every branch commit signed and DCO, no `.github/`, `.warden/`, `warden.toml` changes in PR diff. No Cloudflare failure was ignored on this final head. Head evidence comments: [deadline](https://github.com/vaishnavjai/harness/pull/5014#issuecomment-5703156344), [Electron](https://github.com/vaishnavjai/harness/pull/5014#issuecomment-5703157059), [gate summary](https://github.com/vaishnavjai/harness/pull/5014#issuecomment-5703167373).

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 
 const appDirectory = fileURLToPath(new URL("../../apps/app/", import.meta.url));
 

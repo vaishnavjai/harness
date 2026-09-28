@@ -18,7 +18,7 @@ type MessageWire = { info: { id: string; role: string; parentID?: string; time?:
 type Beat = { status: HeadlessThreadStatus; messages: MessageWire[] };
 
 const SESSION_ID = "ses_1";
-const BASE_URL = "http://openwork.test";
+const BASE_URL = "http://harness.test";
 
 function listen(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -48,11 +48,11 @@ function reply(id: string, role: string, text?: string, parentID?: string): Mess
 }
 
 /**
- * A stand-in for the OpenWork server's native OpenCode proxy. `beats` scripts what
+ * A stand-in for the Harness server's native OpenCode proxy. `beats` scripts what
  * successive snapshot reads observe, so a wait can be tested without a clock
  * or an engine.
  */
-function createOpenworkDouble(input?: { beats?: Beat[]; messages?: MessageWire[]; abortResult?: boolean }) {
+function createHarnessDouble(input?: { beats?: Beat[]; messages?: MessageWire[]; abortResult?: boolean }) {
   const requests: RecordedRequest[] = [];
   const beats = input?.beats ?? [];
   const messages = input?.messages ?? [];
@@ -116,7 +116,7 @@ function createClock() {
   };
 }
 
-function createClient(double: ReturnType<typeof createOpenworkDouble>, clock = createClock()) {
+function createClient(double: ReturnType<typeof createHarnessDouble>, clock = createClock()) {
   return createHeadlessThreadClient({
     baseUrl: BASE_URL,
     workspaceId: "ws_1",
@@ -129,7 +129,7 @@ function createClient(double: ReturnType<typeof createOpenworkDouble>, clock = c
 
 describe("createThread", () => {
   test("creates first, then submits the initial prompt in OpenCode's casing", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const thread = await createClient(double).createThread({
       title: "Refund policy",
       prompt: "A customer wants a refund after 40 days.",
@@ -157,7 +157,7 @@ describe("createThread", () => {
   });
 
   test("normalizes a base URL that ends in slashes", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const client = createHeadlessThreadClient({
       baseUrl: `${BASE_URL}///`,
       workspaceId: "ws_1",
@@ -171,7 +171,7 @@ describe("createThread", () => {
   });
 
   test("authenticates server-to-server Cloud requests with both worker tokens", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const client = createHeadlessThreadClient({
       baseUrl: BASE_URL,
       workspaceId: "ws_1",
@@ -183,21 +183,21 @@ describe("createThread", () => {
     await client.createThread({ title: "Cloud Automation" });
 
     expect(double.requests[0]?.headers.get("authorization")).toBe("Bearer client-token");
-    expect(double.requests[0]?.headers.get("x-openwork-host-token")).toBe("host-token");
+    expect(double.requests[0]?.headers.get("x-harness-host-token")).toBe("host-token");
     expect(double.requests[0]?.redirect).toBe("error");
   });
 
   test("omits the optional host token", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
 
     await createClient(double).createThread({ title: "Local" });
 
     expect(double.requests[0]?.headers.get("authorization")).toBe("Bearer owt_test");
-    expect(double.requests[0]?.headers.has("x-openwork-host-token")).toBe(false);
+    expect(double.requests[0]?.headers.has("x-harness-host-token")).toBe(false);
   });
 
   test("omits the prompt and model when none were given", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const thread = await createClient(double).createThread({ title: "Empty" });
 
     expect(double.requests[0]?.body).toEqual({ title: "Empty" });
@@ -206,7 +206,7 @@ describe("createThread", () => {
   });
 
   test("treats an explicitly empty initial prompt as not started", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
 
     const thread = await createClient(double).createThread({ title: "Empty prompt", prompt: "" });
 
@@ -215,7 +215,7 @@ describe("createThread", () => {
   });
 
   test("preserves client validation and normalization for initial title and prompt", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const client = createClient(double);
 
     await client.createThread({ title: "  Refund policy  ", prompt: "  Review it  " });
@@ -243,7 +243,7 @@ describe("createThread", () => {
 
 describe("sendTurn", () => {
   test("records the pre-turn message count and prompts in OpenCode's casing", async () => {
-    const double = createOpenworkDouble({ messages: [reply("msg_1", "user"), reply("msg_2", "assistant", "hi")] });
+    const double = createHarnessDouble({ messages: [reply("msg_1", "user"), reply("msg_2", "assistant", "hi")] });
     const acceptance = await createClient(double).sendTurn(SESSION_ID, {
       prompt: "They also lost the receipt.",
       model: { providerId: "anthropic", modelId: "claude-sonnet-5" },
@@ -267,7 +267,7 @@ describe("sendTurn", () => {
   });
 
   test("falls back to the client's default model", async () => {
-    const double = createOpenworkDouble({ messages: [] });
+    const double = createHarnessDouble({ messages: [] });
     const client = createHeadlessThreadClient({
       baseUrl: BASE_URL,
       workspaceId: "ws_1",
@@ -285,7 +285,7 @@ describe("sendTurn", () => {
   });
 
   test("uses a stable message id and does not submit it twice", async () => {
-    const double = createOpenworkDouble({ messages: [reply("msg_run_1", "user")] });
+    const double = createHarnessDouble({ messages: [reply("msg_run_1", "user")] });
 
     const acceptance = await createClient(double).sendTurn(SESSION_ID, {
       prompt: "Run the report.",
@@ -299,7 +299,7 @@ describe("sendTurn", () => {
   });
 
   test("passes a new stable message id to OpenCode", async () => {
-    const double = createOpenworkDouble({ messages: [] });
+    const double = createHarnessDouble({ messages: [] });
 
     await createClient(double).sendTurn(SESSION_ID, { prompt: "Run it.", messageId: "msg_run_2" });
 
@@ -374,7 +374,7 @@ describe("getThreadSnapshot", () => {
   });
 
   test("falls back to idle when the native status map omits the session", async () => {
-    const snapshot = await createClient(createOpenworkDouble()).getThreadSnapshot(SESSION_ID);
+    const snapshot = await createClient(createHarnessDouble()).getThreadSnapshot(SESSION_ID);
 
     expect(snapshot.status).toEqual({ type: "idle" });
   });
@@ -385,7 +385,7 @@ describe("waitForThread", () => {
     // The first beat is the gap between accepting a prompt and starting work:
     // the thread is idle and has no new reply. Settling there would report a
     // turn finished before it began.
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [
         { status: { type: "idle" }, messages: [reply("msg_1", "user")] },
         { status: { type: "busy" }, messages: [reply("msg_1", "user")] },
@@ -405,7 +405,7 @@ describe("waitForThread", () => {
 
   test("ignores an assistant reply that predates the turn being waited on", async () => {
     const before = [reply("msg_1", "user"), reply("msg_2", "assistant", "First answer.")];
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [
         { status: { type: "idle" }, messages: before },
         { status: { type: "idle" }, messages: [...before, reply("msg_3", "user")] },
@@ -426,7 +426,7 @@ describe("waitForThread", () => {
 
   test("reports a timeout instead of throwing when the thread never answers", async () => {
     const clock = createClock();
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [{ status: { type: "busy" }, messages: [reply("msg_1", "user")] }],
     });
 
@@ -444,7 +444,7 @@ describe("waitForThread", () => {
   test("stops on an aborted signal", async () => {
     const controller = new AbortController();
     controller.abort();
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [{ status: { type: "busy" }, messages: [] }],
     });
 
@@ -461,7 +461,7 @@ describe("waitForThread", () => {
     const controller = new AbortController();
     const clock = createClock();
     // The turn never settles: every beat reports a busy engine.
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [{ status: { type: "busy" }, messages: [reply("msg_1", "user")] }],
     });
     // Abort while the wait sleeps between polls — mid-stream, not before the call.
@@ -495,7 +495,7 @@ describe("waitForThread", () => {
   });
 
   test("matches the assistant response to the stable user message", async () => {
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [{
         status: { type: "idle" },
         messages: [
@@ -516,7 +516,7 @@ describe("waitForThread", () => {
   test("reports a terminal assistant error", async () => {
     const failed = reply("msg_failed", "assistant", undefined, "msg_run_1");
     failed.info.error = { name: "ProviderAuthError", data: { message: "Reconnect the provider." } };
-    const double = createOpenworkDouble({ beats: [{ status: { type: "idle" }, messages: [failed] }] });
+    const double = createHarnessDouble({ beats: [{ status: { type: "idle" }, messages: [failed] }] });
 
     const result = await createClient(double).waitForThread(SESSION_ID, {
       timeoutMs: 1_000,
@@ -530,7 +530,7 @@ describe("waitForThread", () => {
 
 describe("failures", () => {
   test("surfaces the server's error code and status", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const client = createClient(double);
 
     const error = await client.getThreadSnapshot("ses_missing").catch((caught: unknown) => caught);
@@ -596,7 +596,7 @@ describe("failures", () => {
       },
     });
     try {
-      await createClient(createOpenworkDouble()).createThread({ title: "Default timeout" });
+      await createClient(createHarnessDouble()).createThread({ title: "Default timeout" });
       expect(requested).toEqual([15_000]);
     } finally {
       Object.defineProperty(AbortSignal, "timeout", timeoutDescriptor);
@@ -615,7 +615,7 @@ describe("failures", () => {
         return originalTimeout(milliseconds);
       },
     });
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
     const client = createHeadlessThreadClient({
       baseUrl: BASE_URL,
       workspaceId: "ws_1",
@@ -636,7 +636,7 @@ describe("failures", () => {
   test("merges the client-wide and per-call signals into SDK requests", async () => {
     const globalController = new AbortController();
     const callController = new AbortController();
-    const first = createOpenworkDouble();
+    const first = createHarnessDouble();
     const firstClient = createHeadlessThreadClient({
       baseUrl: BASE_URL,
       workspaceId: "ws_1",
@@ -652,7 +652,7 @@ describe("failures", () => {
 
     const secondGlobal = new AbortController();
     const secondCall = new AbortController();
-    const second = createOpenworkDouble();
+    const second = createHarnessDouble();
     const secondClient = createHeadlessThreadClient({
       baseUrl: BASE_URL,
       workspaceId: "ws_1",
@@ -672,7 +672,7 @@ describe("failures", () => {
     const target = createServer((request, response) => {
       targetRequests.push({
         authorization: request.headers.authorization,
-        hostToken: typeof request.headers["x-openwork-host-token"] === "string" ? request.headers["x-openwork-host-token"] : undefined,
+        hostToken: typeof request.headers["x-harness-host-token"] === "string" ? request.headers["x-harness-host-token"] : undefined,
       });
       response.end("unexpected");
     });
@@ -700,7 +700,7 @@ describe("failures", () => {
 
 describe("abortThread", () => {
   test("reports acceptance without claiming the run stopped", async () => {
-    const double = createOpenworkDouble();
+    const double = createHarnessDouble();
 
     await expect(createClient(double).abortThread(SESSION_ID)).resolves.toEqual({
       threadId: SESSION_ID,
@@ -709,7 +709,7 @@ describe("abortThread", () => {
   });
 
   test("preserves a native false abort result", async () => {
-    const double = createOpenworkDouble({ abortResult: false });
+    const double = createHarnessDouble({ abortResult: false });
 
     await expect(createClient(double).abortThread(SESSION_ID)).resolves.toEqual({
       threadId: SESSION_ID,
@@ -719,7 +719,7 @@ describe("abortThread", () => {
   });
 
   test("waits until the aborted thread is observably idle", async () => {
-    const double = createOpenworkDouble({ beats: [
+    const double = createHarnessDouble({ beats: [
       { status: { type: "busy" }, messages: [] },
       { status: { type: "idle" }, messages: [] },
     ] });
@@ -733,7 +733,7 @@ describe("abortThread", () => {
 
 describe("exportTranscript", () => {
   test("flattens the current snapshot", async () => {
-    const double = createOpenworkDouble({
+    const double = createHarnessDouble({
       beats: [
         {
           status: { type: "idle" },

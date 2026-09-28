@@ -1,10 +1,10 @@
 /* Mintlify-only presentation. Keep docs independent of the landing app. */
 /* Mintlify has no native arrow toggle for the primary navbar button. */
-#topbar-cta-button > a[href="https://openworklabs.com/download"] {
+#topbar-cta-button > a[href="https://github.com/vaishnavjai/harness/releases"] {
   padding-right: 0.75rem;
 }
 
-#topbar-cta-button > a[href="https://openworklabs.com/download"] > div > svg[aria-hidden="true"] {
+#topbar-cta-button > a[href="https://github.com/vaishnavjai/harness/releases"] > div > svg[aria-hidden="true"] {
   display: none;
 }
 

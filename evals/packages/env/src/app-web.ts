@@ -4,16 +4,16 @@ import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { waitUntilInteractive } from "@openwork/behaviors";
-import { addInitScript, evaluate, navigate } from "@openwork/cdp";
-import type { AttachedSurface } from "@openwork/cdp";
+import { waitUntilInteractive } from "@harness/behaviors";
+import { addInitScript, evaluate, navigate } from "@harness/cdp";
+import type { AttachedSurface } from "@harness/cdp";
 import {
   chrome,
   prepareSandboxRepo,
   readSandboxRepoSourceReceipt,
   startMockOnSandbox,
-} from "@openwork/hosts";
-import type { SandboxRepoSourceReceipt } from "@openwork/hosts";
+} from "@harness/hosts";
+import type { SandboxRepoSourceReceipt } from "@harness/hosts";
 import { startLocalRuntime, startRemoteRuntime } from "./app-web-runtime.ts";
 import type { AppWebRuntime } from "./app-web-runtime.ts";
 import type { MockBoot, MockHandle } from "./mock.ts";
@@ -22,7 +22,7 @@ import { observeAppWebNetwork } from "./app-web-network.ts";
 import { reloadOnceIfEntryFails } from "./app-web-entry.ts";
 
 declare global {
-  interface Window { __openworkEvalBootErrors?: string[] }
+  interface Window { __harnessEvalBootErrors?: string[] }
 }
 
 const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -42,7 +42,7 @@ export interface SeedAppWebOptions {
 /** A test-owned real app-web stack. This is distinct from seed.web(), which drives Den. */
 export interface AppWeb extends AttachedSurface {
   webUrl: string;
-  openworkUrl: string;
+  harnessUrl: string;
   workspaceRoot: string;
   mocks: Record<string, MockHandle>;
   actualSourceSha: string | null;
@@ -55,7 +55,7 @@ function safeWorldSegment(value: string): string {
 
 function attachAppWebMetadata(
   surface: AttachedSurface,
-  metadata: Pick<AppWeb, "webUrl" | "openworkUrl" | "workspaceRoot" | "mocks" | "actualSourceSha" | "source">,
+  metadata: Pick<AppWeb, "webUrl" | "harnessUrl" | "workspaceRoot" | "mocks" | "actualSourceSha" | "source">,
   stop: () => Promise<void>,
 ): asserts surface is AppWeb {
   Object.assign(surface, metadata);
@@ -158,7 +158,7 @@ async function bootRemoteMocks(
         appToolName: definition.appToolName,
         scriptSource,
         sourceFingerprint,
-        log: (line) => console.error(`[openwork/testkit] ${line}`),
+        log: (line) => console.error(`[harness/testkit] ${line}`),
       });
       let booted: Awaited<ReturnType<NonNullable<MockBoot["connect"]>>>;
       try {
@@ -195,7 +195,7 @@ async function bootRemoteMocks(
   }
 }
 
-/** Real Vite app + managed openwork-server + fresh Chrome, co-located on Daytona. */
+/** Real Vite app + managed harness-server + fresh Chrome, co-located on Daytona. */
 export async function appWeb(options: SeedAppWebOptions & { place: Place }): Promise<AppWeb> {
   const workspaceRoot = options.workspacePath;
   const worldName = `${safeWorldSegment(options.name ?? "app-web")}-${process.pid}-${randomUUID().slice(0, 8)}`;
@@ -209,14 +209,14 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
     if (remote) {
       const repoSource = options.place.denBase();
       if (repoSource.kind !== "daytona") throw new Error("Daytona app-web placement did not expose a source ref.");
-      const preparedSandbox = process.env.OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX?.trim();
+      const preparedSandbox = process.env.HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX?.trim();
       if (preparedSandbox) {
         // A supplied/borrowed room bypasses DaytonaPlacementHost provisioning,
         // so enforce its checkout before Chrome or either app process starts.
         source = await prepareSandboxRepo({
           sandbox: preparedSandbox,
           ref: repoSource.ref,
-          log: (line) => console.error(`[openwork/testkit] ${line}`),
+          log: (line) => console.error(`[harness/testkit] ${line}`),
         });
       }
       browser = await chrome({
@@ -276,15 +276,15 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
     // Observe entry-bundle failures before navigation. The static startup page
     // survives a broken module load, so a DOM timeout alone hides the cause.
     await addInitScript(browser.client, () => {
-      window.__openworkEvalBootErrors = [];
+      window.__harnessEvalBootErrors = [];
       window.addEventListener("error", event => {
         const target = event.target;
         const source = target instanceof HTMLScriptElement ? new URL(target.src).pathname : event.filename?.split("?")[0];
-        if ((window.__openworkEvalBootErrors?.length ?? 0) < 10) window.__openworkEvalBootErrors?.push(`${event.message || "Resource failed"} (${source || "unknown"})`.slice(0, 1000));
+        if ((window.__harnessEvalBootErrors?.length ?? 0) < 10) window.__harnessEvalBootErrors?.push(`${event.message || "Resource failed"} (${source || "unknown"})`.slice(0, 1000));
       }, true);
       window.addEventListener("unhandledrejection", event => {
         const reason = event.reason;
-        if ((window.__openworkEvalBootErrors?.length ?? 0) < 10) window.__openworkEvalBootErrors?.push(String(reason instanceof Error ? reason.message : reason).slice(0, 1000));
+        if ((window.__harnessEvalBootErrors?.length ?? 0) < 10) window.__harnessEvalBootErrors?.push(String(reason instanceof Error ? reason.message : reason).slice(0, 1000));
       });
     });
     const network = await observeAppWebNetwork(browser.client.webSocketDebuggerUrl, runtime.webUrl);
@@ -303,7 +303,7 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
       }
     } catch (error) {
       const boot = await evaluate(browser.client, () => ({
-        errors: (window.__openworkEvalBootErrors ?? []).slice(0, 10),
+        errors: (window.__harnessEvalBootErrors ?? []).slice(0, 10),
         failedResources: performance.getEntriesByType("resource")
           .filter(entry => entry instanceof PerformanceResourceTiming && entry.responseStatus >= 400)
           .map(entry => ({ path: new URL(entry.name).pathname,
@@ -340,7 +340,7 @@ export async function appWeb(options: SeedAppWebOptions & { place: Place }): Pro
     };
     attachAppWebMetadata(browser, {
       webUrl: runtime.webUrl,
-      openworkUrl: runtime.openworkUrl,
+      harnessUrl: runtime.harnessUrl,
       workspaceRoot,
       mocks,
       actualSourceSha: runtime.source?.actualSha ?? localSourceSha,

@@ -2,8 +2,8 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { join, resolve } from "node:path";
-import type { Seed } from "@openwork/env";
-import { close, isRecord, listen, sendJson, stopChild } from "./openwork-server-cli.ts";
+import type { Seed } from "@harness/env";
+import { close, isRecord, listen, sendJson, stopChild } from "./harness-server-cli.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
 const serverRoot = join(repoRoot, "apps", "server");
@@ -15,7 +15,7 @@ function nodeGcPreload(): string {
     import { appendFileSync } from "node:fs";
     process.on("SIGUSR2", () => {
       globalThis.gc?.();
-      appendFileSync(process.env.OPENWORK_GC_ACK, "collected\\n");
+      appendFileSync(process.env.HARNESS_GC_ACK, "collected\\n");
     });
   `;
   return `data:text/javascript,${encodeURIComponent(source)}`;
@@ -24,12 +24,12 @@ function nodeGcPreload(): string {
 async function waitForServer(child: ChildProcess, sink: (text: string) => void): Promise<string> {
   let output = "";
   return new Promise<string>((resolveBase, reject) => {
-    const timer = setTimeout(() => reject(new Error(`openwork-server did not start:\n${output.slice(-2_000)}`)), 60_000);
+    const timer = setTimeout(() => reject(new Error(`harness-server did not start:\n${output.slice(-2_000)}`)), 60_000);
     const onChunk = (chunk: Buffer) => {
       const text = chunk.toString("utf8");
       output += text;
       sink(text);
-      const match = output.match(/OpenWork server listening on (http:\/\/127\.0\.0\.1:\d+)/);
+      const match = output.match(/Harness server listening on (http:\/\/127\.0\.0\.1:\d+)/);
       if (match?.[1]) {
         clearTimeout(timer);
         resolveBase(match[1]);
@@ -40,7 +40,7 @@ async function waitForServer(child: ChildProcess, sink: (text: string) => void):
     child.once("error", reject);
     child.once("exit", (code) => {
       clearTimeout(timer);
-      reject(new Error(`openwork-server exited before listening (${code}):\n${output.slice(-2_000)}`));
+      reject(new Error(`harness-server exited before listening (${code}):\n${output.slice(-2_000)}`));
     });
   });
 }
@@ -48,9 +48,9 @@ async function waitForServer(child: ChildProcess, sink: (text: string) => void):
 async function workspaceId(base: string, token: string): Promise<string> {
   const response = await fetch(`${base}/workspaces`, { headers: { authorization: `Bearer ${token}` } });
   const payload: unknown = await response.json();
-  if (!isRecord(payload) || !Array.isArray(payload.items)) throw new Error("OpenWork returned no workspace list");
+  if (!isRecord(payload) || !Array.isArray(payload.items)) throw new Error("Harness returned no workspace list");
   const item = payload.items[0];
-  if (!isRecord(item) || typeof item.id !== "string") throw new Error("OpenWork returned no workspace id");
+  if (!isRecord(item) || typeof item.id !== "string") throw new Error("Harness returned no workspace id");
   return item.id;
 }
 
@@ -93,16 +93,16 @@ export async function conversationResponseLifetime(seed: Seed) {
 
   try {
     const engineBase = await listen(engine);
-    const build = spawnSync("pnpm", ["--filter", "openwork-server", "build"], {
+    const build = spawnSync("pnpm", ["--filter", "@harness/server", "build"], {
       cwd: repoRoot,
       env: process.env,
       encoding: "utf8",
       timeout: 180_000,
     });
-    if (build.status !== 0) throw new Error(`openwork-server build failed:\n${build.stdout}\n${build.stderr}`);
+    if (build.status !== 0) throw new Error(`harness-server build failed:\n${build.stdout}\n${build.stderr}`);
 
     const token = "response-lifetime-token";
-    const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENCODE") && !key.startsWith("OPENWORK_")));
+    const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENCODE") && !key.startsWith("HARNESS_")));
     child = spawn(process.execPath, [
       "--expose-gc",
       "--import", nodeGcPreload(),
@@ -123,10 +123,10 @@ export async function conversationResponseLifetime(seed: Seed) {
         XDG_DATA_HOME: join(home, ".local", "share"),
         XDG_CACHE_HOME: join(home, ".cache"),
         XDG_STATE_HOME: join(home, ".local", "state"),
-        OPENWORK_OPENCODE_BASE_URL: engineBase,
-        OPENWORK_OPENCODE_DIRECTORY: workspace,
-        OPENWORK_GC_ACK: gcAck,
-        OPENWORK_LOG_REQUESTS: "1",
+        HARNESS_OPENCODE_BASE_URL: engineBase,
+        HARNESS_OPENCODE_DIRECTORY: workspace,
+        HARNESS_GC_ACK: gcAck,
+        HARNESS_LOG_REQUESTS: "1",
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

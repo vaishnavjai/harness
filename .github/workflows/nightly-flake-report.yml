@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   flake-report:
-    if: github.repository == 'different-ai/openwork'
+    if: github.repository == 'vaishnavjai/harness'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 120
 

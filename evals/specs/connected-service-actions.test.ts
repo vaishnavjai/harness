@@ -1,7 +1,7 @@
 import { expect } from "vitest";
-import { createNativeConnector, denFetch, type DenSession } from "@openwork/behaviors";
-import { startMockGoogle } from "@openwork/labs";
-import { needs, server, test } from "@openwork/testkit";
+import { createNativeConnector, denFetch, type DenSession } from "@harness/behaviors";
+import { startMockGoogle } from "@harness/labs";
+import { needs, server, test } from "@harness/testkit";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { agentMcpSignup } from "../worlds/agent-mcp-signup.ts";
 
 const test = spec.world(agentMcpSignup, {
@@ -24,7 +24,7 @@ test("a brand-new person signs up through their agent, names a workspace inline,
   let signInLink = "";
   let installPageUrl = "";
 
-  await step("before: the agent's sign-in link opens OpenWork for someone with no account and names the app asking", async () => {
+  await step("before: the agent's sign-in link opens Harness for someone with no account and names the app asking", async () => {
     await person.navigate(world.authorizeUrl);
     await person.see({ role: "textbox", label: /email/i }, { timeoutMs: 90_000 });
     await person.see({ text: "Signing in for" });
@@ -57,7 +57,7 @@ test("a brand-new person signs up through their agent, names a workspace inline,
     await person.notSee({ text: /MCP authorization|Requested access/ });
     await person.screenshot();
     await person.click({ role: "button", label: "Create workspace and authorize" });
-    await person.see({ text: "Your agent is connected to OpenWork" }, { timeoutMs: 60_000 });
+    await person.see({ text: "Your agent is connected to Harness" }, { timeoutMs: 60_000 });
     const [exchange] = world.exchanges();
     expect(world.exchanges()).toHaveLength(1);
     expect(exchange.status).toBe(200);
@@ -72,7 +72,7 @@ test("a brand-new person signs up through their agent, names a workspace inline,
   });
 
   await step("the agent searches capabilities with its new token", async () => {
-    await person.see({ text: "Your agent is connected to OpenWork" });
+    await person.see({ text: "Your agent is connected to Harness" });
     const found = await world.callTool("search_capabilities", { query: "register MCP server connection", limit: 20 });
     const names = matchNames(found.json);
     expect(names).toContain("postMcpConnections");
@@ -100,7 +100,7 @@ test("a brand-new person signs up through their agent, names a workspace inline,
   });
 
   await step("the agent gets an install page and a desktop connect link for the workspace in one call", async () => {
-    const found = await world.callTool("search_capabilities", { query: "download desktop app install OpenWork", limit: 20 });
+    const found = await world.callTool("search_capabilities", { query: "download desktop app install Harness", limit: 20 });
     const installLinks = matchNames(found.json).find((name) => /InstallLinks$/i.test(name));
     expect(installLinks, `matches: ${matchNames(found.json).join(", ")}`).toBeTruthy();
     const minted = await world.callTool("execute_capability", { name: installLinks, path: { organizationId }, body: {} });
@@ -108,9 +108,9 @@ test("a brand-new person signs up through their agent, names a workspace inline,
     installPageUrl = typeof body.installPageUrl === "string" ? body.installPageUrl : "";
     const connectUrl = typeof body.connectUrl === "string" ? body.connectUrl : "";
     expect(new URL(installPageUrl).pathname).toBe("/install");
-    expect(connectUrl).toMatch(/^openwork:\/\/connect\?/);
+    expect(connectUrl).toMatch(/^harness:\/\/connect\?/);
     await person.navigate(installPageUrl);
-    await person.see({ text: "Download OpenWork" }, { timeoutMs: 60_000 });
+    await person.see({ text: "Download Harness" }, { timeoutMs: 60_000 });
     await person.screenshot();
     evidence.recordAssertionEvidence("postOrgsInstallLinks returns installPageUrl + connectUrl", `installPageUrl ${new URL(installPageUrl).pathname}…; connectUrl ${connectUrl.slice(0, 26)}…`, true);
   });

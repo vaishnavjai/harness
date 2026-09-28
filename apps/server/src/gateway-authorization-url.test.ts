@@ -31,7 +31,7 @@ describe("Gateway browser authorization URLs", () => {
     "https://accounts.google.com/unrelated",
     "http://den.example.test/gateway/connect",
     "javascript:alert(1)",
-    "openwork://gateway/connect",
+    "harness://gateway/connect",
     "//den.example.test/gateway/connect",
     "",
   ])("rejects credentials, unrelated destinations and unsafe transport: %s", (url) => {

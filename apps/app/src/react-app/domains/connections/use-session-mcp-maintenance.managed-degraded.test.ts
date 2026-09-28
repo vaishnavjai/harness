@@ -11,16 +11,16 @@ declare const expect: (value: unknown) => {
 
 import type { DenMcpToken, DenSettings } from "../../../app/lib/den";
 import {
-  OpenworkServerError,
-  type OpenworkCloudMcpHealth,
-} from "../../../app/lib/openwork-server";
+  HarnessServerError,
+  type HarnessCloudMcpHealth,
+} from "../../../app/lib/harness-server";
 import { __setCloudMcpUserStateStorageForTest } from "./cloud-mcp-user-state";
 import { syncCloudControlMcpInBackground } from "./use-session-mcp-maintenance";
 
 const NOW = Date.parse("2026-08-15T12:00:00.000Z");
 const WORKSPACE_ID = "workspace_1";
 const SETTINGS: DenSettings = {
-  baseUrl: "https://app.openwork.test",
+  baseUrl: "https://app.harness.test",
   authToken: "session-token",
   activeOrgId: "organization_1",
 };
@@ -31,10 +31,10 @@ const MINTED: DenMcpToken = {
   appHostExpiresAt: new Date(NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
   organizationId: "organization_1",
   scopes: ["mcp:read", "mcp:write"],
-  resource: "https://api.openwork.test/mcp",
+  resource: "https://api.harness.test/mcp",
 };
 
-function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
+function cloudHealth(usable: boolean): HarnessCloudMcpHealth {
   return {
     schemaVersion: 1,
     phase: usable ? "ready" : "missing_desired",
@@ -44,7 +44,7 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
     workspace: { id: WORKSPACE_ID, type: "local", directory: "/workspace", path: "/workspace" },
     desired: {
       present: usable,
-      name: "openwork-cloud",
+      name: "harness-cloud",
       revision: usable ? "rev_ready" : null,
       config: null,
       token: { present: usable, metadata: {} },
@@ -59,9 +59,9 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
     },
     engine: { status: usable ? "connected" : "not_checked" },
     tools: {
-      expected: ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
-      present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-      missing: usable ? [] : ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
+      expected: ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
+      present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+      missing: usable ? [] : ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
       direct: {
         checked: false,
         source: "mcp_tools_list",
@@ -71,15 +71,15 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
       },
       providerProjection: {
         checked: usable,
-        provider: "openwork",
+        provider: "harness",
         model: "gpt-5",
-        present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
+        present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
         missing: [],
       },
     },
     pluginCanaries: { expected: [], present: [], missing: [] },
     compatibility: {
-      openwork: { serverVersion: null, app: null },
+      harness: { serverVersion: null, app: null },
       opencode: { expectedVersion: null, actualVersion: null, probe: "not_checked" },
       pluginFileHashes: [],
       supportedFeatures: {
@@ -109,7 +109,7 @@ function cloudHealth(usable: boolean): OpenworkCloudMcpHealth {
       code: "cloud_desired_missing",
       stage: "desired",
       retryable: false,
-      recommendedAction: "Connect OpenWork Cloud",
+      recommendedAction: "Connect Harness Cloud",
       message: "missing",
     },
     checkedAt: new Date(NOW).toISOString(),
@@ -132,16 +132,16 @@ describe("managed MCP secure-storage degradation in session maintenance", () => 
   test("a structured listMcp server error surfaces its own code and message instead of the generic banner", async () => {
     let reconcileCalls = 0;
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async (): Promise<never> => {
-        throw new OpenworkServerError(
+        throw new HarnessServerError(
           503,
           "managed_mcp_secure_storage_unavailable",
-          "Secure storage for OpenWork-managed MCP credentials is unavailable.",
+          "Secure storage for Harness-managed MCP credentials is unavailable.",
         );
       },
-      getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-      reconcileOpenworkCloudMcp: async () => {
+      getHarnessCloudMcpHealth: async () => cloudHealth(false),
+      reconcileHarnessCloudMcp: async () => {
         reconcileCalls += 1;
         return cloudHealth(true);
       },
@@ -169,17 +169,17 @@ describe("managed MCP secure-storage degradation in session maintenance", () => 
   test("a degraded-but-valid listMcp response still proceeds to the reconciler", async () => {
     let reconcileCalls = 0;
     const client = {
-      baseUrl: "https://worker.openwork.test",
+      baseUrl: "https://worker.harness.test",
       listMcp: async () => ({
         items: [{
-          name: "openwork-cloud",
-          config: { type: "remote", enabled: true, url: "https://api.openwork.test/mcp/agent" },
+          name: "harness-cloud",
+          config: { type: "remote", enabled: true, url: "https://api.harness.test/mcp/agent" },
           source: "config.remote" as const,
         }],
         managedOAuthState: { available: false, recovery: null },
       }),
-      getOpenworkCloudMcpHealth: async () => cloudHealth(false),
-      reconcileOpenworkCloudMcp: async () => {
+      getHarnessCloudMcpHealth: async () => cloudHealth(false),
+      reconcileHarnessCloudMcp: async () => {
         reconcileCalls += 1;
         return cloudHealth(true);
       },

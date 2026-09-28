@@ -1,11 +1,11 @@
 ---
 title: "Cross-chat memory"
-description: "How OpenWork can answer questions about past sessions."
+description: "How Harness can answer questions about past sessions."
 ---
 
-OpenWork's cross-chat memory currently comes from saved session history. It is not a separate long-term memory database, and it does not automatically inject every old chat into every new prompt.
+Harness's cross-chat memory currently comes from saved session history. It is not a separate long-term memory database, and it does not automatically inject every old chat into every new prompt.
 
-When an agent is running inside the OpenWork app, it can use OpenWork's semantic UI actions to look up past chats:
+When an agent is running inside the Harness app, it can use Harness's semantic UI actions to look up past chats:
 
 - `session.list_sessions` lists every loaded session across the workspaces the app knows about (pinned first, then newest). Pass `limit` to cap the count or `workspaceId` to narrow to one workspace.
 - `session.search` finds sessions by title or transcript text.
@@ -46,11 +46,11 @@ An agent can start sessions (`session.create`) and file idle ones away (`session
 1. **Check status.** `session.list_sessions` and `session.read` return `status` and a `working` boolean for every session. `working` is true while a turn, subtask, permission request, or question is still open.
 2. **Archive once it is idle.** Archiving a session with `working: false` completes immediately and preserves its context. If an agent tries to archive a session that is still working, nothing happens in the app: the agent receives `target_working` with the advice to ask you to stop it in the app if you want it closed, or to leave it running. A session that tries to archive itself, or its parent, from inside its own turn receives `self_archive_while_working`: it should finish the turn so its conclusions can be reviewed; the reviewer archives. Restoring an archived session never restarts stopped work.
 
-Stopping a session is yours: use the Stop button in that conversation. When you archive a working session yourself, from the sidebar, OpenWork asks a short confirmation naming the session ("Stop the current task and archive?") with **Keep session open** and **Stop and archive**.
+Stopping a session is yours: use the Stop button in that conversation. When you archive a working session yourself, from the sidebar, Harness asks a short confirmation naming the session ("Stop the current task and archive?") with **Keep session open** and **Stop and archive**.
 
 ### Model and reasoning effort
 
-Every session is bound to a model, and agents can see and set it without opening the session or reading OpenWork's storage:
+Every session is bound to a model, and agents can see and set it without opening the session or reading Harness's storage:
 
 - `session.list_sessions` entries and `session.read` results carry `model: { providerId, modelId, variant }`. `variant` is the reasoning effort you see as the behavior pill in the composer (for example `low`, `medium`, `high`); it is `null` when the provider default applies. Before a session has a model bound (no `model` at creation and no turn yet), `model` is `null`.
 - `session.create` accepts the same shape as `model`, either once for every session in the call or per entry. The model is applied when the session is created and again on its first turn, so the session runs at the requested effort from the start and reads back with that `model`. Sessions created without `model` use the engine default.
@@ -59,11 +59,11 @@ Changing the model of an existing session by id is not available to agents yet; 
 
 ## Current limits
 
-- Session lookup is based on the sessions OpenWork has loaded for the current app and workspace context.
+- Session lookup is based on the sessions Harness has loaded for the current app and workspace context.
 - Transcript reads return a bounded set of recent messages from the opened session. If an older part of a long chat is not returned, the agent should say that instead of guessing.
 - This is not semantic search over every message yet. Clear titles, session IDs, workspace names, or topic clues help the agent find the right chat.
-- The agent can only read sessions available to the current OpenWork app and user.
+- The agent can only read sessions available to the current Harness app and user.
 
 ## How to ask
 
-Give the agent whatever clue you have: a session ID, title, person name, project name, workspace, or rough topic. For example: `Use the OpenWork app UI to find the customer migration chat and tell me what I said about customer references.`
+Give the agent whatever clue you have: a session ID, title, person name, project name, workspace, or rough topic. For example: `Use the Harness app UI to find the customer migration chat and tell me what I said about customer references.`

@@ -31,8 +31,8 @@ describe("workspace endpoint resolution", () => {
       preset: "minimal",
       workspaceType: "remote",
       baseUrl: "https://worker.example.test",
-      openworkToken: "remote-token",
-      openworkWorkspaceId: "server-workspace-b",
+      harnessToken: "remote-token",
+      harnessWorkspaceId: "server-workspace-b",
     }, {
       baseUrl: "http://127.0.0.1:4096",
       token: "local-token",

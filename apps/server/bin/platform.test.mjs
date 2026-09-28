@@ -14,8 +14,8 @@ const serverPackage = JSON.parse(await readFile(new URL("../package.json", impor
 test("selects a distinct compiled binary for every supported host in a checkout", () => {
   const names = SERVER_BINARY_TARGETS.map(({ platform, arch }) => serverBinaryName(platform, arch));
   assert.equal(new Set(names).size, 6);
-  assert.equal(serverBinaryName("darwin", "arm64"), "openwork-server-bun-darwin-arm64");
-  assert.equal(serverBinaryName("win32", "arm64"), "openwork-server-bun-windows-arm64.exe");
+  assert.equal(serverBinaryName("darwin", "arm64"), "harness-server-bun-darwin-arm64");
+  assert.equal(serverBinaryName("win32", "arm64"), "harness-server-bun-windows-arm64.exe");
   assert.equal(serverBinaryName("freebsd", "x64"), null);
 });
 
@@ -35,7 +35,7 @@ test("the bundle leaves external exactly the dependencies the package declares",
 });
 
 async function fixture(context, bundleSource) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-npm-stage-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-npm-stage-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const packageRoot = join(root, "server");
   for (const dir of ["bin", "dist/npm-bundle", "dist/bin", "dist/opencode-plugins", "../app/dist"]) {
@@ -44,22 +44,22 @@ async function fixture(context, bundleSource) {
   await writeFile(
     join(packageRoot, "package.json"),
     JSON.stringify({
-      name: "openwork-server",
+      name: "harness-server",
       version: "1.2.3",
       type: "module",
       license: "MIT",
-      bin: { "openwork-server": "bin/openwork-server.mjs" },
+      bin: { "harness-server": "bin/harness-server.mjs" },
       dependencies: { "jsonc-parser": "^3.2.1", zod: "^4.0.0" },
     }),
   );
   await writeFile(join(packageRoot, "README.md"), "server");
-  await cp(join(binDir, "openwork-server.mjs"), join(packageRoot, "bin/openwork-server.mjs"));
+  await cp(join(binDir, "harness-server.mjs"), join(packageRoot, "bin/harness-server.mjs"));
   await cp(join(binDir, "platform.mjs"), join(packageRoot, "bin/platform.mjs"));
-  await writeFile(join(packageRoot, "dist/npm-bundle/openwork-server.mjs"), `${bundleSource}\n//${" ".repeat(100_000)}\n`);
-  await writeFile(join(packageRoot, "dist/opencode-plugins/openwork-extensions-preview.js"), "plugin");
-  await writeFile(join(packageRoot, "dist/opencode-plugins/openwork-extensions-preview.test.js"), "test");
+  await writeFile(join(packageRoot, "dist/npm-bundle/harness-server.mjs"), `${bundleSource}\n//${" ".repeat(100_000)}\n`);
+  await writeFile(join(packageRoot, "dist/opencode-plugins/harness-extensions-preview.js"), "plugin");
+  await writeFile(join(packageRoot, "dist/opencode-plugins/harness-extensions-preview.test.js"), "test");
   await writeFile(join(packageRoot, "dist/opencode-plugins/pdfium.wasm"), "wasm");
-  await writeFile(join(packageRoot, "dist/bin/openwork-server-bun-linux-x64"), "binary");
+  await writeFile(join(packageRoot, "dist/bin/harness-server-bun-linux-x64"), "binary");
   await writeFile(join(packageRoot, "../app/dist/index.html"), "web");
   return { root, packageRoot };
 }
@@ -76,8 +76,8 @@ test("stages one platform-independent package without compiled binaries", async 
   assert.equal(manifest.os, undefined);
   assert.equal(manifest.cpu, undefined);
 
-  assert.deepEqual((await readdir(join(output, "dist"))).sort(), ["opencode-plugins", "openwork-server.mjs", "pdfium.wasm"]);
-  assert.deepEqual((await readdir(join(output, "dist/opencode-plugins"))).sort(), ["openwork-extensions-preview.js", "pdfium.wasm"]);
+  assert.deepEqual((await readdir(join(output, "dist"))).sort(), ["harness-server.mjs", "opencode-plugins", "pdfium.wasm"]);
+  assert.deepEqual((await readdir(join(output, "dist/opencode-plugins"))).sort(), ["harness-extensions-preview.js", "pdfium.wasm"]);
   assert.equal(await readFile(join(output, "web/index.html"), "utf8"), "web");
 });
 
@@ -90,15 +90,15 @@ test("refuses to stage without the Node bundle", async (context) => {
 test("the installed launcher runs the Node bundle in-process with the package root set", async (context) => {
   const { root, packageRoot } = await fixture(
     context,
-    'console.log(JSON.stringify({ args: process.argv.slice(2), root: process.env.OPENWORK_PACKAGE_ROOT }));',
+    'console.log(JSON.stringify({ args: process.argv.slice(2), root: process.env.HARNESS_PACKAGE_ROOT }));',
   );
   const output = await stageNpmPackage(packageRoot);
-  const installed = join(root, "install/node_modules/openwork-server");
+  const installed = join(root, "install/node_modules/harness-server");
   await cp(output, installed, { recursive: true });
 
-  const result = spawnSync(process.execPath, [join(installed, "bin/openwork-server.mjs"), "web", "--port", "1"], {
+  const result = spawnSync(process.execPath, [join(installed, "bin/harness-server.mjs"), "web", "--port", "1"], {
     encoding: "utf8",
-    env: { ...process.env, OPENWORK_PACKAGE_ROOT: "" },
+    env: { ...process.env, HARNESS_PACKAGE_ROOT: "" },
   });
   assert.equal(result.status, 0, result.stderr);
   const seen = JSON.parse(result.stdout.trim());

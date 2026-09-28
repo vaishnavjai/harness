@@ -1,10 +1,10 @@
 import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { managedInference } from "@openwork/env";
-import type { Place } from "@openwork/env";
-import baselineModels from "../../ee/apps/gateway/src/models/openwork-models.json";
-import { bootManagedOpenworkServer } from "./openwork-server-cli.ts";
+import { managedInference } from "@harness/env";
+import type { Place } from "@harness/env";
+import baselineModels from "../../ee/apps/gateway/src/models/harness-models.json";
+import { bootManagedHarnessServer } from "./harness-server-cli.ts";
 
 export async function bootManagedInference(place: Place) {
   const service = await managedInference(place);
@@ -13,7 +13,7 @@ export async function bootManagedInference(place: Place) {
   return {
     ...service,
     async bootEngine() {
-      const scratch = await realpath(await mkdtemp(join(tmpdir(), "openwork-managed-inference-")));
+      const scratch = await realpath(await mkdtemp(join(tmpdir(), "harness-managed-inference-")));
       resources.defer(() => rm(scratch, { recursive: true, force: true }));
       const workspace = join(scratch, "workspace");
       await mkdir(workspace);
@@ -25,17 +25,17 @@ export async function bootManagedInference(place: Place) {
       const model = baselineModels["z-ai/glm-5.2"];
       await writeFile(join(workspace, "opencode.json"), JSON.stringify({
         $schema: "https://opencode.ai/config.json",
-        enabled_providers: ["openwork"],
-        model: "openwork/z-ai/glm-5.2", small_model: "openwork/z-ai/glm-5.2",
-        provider: { openwork: {
-          npm: "@openrouter/ai-sdk-provider", name: "OpenWork Models",
+        enabled_providers: ["harness"],
+        model: "harness/z-ai/glm-5.2", small_model: "harness/z-ai/glm-5.2",
+        provider: { harness: {
+          npm: "@openrouter/ai-sdk-provider", name: "Harness Models",
           options: { baseURL: `${service.url}/api/v1`, apiKey: service.identity.key },
           models: { [model.id]: { name: model.name, limit: model.limit, modalities: model.modalities, tool_call: model.tool_call } },
           whitelist: [model.id],
         } },
       }));
       let output = "";
-      const engine = await bootManagedOpenworkServer({ scratch, workspace, token: "managed-inference-fixture-client", sink: (chunk) => { output += chunk; } });
+      const engine = await bootManagedHarnessServer({ scratch, workspace, token: "managed-inference-fixture-client", sink: (chunk) => { output += chunk; } });
       resources.defer(() => engine.stop());
       return { ...engine, output: () => output };
     },

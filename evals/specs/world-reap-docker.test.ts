@@ -6,15 +6,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { eventually, test, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { eventually, test, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 import {
   isProcessAlive,
   main,
   readLedger,
   readScriptWorldSnapshot,
   type WorldCliOptions,
-} from "@openwork/world";
+} from "@harness/world";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const execFileAsync = promisify(execFile);
@@ -38,7 +38,7 @@ async function dockerSucceeds(args: string[]): Promise<boolean> {
 }
 
 test.skipIf(missing.length > 0)(title, async ({ evidence }) => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reap-docker-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reap-docker-"));
   const worldsDirectory = join(root, "worlds");
   const scriptsDirectory = join(root, ".worlds", "scripts");
   const fixtureName = "docker-reap-world";
@@ -47,11 +47,11 @@ test.skipIf(missing.length > 0)(title, async ({ evidence }) => {
   const fixturePath = join(worldsDirectory, `${fixtureName}.ts`);
   const snapshotPath = join(scriptsDirectory, `${stagedName}.json`);
   const ledgerPath = join(scriptsDirectory, `${stagedName}.ledger.jsonl`);
-  const trackedName = `openwork-reap-spec-${randomBytes(4).toString("hex")}`;
-  const volumeName = `openwork-reap-vol-${randomBytes(4).toString("hex")}`;
-  const controlName = `openwork-reap-control-${randomBytes(4).toString("hex")}`;
+  const trackedName = `harness-reap-spec-${randomBytes(4).toString("hex")}`;
+  const volumeName = `harness-reap-vol-${randomBytes(4).toString("hex")}`;
+  const controlName = `harness-reap-control-${randomBytes(4).toString("hex")}`;
   const recipeUrl = pathToFileURL(join(REPO_ROOT, "evals", "packages", "env", "src", "recipe.ts")).href;
-  const previousSnapshotDirectory = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
+  const previousSnapshotDirectory = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
   let worldPid: number | undefined;
   let printedLines: string[] = [];
 
@@ -69,7 +69,7 @@ test.skipIf(missing.length > 0)(title, async ({ evidence }) => {
   };
 
   try {
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = scriptsDirectory;
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = scriptsDirectory;
     await execFileAsync("docker", ["pull", "alpine:3"]);
     await execFileAsync("docker", ["run", "-d", "--name", controlName, "alpine:3", "sleep", "600"]);
     await mkdir(worldsDirectory);
@@ -167,8 +167,8 @@ if (import.meta.main) await runRecipe(world);
         });
       } catch {}
     }
-    if (previousSnapshotDirectory === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
+    if (previousSnapshotDirectory === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previousSnapshotDirectory;
     await rm(root, { recursive: true, force: true });
   }
 }, 180_000);

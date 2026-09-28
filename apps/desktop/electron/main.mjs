@@ -1,5 +1,5 @@
 import { processBlankSlateProfile, resolveBlankSlateLaunch } from "./blank-slate-profile.mjs";
-import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@openwork/types/den/desktop-policies-runtime";
+import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@harness/types/den/desktop-policies-runtime";
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import net from "node:net";
@@ -18,7 +18,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { globalOpencodeConfigDir, workspaceOpencodeConfigCandidates } from "@openwork/paths";
+import { globalOpencodeConfigDir, workspaceOpencodeConfigCandidates } from "@harness/paths";
 
 import { configureFakeMediaForTests, installMediaPermissionHandlers } from "./media-permissions.mjs";
 import { registerMigrationIpc } from "./migration.mjs";
@@ -82,11 +82,6 @@ import {
 } from "./brand-icon-windows.mjs";
 import { resetMacDockIcon } from "./brand-icon-darwin.mjs";
 import { createDesktopVaultKeyProvider } from "./secure-vault-key.mjs";
-import {
-  clearOpenworkSentrySession,
-  initOpenworkSentry,
-  setOpenworkSentrySession,
-} from "./sentry.mjs";
 import { installStdioErrorHandlers } from "./stdio-errors.mjs";
 import {
   createRendererCrashRecovery,
@@ -119,19 +114,19 @@ const {
   systemPreferences,
 } = require("electron");
 const pty = require(["node", "pty"].join("-"));
-const NATIVE_DEEP_LINK_EVENT = "openwork:deep-link-native";
-const AUTOMATION_RUNNER_CREDENTIAL_REJECTED_EVENT = "openwork:automation-runner:credential-rejected";
-const isDevMode = process.env.OPENWORK_DEV_MODE === "1";
+const NATIVE_DEEP_LINK_EVENT = "harness:deep-link-native";
+const AUTOMATION_RUNNER_CREDENTIAL_REJECTED_EVENT = "harness:automation-runner:credential-rejected";
+const isDevMode = process.env.HARNESS_DEV_MODE === "1";
 const DESKTOP_DISTRIBUTION = resolveDesktopDistribution({
   isPackaged: app.isPackaged,
-  packageFlavor: Reflect.get(desktopPackageMetadata, "openworkDistribution"),
-  environmentFlavor: process.env.OPENWORK_DESKTOP_DISTRIBUTION,
+  packageFlavor: Reflect.get(desktopPackageMetadata, "harnessDistribution"),
+  environmentFlavor: process.env.HARNESS_DESKTOP_DISTRIBUTION,
 });
 const TAURI_APP_IDENTIFIER = DESKTOP_DISTRIBUTION.appIdentifier;
 const DEV_APP_IDENTIFIER = `${DESKTOP_DISTRIBUTION.appIdentifier}.dev`;
 const DESKTOP_PROTOCOL_SCHEME = DESKTOP_DISTRIBUTION.protocolScheme;
 const DEFAULT_APP_NAME =
-  (!app.isPackaged ? process.env.OPENWORK_ELECTRON_APP_NAME?.trim() : "") ||
+  (!app.isPackaged ? process.env.HARNESS_ELECTRON_APP_NAME?.trim() : "") ||
   (isDevMode ? `${DESKTOP_DISTRIBUTION.appName} - Dev` : DESKTOP_DISTRIBUTION.appName);
 const BLANK_SLATE_LAUNCH = resolveBlankSlateLaunch({
   appName: DEFAULT_APP_NAME,
@@ -139,24 +134,28 @@ const BLANK_SLATE_LAUNCH = resolveBlankSlateLaunch({
 });
 const APP_NAME = BLANK_SLATE_LAUNCH.appName;
 let currentDisplayAppName = APP_NAME;
+const WINDOW_TITLE_SUFFIX = "Local Agent Desktop";
+/** Window chrome title, e.g. "Harness - Local Agent Desktop"; the app/dock name stays APP_NAME. */
+function mainWindowTitle(appName = currentDisplayAppName) {
+  return `${appName} - ${WINDOW_TITLE_SUFFIX}`;
+}
+/** Lets brand-name updates retitle the window without dropping the suffix. */
+function titledMainWindow() {
+  return mainWindow ? { setTitle: (appName) => mainWindow?.setTitle(mainWindowTitle(appName)) } : null;
+}
 installStdioErrorHandlers();
 installSocketTypeOfServiceGuard();
-await initOpenworkSentry({
-  app,
-  distribution: DESKTOP_DISTRIBUTION,
-  packageMetadata: desktopPackageMetadata,
-});
 const BASE_APP_IDENTIFIER = isDevMode ? DEV_APP_IDENTIFIER : TAURI_APP_IDENTIFIER;
 const APP_IDENTIFIER = resolveAppIdentifier({
-  appIdentifierOverride: process.env.OPENWORK_ELECTRON_APP_IDENTIFIER,
+  appIdentifierOverride: process.env.HARNESS_ELECTRON_APP_IDENTIFIER,
   appRootPath: APP_ROOT,
   baseAppIdentifier: BASE_APP_IDENTIFIER,
   devAppIdentifier: DEV_APP_IDENTIFIER,
-  devProfile: process.env.OPENWORK_DEV_PROFILE,
+  devProfile: process.env.HARNESS_DEV_PROFILE,
   isDevMode,
   isPackaged: app.isPackaged,
 });
-if (BLANK_SLATE_LAUNCH.enabled || process.env.OPENWORK_ELECTRON_USE_MOCK_KEYCHAIN === "1") {
+if (BLANK_SLATE_LAUNCH.enabled || process.env.HARNESS_ELECTRON_USE_MOCK_KEYCHAIN === "1") {
   // Fresh, isolated development profiles otherwise trigger macOS's native
   // "Login" keychain prompt as soon as Chromium persists an authenticated
   // cookie. That modal blocks the entire Electron main loop and makes the demo
@@ -164,9 +163,24 @@ if (BLANK_SLATE_LAUNCH.enabled || process.env.OPENWORK_ELECTRON_USE_MOCK_KEYCHAI
   // system keychain normally.
   app.commandLine.appendSwitch("use-mock-keychain");
 }
-const RELEASE_DOWNLOAD_BASE_URL = "https://github.com/different-ai/openwork/releases/latest/download";
-const RELEASE_PAGE_URL = "https://github.com/different-ai/openwork/releases/latest";
-const DOCS_PAGE_URL = "https://openworklabs.com/docs";
+const RELEASE_DOWNLOAD_BASE_URL = "https://github.com/vaishnavjai/harness/releases/latest/download";
+const RELEASE_PAGE_URL = "https://github.com/vaishnavjai/harness/releases/latest";
+const DOCS_PAGE_URL = "https://github.com/vaishnavjai/harness/tree/dev/packages/docs";
+
+/**
+ * The UI-control MCP always runs from code shipped with this app: the
+ * checkout in development, the bundled copy in packaged builds (executed by
+ * Electron's own Node via ELECTRON_RUN_AS_NODE, see getHarnessUiMcpEnvironment).
+ * It is never resolved through npx, which would fetch whatever package owns
+ * the name on the public registry.
+ */
+function resolveHarnessUiMcpCommand() {
+  if (!app.isPackaged) {
+    return ["node", path.resolve(__dirname, "../../..", "packages/harness-ui-mcp/index.mjs")];
+  }
+  return [process.execPath, path.join(process.resourcesPath, "harness-ui-mcp", "harness-ui-mcp.mjs")];
+}
+
 const applicationMenu = createApplicationMenu({
   appName: APP_NAME,
   docsUrl: DOCS_PAGE_URL,
@@ -231,16 +245,16 @@ function killTerminalsForWebContents(webContentsId) {
 // so in-place migration is a no-op for almost every file. Dev mode uses the
 // separate dev identifier so it can run beside the production app.
 //
-// Dev profile precedence: OPENWORK_ELECTRON_USERDATA (explicit profile path)
-// wins over everything; then OPENWORK_ELECTRON_APP_IDENTIFIER; then
-// OPENWORK_DEV_PROFILE in unpackaged dev; then the legacy identifier default.
+// Dev profile precedence: HARNESS_ELECTRON_USERDATA (explicit profile path)
+// wins over everything; then HARNESS_ELECTRON_APP_IDENTIFIER; then
+// HARNESS_DEV_PROFILE in unpackaged dev; then the legacy identifier default.
 app.setName(APP_NAME);
 app.setAppUserModelId(APP_IDENTIFIER);
 if (BLANK_SLATE_LAUNCH.homePath) app.setPath("home", BLANK_SLATE_LAUNCH.homePath);
 if (
   app.isPackaged
   && !BLANK_SLATE_LAUNCH.enabled
-  && process.env.OPENWORK_ELECTRON_DISABLE_PROTOCOL_REGISTRATION !== "1"
+  && process.env.HARNESS_ELECTRON_DISABLE_PROTOCOL_REGISTRATION !== "1"
   && !(process.platform === "linux" && process.env.APPIMAGE)
 ) {
   app.setAsDefaultProtocolClient(DESKTOP_PROTOCOL_SCHEME);
@@ -248,7 +262,7 @@ if (
 const userDataPath = BLANK_SLATE_LAUNCH.userDataPath ?? resolveUserDataPath({
   appDataPath: app.getPath("appData"),
   appIdentifier: APP_IDENTIFIER,
-  userDataOverride: process.env.OPENWORK_ELECTRON_USERDATA,
+  userDataOverride: process.env.HARNESS_ELECTRON_USERDATA,
 });
 app.setPath("userData", userDataPath);
 const linuxDesktopIntegration = createLinuxDesktopIntegration({
@@ -401,7 +415,7 @@ async function resolveArchitectureInfo() {
   const systemArch = resolveSystemArch();
   const version = app.getVersion();
   const targetArch = systemArch === "arm64" || systemArch === "x64" ? systemArch : appArch;
-  const assetName = `openwork-${platformDownloadSlug()}-${downloadAssetArch(targetArch)}-${version}.${downloadAssetExtension()}`;
+  const assetName = `harness-${platformDownloadSlug()}-${downloadAssetArch(targetArch)}-${version}.${downloadAssetExtension()}`;
   // The public release manifest only matters when the installed build does not
   // match the machine; a matching install never shows a download, so it must
   // not contact the release host (an unactivated enterprise install in
@@ -488,7 +502,7 @@ function brandIconWindowsPath() {
 }
 
 function defaultAppWindowsIconPath() {
-  return path.join(app.getPath("userData"), "openwork-stock.ico");
+  return path.join(app.getPath("userData"), "harness-stock.ico");
 }
 
 let cachedWindowsProgramsPath = null;
@@ -713,7 +727,7 @@ async function focusMainWindowFromNotification() {
 
 /**
  * @param {unknown} input
- * @returns {import("@openwork/types/desktop-ipc").DesktopNotificationResult}
+ * @returns {import("@harness/types/desktop-ipc").DesktopNotificationResult}
  */
 function showDesktopNotification(input) {
   if (!ElectronNotification.isSupported()) {
@@ -989,7 +1003,7 @@ if (process.platform === "darwin" && INITIAL_APP_ICON_IMAGE && !INITIAL_APP_ICON
 }
 
 // Expose Chrome DevTools Protocol so the opencode-chrome-devtools plugin can
-// drive the built-in browser panel.  Use OPENWORK_ELECTRON_REMOTE_DEBUG_PORT to
+// drive the built-in browser panel.  Use HARNESS_ELECTRON_REMOTE_DEBUG_PORT to
 // pin a specific port; otherwise probe for a free one starting at 9223.
 // Must resolve before app.commandLine.appendSwitch (before `ready`).
 function probePort(port) {
@@ -1010,7 +1024,7 @@ async function findFreeCdpPort(candidates) {
 }
 
 const explicitCdpPort = Number.parseInt(
-  process.env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT?.trim() ?? "",
+  process.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT?.trim() ?? "",
   10,
 );
 const remoteDebugPort = Number.isFinite(explicitCdpPort) && explicitCdpPort > 0
@@ -1021,11 +1035,11 @@ if (remoteDebugPort > 0) {
   app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
 }
 // Make the resolved port available to the embedded server so it flows into
-// agent instructions via ensureOpenworkAgent → resolveAgentTemplate.
-process.env.OPENWORK_ELECTRON_REMOTE_DEBUG_PORT = String(remoteDebugPort);
+// agent instructions via ensureHarnessAgent → resolveAgentTemplate.
+process.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT = String(remoteDebugPort);
 if (isDevMode && !app.isPackaged) {
   const cdpAddress = remoteDebugPort > 0 ? `http://127.0.0.1:${remoteDebugPort}` : "disabled";
-  console.log(`[openwork] dev profile=${app.getPath("userData")} cdp=${cdpAddress}`);
+  console.log(`[harness] dev profile=${app.getPath("userData")} cdp=${cdpAddress}`);
 }
 
 // Apply extra Chromium flags from ELECTRON_EXTRA_LAUNCH_ARGS.
@@ -1043,11 +1057,11 @@ if (extraLaunchArgs) {
     }
   }
 }
-configureFakeMediaForTests(app, envFlagEnabled("OPENWORK_ELECTRON_FAKE_MEDIA"));
-const DEFAULT_DEN_BASE_URL = "https://app.openworklabs.com";
+configureFakeMediaForTests(app, envFlagEnabled("HARNESS_ELECTRON_FAKE_MEDIA"));
+const DEFAULT_DEN_BASE_URL = "https://app.harness.invalid";
 const DEFAULT_LOCAL_BASE_URL = "http://127.0.0.1:4096";
 const FORCE_DESKTOP_REQUIRE_SIGNIN =
-  DESKTOP_DISTRIBUTION.requireSignin || envFlagEnabled("OPENWORK_FORCE_SIGNIN");
+  DESKTOP_DISTRIBUTION.requireSignin || envFlagEnabled("HARNESS_FORCE_SIGNIN");
 const DEFAULT_DESKTOP_REQUIRE_SIGNIN = FORCE_DESKTOP_REQUIRE_SIGNIN;
 
 function envFlagEnabled(name) {
@@ -1072,7 +1086,7 @@ const IDLE_ENGINE_INFO = Object.freeze({
   lastStderr: null,
 });
 
-const IDLE_OPENWORK_SERVER_INFO = Object.freeze({
+const IDLE_HARNESS_SERVER_INFO = Object.freeze({
   running: false,
   remoteAccessEnabled: false,
   host: null,
@@ -1117,9 +1131,9 @@ browserPanel = createBrowserPanel({
     if (!DESKTOP_POLICY_ENFORCEMENT_ENABLED) return;
     let code = "policy_unavailable";
     try {
-      const server = await runtimeManager.openworkServerInfo();
+      const server = await runtimeManager.harnessServerInfo();
       if (!server.baseUrl || !(server.clientToken ?? server.ownerToken)) throw new Error("Policy service unavailable");
-      // loopback-fetch: the policy service is the locally managed OpenWork server.
+      // loopback-fetch: the policy service is the locally managed Harness server.
       const response = await fetch(`${server.baseUrl}/managed-policy/evaluate`, {
         method: "POST",
         headers: { Authorization: `Bearer ${server.clientToken ?? server.ownerToken}`, "Content-Type": "application/json" },
@@ -1170,7 +1184,7 @@ const connectLinkReplayGuard = createConnectLinkReplayGuard({
 
 /**
  * @param {string} rawUrl
- * @returns {import("@openwork/types/connect-link").ConnectLinkVerifyResult}
+ * @returns {import("@harness/types/connect-link").ConnectLinkVerifyResult}
  */
 function verifyConnectLink(rawUrl) {
   return verifyConnectLinkUrl(String(rawUrl ?? ""), {
@@ -1241,7 +1255,7 @@ function forwardedDeepLinks(argv) {
     .filter(
       (entry) =>
         entry.startsWith(`${DESKTOP_PROTOCOL_SCHEME}://`) ||
-        (!app.isPackaged && entry.startsWith("openwork-dev://")) ||
+        (!app.isPackaged && entry.startsWith("harness-dev://")) ||
         entry.startsWith("https://") ||
         entry.startsWith("http://"),
     );
@@ -1335,8 +1349,8 @@ const runtimeManager = createRuntimeManager({
   app,
   desktopRoot: path.resolve(__dirname, ".."),
   listLocalWorkspacePaths: () => workspaceStore.listLocalWorkspacePaths(),
-  // When OPENWORK_ENCRYPTION_KEY is set, skip the safeStorage provider so it does not shadow the documented env override used by CI/headless/enterprise.
-  localManagedMcpVaultKey: process.env.OPENWORK_ENCRYPTION_KEY?.trim()
+  // When HARNESS_ENCRYPTION_KEY is set, skip the safeStorage provider so it does not shadow the documented env override used by CI/headless/enterprise.
+  localManagedMcpVaultKey: process.env.HARNESS_ENCRYPTION_KEY?.trim()
     ? undefined
     : createDesktopVaultKeyProvider({
         filePath: path.join(app.getPath("userData"), "local-managed-mcp-vault-key.bin"),
@@ -1357,7 +1371,7 @@ const desktopAutomationRunner = createDesktopAutomationRunner({
   // rollout only for endpoints trusted before the renderer starts issuing IPC.
   legacyBaseUrls: legacyRunnerBaseUrls,
   getLocalRuntime: async () => {
-    const server = await runtimeManager.openworkServerInfo();
+    const server = await runtimeManager.harnessServerInfo();
     return { baseUrl: server.baseUrl, token: server.clientToken ?? server.ownerToken };
   },
   log: (state) => console.info(`[automation-runner] ${state}`),
@@ -1400,7 +1414,7 @@ const SHUTDOWN_SCREEN_HTML = `<!doctype html>
   <body>
     <main>
       <div class="spinner" aria-hidden="true"></div>
-      <div class="title">Stopping OpenWork services</div>
+      <div class="title">Stopping Harness services</div>
       <div class="body">Closing local workers and background services...</div>
     </main>
   </body>
@@ -1452,22 +1466,22 @@ const quitSequencer = createQuitSequencer({
 });
 const quitInProgress = () => quitSequencer.phase() !== "idle";
 
-function assertOpenworkServerReady(info) {
+function assertHarnessServerReady(info) {
   if (!info?.running) {
-    throw new Error("OpenWork server did not stay running after startup.");
+    throw new Error("Harness server did not stay running after startup.");
   }
   if (!info.baseUrl) {
-    throw new Error("OpenWork server did not report a base URL after startup.");
+    throw new Error("Harness server did not report a base URL after startup.");
   }
   if (!info.ownerToken && !info.clientToken) {
-    throw new Error("OpenWork server did not report an access token after startup.");
+    throw new Error("Harness server did not report an access token after startup.");
   }
   return info;
 }
 
 async function bootRuntimeForSelectedWorkspace() {
-  if (typeof process.env.OPENWORK_EVAL_FATAL_DESKTOP_BOOTSTRAP_FAILURE === "string") {
-    throw new Error(process.env.OPENWORK_EVAL_FATAL_DESKTOP_BOOTSTRAP_FAILURE);
+  if (typeof process.env.HARNESS_EVAL_FATAL_DESKTOP_BOOTSTRAP_FAILURE === "string") {
+    throw new Error(process.env.HARNESS_EVAL_FATAL_DESKTOP_BOOTSTRAP_FAILURE);
   }
   const list = await workspaceStore.readWorkspaceState();
   const selectedId = list.selectedId || list.activeId || list.workspaces[0]?.id || "";
@@ -1523,8 +1537,8 @@ async function bootRuntimeForSelectedWorkspace() {
       watchedId: String(fallback.id ?? ""),
     }).catch(() => undefined);
   }
-  const openworkServer = assertOpenworkServerReady(await runtimeManager.openworkServerInfo());
-  return { ok: true, skipped: false, engine, openworkServer, workspaceId: bootWorkspace.id ?? null };
+  const harnessServer = assertHarnessServerReady(await runtimeManager.harnessServerInfo());
+  return { ok: true, skipped: false, engine, harnessServer, workspaceId: bootWorkspace.id ?? null };
 }
 
 function ensureRuntimeBootstrap() {
@@ -1822,9 +1836,9 @@ function applyNativeTheme(mode) {
 // entry here; handlers receive the ipcMain event followed by the renderer
 // arguments. The @type below asserts this registry against the shared
 // DesktopCommandMap contract (packages/types/src/desktop-ipc.ts): a missing,
-// extra, or renamed command fails `pnpm --filter @openwork/desktop
+// extra, or renamed command fails `pnpm --filter @harness/desktop
 // typecheck:electron`.
-/** @type {import("@openwork/types/desktop-ipc").DesktopCommandHandlers<import("electron").IpcMainInvokeEvent>} */
+/** @type {import("@harness/types/desktop-ipc").DesktopCommandHandlers<import("electron").IpcMainInvokeEvent>} */
 const desktopCommandHandlers = {
   "workspaceBootstrap": async (event, ...args) => {
       return workspaceStore.readWorkspaceState();
@@ -1853,13 +1867,13 @@ const desktopCommandHandlers = {
   "workspaceAddAuthorizedRoot": async (event, ...args) => {
       return workspaceStore.addAuthorizedRoot(args[0] ?? {});
   },
-  "workspaceOpenworkRead": async (event, ...args) => {
-      return workspaceStore.readWorkspaceOpenworkConfig(String(args[0]?.workspacePath ?? "").trim());
+  "workspaceHarnessRead": async (event, ...args) => {
+      return workspaceStore.readWorkspaceHarnessConfig(String(args[0]?.workspacePath ?? "").trim());
   },
-  "workspaceOpenworkWrite": async (event, ...args) => {
-      return workspaceStore.writeWorkspaceOpenworkConfig(
+  "workspaceHarnessWrite": async (event, ...args) => {
+      return workspaceStore.writeWorkspaceHarnessConfig(
         String(args[0]?.workspacePath ?? "").trim(),
-        args[0]?.config ?? workspaceStore.defaultWorkspaceOpenworkConfig(""),
+        args[0]?.config ?? workspaceStore.defaultWorkspaceHarnessConfig(""),
       );
   },
   "workspaceExportConfig": async (event, ...args) => {
@@ -1917,25 +1931,13 @@ const desktopCommandHandlers = {
   "appBuildInfo": async (event, ...args) => {
       return {
         version: app.getVersion(),
-        gitSha: process.env.OPENWORK_GIT_SHA ?? null,
-        buildEpoch: process.env.OPENWORK_BUILD_EPOCH ?? null,
-        openworkDevMode: process.env.OPENWORK_DEV_MODE === "1",
+        gitSha: process.env.HARNESS_GIT_SHA ?? null,
+        buildEpoch: process.env.HARNESS_BUILD_EPOCH ?? null,
+        harnessDevMode: process.env.HARNESS_DEV_MODE === "1",
       };
   },
   "desktopNotificationShow": async (event, ...args) => {
       return showDesktopNotification(args[0] ?? {});
-  },
-  "desktopSentrySetSession": async (event, ...args) => {
-      const input = args[0] ?? {};
-      return {
-        enabled: setOpenworkSentrySession({
-          userId: input.userId,
-          orgId: input.orgId,
-        }),
-      };
-  },
-  "desktopSentryClearSession": async (event, ...args) => {
-      return { enabled: clearOpenworkSentrySession() };
   },
   "desktopIntegrationStatus": async (event, ...args) => {
       return linuxDesktopIntegration.getStatus();
@@ -1950,21 +1952,18 @@ const desktopCommandHandlers = {
   },
   "getUiControlBridgeInfo": async (event, ...args) => {
       try {
-        const raw = await readFile(path.join(app.getPath("userData"), "openwork-ui-control.json"), "utf8");
+        const raw = await readFile(path.join(app.getPath("userData"), "harness-ui-control.json"), "utf8");
         return JSON.parse(raw);
       } catch {
         return null;
       }
   },
-  "getOpenworkUiMcpCommand": async (event, ...args) => {
-      if (process.env.OPENWORK_DEV_MODE === "1") {
-        return ["node", path.resolve(__dirname, "../../..", "packages/openwork-ui-mcp/index.mjs")];
-      }
-      return ["npx", "-y", "openwork-ui-mcp"];
+  "getHarnessUiMcpCommand": async (event, ...args) => {
+      return resolveHarnessUiMcpCommand();
   },
   "getComputerUseState": async () => getComputerUseState(),
   "computerUseAction": async (event, value) => {
-    if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error("Computer Use controls require the main OpenWork window.");
+    if (!mainWindow || event.sender !== mainWindow.webContents || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error("Computer Use controls require the main Harness window.");
     return computerUseAction(value);
   },
   "getComputerUseMcpCommand": async (event, ...args) => {
@@ -1989,9 +1988,11 @@ const desktopCommandHandlers = {
       await openComputerUseSetupApp();
       return checkComputerUsePermissions();
   },
-  "getOpenworkUiMcpEnvironment": async (event, ...args) => {
+  "getHarnessUiMcpEnvironment": async (event, ...args) => {
       return {
-        OPENWORK_UI_CONTROL_DISCOVERY: path.join(app.getPath("userData"), "openwork-ui-control.json"),
+        HARNESS_UI_CONTROL_DISCOVERY: path.join(app.getPath("userData"), "harness-ui-control.json"),
+        // The packaged command runs the bundled script on Electron's own Node.
+        ...(app.isPackaged ? { ELECTRON_RUN_AS_NODE: "1" } : {}),
       };
   },
   "getDesktopBootstrapConfig": async (event, ...args) => {
@@ -2058,7 +2059,7 @@ const desktopCommandHandlers = {
       const config = await persistConnectLinkClaims(verified.claims);
       return { ok: true, config };
   },
-  "nukeOpenworkAndOpencodeConfigPreview": async (event, ...args) => {
+  "nukeHarnessAndOpencodeConfigPreview": async (event, ...args) => {
       return buildNukeManifest({
         env: process.env,
         homedir: os.homedir(),
@@ -2068,7 +2069,7 @@ const desktopCommandHandlers = {
         workspacePaths: await workspaceStore.listLocalWorkspacePaths(),
       });
   },
-  "nukeOpenworkAndOpencodeConfigAndExit": async (event, ...args) => {
+  "nukeHarnessAndOpencodeConfigAndExit": async (event, ...args) => {
       return executeNukeFreshStart({
         app,
         session,
@@ -2086,17 +2087,17 @@ const desktopCommandHandlers = {
         },
       });
   },
-  "sandboxCleanupOpenworkContainers": async (event, ...args) => {
-      return runtimeManager.sandboxCleanupOpenworkContainers();
+  "sandboxCleanupHarnessContainers": async (event, ...args) => {
+      return runtimeManager.sandboxCleanupHarnessContainers();
   },
-  "openworkServerInfo": async (event, ...args) => {
-      return runtimeManager.openworkServerInfo();
+  "harnessServerInfo": async (event, ...args) => {
+      return runtimeManager.harnessServerInfo();
   },
   "automationRunnerConfigure": async (event, ...args) => {
       return desktopAutomationRunner.configure(args[0] ?? null);
   },
-  "openworkServerRestart": async (event, ...args) => {
-      return runtimeManager.openworkServerRestart(args[0] ?? {});
+  "harnessServerRestart": async (event, ...args) => {
+      return runtimeManager.harnessServerRestart(args[0] ?? {});
   },
   "pickDirectory": async (event, ...args) => {
       const options = args[0] ?? {};
@@ -2223,8 +2224,8 @@ const desktopCommandHandlers = {
         String(args[2] ?? ""),
       );
   },
-  "resetOpenworkState": async (event, ...args) => {
-      return workspaceStore.resetOpenworkState();
+  "resetHarnessState": async (event, ...args) => {
+      return workspaceStore.resetHarnessState();
   },
   "resetOpencodeCache": async (event, ...args) => {
       return { removed: [], missing: [], errors: [] };
@@ -2240,7 +2241,7 @@ const desktopCommandHandlers = {
       if (!target) return "Path is required.";
       return shell.openPath(target);
   },
-  "__openWorkspaceFile": async (event, ...args) => {
+  "__harnessspaceFile": async (event, ...args) => {
       // Chat links are renderer-derived text. Resolve them on disk here so only a real
       // file inside the real workspace launches; anything else is revealed, never run.
       const workspaceRoot = String(args[0] ?? "").trim();
@@ -2299,7 +2300,7 @@ const desktopCommandHandlers = {
       runtimeProcess: process,
       app,
       applicationMenu,
-      window: mainWindow,
+      window: titledMainWindow(),
       },
     );
     if (process.platform === "win32" && !BLANK_SLATE_LAUNCH.enabled) {
@@ -2460,7 +2461,7 @@ const desktopCommandHandlers = {
         return false;
       }
       window.webContents.setZoomFactor(factor);
-      window.webContents.send("openwork:browser:bounds-invalidated");
+      window.webContents.send("harness:browser:bounds-invalidated");
       return true;
   },
   "__setNativeTheme": async (event, ...args) => {
@@ -2554,7 +2555,7 @@ function assertDesktopActivation() {
     DESKTOP_DISTRIBUTION,
     workspaceStore.readDesktopBootstrapConfigSync(),
   )) {
-    throw new Error("OpenWork must be activated from your Den portal before this command is available.");
+    throw new Error("Harness must be activated from your Den portal before this command is available.");
   }
 }
 
@@ -2615,7 +2616,7 @@ async function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
-    title: currentDisplayAppName,
+    title: mainWindowTitle(),
     show: false,
     ...(process.platform === "win32" ? { skipTaskbar: true } : {}),
     ...windowAppearanceOptions,
@@ -2643,7 +2644,7 @@ async function createMainWindow() {
   // also reads the initial value, so reloading in fullscreen keeps its layout.
   const publishFullscreen = () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.webContents.send("openwork:window-fullscreen", mainWindow.isFullScreen());
+    mainWindow.webContents.send("harness:window-fullscreen", mainWindow.isFullScreen());
   };
   mainWindow.on("enter-full-screen", publishFullscreen);
   mainWindow.on("leave-full-screen", publishFullscreen);
@@ -2656,12 +2657,12 @@ async function createMainWindow() {
 
   mainWindow.on("page-title-updated", (event) => {
     event.preventDefault();
-    mainWindow?.setTitle(currentDisplayAppName);
+    mainWindow?.setTitle(mainWindowTitle());
   });
-  mainWindow.setTitle(currentDisplayAppName);
+  mainWindow.setTitle(mainWindowTitle());
 
   mainWindow.once("ready-to-show", () => {
-    mainWindow?.setTitle(currentDisplayAppName);
+    mainWindow?.setTitle(mainWindowTitle());
     if (process.platform === "win32") mainWindow?.setSkipTaskbar(false);
     mainWindow?.show();
     flushPendingDeepLinks();
@@ -2680,7 +2681,7 @@ async function createMainWindow() {
     onRepeatedCrash: (details) => {
       dialog.showErrorBox(
         `${APP_NAME} could not recover`,
-        `The app renderer stopped repeatedly (${details.reason ?? "unknown reason"}). Quit and reopen OpenWork. Your workspace files were not deleted.`,
+        `The app renderer stopped repeatedly (${details.reason ?? "unknown reason"}). Quit and reopen Harness. Your workspace files were not deleted.`,
       );
     },
   });
@@ -2734,7 +2735,7 @@ async function createMainWindow() {
     browserPanel.routeBlockedMainWindowNavigation(url);
   });
 
-  const startUrl = process.env.OPENWORK_ELECTRON_START_URL?.trim() || process.env.ELECTRON_START_URL?.trim();
+  const startUrl = process.env.HARNESS_ELECTRON_START_URL?.trim() || process.env.ELECTRON_START_URL?.trim();
   if (startUrl) {
     await mainWindow.loadURL(startUrl);
   } else {
@@ -2746,32 +2747,32 @@ async function createMainWindow() {
   return mainWindow;
 }
 
-ipcMain.on("openwork:desktop-bootstrap-sync", (event) => {
+ipcMain.on("harness:desktop-bootstrap-sync", (event) => {
   event.returnValue = workspaceStore.readDesktopBootstrapConfigSync();
 });
-ipcMain.on("openwork:desktop-distribution-sync", (event) => {
+ipcMain.on("harness:desktop-distribution-sync", (event) => {
   event.returnValue = DESKTOP_DISTRIBUTION;
 });
-ipcMain.on("openwork:window-fullscreen-sync", (event) => {
+ipcMain.on("harness:window-fullscreen-sync", (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false;
 });
-ipcMain.handle("openwork:desktop", handleDesktopInvoke);
-ipcMain.handle("openwork:shell:openExternal", async (_event, url) => {
+ipcMain.handle("harness:desktop", handleDesktopInvoke);
+ipcMain.handle("harness:shell:openExternal", async (_event, url) => {
   if (typeof url !== "string" || url.trim().length === 0) {
     return { ok: false, error: "empty url" };
   }
   return openExternalUrl(url.trim());
 });
-ipcMain.handle("openwork:shell:relaunch", async () => {
+ipcMain.handle("harness:shell:relaunch", async () => {
   app.relaunch();
   app.quit();
 });
-ipcMain.handle("openwork:system:architecture", async () => resolveArchitectureInfo());
-ipcMain.handle("openwork:system:microphoneStatus", async () => {
+ipcMain.handle("harness:system:architecture", async () => resolveArchitectureInfo());
+ipcMain.handle("harness:system:microphoneStatus", async () => {
   if (process.platform !== "darwin") return { platform: process.platform, status: "not-mac" };
   return { platform: process.platform, status: systemPreferences.getMediaAccessStatus("microphone") };
 });
-ipcMain.handle("openwork:system:askMicrophoneAccess", async () => {
+ipcMain.handle("harness:system:askMicrophoneAccess", async () => {
   if (process.platform !== "darwin") return { platform: process.platform, granted: true, status: "not-mac" };
   const before = systemPreferences.getMediaAccessStatus("microphone");
   const granted = await systemPreferences.askForMediaAccess("microphone");
@@ -2780,7 +2781,7 @@ ipcMain.handle("openwork:system:askMicrophoneAccess", async () => {
 });
 
 // ── Terminal IPC ────────────────────────────────────────────────────────
-ipcMain.handle("openwork:terminal:create", async (event, options = {}) => {
+ipcMain.handle("harness:terminal:create", async (event, options = {}) => {
   assertDesktopActivation();
   const cwd = await resolveTerminalCwd(options?.cwd);
   const cols = Number.isFinite(options?.cols) ? Math.max(20, Math.floor(options.cols)) : 80;
@@ -2796,7 +2797,7 @@ ipcMain.handle("openwork:terminal:create", async (event, options = {}) => {
       ...process.env,
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
-      OPENWORK_TERMINAL: "1",
+      HARNESS_TERMINAL: "1",
     },
   });
 
@@ -2804,27 +2805,27 @@ ipcMain.handle("openwork:terminal:create", async (event, options = {}) => {
   event.sender.once("destroyed", () => killTerminalsForWebContents(event.sender.id));
   child.onData((data) => {
     if (event.sender.isDestroyed()) return;
-    event.sender.send("openwork:terminal:data", { terminalId, data });
+    event.sender.send("harness:terminal:data", { terminalId, data });
   });
   child.onExit(({ exitCode, signal }) => {
     terminalProcesses.delete(terminalId);
     if (event.sender.isDestroyed()) return;
-    event.sender.send("openwork:terminal:exit", { terminalId, exitCode, signal });
+    event.sender.send("harness:terminal:exit", { terminalId, exitCode, signal });
   });
 
   return { terminalId };
 });
-ipcMain.handle("openwork:terminal:write", (event, terminalId, data) => {
+ipcMain.handle("harness:terminal:write", (event, terminalId, data) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal || typeof data !== "string") return;
   terminal.process.write(data);
 });
-ipcMain.handle("openwork:terminal:resize", (event, terminalId, cols, rows) => {
+ipcMain.handle("harness:terminal:resize", (event, terminalId, cols, rows) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal || !Number.isFinite(cols) || !Number.isFinite(rows)) return;
   terminal.process.resize(Math.max(20, Math.floor(cols)), Math.max(5, Math.floor(rows)));
 });
-ipcMain.handle("openwork:terminal:kill", (event, terminalId) => {
+ipcMain.handle("harness:terminal:kill", (event, terminalId) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal) return;
   killTerminal(String(terminalId));
@@ -2835,16 +2836,16 @@ browserPanel.registerIpc(ipcMain);
 // app's main frame read the open/last menu as plain data and choose an item.
 if (isDevMode && !app.isPackaged) {
   const fromMainFrame = (event) => Boolean(mainWindow) && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame;
-  ipcMain.handle("openwork:context-menu:inspect", (event) => (fromMainFrame(event) ? nativeContextMenus.inspect() : null));
-  ipcMain.handle("openwork:context-menu:choose", (event, id) => fromMainFrame(event) && nativeContextMenus.choose(id));
-  ipcMain.handle("openwork:context-menu:dismiss", (event) => {
+  ipcMain.handle("harness:context-menu:inspect", (event) => (fromMainFrame(event) ? nativeContextMenus.inspect() : null));
+  ipcMain.handle("harness:context-menu:choose", (event, id) => fromMainFrame(event) && nativeContextMenus.choose(id));
+  ipcMain.handle("harness:context-menu:dismiss", (event) => {
     if (!fromMainFrame(event)) return false;
     const { open } = nativeContextMenus.inspect();
     nativeContextMenus.close();
     return open;
   });
 }
-const browserLoginEvalSeam = !app.isPackaged && process.env.OPENWORK_EVAL_BROWSER_LOGIN_SYNC === "1";
+const browserLoginEvalSeam = !app.isPackaged && process.env.HARNESS_EVAL_BROWSER_LOGIN_SYNC === "1";
 const browserLoginSync = createBrowserLoginSync({
   statePath: path.join(app.getPath("userData"), "browser-login-sync.json"),
   initialPolicyAllowed:
@@ -2863,12 +2864,12 @@ const browserLoginSync = createBrowserLoginSync({
         title: action === "resume" ? "Resume browser login sync?" : action === "configure" ? "Enable browser login sync?" : action === "discover" ? "Look for browser profiles?" : "Read logins from this browser?",
         message: sourceLabel,
         detail: action === "resume"
-          ? "OpenWork will resume reading the sites you selected from this profile. It never changes the source browser."
+          ? "Harness will resume reading the sites you selected from this profile. It never changes the source browser."
           : action === "configure"
-            ? `OpenWork will keep reading login cookies for these sites until you pause or disconnect: ${sites.join(", ")}. It never changes the source browser.`
+            ? `Harness will keep reading login cookies for these sites until you pause or disconnect: ${sites.join(", ")}. It never changes the source browser.`
             : action === "discover"
-              ? "OpenWork will look only for supported browser profile locations. It will not read cookie databases until you choose a profile and confirm again."
-              : "OpenWork will read login metadata from this profile so you can choose sites. Nothing syncs until you confirm those sites, and the source browser is never changed.",
+              ? "Harness will look only for supported browser profile locations. It will not read cookie databases until you choose a profile and confirm again."
+              : "Harness will read login metadata from this profile so you can choose sites. Nothing syncs until you confirm those sites, and the source browser is never changed.",
         noLink: true,
       };
       const result = mainWindow
@@ -2900,10 +2901,10 @@ const { ensureAutoUpdater } = registerUpdaterIpc({
 
 if (!app.requestSingleInstanceLock()) {
   if (isDevMode && !app.isPackaged) {
-    console.error(`[openwork] Another OpenWork dev instance already holds this profile directory:
+    console.error(`[harness] Another Harness dev instance already holds this profile directory:
   ${app.getPath("userData")}
 The second process is exiting so its CDP port is released.
-Run this worktree with an isolated profile: OPENWORK_DEV_PROFILE=auto pnpm dev
+Run this worktree with an isolated profile: HARNESS_DEV_PROFILE=auto pnpm dev
 or use: pnpm dev:worktree`);
     app.exit(1);
     setImmediate(() => process.exit(1));
@@ -3005,8 +3006,8 @@ or use: pnpm dev:worktree`);
     if (firstLaunchWorkspaceFailure) {
       runDetachedTask("show default workspace warning", () => dialog.showMessageBox(win, {
         type: "warning",
-        message: "OpenWork could not prepare its default folder",
-        detail: `OpenWork is open without a workspace. Use Add workspace in the sidebar to choose another folder.\n\n${firstLaunchWorkspaceFailure.error}`,
+        message: "Harness could not prepare its default folder",
+        detail: `Harness is open without a workspace. Use Add workspace in the sidebar to choose another folder.\n\n${firstLaunchWorkspaceFailure.error}`,
         buttons: ["Continue"],
       }));
     }
@@ -3036,7 +3037,7 @@ or use: pnpm dev:worktree`);
     if (quitInProgress()) return;
     dialog.showErrorBox(
       `${APP_NAME} could not start`,
-      "OpenWork hit an unexpected startup error. Quit and reopen the app. If it continues, switch to a Stable build and share the diagnostics with support.",
+      "Harness hit an unexpected startup error. Quit and reopen the app. If it continues, switch to a Stable build and share the diagnostics with support.",
     );
     app.quit();
   });

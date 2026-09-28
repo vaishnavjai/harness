@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import type { CdpClient, Surface } from "@openwork/cdp";
+import type { CdpClient, Surface } from "@harness/cdp";
 import { withTestEvidence } from "../src/ambient.ts";
 import { screenshot } from "../src/screenshot.ts";
 import type { ScreenshotArtifact } from "../src/screenshot.ts";
@@ -44,7 +44,7 @@ async function payload(dir: string): Promise<Record<string, unknown>> {
 }
 
 test("test evidence writes visual validations, assertions, failures, and unvalidated screenshots", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-"));
   try {
     const testEvidence = createTestEvidence({ name: "body cam", outDir: dir });
     const passing = screenshotArtifact("passing");
@@ -109,7 +109,7 @@ test("test evidence writes visual validations, assertions, failures, and unvalid
 });
 
 test("a screenshot captioned with its step name reads as that step in the record and on disk", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-step-caption-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-step-caption-"));
   try {
     const testEvidence = createTestEvidence({ name: "toolbar", outDir: dir });
     testEvidence.recordScreenshot(screenshotArtifact("old toolbar"), { caption: "before: the toolbar shows Suspend" });
@@ -133,7 +133,7 @@ test("a screenshot captioned with its step name reads as that step in the record
 });
 
 test("test evidence writes a JSON artifact and lists it in the test run", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-json-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-json-"));
   try {
     const testEvidence = createTestEvidence({ name: "world evidence", outDir: dir });
     testEvidence.recordJsonArtifact("world-snapshot primary", { version: 1, name: "primary" });
@@ -155,9 +155,9 @@ test("test evidence writes a JSON artifact and lists it in the test run", async 
 });
 
 test("test evidence records the selected engine in JSON and the HTML header", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-engine-"));
-  const previous = process.env.OPENWORK_EVAL_ENGINE;
-  process.env.OPENWORK_EVAL_ENGINE = "v2";
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-engine-"));
+  const previous = process.env.HARNESS_EVAL_ENGINE;
+  process.env.HARNESS_EVAL_ENGINE = "v2";
   try {
     const testEvidence = createTestEvidence({ name: "engine lane", outDir: dir });
     await testEvidence.close();
@@ -166,31 +166,31 @@ test("test evidence records the selected engine in JSON and the HTML header", as
     assert.equal(testRun.engine, "v2");
     assert.match(await readFile(join(dir, "index.html"), "utf8"), /engine v2/);
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_EVAL_ENGINE;
-    else process.env.OPENWORK_EVAL_ENGINE = previous;
+    if (previous === undefined) delete process.env.HARNESS_EVAL_ENGINE;
+    else process.env.HARNESS_EVAL_ENGINE = previous;
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("test evidence records the sandbox ref next to the runner gitSha under Daytona placement only", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-ref-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-ref-"));
   const previous = {
-    OPENWORK_WORLD_PLACE: process.env.OPENWORK_WORLD_PLACE,
-    OPENWORK_EVAL_DAYTONA: process.env.OPENWORK_EVAL_DAYTONA,
-    OPENWORK_EVAL_REF: process.env.OPENWORK_EVAL_REF,
+    HARNESS_WORLD_PLACE: process.env.HARNESS_WORLD_PLACE,
+    HARNESS_EVAL_DAYTONA: process.env.HARNESS_EVAL_DAYTONA,
+    HARNESS_EVAL_REF: process.env.HARNESS_EVAL_REF,
   };
   try {
-    process.env.OPENWORK_WORLD_PLACE = "daytona";
-    process.env.OPENWORK_EVAL_DAYTONA = "1";
-    process.env.OPENWORK_EVAL_REF = "0123456789abcdef0123456789abcdef01234567";
+    process.env.HARNESS_WORLD_PLACE = "daytona";
+    process.env.HARNESS_EVAL_DAYTONA = "1";
+    process.env.HARNESS_EVAL_REF = "0123456789abcdef0123456789abcdef01234567";
     await createTestEvidence({ name: "ref lane", outDir: dir }).close();
     const daytonaRun = await payload(dir);
     assert.equal(daytonaRun.sandboxRef, "0123456789abcdef0123456789abcdef01234567");
     assert.equal(typeof daytonaRun.gitSha, "string");
     assert.match(await readFile(join(dir, "index.html"), "utf8"), /sandbox ref 0123456789abcdef/);
 
-    process.env.OPENWORK_WORLD_PLACE = "local";
-    delete process.env.OPENWORK_EVAL_DAYTONA;
+    process.env.HARNESS_WORLD_PLACE = "local";
+    delete process.env.HARNESS_EVAL_DAYTONA;
     await createTestEvidence({ name: "ref lane", outDir: dir }).close();
     const localRun = await payload(dir);
     assert.equal(localRun.sandboxRef, undefined);
@@ -205,7 +205,7 @@ test("test evidence records the sandbox ref next to the runner gitSha under Dayt
 });
 
 test("test evidence accepts unchanged screenshots and only lets one validation use their pixel hash", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-retake-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-retake-"));
   try {
     const testEvidence = createTestEvidence({ name: "retakes", outDir: dir });
     const duplicate = screenshotArtifact("same pixels");
@@ -248,7 +248,7 @@ test("test evidence accepts unchanged screenshots and only lets one validation u
 
 for (const caption of [undefined, 'after: <guide> grows & keeps "its beginning"']) {
   test(`screenshot persists ${caption === undefined ? "the default" : "an explicit escaped"} caption in ambient evidence`, async () => {
-    const dir = await mkdtemp(join(tmpdir(), "openwork-test-evidence-screenshot-"));
+    const dir = await mkdtemp(join(tmpdir(), "harness-test-evidence-screenshot-"));
     try {
       const png = Buffer.from("ambient screenshot pixels");
       const methods: string[] = [];

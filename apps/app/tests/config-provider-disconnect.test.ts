@@ -130,11 +130,11 @@ function createHarness(hooks: {
     providerBaseUrl: () => `http://127.0.0.1:1/${workspace.id}`,
     selectedWorkspaceRoot: () => workspace.path,
     runtimeWorkspaceId: () => null,
-    openworkServer: {
+    harnessServer: {
       getSnapshot: () => ({
-        openworkServerStatus: "disconnected",
-        openworkServerClient: null,
-        openworkServerCapabilities: null,
+        harnessServerStatus: "disconnected",
+        harnessServerClient: null,
+        harnessServerCapabilities: null,
       }),
     },
     setProviders: (value) => {

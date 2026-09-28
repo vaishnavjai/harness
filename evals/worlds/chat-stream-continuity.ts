@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { browserScript, type Surface } from "@openwork/cdp";
-import { resolveEvalEngine, SkipError, type Place, type Seed } from "@openwork/env";
-import { assertNoLiveSecret, liveOpenAiEnabled, liveOpenAiModel } from "@openwork/behaviors";
+import { browserScript, type Surface } from "@harness/cdp";
+import { resolveEvalEngine, SkipError, type Place, type Seed } from "@harness/env";
+import { assertNoLiveSecret, liveOpenAiEnabled, liveOpenAiModel } from "@harness/behaviors";
 import { chatContinuity } from "./chat-continuity.ts";
 import { configureProvider } from "./chat.ts";
 
@@ -39,7 +39,7 @@ export const liveContinuityPrompt = "Write an original practical guide to observ
   + "not an outline or a sample. Do not use tools, files, or external research.";
 
 export async function chatStreamContinuityLiveWeb(seed: Seed, context: { place: Place }) {
-  if (!liveOpenAiEnabled() || !process.env.OPENAI_API_KEY?.trim()) throw new SkipError("Live continuity requires OPENWORK_EVAL_LIVE_OPENAI=1 and OPENAI_API_KEY");
+  if (!liveOpenAiEnabled() || !process.env.OPENAI_API_KEY?.trim()) throw new SkipError("Live continuity requires HARNESS_EVAL_LIVE_OPENAI=1 and OPENAI_API_KEY");
   if (context.place.kind !== "local" || resolveEvalEngine() !== "v1") throw new SkipError("Live continuity requires --engine v1 --surface web --local");
   const modelId = liveOpenAiModel();
   const providerId = "openai";
@@ -48,13 +48,13 @@ export async function chatStreamContinuityLiveWeb(seed: Seed, context: { place: 
   const manifest: unknown = JSON.parse(await readFile(resolve(import.meta.dirname, "../../tmp/worlds/runtime", app.handle.name, "runtime.json"), "utf8"));
   if (!manifest || typeof manifest !== "object" || !("hostToken" in manifest) || typeof manifest.hostToken !== "string"
     || !("token" in manifest) || typeof manifest.token !== "string"
-    || !("openworkUrl" in manifest) || manifest.openworkUrl !== app.openworkUrl) throw new Error("Owned app-web runtime receipt mismatch");
+    || !("harnessUrl" in manifest) || manifest.harnessUrl !== app.harnessUrl) throw new Error("Owned app-web runtime receipt mismatch");
   const clientToken = manifest.token;
-  const headers = { "x-openwork-host-token": manifest.hostToken, "content-type": "application/json" };
+  const headers = { "x-harness-host-token": manifest.hostToken, "content-type": "application/json" };
   const provision = async (path: string, method: string, body: unknown) => {
     let response: Response;
     try {
-      response = await fetch(app.openworkUrl + path, {
+      response = await fetch(app.harnessUrl + path, {
         method, headers, body: JSON.stringify(body), redirect: "error", signal: AbortSignal.timeout(60_000),
       });
     } catch { throw new Error(`Live provider provisioning failed at ${path} (details suppressed)`); }
@@ -82,7 +82,7 @@ export async function chatStreamContinuityLiveWeb(seed: Seed, context: { place: 
   return {
     app, workspace, session, neighbor, modelId, providerId, continuity,
     readNative: async (id: string) => {
-      const response = await fetch(app.openworkUrl + nativePath(id), {
+      const response = await fetch(app.harnessUrl + nativePath(id), {
         headers: { Authorization: `Bearer ${clientToken}` }, redirect: "error", signal: AbortSignal.timeout(15_000),
       });
       const body: unknown = await response.json().catch(() => {
@@ -96,7 +96,7 @@ export async function chatStreamContinuityLiveWeb(seed: Seed, context: { place: 
       actualSourceSha: app.actualSourceSha, hostKind: app.handle.hostKind, mockCount: Object.keys(app.mocks).length,
       // Read-only renderer identity has no typed probe; this observes the browser/bridge without credentials or state changes.
       ...(await seed.evalIn(app, () => ({
-        electronBridge: Boolean(window.__OPENWORK_ELECTRON__), browser: navigator.userAgent,
+        electronBridge: Boolean(window.__HARNESS_ELECTRON__), browser: navigator.userAgent,
       }))),
     }),
     [Symbol.asyncDispose]: () => engineHttpEvents[Symbol.asyncDispose](),
@@ -104,10 +104,10 @@ export async function chatStreamContinuityLiveWeb(seed: Seed, context: { place: 
 }
 
 function requestedPlacement(place: Place): Place["kind"] {
-  const value = process.env.OPENWORK_WORLD_PLACE?.trim();
+  const value = process.env.HARNESS_WORLD_PLACE?.trim();
   if (value === undefined || value === "") return place.kind;
   if (value !== "local" && value !== "daytona") {
-    throw new Error(`OPENWORK_WORLD_PLACE must be local or daytona; received ${JSON.stringify(value)}.`);
+    throw new Error(`HARNESS_WORLD_PLACE must be local or daytona; received ${JSON.stringify(value)}.`);
   }
   return value;
 }
@@ -204,16 +204,16 @@ export async function chatStreamContinuityWeb(seed: Seed, context: { place: Plac
     providerFinalRequests: async (promptMarker = streamedContinuityMarker) => (await agentMock.agentRequests({ promptMarker }))
       .filter((request) => request.kind === "final"),
     readNative: (sessionId: string) => seed.evalIn(app, browserScript(async (path) => {
-      const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+      const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
       const response = await fetch(base + path, {
-        headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+        headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
       });
       return { status: response.status, text: await response.text() };
     }, [nativePath(sessionId)]), { awaitPromise: true, timeoutMs: 30_000 }),
     runtimeFacts: async () => ({
       ...(await seed.evalIn(app, browserScript(async (workspaceId, engine, providerId, modelId, expectedOrigin) => {
-      const port = localStorage.getItem("openwork.server.port") ?? "";
-      const token = localStorage.getItem("openwork.server.token") ?? "";
+      const port = localStorage.getItem("harness.server.port") ?? "";
+      const token = localStorage.getItem("harness.server.token") ?? "";
       const base = "http://127.0.0.1:" + port;
       const headers = { Authorization: "Bearer " + token };
       const [healthResponse, statusResponse, nativeResponse] = await Promise.all([
@@ -226,10 +226,10 @@ export async function chatStreamContinuityWeb(seed: Seed, context: { place: Plac
       const status = typeof rawStatus === "object" && rawStatus !== null && !Array.isArray(rawStatus) ? rawStatus : {};
       const nativeText = await nativeResponse.text();
       return {
-        surface: window.__OPENWORK_ELECTRON__ ? "electron" : "web",
+        surface: window.__HARNESS_ELECTRON__ ? "electron" : "web",
         origin: location.origin,
         expectedOrigin,
-        electronBridge: Boolean(window.__OPENWORK_ELECTRON__),
+        electronBridge: Boolean(window.__HARNESS_ELECTRON__),
         browser: navigator.userAgent,
         tokenPresent: token.length > 0,
         serverPortPresent: port.length > 0,

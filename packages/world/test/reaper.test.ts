@@ -26,7 +26,7 @@ function alive(pid: number): boolean {
 }
 
 test("docker reaping uses force/volumes and recognizes missing containers", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-docker-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-docker-"));
   try {
     const path = join(root, "world.ledger.jsonl");
     const calls: Array<{ command: string; args: string[]; timeoutMs: number }> = [];
@@ -57,7 +57,7 @@ test("docker reaping uses force/volumes and recognizes missing containers", asyn
 });
 
 test("docker-volume reaping uses volume rm and recognizes missing volumes", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-volume-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-volume-"));
   try {
     const path = join(root, "world.ledger.jsonl");
     const calls: string[][] = [];
@@ -78,7 +78,7 @@ test("docker-volume reaping uses volume rm and recognizes missing volumes", asyn
 });
 
 test("unknown resources are skipped and remain retryable", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-unknown-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-unknown-"));
   try {
     const path = join(root, "world.ledger.jsonl");
     const entry = resource("unknown", "thing");
@@ -92,7 +92,7 @@ test("unknown resources are skipped and remain retryable", async () => {
 });
 
 test("process reaping refuses a live pid without an identity marker", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-process-marker-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-process-marker-"));
   try {
     const path = join(root, "world.ledger.jsonl");
     const entry = resource("process", String(process.pid));
@@ -106,7 +106,7 @@ test("process reaping refuses a live pid without an identity marker", async () =
 });
 
 test("process reaping leaves a mismatched real child alive", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-process-mismatch-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-process-mismatch-"));
   const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"]);
   try {
     await once(child, "spawn");
@@ -124,8 +124,8 @@ test("process reaping leaves a mismatched real child alive", async () => {
 });
 
 test("process reaping terminates a real child with a matching command", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-process-match-"));
-  const marker = "openwork_reaper_identity_marker";
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-process-match-"));
+  const marker = "harness_reaper_identity_marker";
   const child = spawn(process.execPath, ["-e", `setInterval(() => {}, 1000); // ${marker}`]);
   try {
     await once(child, "spawn");
@@ -144,7 +144,7 @@ test("process reaping terminates a real child with a matching command", async ()
 });
 
 test("tmpdir reaping refuses paths outside configured roots", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-outside-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-outside-"));
   try {
     const outside = join(root, "outside");
     await mkdir(outside);
@@ -165,8 +165,8 @@ test("tmpdir reaping refuses paths outside configured roots", async () => {
 });
 
 test("tmpdir reaping removes paths below the OS temp directory", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-tmpdir-"));
-  const ledgerRoot = await mkdtemp(join(tmpdir(), "openwork-world-reaper-ledger-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-tmpdir-"));
+  const ledgerRoot = await mkdtemp(join(tmpdir(), "harness-world-reaper-ledger-"));
   try {
     await writeFile(join(root, "removed"), "removed", "utf8");
     const path = join(ledgerRoot, "world.ledger.jsonl");
@@ -183,8 +183,8 @@ test("tmpdir reaping removes paths below the OS temp directory", async () => {
 });
 
 test("retained resources stay by default and are removed by purge", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-world-reaper-retain-"));
-  const ledgerRoot = await mkdtemp(join(tmpdir(), "openwork-world-reaper-retain-ledger-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-world-reaper-retain-"));
+  const ledgerRoot = await mkdtemp(join(tmpdir(), "harness-world-reaper-retain-ledger-"));
   try {
     const path = join(ledgerRoot, "world.ledger.jsonl");
     const entry = resource("tmpdir", root, { retain: true });

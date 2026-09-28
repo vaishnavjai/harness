@@ -6,7 +6,7 @@ import { readLocalProviderApiKeys } from "./opencode-v2-local-auth.js";
 import { mapRuntimeProvidersToV2Specs } from "./engine-v2-preview.js";
 
 test("local API-key changes and deletion are read afresh, without copying OAuth tokens", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "openwork-v2-auth-"));
+  const dir = await mkdtemp(join(tmpdir(), "harness-v2-auth-"));
   const path = join(dir, "auth.json");
   try {
     expect((await readLocalProviderApiKeys(path)).size).toBe(0);

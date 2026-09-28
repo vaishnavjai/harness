@@ -19,15 +19,15 @@ test("UI control commands never activate the desktop window implicitly", async (
 });
 
 test("UI control failures are logged locally without exposing exception details", async () => {
-  const userData = await mkdtemp(path.join(os.tmpdir(), "openwork-ui-control-"));
+  const userData = await mkdtemp(path.join(os.tmpdir(), "harness-ui-control-"));
   const failure = new Error("private renderer failure");
   const logged = [];
   const originalConsoleError = console.error;
   console.error = (...args) => logged.push(args);
   const server = createUiControlServer({
     app: { getPath: () => userData },
-    appName: "OpenWork",
-    appIdentifier: "com.differentai.openwork",
+    appName: "Harness",
+    appIdentifier: "com.vaishnavjai.harness",
     getWindow: async () => { throw failure; },
     browserTask: async () => { throw new Error("private website content"); },
     listWebMcpTools: () => ({ ok: false, error: "The built-in browser is not ready." }),
@@ -36,14 +36,14 @@ test("UI control failures are logged locally without exposing exception details"
 
   try {
     await server.start();
-    const discovery = JSON.parse(await readFile(path.join(userData, "openwork-ui-control.json"), "utf8"));
+    const discovery = JSON.parse(await readFile(path.join(userData, "harness-ui-control.json"), "utf8"));
     const response = await fetch(`${discovery.baseUrl}/snapshot`, {
       headers: { Authorization: `Bearer ${discovery.token}` },
     });
     const payload = await response.json();
 
     assert.equal(response.status, 500);
-    assert.deepEqual(payload, { ok: false, error: "OpenWork UI control request failed." });
+    assert.deepEqual(payload, { ok: false, error: "Harness UI control request failed." });
     assert.equal(logged[0]?.[0], "[ui-control] request failed");
     assert.equal(logged[0]?.[1], failure);
     assert.doesNotMatch(JSON.stringify(payload), /private renderer failure/);

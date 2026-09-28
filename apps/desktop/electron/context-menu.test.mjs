@@ -3,7 +3,7 @@ import { EventEmitter } from "node:events";
 import test from "node:test";
 import { contentMenuTemplate, contextMenuTemplate, createNativeContextMenus, editingMenuTemplate } from "./context-menu.mjs";
 
-/** @typedef {import("@openwork/types/desktop-ipc").NativeContextMenuItem} NativeContextMenuItem */
+/** @typedef {import("@harness/types/desktop-ipc").NativeContextMenuItem} NativeContextMenuItem */
 
 /** @returns {NativeContextMenuItem} */
 const item = (id, overrides = {}) => ({ type: "item", id, label: id, ...overrides });

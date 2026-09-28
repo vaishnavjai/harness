@@ -1,8 +1,8 @@
-import type { OpenworkMcpAppResource, OpenworkServerClient } from "@/app/lib/openwork-server";
+import type { HarnessMcpAppResource, HarnessServerClient } from "@/app/lib/harness-server";
 
 /** The host surface owns this value. Never derive it from the selected workspace or App HTML. */
 export type McpAppOrigin = {
-  client: OpenworkServerClient;
+  client: HarnessServerClient;
   workspaceId: string;
   sessionId: string | null;
   engine?: "v1" | "v2";
@@ -24,13 +24,13 @@ export function snapshotMcpAppArguments(args?: Record<string, unknown>) {
 
 export function createMcpAppActions(
   origin: McpAppOrigin,
-  app: OpenworkMcpAppResource,
+  app: HarnessMcpAppResource,
 ) {
   let active = true;
   const assertActive = () => {
     if (!active) throw new Error("This App view has closed or changed. Reopen it before using its actions.");
     if (origin.readOnly) throw new Error("This view is read-only and cannot perform App actions.");
-    if (!app.launchId) throw new Error("This App has no live launch context. Update OpenWork and reopen the App.");
+    if (!app.launchId) throw new Error("This App has no live launch context. Update Harness and reopen the App.");
   };
   return {
     dispose: () => { active = false; },

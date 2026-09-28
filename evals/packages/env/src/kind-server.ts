@@ -1,4 +1,4 @@
-import type { DenRef, DenSession } from "@openwork/behaviors";
+import type { DenRef, DenSession } from "@harness/behaviors";
 import type { Den } from "./den.ts";
 import {
   DEMO_PASSWORD,

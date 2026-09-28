@@ -1,10 +1,10 @@
-import type { OpenworkSessionActivityInventory } from "@openwork/types/openwork-affordance";
+import type { HarnessSessionActivityInventory } from "@harness/types/harness-affordance";
 import { z } from "zod";
 
 const engineSessionStatusesSchema = z.record(z.string(), z.object({ type: z.string() }).passthrough());
 const enginePendingRequestsSchema = z.array(z.object({ sessionID: z.string() }).passthrough());
 
-export type SessionActivity = OpenworkSessionActivityInventory & {
+export type SessionActivity = HarnessSessionActivityInventory & {
   status: "idle" | "busy" | "retry" | "waiting" | "error" | "compacting" | "thinking" | "responding" | "unknown";
 };
 

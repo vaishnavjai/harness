@@ -4,9 +4,9 @@
       "host": "accounts.google.com",
       "kind": "link-only",
       "components": ["renderer"],
-      "purpose": "Google authorization page opened in the user's browser by the OpenWork Cloud connection flow.",
+      "purpose": "Google authorization page opened in the user's browser by the Harness Cloud connection flow.",
       "requirement": "opt-in",
-      "blockedEffect": "Users cannot complete Google Workspace sign-in from OpenWork.",
+      "blockedEffect": "Users cannot complete Google Workspace sign-in from Harness.",
       "override": null
     },
     {
@@ -22,10 +22,10 @@
       "host": "api.github.com",
       "kind": "fetched",
       "components": ["server"],
-      "purpose": "GitHub API calls for importing and previewing GitHub-hosted Claude Code/OpenWork plugins.",
+      "purpose": "GitHub API calls for importing and previewing GitHub-hosted Claude Code/Harness plugins.",
       "requirement": "opt-in",
       "blockedEffect": "GitHub plugin import cannot inspect repositories, branches, or plugin manifests.",
-      "override": "OPENWORK_GITHUB_API_BASE"
+      "override": "HARNESS_GITHUB_API_BASE"
     },
     {
       "host": "api.githubcopilot.com",
@@ -46,46 +46,46 @@
       "override": null
     },
     {
-      "host": "api.openwork.software",
+      "host": "api.harness-legacy.invalid",
       "kind": "fetched",
       "components": ["server"],
-      "purpose": "Legacy hosted OpenWork Connect API origin retained for older Cloud configurations.",
+      "purpose": "Legacy hosted Harness Connect API origin retained for older Cloud configurations.",
       "requirement": "optional",
-      "blockedEffect": "Older hosted configurations that still use the legacy API origin cannot reconcile OpenWork Connect or native MCP Apps.",
+      "blockedEffect": "Older hosted configurations that still use the legacy API origin cannot reconcile Harness Connect or native MCP Apps.",
       "override": "self-hosted Den API origin"
     },
     {
-      "host": "api.openworklabs.com",
+      "host": "api.harness.invalid",
       "kind": "fetched",
       "components": ["installer", "server"],
-      "purpose": "Legacy hosted OpenWork public API origin retained for older install and Cloud configurations.",
+      "purpose": "Legacy hosted Harness public API origin retained for older install and Cloud configurations.",
       "requirement": "optional",
-      "blockedEffect": "Older hosted install or API configurations that still use this legacy origin cannot reach OpenWork Cloud.",
+      "blockedEffect": "Older hosted install or API configurations that still use this legacy origin cannot reach Harness Cloud.",
       "override": "installer apiUrl / self-hosted Den API origin"
     },
     {
-      "host": "api.app.openworklabs.com",
+      "host": "api.app.harness.invalid",
       "kind": "fetched",
       "components": ["desktop", "renderer", "server"],
-      "purpose": "Hosted OpenWork Den API origin derived from app.openworklabs.com for desktop Den API and OpenWork Connect MCP calls.",
+      "purpose": "Hosted Harness Den API origin derived from app.harness.invalid for desktop Den API and Harness Connect MCP calls.",
       "requirement": "required-for-cloud",
-      "blockedEffect": "Hosted Cloud desktop configuration, telemetry, sign-out, and OpenWork Connect MCP calls cannot reach the Den API.",
+      "blockedEffect": "Hosted Cloud desktop configuration, telemetry, sign-out, and Harness Connect MCP calls cannot reach the Den API.",
       "override": "desktop apiBaseUrl / self-hosted Den API origin"
     },
     {
-      "host": "app.openwork.software",
+      "host": "app.harness-legacy.invalid",
       "kind": "fetched",
       "components": ["server"],
-      "purpose": "Legacy hosted OpenWork Cloud web origin retained for older desktop configurations.",
+      "purpose": "Legacy hosted Harness Cloud web origin retained for older desktop configurations.",
       "requirement": "optional",
-      "blockedEffect": "Older hosted configurations that still derive Den MCP calls from the legacy web origin cannot reconcile OpenWork Connect or native MCP Apps.",
+      "blockedEffect": "Older hosted configurations that still derive Den MCP calls from the legacy web origin cannot reconcile Harness Connect or native MCP Apps.",
       "override": "desktop base URL (self-hosted Den replaces this host)"
     },
     {
-      "host": "app.openworklabs.com",
+      "host": "app.harness.invalid",
       "kind": "fetched",
       "components": ["desktop", "renderer", "bootstrap"],
-      "purpose": "Hosted OpenWork Cloud web origin; the desktop derives Den API and MCP calls from this base URL.",
+      "purpose": "Hosted Harness Cloud web origin; the desktop derives Den API and MCP calls from this base URL.",
       "requirement": "required-for-cloud",
       "blockedEffect": "Hosted Cloud sign-in, org settings, marketplace, and remote workspace flows cannot load.",
       "override": "desktop base URL (self-hosted Den replaces this host)"
@@ -105,7 +105,7 @@
       "components": ["server"],
       "purpose": "Source-code comment pointing maintainers to the Claude Code plugin format reference.",
       "requirement": "optional",
-      "blockedEffect": "No runtime effect; it is not opened or fetched by OpenWork.",
+      "blockedEffect": "No runtime effect; it is not opened or fetched by Harness.",
       "override": null
     },
     {
@@ -123,7 +123,7 @@
       "components": ["den"],
       "purpose": "Container registry for self-hosted Den API, web, inference images, and Helm chart pulls.",
       "requirement": "required",
-      "blockedEffect": "A self-hosted Den deployment cannot pull OpenWork images or the Helm chart from GitHub Container Registry.",
+      "blockedEffect": "A self-hosted Den deployment cannot pull Harness images or the Helm chart from GitHub Container Registry.",
       "override": "container registry mirror / Helm image.repository values"
     },
     {
@@ -141,14 +141,14 @@
       "components": ["renderer"],
       "purpose": "Sample link in the deterministic demo transcript used to exercise link rendering.",
       "requirement": "optional",
-      "blockedEffect": "Clicking that sample Linear link fails; OpenWork functionality is unaffected.",
+      "blockedEffect": "Clicking that sample Linear link fails; Harness functionality is unaffected.",
       "override": null
     },
     {
       "host": "mail.google.com",
       "kind": "link-only",
       "components": ["renderer"],
-      "purpose": "Gmail draft and thread links returned by OpenWork Cloud and opened in the user's browser.",
+      "purpose": "Gmail draft and thread links returned by Harness Cloud and opened in the user's browser.",
       "requirement": "opt-in",
       "blockedEffect": "Generated Gmail draft/thread links cannot open in the user's browser.",
       "override": null
@@ -208,7 +208,7 @@
       "override": "MCP server URL setting"
     },
     {
-      "host": "models.openworklabs.com",
+      "host": "models.harness.invalid",
       "kind": "fetched",
       "components": ["server"],
       "purpose": "First-party OpenCode model catalog mirror passed to managed OpenCode as OPENCODE_MODELS_URL.",
@@ -220,9 +220,9 @@
       "host": "release-assets.githubusercontent.com",
       "kind": "redirect-target",
       "components": ["desktop", "installer"],
-      "purpose": "Current GitHub release-asset download target reached after github.com redirects installer and updater downloads. Verified live against a real OpenWork release asset.",
+      "purpose": "Current GitHub release-asset download target reached after github.com redirects installer and updater downloads. Verified live against a real Harness release asset.",
       "requirement": "required-in-practice",
-      "blockedEffect": "OpenWork downloads start from github.com and then fail partway through when the redirect target is blocked.",
+      "blockedEffect": "Harness downloads start from github.com and then fail partway through when the redirect target is blocked.",
       "override": null
     },
     {
@@ -231,7 +231,7 @@
       "components": ["desktop", "installer"],
       "purpose": "Legacy GitHub release-asset download target. GitHub has migrated to release-assets.githubusercontent.com, but allow both so older clients and any staged rollback keep working.",
       "requirement": "required-in-practice",
-      "blockedEffect": "OpenWork downloads start from github.com and then fail partway through if GitHub serves this legacy redirect target and it is blocked.",
+      "blockedEffect": "Harness downloads start from github.com and then fail partway through if GitHub serves this legacy redirect target and it is blocked.",
       "override": null
     },
     {
@@ -262,7 +262,7 @@
       "override": "provider options.baseURL"
     },
     {
-      "host": "openwork.dev",
+      "host": "harness.invalid",
       "kind": "link-only",
       "components": ["renderer"],
       "purpose": "Documentation and feedback links in the command palette.",
@@ -271,13 +271,13 @@
       "override": null
     },
     {
-      "host": "openworklabs.com",
+      "host": "harness.invalid",
       "kind": "link-only",
       "components": ["desktop", "renderer"],
-      "purpose": "Documentation, feedback, support, and sample OpenWork links.",
+      "purpose": "Documentation, feedback, support, and sample Harness links.",
       "requirement": "optional",
       "blockedEffect": "Documentation or feedback links do not open; core app networking is unaffected.",
-      "override": "VITE_OPENWORK_FEEDBACK_URL for the feedback link only"
+      "override": "VITE_HARNESS_FEEDBACK_URL for the feedback link only"
     },
     {
       "host": "raw.githubusercontent.com",
@@ -286,22 +286,22 @@
       "purpose": "Raw file downloads for GitHub-hosted plugin manifests, MCP configs, skills, commands, and agents.",
       "requirement": "opt-in",
       "blockedEffect": "GitHub plugin import can discover metadata but cannot download component contents.",
-      "override": "OPENWORK_GITHUB_RAW_BASE"
+      "override": "HARNESS_GITHUB_RAW_BASE"
     },
     {
       "host": "registry.npmjs.org",
       "kind": "subprocess",
       "components": ["desktop", "renderer"],
-      "purpose": "npx package resolution for openwork-ui-mcp and development-only MCP helper commands.",
+      "purpose": "npx package resolution for harness-ui-mcp and development-only MCP helper commands.",
       "requirement": "required-in-practice",
-      "blockedEffect": "The OpenWork UI-control MCP is silently unavailable when npx cannot download openwork-ui-mcp.",
+      "blockedEffect": "The Harness UI-control MCP is silently unavailable when npx cannot download harness-ui-mcp.",
       "override": "npm registry configuration used by npx"
     },
     {
       "host": "schemas.agentskills.io",
       "kind": "schema-string",
       "components": ["server"],
-      "purpose": "Skill index $schema identifier used for validation; OpenWork does not fetch the schema URL.",
+      "purpose": "Skill index $schema identifier used for validation; Harness does not fetch the schema URL.",
       "requirement": "optional",
       "blockedEffect": "No runtime network effect.",
       "override": null
@@ -313,7 +313,7 @@
       "purpose": "Optional product analytics endpoint when analytics are enabled and a PostHog key is configured.",
       "requirement": "optional",
       "blockedEffect": "Analytics events are dropped silently; user-facing app behavior is unaffected.",
-      "override": "VITE_OPENWORK_POSTHOG_HOST; users can disable analytics with the analyticsEnabled preference"
+      "override": "VITE_HARNESS_POSTHOG_HOST; users can disable analytics with the analyticsEnabled preference"
     },
     {
       "host": "www.google.com",

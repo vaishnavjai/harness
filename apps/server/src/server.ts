@@ -7,7 +7,7 @@ import { readFile, realpath, writeFile, rm, stat } from "node:fs/promises";
 import { homedir, hostname } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { resolveGlobalOpencodeConfigPath } from "@openwork/paths";
+import { resolveGlobalOpencodeConfigPath } from "@harness/paths";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { agentContextDiagnosticsRequestSchema } from "./agent-context-diagnostics-schema.js";
 import { ApprovalService } from "./approvals.js";
@@ -38,7 +38,7 @@ import { buildEngineAuthProbeHeader } from "./engine-registry.js";
 import { addPlugin, listPlugins, normalizePluginSpec, removePlugin } from "./plugins.js";
 import { sanitizePortableOpencodeConfig } from "./portable-opencode.js";
 import { addMcp, listMcp, removeMcp, setMcpEnabled } from "./mcp.js";
-import { buildOpenWorkV2Instructions, OPENWORK_V2_INSTRUCTION_KEY } from "./opencode-v2-instructions.js";
+import { buildHarnessV2Instructions, HARNESS_V2_INSTRUCTION_KEY } from "./opencode-v2-instructions.js";
 import {
   callMcpAppTool,
   listMcpAppCatalog,
@@ -71,9 +71,9 @@ import {
   resolveServerLogFileSink,
   type ServerLogFileSink,
 } from "./server-log-file.js";
-import { opencodeConfigPath, openworkConfigPath, projectCommandsDir, projectSkillsDir } from "./workspace-files.js";
+import { opencodeConfigPath, harnessConfigPath, projectCommandsDir, projectSkillsDir } from "./workspace-files.js";
 import { ensureDir, exists, hashToken, shortId } from "./utils.js";
-import { defaultWorkspaceOpenworkConfig, ensureWorkspaceFiles, readRawOpencodeConfig } from "./workspace-init.js";
+import { defaultWorkspaceHarnessConfig, ensureWorkspaceFiles, readRawOpencodeConfig } from "./workspace-init.js";
 import { sanitizeCommandName, validateMcpName, validateUserMcpName } from "./validators.js";
 import { TokenService } from "./tokens.js";
 import { resetManagedProviderAuthCache, syncManagedProviderAuth } from "./managed-provider-auth.js";
@@ -90,7 +90,7 @@ import { resolveWorkspaceOpencodeConnection } from "./opencode-connection.js";
 import { listPortableFiles } from "./portable-files.js";
 import {
   collectWorkspaceExportWarnings,
-  sanitizeOpenworkTemplateConfig,
+  sanitizeHarnessTemplateConfig,
   stripSensitiveWorkspaceExportData,
   type WorkspaceExportSensitiveMode,
 } from "./workspace-export-safety.js";
@@ -106,7 +106,7 @@ import { registerUiControlRoutes } from "./routes/ui-control.js";
 import { registerWorkspaceRoutes } from "./routes/workspaces.js";
 import { registerCloudMcpRoutes } from "./routes/cloud-mcp.js";
 import { UiControlMailbox } from "./ui-control.js";
-import { captureServerException, isExpectedRequestCancellation } from "./telemetry.js";
+import { reportUnhandledServerError, isExpectedRequestCancellation } from "./unhandled-error-observer.js";
 import {
   completeLocalManagedMcpAuthorization,
   createLocalManagedMcpConnection,
@@ -120,11 +120,11 @@ import {
   startLocalManagedMcpAuthorization,
 } from "./local-managed-mcp.js";
 import {
-  markOpenworkCloudMcpStale,
-  migrateOpenworkCloudMcpRuntimeConfig,
-  OPENWORK_CLOUD_MCP_NAME,
-  reconcilePersistedOpenworkCloudMcp,
-  removeOpenworkCloudMcpDesiredConfig,
+  markHarnessCloudMcpStale,
+  migrateHarnessCloudMcpRuntimeConfig,
+  HARNESS_CLOUD_MCP_NAME,
+  reconcilePersistedHarnessCloudMcp,
+  removeHarnessCloudMcpDesiredConfig,
   type CloudMcpHealth,
 } from "./cloud-mcp-health.js";
 import { runAgentContextDiagnostics } from "./agent-context-diagnostics.js";
@@ -147,13 +147,13 @@ import {
   writeRuntimeOpencodeConfig,
 } from "./runtime-opencode-config-store.js";
 import {
-  hasOpenworkWorkspaceConfig,
-  mergeOpenworkWorkspaceConfigs,
-  readOpenworkWorkspaceConfig,
-  seedOpenworkWorkspaceConfigIfEmpty,
-  writeOpenworkWorkspaceConfig,
-} from "./openwork-workspace-config-store.js";
-import { buildOpenworkRuntimeConfigObject, openworkRuntimeConfigFilePath, writeOpenworkRuntimeConfigFile } from "./openwork-runtime-config.js";
+  hasHarnessWorkspaceConfig,
+  mergeHarnessWorkspaceConfigs,
+  readHarnessWorkspaceConfig,
+  seedHarnessWorkspaceConfigIfEmpty,
+  writeHarnessWorkspaceConfig,
+} from "./harness-workspace-config-store.js";
+import { buildHarnessRuntimeConfigObject, harnessRuntimeConfigFilePath, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
 import { findManagedEngineWorkspace, managedEngineRootWorkspace } from "./workspaces.js";
 import { startThreadApprovalReplayer, type ThreadApprovalReplayer } from "./thread-approvals.js";
 import { CloudProviderSync, parseCloudProviderDenSession } from "./cloud-provider-sync.js";
@@ -205,7 +205,7 @@ function agentDiagnosticsActorWorkspaceKey(actor: Actor | undefined, workspaceId
 
 function requireAgentDiagnosticsRateLimit(config: ServerConfig, actor: Actor | undefined, workspaceId: string): void {
   const now = Date.now();
-  const configured = Number(process.env.OPENWORK_AGENT_DIAGNOSTICS_COOLDOWN_MS ?? "3000");
+  const configured = Number(process.env.HARNESS_AGENT_DIAGNOSTICS_COOLDOWN_MS ?? "3000");
   const cooldownMs = Number.isFinite(configured) && configured >= 0 ? configured : 3_000;
   const key = agentDiagnosticsActorWorkspaceKey(actor, workspaceId);
   const agentDiagnosticsLastRun = agentDiagnosticsLastRunByServer.get(config) ?? new Map<string, number>();
@@ -345,7 +345,7 @@ async function readManagedRuntimeConfigDebug(config: ServerConfig): Promise<{
   managedFileRebuiltAt: number | null;
   managedFileContentRedacted: string | null;
 }> {
-  const managedFilePath = openworkRuntimeConfigFilePath(config);
+  const managedFilePath = harnessRuntimeConfigFilePath(config);
   try {
     const [metadata, content] = await Promise.all([
       stat(managedFilePath),
@@ -452,10 +452,10 @@ export function createServerLogger(
   writeLine: ServerLogWriter = writeStdoutLogLine,
   fileSink: ServerLogFileSink | null = resolveServerLogFileSink(),
 ): ServerLogger {
-  const runId = process.env.OPENWORK_RUN_ID ?? shortId();
+  const runId = process.env.HARNESS_RUN_ID ?? shortId();
   const host = hostname().trim();
   const resource: Record<string, string> = {
-    "service.name": "openwork-server",
+    "service.name": "harness-server",
     "service.version": SERVER_VERSION,
     "service.instance.id": runId,
   };
@@ -707,7 +707,7 @@ export function assertOpencodeProxyAllowed(actor: Actor, method: string, proxyPa
   // Prevent viewers from self-approving OpenCode permission requests via the
   // proxy. OpenCode uses /permission/:requestId/reply (and historically also
   // a session-scoped variant). Collaborators must be allowed: the SPA's only
-  // credential is the collaborator-scoped client token (OPENWORK_TOKEN), so
+  // credential is the collaborator-scoped client token (HARNESS_TOKEN), so
   // an owner-only gate made every interactive permission dialog un-answerable
   // (403 "Only owner tokens can reply") and left tool calls stuck in
   // "running" forever (#1918).
@@ -779,7 +779,7 @@ export async function startServer(
   try {
     await reconcileLocalManagedMcpRuntimeEntries(config);
   } catch (error) {
-    logger.log("warn", "Failed to reconcile OpenWork-managed MCP connections during startup.", {
+    logger.log("warn", "Failed to reconcile Harness-managed MCP connections during startup.", {
       error: error instanceof Error ? error.message : "unknown",
     });
   }
@@ -814,7 +814,7 @@ export async function startServer(
         ...init, headers: { Authorization: `Bearer ${config.token}`, "Content-Type": "application/json" },
       }));
       const payload: unknown = await response.json();
-      if (!response.ok) throw new Error(`OpenWork read failed (${response.status})`);
+      if (!response.ok) throw new Error(`Harness read failed (${response.status})`);
       return payload;
     },
   });
@@ -947,7 +947,7 @@ export async function startServer(
           const requestCanceled = isExpectedRequestCancellation(error, request.signal);
           if (!(error instanceof ApiError) && !requestCanceled) {
             recordUnhandledErrorCause(error);
-            captureServerException(error, { method: request.method, route: "/workspace/:id/opencode/*", requestSignal: request.signal });
+            reportUnhandledServerError(error, { method: request.method, route: "/workspace/:id/opencode/*", requestSignal: request.signal });
           }
           const apiError = error instanceof ApiError
             ? error
@@ -973,7 +973,7 @@ export async function startServer(
           }
           proxyService = "opencode";
           proxyBaseUrl = connection.url;
-          // As in v1, requests go straight to the engine: OpenWork upkeep
+          // As in v1, requests go straight to the engine: Harness upkeep
           // (provider mirroring, MCP registration) runs when configuration
           // changes, and never holds reads. A folder's upkeep starts in the
           // background the first time it is seen.
@@ -1004,7 +1004,7 @@ export async function startServer(
           const requestCanceled = isExpectedRequestCancellation(error, request.signal);
           if (!(error instanceof ApiError) && !requestCanceled) {
             recordUnhandledErrorCause(error);
-            captureServerException(error, { method: request.method, route: "/workspace/:id/opencode2/*", requestSignal: request.signal });
+            reportUnhandledServerError(error, { method: request.method, route: "/workspace/:id/opencode2/*", requestSignal: request.signal });
           }
           const apiError = error instanceof ApiError
             ? error
@@ -1074,7 +1074,7 @@ export async function startServer(
           const requestCanceled = isExpectedRequestCancellation(error, request.signal);
           if (!(error instanceof ApiError) && !requestCanceled) {
             recordUnhandledErrorCause(error);
-            captureServerException(error, { method: request.method, route: "/opencode/*", requestSignal: request.signal });
+            reportUnhandledServerError(error, { method: request.method, route: "/opencode/*", requestSignal: request.signal });
           }
           const apiError = error instanceof ApiError
             ? error
@@ -1120,8 +1120,8 @@ export async function startServer(
       } catch (error) {
         const requestCanceled = isExpectedRequestCancellation(error, request.signal);
         if (!(error instanceof ApiError) && !requestCanceled) {
-          captureServerException(error, { method: request.method, route: url.pathname, requestSignal: request.signal });
-          console.error("[openwork-server] Unhandled error:", error);
+          reportUnhandledServerError(error, { method: request.method, route: url.pathname, requestSignal: request.signal });
+          console.error("[harness-server] Unhandled error:", error);
         }
         const apiError = error instanceof ApiError
           ? error
@@ -1163,7 +1163,7 @@ export async function startServer(
     });
   } catch (error) {
     await taskRecovery?.stop().catch(() => undefined);
-    captureServerException(error, { method: "START", route: "startServer" });
+    reportUnhandledServerError(error, { method: "START", route: "startServer" });
     cloudProviderSync.stop();
     await engineV2Preview.stop().catch(() => undefined);
     engineInstanceReaper.close();
@@ -1179,7 +1179,7 @@ export async function startServer(
     try {
       await reconcileLocalManagedMcpRuntimeEntries(config);
     } catch (error) {
-      logger.log("warn", "Failed to update OpenWork-managed MCP loopback routes after binding the server port.", {
+      logger.log("warn", "Failed to update Harness-managed MCP loopback routes after binding the server port.", {
         error: error instanceof Error ? error.message : "unknown",
       });
     }
@@ -1282,7 +1282,7 @@ export async function proxyOpencodeV2Request(input: {
     throw new ApiError(403, "engine_config_private", "Engine configuration is private");
   }
   if (method !== "GET" && method !== "HEAD" && /^\/api\/mcp(?:\/|$)/.test(decodeURIComponent(forwardedPath))) {
-    throw new ApiError(403, "engine_mcp_managed", "Manage connections through OpenWork");
+    throw new ApiError(403, "engine_mcp_managed", "Manage connections through Harness");
   }
   const target = new URL(input.connection.url);
   target.pathname = forwardedPath;
@@ -1296,8 +1296,8 @@ export async function proxyOpencodeV2Request(input: {
 
   const headers = new Headers(input.request.headers);
   headers.delete("authorization");
-  headers.delete("x-openwork-host-token");
-  headers.delete("x-openwork-client-id");
+  headers.delete("x-harness-host-token");
+  headers.delete("x-harness-client-id");
   headers.delete("host");
   headers.delete("origin");
   headers.set("authorization", `Basic ${Buffer.from(`opencode:${input.connection.password}`).toString("base64")}`);
@@ -1329,8 +1329,8 @@ export async function proxyOpencodeV2Request(input: {
   }
 
   if (method !== "GET" && method !== "HEAD"
-    && decodeURIComponent(forwardedPath).endsWith(`/instructions/entries/${OPENWORK_V2_INSTRUCTION_KEY}`)) {
-    throw new ApiError(403, "engine_instructions_managed", "OpenWork instructions are managed by the server");
+    && decodeURIComponent(forwardedPath).endsWith(`/instructions/entries/${HARNESS_V2_INSTRUCTION_KEY}`)) {
+    throw new ApiError(403, "engine_instructions_managed", "Harness instructions are managed by the server");
   }
 
   if (method === "POST" && sessionId && /^\/api\/session\/[^/]+\/(?:prompt|command|generate)$/.test(forwardedPath)) {
@@ -1343,16 +1343,16 @@ export async function proxyOpencodeV2Request(input: {
     const mcpResponse = await loopbackFetch(mcpUrl.toString(), { headers: internalHeaders, signal: AbortSignal.timeout(10_000) });
     const mcpPayload: unknown = mcpResponse.ok ? await mcpResponse.json() : null;
     const connectReady = isRecord(mcpPayload) && Array.isArray(mcpPayload.data) && mcpPayload.data.some((entry) =>
-      isRecord(entry) && entry.name === "openwork-cloud" && isRecord(entry.status) && entry.status.status === "connected");
+      isRecord(entry) && entry.name === "harness-cloud" && isRecord(entry.status) && entry.status.status === "connected");
     // Keep organization skill discovery on demand through Connect. The full
     // catalog can exceed the engine's instruction-entry request limit.
-    const value = buildOpenWorkV2Instructions(connectReady);
+    const value = buildHarnessV2Instructions(connectReady);
     const instructionUrl = new URL(target);
-    instructionUrl.pathname = `/api/session/${encodeURIComponent(sessionId)}/instructions/entries/${OPENWORK_V2_INSTRUCTION_KEY}`;
+    instructionUrl.pathname = `/api/session/${encodeURIComponent(sessionId)}/instructions/entries/${HARNESS_V2_INSTRUCTION_KEY}`;
     const synced = await loopbackFetch(instructionUrl.toString(), {
       method: "PUT", headers: internalHeaders, body: JSON.stringify({ value }), signal: AbortSignal.timeout(15_000),
     });
-    if (!synced.ok) throw new ApiError(502, "engine_instruction_sync_failed", "OpenWork instructions could not be updated");
+    if (!synced.ok) throw new ApiError(502, "engine_instruction_sync_failed", "Harness instructions could not be updated");
   }
 
   const requestBody = method === "GET" || method === "HEAD"
@@ -1387,7 +1387,7 @@ export async function proxyOpencodeV2Request(input: {
       if (!isRecord(value) || typeof value.id !== "string") {
         throw new ApiError(502, "invalid_engine_response", "Invalid skill metadata");
       }
-      if (!value.id.startsWith("openwork-cloud-")) return value;
+      if (!value.id.startsWith("harness-cloud-")) return value;
       return Object.fromEntries(Object.entries(value).filter(([key]) => ["id", "name", "description", "slash"].includes(key)));
     };
     return jsonResponse({ data: Array.isArray(raw) ? raw.map(publicSkill) : publicSkill(raw) });
@@ -1469,8 +1469,8 @@ export async function proxyOpencodeV2Request(input: {
             if (home !== expectedHome) continue;
             // The compatibility stream is scoped to the UI home. Preserve the
             // native directory separately; the move's data remains untouched.
-            payload = { ...payload, data: { ...eventData, openworkHomeDirectory: home },
-              openworkWorkingLocation: payload.location,
+            payload = { ...payload, data: { ...eventData, harnessHomeDirectory: home },
+              harnessWorkingLocation: payload.location,
               location: { directory: input.workspace.path } };
             scopedFrame = `data: ${JSON.stringify(payload)}`;
           } else {
@@ -1590,7 +1590,7 @@ function opencodeUnreachableError(error: unknown, path: string): ApiError {
 }
 
 function agentDiagnosticsTimeoutMs(): number {
-  const configured = Number(process.env.OPENWORK_AGENT_DIAGNOSTICS_TIMEOUT_MS);
+  const configured = Number(process.env.HARNESS_AGENT_DIAGNOSTICS_TIMEOUT_MS);
   return Number.isFinite(configured) && configured > 0 ? configured : 24_000;
 }
 
@@ -1733,8 +1733,8 @@ export async function proxyOpencodeRequest(input: {
 
   let headers = new Headers(input.request.headers);
   headers.delete("authorization");
-  headers.delete("x-openwork-host-token");
-  headers.delete("x-openwork-client-id");
+  headers.delete("x-harness-host-token");
+  headers.delete("x-harness-client-id");
   headers.delete("host");
   headers.delete("origin");
 
@@ -2068,7 +2068,7 @@ function mergedEventBody(input: {
 // Read lazily so tests can shrink the deadline at runtime. Matches the 5s
 // bound proxyEngineAggregateRead puts on its per-connection fan-out.
 function engineEventStreamEstablishTimeoutMs(): number {
-  const parsed = Number(process.env.OPENWORK_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS ?? "5000");
+  const parsed = Number(process.env.HARNESS_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS ?? "5000");
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 5_000;
 }
 
@@ -2076,7 +2076,7 @@ function engineEventStreamEstablishTimeoutMs(): number {
 // one lost beat never churns a healthy connection. Read lazily so tests can
 // shrink the interval at runtime.
 function engineEventStreamHeartbeatIntervalMs(): number {
-  const parsed = Number(process.env.OPENWORK_ENGINE_EVENT_HEARTBEAT_MS ?? "15000");
+  const parsed = Number(process.env.HARNESS_ENGINE_EVENT_HEARTBEAT_MS ?? "15000");
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
 }
 
@@ -2195,7 +2195,7 @@ function withCors(response: Response, request: Request, config: ServerConfig) {
   headers.set("Access-Control-Allow-Origin", allowOrigin);
   headers.set(
     "Access-Control-Allow-Headers",
-    "Authorization, Content-Type, X-OpenWork-Host-Token, X-OpenWork-Client-Id, X-OpenCode-Directory, X-Opencode-Directory, x-opencode-directory",
+    "Authorization, Content-Type, X-Harness-Host-Token, X-Harness-Client-Id, X-OpenCode-Directory, X-Opencode-Directory, x-opencode-directory",
   );
   headers.set("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
   const exposed = headers.get("Access-Control-Expose-Headers");
@@ -2219,12 +2219,12 @@ async function requireClient(request: Request, config: ServerConfig, tokens: Tok
   if (!scope) {
     throw new ApiError(401, "unauthorized", "Invalid bearer token");
   }
-  const clientId = request.headers.get("x-openwork-client-id") ?? undefined;
+  const clientId = request.headers.get("x-harness-client-id") ?? undefined;
   return { type: "remote", clientId, tokenHash: hashToken(token), scope };
 }
 
 function requireHostToken(request: Request, config: ServerConfig): Actor {
-  const hostToken = request.headers.get("x-openwork-host-token");
+  const hostToken = request.headers.get("x-harness-host-token");
   if (hostToken && hostToken === config.hostToken) {
     return { type: "host", tokenHash: hashToken(hostToken), scope: "owner" };
   }
@@ -2232,7 +2232,7 @@ function requireHostToken(request: Request, config: ServerConfig): Actor {
 }
 
 async function requireHost(request: Request, config: ServerConfig, tokens: TokenService): Promise<Actor> {
-  const hostToken = request.headers.get("x-openwork-host-token");
+  const hostToken = request.headers.get("x-harness-host-token");
   if (hostToken && hostToken === config.hostToken) {
     return { type: "host", tokenHash: hashToken(hostToken), scope: "owner" };
   }
@@ -2247,7 +2247,7 @@ async function requireHost(request: Request, config: ServerConfig, tokens: Token
   if (scope !== "owner") {
     throw new ApiError(401, "unauthorized", "Invalid host token");
   }
-  const clientId = request.headers.get("x-openwork-client-id") ?? undefined;
+  const clientId = request.headers.get("x-harness-client-id") ?? undefined;
   return { type: "remote", clientId, tokenHash: hashToken(bearer), scope };
 }
 
@@ -2266,7 +2266,7 @@ function buildCapabilities(config: ServerConfig): Capabilities {
     serverVersion: SERVER_VERSION,
     opencodeVersion: OPENCODE_VERSION,
     providerSync: true,
-    skills: { read: true, write: writeEnabled, source: "openwork" },
+    skills: { read: true, write: writeEnabled, source: "harness" },
     plugins: { read: true, write: writeEnabled },
     mcp: { read: true, write: writeEnabled },
     commands: { read: true, write: writeEnabled },
@@ -2284,8 +2284,8 @@ function buildCapabilities(config: ServerConfig): Capabilities {
       files: {
         injection: writeEnabled && inboxEnabled,
         outbox: outboxEnabled,
-        inboxPath: ".opencode/openwork/inbox/",
-        outboxPath: ".opencode/openwork/outbox/",
+        inboxPath: ".opencode/harness/inbox/",
+        outboxPath: ".opencode/harness/outbox/",
         maxBytes,
       },
     },
@@ -2293,33 +2293,33 @@ function buildCapabilities(config: ServerConfig): Capabilities {
 }
 
 function resolveSandboxBackend(): Capabilities["sandbox"]["backend"] {
-  const raw = (process.env.OPENWORK_SANDBOX_BACKEND ?? "").trim().toLowerCase();
+  const raw = (process.env.HARNESS_SANDBOX_BACKEND ?? "").trim().toLowerCase();
   if (raw === "docker") return "docker";
   if (raw === "container") return "container";
   return "none";
 }
 
 function resolveSandboxEnabled(backend: Capabilities["sandbox"]["backend"]): boolean {
-  const raw = (process.env.OPENWORK_SANDBOX_ENABLED ?? "").trim().toLowerCase();
+  const raw = (process.env.HARNESS_SANDBOX_ENABLED ?? "").trim().toLowerCase();
   if (["1", "true", "yes", "on"].includes(raw)) return true;
   if (["0", "false", "no", "off"].includes(raw)) return false;
   return backend !== "none";
 }
 
 function resolveInboxEnabled(): boolean {
-  const raw = (process.env.OPENWORK_INBOX_ENABLED ?? "").trim().toLowerCase();
+  const raw = (process.env.HARNESS_INBOX_ENABLED ?? "").trim().toLowerCase();
   if (!raw) return true;
   return ["1", "true", "yes", "on"].includes(raw);
 }
 
 function resolveOutboxEnabled(): boolean {
-  const raw = (process.env.OPENWORK_OUTBOX_ENABLED ?? "").trim().toLowerCase();
+  const raw = (process.env.HARNESS_OUTBOX_ENABLED ?? "").trim().toLowerCase();
   if (!raw) return true;
   return ["1", "true", "yes", "on"].includes(raw);
 }
 
 function resolveInboxMaxBytes(): number {
-  const raw = (process.env.OPENWORK_INBOX_MAX_BYTES ?? "").trim();
+  const raw = (process.env.HARNESS_INBOX_MAX_BYTES ?? "").trim();
   const parsed = raw ? Number(raw) : NaN;
   if (Number.isFinite(parsed) && parsed > 0) {
     return Math.trunc(parsed);
@@ -2330,17 +2330,17 @@ function resolveInboxMaxBytes(): number {
   return 250_000_000;
 }
 
-// Dev-only log sink target. When OPENWORK_DEV_LOG_FILE is set to a path, the
+// Dev-only log sink target. When HARNESS_DEV_LOG_FILE is set to a path, the
 // /dev/log endpoint accepts JSON payloads and appends them to that file so an
 // operator can `tail -f` the file to see live browser activity. Returning null
 // disables the endpoint entirely.
 function resolveDevLogPath(): string | null {
-  const raw = (process.env.OPENWORK_DEV_LOG_FILE ?? "").trim();
+  const raw = (process.env.HARNESS_DEV_LOG_FILE ?? "").trim();
   return raw.length > 0 ? raw : null;
 }
 
 function resolveBrowserProvider(): Capabilities["toolProviders"]["browser"] {
-  const raw = (process.env.OPENWORK_BROWSER_PROVIDER ?? "").trim().toLowerCase();
+  const raw = (process.env.HARNESS_BROWSER_PROVIDER ?? "").trim().toLowerCase();
   if (raw === "sandbox-headless") {
     return { enabled: true, placement: "in-sandbox", mode: "headless" };
   }
@@ -2634,7 +2634,7 @@ function createRoutes(
       throw new ApiError(
         400,
         "agent_diagnostics_workspace_unsupported",
-        "Agent diagnostics must run on the OpenWork server that owns a local workspace",
+        "Agent diagnostics must run on the Harness server that owns a local workspace",
       );
     }
     // Reserve before consuming untrusted bytes and hold the reservation through
@@ -2692,7 +2692,7 @@ function createRoutes(
 
   addRoute(routes, "GET", "/workspace/:id/config", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    const openwork = await readOpenworkConfigForWorkspace(config, workspace);
+    const harness = await readHarnessConfigForWorkspace(config, workspace);
     // Effective runtime view (ENGINE_GLOBAL ⊕ workspace row): providers,
     // plugins, and authorized folders live in the global row now, and the UI
     // must keep seeing them after migration.
@@ -2701,13 +2701,13 @@ function createRoutes(
       await readEffectiveRuntimeOpencodeConfig(config, workspace.id),
     );
     const lastAudit = await readLastAudit(workspace.path, workspace.id);
-    return jsonResponse({ opencode, openwork, updatedAt: lastAudit?.timestamp ?? null });
+    return jsonResponse({ opencode, harness, updatedAt: lastAudit?.timestamp ?? null });
   });
 
   addRoute(routes, "GET", "/workspace/:id/desktop-cloud-sync", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    const openwork = await readOpenworkConfigForWorkspace(config, workspace);
-    return jsonResponse(readDesktopCloudSyncState(openwork));
+    const harness = await readHarnessConfigForWorkspace(config, workspace);
+    return jsonResponse(readDesktopCloudSyncState(harness));
   });
 
   addRoute(routes, "POST", "/workspace/:id/desktop-cloud-sync", "client", async (ctx) => {
@@ -2721,17 +2721,17 @@ function createRoutes(
     }
 
     const result = await enqueueDesktopCloudSync(async () => {
-      const openwork = await readOpenworkConfigForWorkspace(config, workspace);
+      const harness = await readHarnessConfigForWorkspace(config, workspace);
       const installed = await readInstalledCloudPlugins(config, workspace.id);
       const cloudImports = {
         ...installed,
-        providers: readWorkspaceCloudImports(openwork).providers,
+        providers: readWorkspaceCloudImports(harness).providers,
       };
-      const next = syncDesktopCloudResources({ openwork: { ...openwork, cloudImports }, snapshot });
+      const next = syncDesktopCloudResources({ harness: { ...harness, cloudImports }, snapshot });
       // The plugin DB owns plugins/marketplaces, but provider import baselines live in
       // the workspace config. Writing the merged cloudImports back erased providers
       // and drove the provider-sync dispose/create loop.
-      await writeOpenworkWorkspaceConfig(config, workspace.id, (current) => ({
+      await writeHarnessWorkspaceConfig(config, workspace.id, (current) => ({
         ...current,
         desktopCloudSync: next.state,
       }));
@@ -2740,7 +2740,7 @@ function createRoutes(
         workspaceId: workspace.id,
         actor: ctx.actor ?? { type: "remote" },
         action: "desktop_cloud_sync.update",
-        target: openworkConfigPath(workspace.path),
+        target: harnessConfigPath(workspace.path),
         summary: "Updated desktop cloud sync state",
         timestamp: Date.now(),
       });
@@ -2772,7 +2772,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "cloud_plugins.install",
       summary: `Install cloud plugin ${resolved.plugin.name}`,
-      paths: [openworkConfigPath(workspace.path), join(workspace.path, ".opencode")],
+      paths: [harnessConfigPath(workspace.path), join(workspace.path, ".opencode")],
     });
 
     const result = await installCloudPlugin({
@@ -2796,7 +2796,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "cloud_plugins.install",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Installed cloud plugin ${resolved.plugin.name}`,
       timestamp: Date.now(),
     });
@@ -2847,7 +2847,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "cloud_plugins.install",
       summary: `Install Claude plugin ${bundle.resolved.plugin.name} from ${bundle.preview.source.owner}/${bundle.preview.source.repo}`,
-      paths: [openworkConfigPath(workspace.path), join(workspace.path, ".opencode")],
+      paths: [harnessConfigPath(workspace.path), join(workspace.path, ".opencode")],
     });
 
     const result = await installCloudPlugin({
@@ -2864,7 +2864,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "cloud_plugins.install",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Installed Claude plugin ${bundle.resolved.plugin.name} from ${url}`,
       timestamp: Date.now(),
     });
@@ -2902,7 +2902,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "cloud_plugins.remove",
       summary: `Remove cloud plugin ${pluginId}`,
-      paths: [openworkConfigPath(workspace.path), join(workspace.path, ".opencode")],
+      paths: [harnessConfigPath(workspace.path), join(workspace.path, ".opencode")],
     });
 
     const removed = await removeCloudPlugin({
@@ -2917,7 +2917,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "cloud_plugins.remove",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Removed cloud plugin ${removed.name}`,
       timestamp: Date.now(),
     });
@@ -3029,7 +3029,7 @@ function createRoutes(
 
   addRoute(routes, "GET", "/workspace/:id/permissions/effective", "client", async (ctx) => {
     const workspace = await resolveWorkspace(config, ctx.params.id);
-    // The engine's own evaluated ruleset decides; OpenWork only names the
+    // The engine's own evaluated ruleset decides; Harness only names the
     // layer each winning rule came from.
     const opencode = createWorkspaceOpencodeClient(config, workspace, { boundedDiagnosticsReads: true });
     const [configResult, agentResult] = await Promise.all([opencode.config.get({}), opencode.app.agents({})]);
@@ -3049,13 +3049,13 @@ function createRoutes(
     const [workspaceConfig, globalConfig, injected] = await Promise.all([
       readOpencodeConfig(workspace.path),
       readJsoncFile(globalPath, emptyConfig, { allowInvalid: true }).then((result) => result.data),
-      buildOpenworkRuntimeConfigObject(config),
+      buildHarnessRuntimeConfigObject(config),
     ]);
     return jsonResponse({
       agent: agent.name,
       rows: summarizeEffectivePermissions(agent.permission, {
         global: globalConfig.permission,
-        openwork: injected.permission,
+        harness: injected.permission,
         workspace: workspaceConfig.permission,
       }),
       files: { workspace: opencodeConfigPath(workspace.path), global: globalPath },
@@ -3081,7 +3081,7 @@ function createRoutes(
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const body = await readJsonBody(ctx.request);
     const folders = parseAuthorizedFoldersPayload(body.folders, workspace.path);
-    const configPath = openworkConfigPath(workspace.path);
+    const configPath = harnessConfigPath(workspace.path);
 
     await requireApproval(ctx, {
       workspaceId: workspace.id,
@@ -3167,7 +3167,7 @@ function createRoutes(
     }));
 
     if (result.changed) {
-      emitReloadEvent(ctx.reloadEvents, workspace, "config", buildConfigTrigger(openworkRuntimeConfigFilePath(config)));
+      emitReloadEvent(ctx.reloadEvents, workspace, "config", buildConfigTrigger(harnessRuntimeConfigFilePath(config)));
     }
 
     return jsonResponse({
@@ -3299,7 +3299,7 @@ function createRoutes(
       provider: mergeRuntimeProviderUpdate(current.provider, providerPatch),
     }));
 
-    const fileResult = await writeOpenworkRuntimeConfigFile(config);
+    const fileResult = await writeHarnessRuntimeConfigFile(config);
     // Auth must land before the reload so the replacement provider instance is
     // constructed with its credential. This also refreshes SDK clients after
     // a key rotation even when provider config itself did not change.
@@ -3318,7 +3318,7 @@ function createRoutes(
       ok: true,
       changed: result.changed,
       provider: runtimeProviderMap(result.config),
-      runtimeConfigPath: openworkRuntimeConfigFilePath(config),
+      runtimeConfigPath: harnessRuntimeConfigFilePath(config),
       reload: shouldReload ? (reloadDeferred ? "deferred" : "reloaded") : "skipped",
     });
   });
@@ -3334,7 +3334,7 @@ function createRoutes(
     const globalOpencode = (await readJsoncFile(globalOpencodePath, emptyGlobalOpencode, { allowInvalid: true })).data;
     // The injected file is rendered from the ENGINE_GLOBAL row only; the
     // workspace runtime row reaches the engine via the dynamic MCP push.
-    const effectiveRuntime = await buildOpenworkRuntimeConfigObject(config);
+    const effectiveRuntime = await buildHarnessRuntimeConfigObject(config);
     const managedFile = await readManagedRuntimeConfigDebug(config);
 
     return jsonResponse({
@@ -3444,22 +3444,22 @@ function createRoutes(
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const body = await readJsonBody(ctx.request);
     const opencode = body.opencode as Record<string, unknown> | undefined;
-    const openwork = body.openwork as Record<string, unknown> | undefined;
+    const harness = body.harness as Record<string, unknown> | undefined;
     let runtimeChanged = false;
 
-    if (!opencode && !openwork) {
-      throw new ApiError(400, "invalid_payload", "opencode or openwork updates required");
+    if (!opencode && !harness) {
+      throw new ApiError(400, "invalid_payload", "opencode or harness updates required");
     }
 
     await requireApproval(ctx, {
       workspaceId: workspace.id,
       action: "config.patch",
       summary: "Patch workspace config",
-      paths: [opencode || openwork ? openworkConfigPath(workspace.path) : null].filter(Boolean) as string[],
+      paths: [opencode || harness ? harnessConfigPath(workspace.path) : null].filter(Boolean) as string[],
     });
 
     if (opencode) {
-      const configPath = openworkConfigPath(workspace.path);
+      const configPath = harnessConfigPath(workspace.path);
       const nextOpencode = ensurePlainObject(opencode);
       const { permission, provider, ...topLevelUpdates } = nextOpencode;
       const logicalUpdates: Record<string, unknown> = { ...topLevelUpdates };
@@ -3514,10 +3514,10 @@ function createRoutes(
         runtimeChanged = result.changed || runtimeChanged;
       }
     }
-    if (openwork) {
-      await writeOpenworkWorkspaceConfig(config, workspace.id, (current) => ({
+    if (harness) {
+      await writeHarnessWorkspaceConfig(config, workspace.id, (current) => ({
         ...current,
-        ...openwork,
+        ...harness,
       }));
     }
 
@@ -3526,7 +3526,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "config.patch",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: "Patched workspace config",
       timestamp: Date.now(),
     });
@@ -3534,7 +3534,7 @@ function createRoutes(
     // A no-op provider patch (for example cloud sync reconciling an identical
     // block) must not force an engine reload; that caused a dispose/create loop.
     if (opencode && runtimeChanged) {
-      emitReloadEvent(ctx.reloadEvents, workspace, "config", buildConfigTrigger(openworkConfigPath(workspace.path)));
+      emitReloadEvent(ctx.reloadEvents, workspace, "config", buildConfigTrigger(harnessConfigPath(workspace.path)));
     }
 
     return jsonResponse({ updatedAt: Date.now() });
@@ -3589,7 +3589,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "plugins.add",
       summary: `Add plugin ${spec}`,
-      paths: [openworkConfigPath(workspace.path)],
+      paths: [harnessConfigPath(workspace.path)],
     });
     const changed = await addPlugin(config, spec);
     await recordAudit(workspace.path, {
@@ -3597,7 +3597,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "plugins.add",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Added ${spec}`,
       timestamp: Date.now(),
     });
@@ -3622,7 +3622,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "plugins.remove",
       summary: `Remove plugin ${name}`,
-      paths: [openworkConfigPath(workspace.path)],
+      paths: [harnessConfigPath(workspace.path)],
     });
     const removed = await removePlugin(config, name);
     await recordAudit(workspace.path, {
@@ -3630,7 +3630,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "plugins.remove",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Removed ${name}`,
       timestamp: Date.now(),
     });
@@ -3699,7 +3699,7 @@ function createRoutes(
       action: result.action,
       path: result.path,
     });
-    // The next v2 turn should see a skill OpenWork just wrote; the engine's
+    // The next v2 turn should see a skill Harness just wrote; the engine's
     // own watcher normally catches up within ~200 ms.
     if (workspace.workspaceType !== "remote") await engineV2Preview.settleWorkspaceSkills(workspace.path);
     return jsonResponse({ name, path: result.path, description: description ?? "", scope: "project" });
@@ -3936,8 +3936,8 @@ function createRoutes(
     await requireApproval(ctx, {
       workspaceId: workspace.id,
       action: "mcp.add",
-      summary: `Add OpenWork-managed MCP ${name}`,
-      paths: [openworkConfigPath(workspace.path)],
+      summary: `Add Harness-managed MCP ${name}`,
+      paths: [harnessConfigPath(workspace.path)],
     });
     await createLocalManagedMcpConnection(config, {
       workspaceId: workspace.id,
@@ -3966,7 +3966,7 @@ function createRoutes(
         throw new ApiError(
           502,
           "managed_mcp_connection_failed",
-          `OpenWork could not start sign-in with this MCP server. Check the server URL, OAuth settings, and network connection, then try again.${cause ? ` (${cause})` : ""}`,
+          `Harness could not start sign-in with this MCP server. Check the server URL, OAuth settings, and network connection, then try again.${cause ? ` (${cause})` : ""}`,
           cause ? { cause } : undefined,
         );
       }
@@ -3977,8 +3977,8 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "mcp.add",
-      target: openworkConfigPath(workspace.path),
-      summary: `Added OpenWork-managed MCP ${name}`,
+      target: harnessConfigPath(workspace.path),
+      summary: `Added Harness-managed MCP ${name}`,
       timestamp: Date.now(),
     });
     emitReloadEvent(ctx.reloadEvents, workspace, "mcp", { type: "mcp", name, action: "added" });
@@ -4011,7 +4011,7 @@ function createRoutes(
       await syncRuntimeMcpToOpencodeEngine(config, workspace, [connection.name], undefined, engineMcpServerState).catch(() => undefined);
     }
     return new Response(
-      `<!doctype html><meta charset="utf-8"><title>Connected</title><main style="font:16px system-ui;padding:40px;max-width:560px"><h1>Connected</h1><p>${connection.name} is ready in OpenWork. You can close this window.</p><script>setTimeout(()=>window.close(),1200)</script></main>`,
+      `<!doctype html><meta charset="utf-8"><title>Connected</title><main style="font:16px system-ui;padding:40px;max-width:560px"><h1>Connected</h1><p>${connection.name} is ready in Harness. You can close this window.</p><script>setTimeout(()=>window.close(),1200)</script></main>`,
       { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
     );
   });
@@ -4041,7 +4041,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "mcp.add",
       summary: `Add MCP ${name}`,
-      paths: [openworkConfigPath(workspace.path)],
+      paths: [harnessConfigPath(workspace.path)],
     });
     const result = await addMcp(config, workspace.id, name, configPayload);
     // Hot-add into the running engine so connect/auth works immediately,
@@ -4058,7 +4058,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "mcp.add",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Added MCP ${name}`,
       timestamp: Date.now(),
     });
@@ -4080,13 +4080,13 @@ function createRoutes(
       workspaceId: workspace.id,
       action: "mcp.remove",
       summary: `Remove MCP ${name}`,
-      paths: [openworkConfigPath(workspace.path)],
+      paths: [harnessConfigPath(workspace.path)],
     });
-    const managedRemoved = name === OPENWORK_CLOUD_MCP_NAME
+    const managedRemoved = name === HARNESS_CLOUD_MCP_NAME
       ? false
       : await deleteLocalManagedMcp(config, workspace.id, name);
-    const cloudRemoval = name === OPENWORK_CLOUD_MCP_NAME
-      ? await removeOpenworkCloudMcpDesiredConfig(config)
+    const cloudRemoval = name === HARNESS_CLOUD_MCP_NAME
+      ? await removeHarnessCloudMcpDesiredConfig(config)
       : null;
     const removed = cloudRemoval
       ? cloudRemoval.changed
@@ -4096,7 +4096,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action: "mcp.remove",
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `Removed MCP ${name}`,
       timestamp: Date.now(),
     });
@@ -4137,7 +4137,7 @@ function createRoutes(
       workspaceId: workspace.id,
       action,
       summary,
-      paths: [openworkConfigPath(workspace.path)],
+      paths: [harnessConfigPath(workspace.path)],
     });
     const managedUpdated = await setLocalManagedMcpEnabled(config, workspace.id, name, enabled);
     const updated = managedUpdated || await setMcpEnabled(config, workspace.id, name, enabled);
@@ -4156,7 +4156,7 @@ function createRoutes(
       workspaceId: workspace.id,
       actor: ctx.actor ?? { type: "remote" },
       action,
-      target: openworkConfigPath(workspace.path),
+      target: harnessConfigPath(workspace.path),
       summary: `${enabled ? "Enabled" : "Disabled"} MCP ${name}`,
       timestamp: Date.now(),
     });
@@ -4185,8 +4185,8 @@ function createRoutes(
         workspaceId: workspace.id,
         actor: ctx.actor ?? { type: "remote" },
         action: "mcp.auth.remove",
-        target: openworkConfigPath(workspace.path),
-        summary: `Logged out OpenWork-managed MCP ${name}`,
+        target: harnessConfigPath(workspace.path),
+        summary: `Logged out Harness-managed MCP ${name}`,
         timestamp: Date.now(),
       });
       return jsonResponse({ ok: true });
@@ -4450,7 +4450,7 @@ async function readAgentDiagnosticsJsonBody(request: Request): Promise<unknown> 
     "agent_diagnostics_request_timeout",
     "Agent diagnostics request body timed out",
   );
-  const configuredDeadlineMs = Number(process.env.OPENWORK_AGENT_DIAGNOSTICS_BODY_TIMEOUT_MS);
+  const configuredDeadlineMs = Number(process.env.HARNESS_AGENT_DIAGNOSTICS_BODY_TIMEOUT_MS);
   const deadlineMs = Number.isFinite(configuredDeadlineMs) && configuredDeadlineMs >= 50
     ? Math.min(configuredDeadlineMs, 10_000)
     : AGENT_DIAGNOSTICS_DEFAULT_BODY_DEADLINE_MS;
@@ -4594,8 +4594,8 @@ export function resolveOpencodeConfigFilePath(scope: "project" | "global", works
 }
 
 function getRuntimeControlConfig(): { baseUrl: string; token: string } | null {
-  const baseUrl = process.env.OPENWORK_CONTROL_BASE_URL?.trim() ?? "";
-  const token = process.env.OPENWORK_CONTROL_TOKEN?.trim() ?? "";
+  const baseUrl = process.env.HARNESS_CONTROL_BASE_URL?.trim() ?? "";
+  const token = process.env.HARNESS_CONTROL_TOKEN?.trim() ?? "";
   if (!baseUrl || !token) return null;
   return { baseUrl: baseUrl.replace(/\/+$/, ""), token };
 }
@@ -4626,23 +4626,23 @@ async function readOpencodeConfig(workspaceRoot: string): Promise<Record<string,
   return data;
 }
 
-async function readOpenworkConfig(workspaceRoot: string): Promise<Record<string, unknown>> {
-  const path = openworkConfigPath(workspaceRoot);
+async function readHarnessConfig(workspaceRoot: string): Promise<Record<string, unknown>> {
+  const path = harnessConfigPath(workspaceRoot);
   if (!(await exists(path))) return {};
   try {
     const raw = await readFile(path, "utf8");
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
-    throw new ApiError(422, "invalid_json", "Failed to parse openwork.json");
+    throw new ApiError(422, "invalid_json", "Failed to parse harness.json");
   }
 }
 
-async function readOpenworkConfigForStatus(workspaceRoot: string): Promise<{
+async function readHarnessConfigForStatus(workspaceRoot: string): Promise<{
   data: Record<string, unknown>;
   error: string | null;
 }> {
   try {
-    return { data: await readOpenworkConfig(workspaceRoot), error: null };
+    return { data: await readHarnessConfig(workspaceRoot), error: null };
   } catch (error) {
     if (error instanceof ApiError && error.code === "invalid_json") {
       return { data: {}, error: error.message };
@@ -4652,49 +4652,49 @@ async function readOpenworkConfigForStatus(workspaceRoot: string): Promise<{
 }
 
 /**
- * Resolve the effective per-workspace openwork config from the runtime DB,
- * migrating a legacy `.opencode/openwork.json` file into the DB on first read.
+ * Resolve the effective per-workspace harness config from the runtime DB,
+ * migrating a legacy `.opencode/harness.json` file into the DB on first read.
  *
  * The DB is the source of truth. The file is only consulted to seed the DB
  * once (back-compat for workspaces created before the file->DB migration), and
  * is never written afterwards. Returns the merged view ({...file, ...db}) so a
  * partially-migrated install still surfaces every key.
  */
-async function readOpenworkConfigForWorkspace(
+async function readHarnessConfigForWorkspace(
   config: ServerConfig,
   workspace: WorkspaceInfo,
 ): Promise<Record<string, unknown>> {
-  const stored = await readOpenworkWorkspaceConfig(config, workspace.id);
-  if (Object.keys(stored).length > 0 || (await hasOpenworkWorkspaceConfig(config, workspace.id))) {
+  const stored = await readHarnessWorkspaceConfig(config, workspace.id);
+  if (Object.keys(stored).length > 0 || (await hasHarnessWorkspaceConfig(config, workspace.id))) {
     return stored;
   }
-  const legacy = await readOpenworkConfigForStatus(workspace.path);
+  const legacy = await readHarnessConfigForStatus(workspace.path);
   if (Object.keys(legacy.data).length === 0) {
     if (workspace.workspaceType !== "remote" && workspace.path.trim()) {
-      return seedOpenworkWorkspaceConfigIfEmpty(
+      return seedHarnessWorkspaceConfigIfEmpty(
         config,
         workspace.id,
-        defaultWorkspaceOpenworkConfig(workspace.path, workspace.preset ?? "starter"),
+        defaultWorkspaceHarnessConfig(workspace.path, workspace.preset ?? "starter"),
       );
     }
     return {};
   }
   // Migrate-on-read: copy the legacy file contents into the DB once.
-  await seedOpenworkWorkspaceConfigIfEmpty(config, workspace.id, legacy.data);
-  return mergeOpenworkWorkspaceConfigs(legacy.data, await readOpenworkWorkspaceConfig(config, workspace.id));
+  await seedHarnessWorkspaceConfigIfEmpty(config, workspace.id, legacy.data);
+  return mergeHarnessWorkspaceConfigs(legacy.data, await readHarnessWorkspaceConfig(config, workspace.id));
 }
 
 /**
- * Persist a full openwork config document for a workspace to the runtime DB.
+ * Persist a full harness config document for a workspace to the runtime DB.
  * Replaces the legacy file write path; the file is no longer written.
  */
-async function writeOpenworkConfigForWorkspace(
+async function writeHarnessConfigForWorkspace(
   config: ServerConfig,
   workspace: WorkspaceInfo,
   payload: Record<string, unknown>,
   merge: boolean,
 ): Promise<void> {
-  await writeOpenworkWorkspaceConfig(config, workspace.id, (current) =>
+  await writeHarnessWorkspaceConfig(config, workspace.id, (current) =>
     merge ? { ...current, ...payload } : payload,
   );
 }
@@ -4749,7 +4749,7 @@ function parseOpencodeErrorBody(input: string): unknown {
 // dispose froze every later pass and the status it reports). Overridable for
 // tests.
 function opencodeDisposeTimeoutMs(): number {
-  const configured = Number(process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS ?? "");
+  const configured = Number(process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS ?? "");
   return Number.isFinite(configured) && configured > 0 ? configured : 30_000;
 }
 
@@ -5069,7 +5069,7 @@ async function postEngineRefreshSync(
   activeState: EngineMcpServerState | undefined,
 ): Promise<void> {
   const directory = resolveOpencodeDirectory(workspace);
-  markOpenworkCloudMcpStale(workspace, directory);
+  markHarnessCloudMcpStale(workspace, directory);
   return enqueueWorkspaceMcpRefreshSync({
     config,
     workspace,
@@ -5112,7 +5112,7 @@ async function runWorkspaceMcpRefreshSync(input: WorkspaceMcpRefreshRequest): Pr
     logRuntimeMcpSyncError({ config, workspace, trigger, error });
   }
   try {
-    const health = await reconcilePersistedOpenworkCloudMcp({
+    const health = await reconcilePersistedHarnessCloudMcp({
       config,
       workspace,
       directory,
@@ -5139,7 +5139,7 @@ async function runWorkspaceMcpRefreshSync(input: WorkspaceMcpRefreshRequest): Pr
   // reporting a phantom "changed" (which would schedule yet another reload).
   try {
     if (trigger === "engine_reload") {
-      await writeOpenworkRuntimeConfigFile(config);
+      await writeHarnessRuntimeConfigFile(config);
     }
   } catch {
     // Best-effort: the fresh-keeper listener still converges eventually.
@@ -5226,7 +5226,7 @@ async function runRuntimeMcpSyncToOpencodeEngine(
   if (connection.authHeader) headers.Authorization = connection.authHeader;
 
   // Keep going past per-entry failures: one dead or invalid MCP must not
-  // block re-registration of every entry after it (e.g. openwork-ui) on
+  // block re-registration of every entry after it (e.g. harness-ui) on
   // each engine reload.
   const failures: EngineMcpSyncFailure[] = [];
   const registrations: EngineMcpRegistrationResult[] = [];
@@ -5548,12 +5548,12 @@ async function readBoundedEngineMcpRegistrationResponse(response: Response): Pro
 
 // Read lazily so tests can shrink the delay at runtime.
 function engineMcpSyncRetryDelayMs(): number {
-  const parsed = Number(process.env.OPENWORK_MCP_SYNC_RETRY_DELAY_MS ?? "750");
+  const parsed = Number(process.env.HARNESS_MCP_SYNC_RETRY_DELAY_MS ?? "750");
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 750;
 }
 
 function engineMcpDeferredSyncDelayMs(): number {
-  const parsed = Number(process.env.OPENWORK_MCP_SYNC_DEFERRED_DELAY_MS ?? "12000");
+  const parsed = Number(process.env.HARNESS_MCP_SYNC_DEFERRED_DELAY_MS ?? "12000");
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 12_000;
 }
 
@@ -5662,7 +5662,7 @@ type EngineMcpServerState = {
 const ENGINE_MCP_REGISTRATION_MAX_AGE_MS = 15 * 60_000;
 // Registration status is point-in-time evidence from a dynamic POST /mcp,
 // not a durable statement about a later engine process. Scope it to one
-// OpenWork server generation and expire it even when the endpoint is stable.
+// Harness server generation and expire it even when the endpoint is stable.
 const engineMcpServerStateByConfig = new WeakMap<ServerConfig, EngineMcpServerState>();
 const trustedOpencodeProcessByConfig = new WeakMap<ServerConfig, TrustedOpencodeProcessIdentity>();
 let nextEngineMcpServerGeneration = 0;
@@ -5690,7 +5690,7 @@ function clearEngineMcpServerEvidence(state: EngineMcpServerState): void {
 
 /**
  * Bind diagnostics evidence to one OpenCode process generation owned by this
- * OpenWork server. The opaque identity is hashed immediately and never
+ * Harness server. The opaque identity is hashed immediately and never
  * reported. External engines without a trusted per-boot identity still hot
  * sync normally, but their cached registration result cannot authorize a
  * credentialed diagnostics probe.
@@ -5739,7 +5739,7 @@ export function createEnginePoolForConfig(input: {
 }): EnginePool {
   const { config } = input;
   const logger = createServerLogger(config);
-  // Thread approvals live in OpenWork because the engine forgets an "always"
+  // Thread approvals live in Harness because the engine forgets an "always"
   // reply whenever this pool rebuilds an instance or rolls over.
   let threadApprovals: ThreadApprovalReplayer | null = null;
   const pool = new EnginePool({
@@ -5777,7 +5777,7 @@ export function createEnginePoolForConfig(input: {
           );
         }
       },
-      writeRuntimeConfigFile: (poolConfig) => writeOpenworkRuntimeConfigFile(poolConfig),
+      writeRuntimeConfigFile: (poolConfig) => writeHarnessRuntimeConfigFile(poolConfig),
       registerTrusted: (poolConfig, generation) => registerTrustedOpencodeProcess(poolConfig, generation),
       clearTrusted: (poolConfig, identity) => clearTrustedOpencodeProcess(poolConfig, identity),
       logger,
@@ -5888,7 +5888,7 @@ function reconcileEngineMcpWorkspaceIdentity(
 }
 
 function engineMcpRegistrationMaxAgeMs(): number {
-  const configured = Number(process.env.OPENWORK_MCP_REGISTRATION_MAX_AGE_MS);
+  const configured = Number(process.env.HARNESS_MCP_REGISTRATION_MAX_AGE_MS);
   if (!Number.isFinite(configured) || configured < 1) return ENGINE_MCP_REGISTRATION_MAX_AGE_MS;
   return Math.min(ENGINE_MCP_REGISTRATION_MAX_AGE_MS, Math.round(configured));
 }
@@ -6226,7 +6226,7 @@ function logPersistedCloudMcpReconcileResult(input: {
     `Cloud MCP ${input.trigger} reconciliation left connected service tools unavailable for workspace ${input.workspace.id}.`,
     {
       "workspace.id": input.workspace.id,
-      "mcp.name": "openwork-cloud",
+      "mcp.name": "harness-cloud",
       "mcp.trigger": input.trigger,
       "mcp.failure.code": failure?.code ?? "unknown",
       "mcp.failure.stage": failure?.stage ?? "unknown",
@@ -6282,7 +6282,7 @@ function logPersistedCloudMcpReconcileError(input: {
     `Cloud MCP ${input.trigger} reconciliation crashed for workspace ${input.workspace.id}.`,
     {
       "workspace.id": input.workspace.id,
-      "mcp.name": "openwork-cloud",
+      "mcp.name": "harness-cloud",
       "mcp.trigger": input.trigger,
       "mcp.failure.code": "cloud_mcp_reconcile_exception",
       "mcp.failure.message": input.error instanceof Error ? input.error.message : String(input.error),
@@ -6295,7 +6295,7 @@ function logPersistedCloudMcpReconcileError(input: {
 // only, so other workspaces' runtime MCPs are invisible to the engine until
 // something re-syncs them. Best-effort.
 export async function syncAllWorkspacesRuntimeMcpToEngine(config: ServerConfig): Promise<void> {
-  await migrateOpenworkCloudMcpRuntimeConfig(config);
+  await migrateHarnessCloudMcpRuntimeConfig(config);
   await migrateWorkspaceRuntimeConfigToEngineGlobal(config);
   const serverState = activeEngineMcpServerState(config);
   for (const workspace of config.workspaces) {
@@ -6356,7 +6356,7 @@ async function exportWorkspace(
   const sensitiveMode = options?.sensitiveMode ?? "auto";
   const rawOpencode = await readOpencodeConfig(workspace.path);
   let opencode = sanitizePortableOpencodeConfig(rawOpencode);
-  const openwork = sanitizeOpenworkTemplateConfig(await readOpenworkConfigForWorkspace(config, workspace));
+  const harness = sanitizeHarnessTemplateConfig(await readHarnessConfigForWorkspace(config, workspace));
   const skills = await listSkills(workspace.path, false);
   const commands = await listCommands(workspace.path, "workspace");
   let files = await listPortableFiles(workspace.path);
@@ -6393,7 +6393,7 @@ async function exportWorkspace(
     workspaceId: workspace.id,
     exportedAt: Date.now(),
     opencode,
-    openwork,
+    harness,
     skills: skillContents,
     commands: commandContents,
     ...(files.length ? { files } : {}),

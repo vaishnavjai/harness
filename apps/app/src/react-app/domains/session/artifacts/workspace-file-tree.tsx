@@ -4,7 +4,7 @@ import { FileTree, useFileTree, useFileTreeSearch } from "@pierre/trees/react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw, Search } from "lucide-react";
 
-import type { OpenworkServerClient, OpenworkWorkspaceCatalogEntry } from "@/app/lib/openwork-server";
+import type { HarnessServerClient, HarnessWorkspaceCatalogEntry } from "@/app/lib/harness-server";
 import { Button } from "@/components/ui/button";
 import { useNativeContextMenu } from "@/components/ui/action-context-menu";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -25,15 +25,15 @@ const TREE_CSS = `
 export type WorkspaceFileAction = {
   id: string;
   label: string;
-  run: (entry: OpenworkWorkspaceCatalogEntry) => void;
+  run: (entry: HarnessWorkspaceCatalogEntry) => void;
 };
 
 type WorkspaceFileTreeProps = {
-  client: OpenworkServerClient;
+  client: HarnessServerClient;
   workspaceId: string;
   workspaceName: string;
   selectedPath: string;
-  onOpenFile: (entry: OpenworkWorkspaceCatalogEntry) => void;
+  onOpenFile: (entry: HarnessWorkspaceCatalogEntry) => void;
   fileActions?: readonly WorkspaceFileAction[];
 };
 
@@ -43,7 +43,7 @@ type WorkspaceFileTreeProps = {
  * composition API expects a plain HTMLElement.
  */
 function buildFileContextMenu(
-  entry: OpenworkWorkspaceCatalogEntry,
+  entry: HarnessWorkspaceCatalogEntry,
   actions: readonly WorkspaceFileAction[],
   close: () => void,
 ) {
@@ -65,7 +65,7 @@ function buildFileContextMenu(
   return menu;
 }
 
-function treePath(entry: OpenworkWorkspaceCatalogEntry) {
+function treePath(entry: HarnessWorkspaceCatalogEntry) {
   return entry.kind === "dir" ? `${entry.path}/` : entry.path;
 }
 

@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { parseBrowserTaskReply } from "@openwork/behaviors";
-import type { BrowserTaskInput, BrowserTaskReply } from "@openwork/behaviors";
-import type { Surface } from "@openwork/cdp";
+import { parseBrowserTaskReply } from "@harness/behaviors";
+import type { BrowserTaskInput, BrowserTaskReply } from "@harness/behaviors";
+import type { Surface } from "@harness/cdp";
 
 const exec = promisify(execFile);
 
@@ -31,7 +31,7 @@ export async function requestBrowserTask(app: Surface, input: BrowserTaskInput):
   if (!app.handle.profileDir) throw new Error("The isolated desktop has no profile path.");
   return parseBrowserTaskReply(await runBrowserHost(app, `
     const {readFile}=await import('node:fs/promises');
-    const bridge=JSON.parse(await readFile(${browserScriptValue(`${app.handle.profileDir}/electron-userdata/openwork-ui-control.json`)},'utf8'));
+    const bridge=JSON.parse(await readFile(${browserScriptValue(`${app.handle.profileDir}/electron-userdata/harness-ui-control.json`)},'utf8'));
     const response=await fetch(bridge.baseUrl+'/browser/task',{
       method:'POST',headers:{Authorization:'Bearer '+bridge.token,'Content-Type':'application/json'},
       body:${browserScriptValue(JSON.stringify(input))},signal:AbortSignal.timeout(65000)

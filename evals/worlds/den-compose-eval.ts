@@ -4,8 +4,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { allocateFreePorts } from "@openwork/cdp";
-import { SkipError, type Seed } from "@openwork/env";
+import { allocateFreePorts } from "@harness/cdp";
+import { SkipError, type Seed } from "@harness/env";
 
 // The documented pull-only evaluation stack (packaging/docker/docker-compose.eval.yml)
 // booted as an isolated Compose project, with the `web` service swapped for a
@@ -27,7 +27,7 @@ const HEALTHY_WITHIN_MS = 240_000;
 export interface DenComposeEvalWorld extends AsyncDisposable {
   /** Compose project name; every container, network and volume carries it. */
   project: string;
-  /** den-web image under test (OPENWORK_EVAL_DEN_WEB_IMAGE). */
+  /** den-web image under test (HARNESS_EVAL_DEN_WEB_IMAGE). */
   image: string;
   /** Host URL of the documented `web` service (DEN_API_PUBLIC_URL set). */
   webUrl: string;
@@ -71,19 +71,19 @@ async function waitForHealthy(url: string, label: string, logs: () => Promise<st
 }
 
 export async function denComposeEval(seed: Seed): Promise<DenComposeEvalWorld> {
-  const image = process.env.OPENWORK_EVAL_DEN_WEB_IMAGE?.trim();
+  const image = process.env.HARNESS_EVAL_DEN_WEB_IMAGE?.trim();
   if (!image) {
-    throw new SkipError("set OPENWORK_EVAL_DEN_WEB_IMAGE to a locally built den-web image (docker build --load -f packaging/docker/Dockerfile.den-web -t <image> .)");
+    throw new SkipError("set HARNESS_EVAL_DEN_WEB_IMAGE to a locally built den-web image (docker build --load -f packaging/docker/Dockerfile.den-web -t <image> .)");
   }
   await execFileAsync("docker", ["image", "inspect", image]).catch(() => {
-    throw new Error(`OPENWORK_EVAL_DEN_WEB_IMAGE=${image} is not present locally; build it with docker build --load first.`);
+    throw new Error(`HARNESS_EVAL_DEN_WEB_IMAGE=${image} is not present locally; build it with docker build --load first.`);
   });
 
   const [webPort, apiPort, fallbackPort] = await allocateFreePorts(3);
   if (webPort === undefined || apiPort === undefined || fallbackPort === undefined) {
     throw new Error("Could not allocate host ports for the compose evaluation stack.");
   }
-  const project = `openwork-eval-spec-${randomBytes(4).toString("hex")}`;
+  const project = `harness-eval-spec-${randomBytes(4).toString("hex")}`;
   const root = seed.tmpPath("den-compose-eval");
   await mkdir(root, { recursive: true });
   const publicApiOrigin = `http://localhost:${apiPort}`;
@@ -111,10 +111,10 @@ export async function denComposeEval(seed: Seed): Promise<DenComposeEvalWorld> {
 
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    OPENWORK_WEB_PORT: String(webPort),
-    OPENWORK_API_PORT: String(apiPort),
-    OPENWORK_AUTH_SECRET: randomBytes(32).toString("hex"),
-    OPENWORK_DB_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
+    HARNESS_WEB_PORT: String(webPort),
+    HARNESS_API_PORT: String(apiPort),
+    HARNESS_AUTH_SECRET: randomBytes(32).toString("hex"),
+    HARNESS_DB_ENCRYPTION_KEY: randomBytes(32).toString("hex"),
   };
   const composeArgs = ["-p", project, "-f", COMPOSE_FILE, "-f", overridePath];
   const logs = async (service: "web" | "web-fallback" | "den") =>
@@ -122,7 +122,7 @@ export async function denComposeEval(seed: Seed): Promise<DenComposeEvalWorld> {
 
   const down = async () => {
     await compose([...composeArgs, "down", "--volumes", "--remove-orphans", "--timeout", "10"], env)
-      .catch((error: unknown) => console.error(`[openwork/testkit] compose down failed for ${project}: ${messageText(error)}`));
+      .catch((error: unknown) => console.error(`[harness/testkit] compose down failed for ${project}: ${messageText(error)}`));
   };
 
   try {

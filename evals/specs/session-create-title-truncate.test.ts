@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { appWeb, eventually, needs, SkipError, test } from "@openwork/testkit";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
-import { OpenWorkExtensionsPreview } from "../../apps/server/src/opencode-plugins/openwork-extensions-preview";
-import { buildOpenworkProviderContributions } from "../../apps/server/src/opencode-plugins/openwork-provider-adapters";
+import { appWeb, eventually, needs, SkipError, test } from "@harness/testkit";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
+import { HarnessExtensionsPreview } from "../../apps/server/src/opencode-plugins/harness-extensions-preview";
+import { buildHarnessProviderContributions } from "../../apps/server/src/opencode-plugins/harness-provider-adapters";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -23,12 +23,12 @@ function records(value: unknown): Record<string, unknown>[] {
 }
 
 test("session.create advertises clipping and returns every validation issue without creating sessions", async ({ evidence }) => {
-  const create = buildOpenworkProviderContributions([]).flatMap((entry) => entry.affordances).find((entry) => entry.id === "session.create");
+  const create = buildHarnessProviderContributions([]).flatMap((entry) => entry.affordances).find((entry) => entry.id === "session.create");
   const description = create?.arguments.find((argument) => argument.name === "sessions")?.description;
   expect(description).toContain("title (≤120 chars, longer is clipped)");
   expect(description).toContain("prompt (≤100000 chars)");
-  const plugin = await OpenWorkExtensionsPreview();
-  const output = outputOf(await plugin.tool.openwork_execute.execute({ id: "session.create", args: { sessions: [
+  const plugin = await HarnessExtensionsPreview();
+  const output = outputOf(await plugin.tool.harness_execute.execute({ id: "session.create", args: { sessions: [
     { title: "", prompt: "Valid prompt" },
     { title: "First", prompt: "P".repeat(100_001) },
     { title: "Second", prompt: "P".repeat(100_412) },
@@ -47,19 +47,19 @@ test("session.create clips a 145-character title and session.list_sessions retur
   needs({ commands: ["bun"] });
   if (place.kind !== "local") throw new SkipError("this headless manifest proof uses the local lane");
   const scratch = await realpath(await mkdtemp(join(tmpdir(), "session-title-cap-")));
-  const original = { url: process.env.OPENWORK_SERVER_URL, token: process.env.OPENWORK_SERVER_TOKEN };
+  const original = { url: process.env.HARNESS_SERVER_URL, token: process.env.HARNESS_SERVER_TOKEN };
   try {
     await using app = await appWeb({ name: "session-title-cap", workspacePath: scratch, place });
     const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), app.handle.name);
     const runtime = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
-    if (!runtime || runtime.openworkUrl !== app.openworkUrl || runtime.workspace !== scratch) throw new Error("Could not identify the test-owned headless runtime");
-    process.env.OPENWORK_SERVER_URL = runtime.openworkUrl;
-    process.env.OPENWORK_SERVER_TOKEN = runtime.token;
-    const plugin = await OpenWorkExtensionsPreview({ directory: scratch });
+    if (!runtime || runtime.harnessUrl !== app.harnessUrl || runtime.workspace !== scratch) throw new Error("Could not identify the test-owned headless runtime");
+    process.env.HARNESS_SERVER_URL = runtime.harnessUrl;
+    process.env.HARNESS_SERVER_TOKEN = runtime.token;
+    const plugin = await HarnessExtensionsPreview({ directory: scratch });
     const title = "T".repeat(145);
     const clipped = `${title.slice(0, 119)}…`;
     const boundary = "B".repeat(120);
-    const result = outputOf(await plugin.tool.openwork_execute.execute({
+    const result = outputOf(await plugin.tool.harness_execute.execute({
       id: "session.create", args: {
         model: { providerId: "title-test-unconfigured", modelId: "unused" },
         sessions: [{ title, prompt: "Keep this label." }, { title: boundary, prompt: "Keep this other label." }],
@@ -73,7 +73,7 @@ test("session.create clips a 145-character title and session.list_sessions retur
     expect(clipped).toHaveLength(120);
 
     const listed = await eventually(async () => {
-      const output = outputOf(await plugin.tool.openwork_query.execute({ id: "session.list_sessions", args: {} }));
+      const output = outputOf(await plugin.tool.harness_query.execute({ id: "session.list_sessions", args: {} }));
       return records(output.result);
     }, { within: 30_000, intervalMs: 250, label: "created labels visible through session.list_sessions", until: (entries) => created.every((session) => entries.some((entry) => entry.sessionId === session.sessionId)) });
     expect(listed.find((entry) => entry.sessionId === created[0]?.sessionId)?.title).toBe(clipped);
@@ -81,10 +81,10 @@ test("session.create clips a 145-character title and session.list_sessions retur
     expect(listed.some((entry) => entry.title === title)).toBe(false);
     evidence.recordAssertionEvidence("Real headless affordances persist the clipped label and preserve a boundary label", "session.create accepted both labels: 145 → 120 characters ending in …, titleTruncated=true; 120 unchanged, titleTruncated=false. session.list_sessions returned those exact titles by their created IDs and never returned the original 145-character label.", listed.some((entry) => entry.sessionId === created[0]?.sessionId && entry.title === clipped) && listed.some((entry) => entry.sessionId === created[1]?.sessionId && entry.title === boundary));
   } finally {
-    if (original.url === undefined) delete process.env.OPENWORK_SERVER_URL;
-    else process.env.OPENWORK_SERVER_URL = original.url;
-    if (original.token === undefined) delete process.env.OPENWORK_SERVER_TOKEN;
-    else process.env.OPENWORK_SERVER_TOKEN = original.token;
+    if (original.url === undefined) delete process.env.HARNESS_SERVER_URL;
+    else process.env.HARNESS_SERVER_URL = original.url;
+    if (original.token === undefined) delete process.env.HARNESS_SERVER_TOKEN;
+    else process.env.HARNESS_SERVER_TOKEN = original.token;
     await rm(scratch, { recursive: true, force: true });
   }
 });

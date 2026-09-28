@@ -73,11 +73,11 @@ describe("validateMcpName", () => {
 });
 
 describe("validateUserMcpName", () => {
-  test("reserves the OpenWork Connect runtime name", () => {
-    expect(() => validateUserMcpName("openwork-cloud")).toThrow("reserved for OpenWork Connect");
-    expect(() => validateUserMcpName("OPENWORK-CLOUD")).toThrow("reserved for OpenWork Connect");
-    expect(() => validateUserMcpName("openwork-connect-1234")).toThrow("reserved for OpenWork Connect");
-    expect(() => validateUserMcpName("openwork-direct-linear-1234")).toThrow("reserved for OpenWork Connect");
+  test("reserves the Harness Connect runtime name", () => {
+    expect(() => validateUserMcpName("harness-cloud")).toThrow("reserved for Harness Connect");
+    expect(() => validateUserMcpName("HARNESS-CLOUD")).toThrow("reserved for Harness Connect");
+    expect(() => validateUserMcpName("harness-connect-1234")).toThrow("reserved for Harness Connect");
+    expect(() => validateUserMcpName("harness-direct-linear-1234")).toThrow("reserved for Harness Connect");
   });
 
   test("allows ordinary workspace MCP names", () => {

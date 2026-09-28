@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { captureScreenshot, evaluate } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
+import { captureScreenshot, evaluate } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
 import { currentTestEvidence } from "./ambient.ts";
-import type { EvidenceCheckpoint } from "@openwork/freestyle/checkpoint-schema";
+import type { EvidenceCheckpoint } from "@harness/freestyle/checkpoint-schema";
 
 export interface ScreenshotArtifact {
   png: Buffer;

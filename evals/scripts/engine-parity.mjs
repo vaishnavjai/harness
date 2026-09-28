@@ -47,7 +47,7 @@ async function main() {
       let log = "";
       const cli = process.env.npm_execpath;
       const child = spawn(cli ? process.execPath : "pnpm", cli ? [cli, ...args] : args, {
-        cwd: root, env: { ...process.env, ...binaries, pnpm_config_verify_deps_before_run: "false", OPENWORK_EVAL_ENGINE: engine, OPENWORK_EVAL_E2E_TESTS: "1" }, stdio: ["ignore", "pipe", "pipe"],
+        cwd: root, env: { ...process.env, ...binaries, pnpm_config_verify_deps_before_run: "false", HARNESS_EVAL_ENGINE: engine, HARNESS_EVAL_E2E_TESTS: "1" }, stdio: ["ignore", "pipe", "pipe"],
       });
       for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; process.stdout.write(chunk); });
       const code = await new Promise((resolve, reject) => { child.once("error", reject); child.once("exit", code => resolve(code)); });
@@ -72,7 +72,7 @@ async function main() {
     }
   }
   const lines = ["# OpenCode app parity", "", failures.length ? "**NOT READY — required checks failed or did not run.**" : "**PASS — all five journeys passed on both engines.**", "",
-    "Real development web app, OpenWork server, pinned engines, Den and Gateway. Model responses and the external connector are local witnesses. Fresh profiles; shared build/package caches. These are not packaged desktop startup measurements.", "",
+    "Real development web app, Harness server, pinned engines, Den and Gateway. Model responses and the external connector are local witnesses. Fresh profiles; shared build/package caches. These are not packaged desktop startup measurements.", "",
     "V1 verifies installed-skill consumption and uses its explicit legacy engine reload and app refresh for Gateway changes. V2 additionally verifies five skill lifecycle turns and Gateway updates in one document and conversation, with the same engine PID and no reload or rollover activity. This result covers these journeys, not the entire historical E2E suite.", "",
     "| Journey | Result | Evidence |", "| --- | --- | --- |"];
   for (const result of results.filter(result => result.iteration === 1)) for (const item of result.evidence) lines.push(`| ${item.name} | ${item.outcome} | [Steps and screenshots](${item.path}) |`);

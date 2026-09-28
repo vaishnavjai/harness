@@ -5,7 +5,7 @@ set -euo pipefail
 # This centralizes the graphics-safe Chromium flags and optional secret-volume
 # env loading used by Daytona evals.
 
-cd "${OPENWORK_WORKSPACE_DIR:-/workspace}"
+cd "${HARNESS_WORKSPACE_DIR:-/workspace}"
 
 if [ "${1:-}" = "--detach" ]; then
   shift
@@ -20,7 +20,7 @@ script_path, log_path, *args = sys.argv[1:]
 log = open(log_path, "ab", buffering=0)
 subprocess.Popen(
     ["bash", script_path, *args],
-    cwd=os.environ.get("OPENWORK_WORKSPACE_DIR", "/workspace"),
+    cwd=os.environ.get("HARNESS_WORKSPACE_DIR", "/workspace"),
     env=os.environ.copy(),
     stdin=subprocess.DEVNULL,
     stdout=log,
@@ -61,26 +61,26 @@ fi
 export DISPLAY="${DISPLAY:-:99}"
 export ELECTRON_DISABLE_SANDBOX="${ELECTRON_DISABLE_SANDBOX:-1}"
 export ELECTRON_EXTRA_LAUNCH_ARGS="${ELECTRON_EXTRA_LAUNCH_ARGS:-$DAYTONA_ELECTRON_EXTRA_LAUNCH_ARGS}"
-export OPENWORK_REACT_DEVTOOLS="${OPENWORK_REACT_DEVTOOLS:-0}"
-export OPENWORK_DEV_MODE="${OPENWORK_DEV_MODE:-1}"
-export OPENWORK_ELECTRON_REMOTE_DEBUG_PORT="${OPENWORK_ELECTRON_REMOTE_DEBUG_PORT:-9825}"
-export OPENWORK_ELECTRON_FAKE_MEDIA="${OPENWORK_ELECTRON_FAKE_MEDIA:-0}"
-if [ -n "${OPENWORK_ELECTRON_USERDATA:-}" ]; then
-  export OPENWORK_ELECTRON_USERDATA
+export HARNESS_REACT_DEVTOOLS="${HARNESS_REACT_DEVTOOLS:-0}"
+export HARNESS_DEV_MODE="${HARNESS_DEV_MODE:-1}"
+export HARNESS_ELECTRON_REMOTE_DEBUG_PORT="${HARNESS_ELECTRON_REMOTE_DEBUG_PORT:-9825}"
+export HARNESS_ELECTRON_FAKE_MEDIA="${HARNESS_ELECTRON_FAKE_MEDIA:-0}"
+if [ -n "${HARNESS_ELECTRON_USERDATA:-}" ]; then
+  export HARNESS_ELECTRON_USERDATA
 fi
-if [ -n "${OPENWORK_ELECTRON_APP_IDENTIFIER:-}" ]; then
-  export OPENWORK_ELECTRON_APP_IDENTIFIER
+if [ -n "${HARNESS_ELECTRON_APP_IDENTIFIER:-}" ]; then
+  export HARNESS_ELECTRON_APP_IDENTIFIER
 fi
-if [ -n "${OPENWORK_ELECTRON_APP_NAME:-}" ]; then
-  export OPENWORK_ELECTRON_APP_NAME
+if [ -n "${HARNESS_ELECTRON_APP_NAME:-}" ]; then
+  export HARNESS_ELECTRON_APP_NAME
 fi
 
-if [ -n "${OPENWORK_EVAL_ELECTRON_BINARY:-}" ]; then
-  if [ ! -x "$OPENWORK_EVAL_ELECTRON_BINARY" ]; then
-    echo "OPENWORK_EVAL_ELECTRON_BINARY is not an executable file: $OPENWORK_EVAL_ELECTRON_BINARY" >&2
+if [ -n "${HARNESS_EVAL_ELECTRON_BINARY:-}" ]; then
+  if [ ! -x "$HARNESS_EVAL_ELECTRON_BINARY" ]; then
+    echo "HARNESS_EVAL_ELECTRON_BINARY is not an executable file: $HARNESS_EVAL_ELECTRON_BINARY" >&2
     exit 1
   fi
-  exec "$OPENWORK_EVAL_ELECTRON_BINARY"
+  exec "$HARNESS_EVAL_ELECTRON_BINARY"
 fi
 
-exec pnpm --filter @openwork/desktop dev:electron
+exec pnpm --filter @harness/desktop dev:electron

@@ -13,7 +13,7 @@ export type OpencodeSessionErrorPresentation = {
   technicalDetails: string;
   recoveryPrompt: string | null;
   /**
-   * `gateway-auth-required` only: the OpenWork Gateway's OAuth start URL for
+   * `gateway-auth-required` only: the Harness Gateway's OAuth start URL for
    * this member (`error.auth_url` in the 401 body). Null when the body omitted
    * it — the renderer then deep-links to Settings > AI providers. Additive.
    */
@@ -22,8 +22,8 @@ export type OpencodeSessionErrorPresentation = {
   providerId?: string | null;
 };
 
-/** Error code the OpenWork inference gateway returns when the member's own sign-in is missing or revoked. */
-export const GATEWAY_AUTH_REQUIRED_ERROR_CODE = "openwork_auth_required";
+/** Error code the Harness inference gateway returns when the member's own sign-in is missing or revoked. */
+export const GATEWAY_AUTH_REQUIRED_ERROR_CODE = "harness_auth_required";
 export const GATEWAY_AUTH_REQUIRED_TITLE = "Sign in to keep using this model";
 
 export const interruptedTaskRecoveryPrompt = [
@@ -76,7 +76,7 @@ function sessionErrorKind(
   if (name === "SessionGroupAssignmentError") return "session-group-assignment";
   const searchable = [name, message, code, responseBody].filter(Boolean).join(" ");
   if (searchable.includes("gateway_selection_required")) return "gateway-selection-required";
-  if (searchable.includes("openwork:desktop") && /\bECONNREFUSED\b/.test(searchable)
+  if (searchable.includes("harness:desktop") && /\bECONNREFUSED\b/.test(searchable)
     && /127\.0\.0\.1|localhost|\[::1\]/.test(searchable)) return "workspace-unavailable";
   if (name === "APIError" && status === 403) return "provider-access-denied";
   if (/\b(?:ENOSPC|EDQUOT|SQLITE_FULL)\b|no space left on device|database or disk is full|disk quota exceeded/i.test(searchable)) {
@@ -122,7 +122,7 @@ function sessionErrorKind(
 function errorTitle(kind: OpencodeSessionErrorKind, fallback: string) {
   if (kind === "session-group-assignment") return "Couldn’t assign this conversation to its group";
   if (kind === "disk-full") return "Storage error reported";
-  if (kind === "database-error") return "OpenWork couldn’t access its saved data";
+  if (kind === "database-error") return "Harness couldn’t access its saved data";
   if (kind === "aborted") return "Task interrupted";
   if (kind === "provider-timeout") return "Provider did not respond in time";
   if (kind === "provider-incomplete") return "The model response was interrupted";
@@ -149,7 +149,7 @@ function errorDescription(kind: OpencodeSessionErrorKind, gatewayAuth: GatewayAu
     return "A storage limit was reported by the task runtime or a connected service. This does not necessarily mean your computer is full. Check the affected service or workspace before freeing local disk space.";
   }
   if (kind === "database-error") {
-    return "Try again. If this keeps happening, check the available disk space on the device running this task and restart OpenWork. For a cloud workspace, contact its administrator.";
+    return "Try again. If this keeps happening, check the available disk space on the device running this task and restart Harness. For a cloud workspace, contact its administrator.";
   }
   if (kind === "aborted") {
     return "OpenCode stopped before the task finished. Output and files already produced are kept.";
@@ -180,7 +180,7 @@ function errorDescription(kind: OpencodeSessionErrorKind, gatewayAuth: GatewayAu
 type GatewayAuthRequired = { connectUrl: string | null; message: string | null };
 
 /**
- * Detects the gateway's in-band `401 { error: { code: "openwork_auth_required",
+ * Detects the gateway's in-band `401 { error: { code: "harness_auth_required",
  * message, auth_url?, provider_id } }`. The body reaches us as a string on
  * whichever field the SDK error exposes (message / responseBody / cause), so
  * match the code and message tolerantly. URLs from upstream errors are never
@@ -330,7 +330,7 @@ export function presentOpencodeSessionError(error: unknown, fallback = "Session 
     kind,
     title: credentialCopy?.title ?? errorTitle(kind, fallbackTitle),
     description: credentialCopy?.description ?? errorDescription(kind, gatewayAuth),
-    technicalDetails: kind === "gateway-selection-required" ? "Error code: gateway_selection_required\nStatus: 409" : gatewayAuth ? "Error code: openwork_auth_required\nStatus: 401" : technicalErrorDetails(error, fallback, fields),
+    technicalDetails: kind === "gateway-selection-required" ? "Error code: gateway_selection_required\nStatus: 409" : gatewayAuth ? "Error code: harness_auth_required\nStatus: 401" : technicalErrorDetails(error, fallback, fields),
     recoveryPrompt: errorRecoveryPrompt(kind),
     ...(gatewayAuth ? { connectUrl: gatewayAuth.connectUrl } : {}),
     ...(gatewayUsage ? { gatewayUsage, providerId: fields.provider } : {}),

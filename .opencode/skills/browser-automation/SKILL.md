@@ -1,6 +1,6 @@
 ---
 name: browser-automation
-description: Local OpenWork Electron browser automation with CDP. Use when driving a local Electron dev app, browser_list, browser_snapshot, browser_eval, composer automation, or local UI smoke tests.
+description: Local Harness Electron browser automation with CDP. Use when driving a local Electron dev app, browser_list, browser_snapshot, browser_eval, composer automation, or local UI smoke tests.
 ---
 
 # Browser Automation
@@ -9,7 +9,7 @@ For verdicts, do not drive CDP by hand — write or run an `evals/specs` test (`
 
 ## What I Do
 
-- Attach OpenCode browser tools to the OpenWork Electron app during local development.
+- Attach OpenCode browser tools to the Harness Electron app during local development.
 - Drive the app UI through Electron's Chrome DevTools Protocol endpoint.
 - Send a task/session from the composer and confirm the response in the UI.
 
@@ -18,7 +18,7 @@ For verdicts, do not drive CDP by hand — write or run an `evals/specs` test (`
 `pnpm dev` enables Electron CDP by default:
 
 ```sh
-OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=${OPENWORK_ELECTRON_REMOTE_DEBUG_PORT:-9823}
+HARNESS_ELECTRON_REMOTE_DEBUG_PORT=${HARNESS_ELECTRON_REMOTE_DEBUG_PORT:-9823}
 ```
 
 The default browser URL for OpenCode browser tools is:
@@ -36,13 +36,13 @@ http://localhost:5173/
 To use a different CDP port, launch with an override:
 
 ```sh
-OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=9830 pnpm dev
+HARNESS_ELECTRON_REMOTE_DEBUG_PORT=9830 pnpm dev
 ```
 
 To disable Electron CDP for a run:
 
 ```sh
-OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=0 pnpm dev
+HARNESS_ELECTRON_REMOTE_DEBUG_PORT=0 pnpm dev
 ```
 
 ## Background Launch
@@ -50,7 +50,7 @@ OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=0 pnpm dev
 Use a detached launch when the user wants the app running in the background:
 
 ```sh
-nohup pnpm dev > /tmp/openwork-dev.log 2>&1 &
+nohup pnpm dev > /tmp/harness-dev.log 2>&1 &
 ```
 
 Then wait for the CDP port:
@@ -62,7 +62,7 @@ lsof -nP -iTCP:9823 -sTCP:LISTEN
 ## Browser Tool Flow
 
 1. List targets with `browser_list` using `browser_url: "http://127.0.0.1:9823"`.
-2. Select the `OpenWork` target ID.
+2. Select the `Harness` target ID.
 3. Read state with `browser_eval` or `browser_snapshot`.
 4. Fill the Lexical composer by targeting `[contenteditable="true"][data-lexical-editor="true"]`.
 5. Click the `Run task` button.
@@ -70,7 +70,7 @@ lsof -nP -iTCP:9823 -sTCP:LISTEN
 
 ## Send A Session
 
-Use this `browser_eval` pattern after selecting the OpenWork target:
+Use this `browser_eval` pattern after selecting the Harness target:
 
 ```js
 (() => {
@@ -98,6 +98,6 @@ Use this `browser_eval` pattern after selecting the OpenWork target:
 
 ## Notes
 
-- Electron CDP is used for development test tooling. User browser tasks should use the built-in OpenWork Browser target.
-- A successful local attach should show an `OpenWork` target at `http://127.0.0.1:9823`.
+- Electron CDP is used for development test tooling. User browser tasks should use the built-in Harness Browser target.
+- A successful local attach should show an `Harness` target at `http://127.0.0.1:9823`.
 - The known-good smoke prompt is `Say hello from the Electron browser test.` and the expected response is `Hello from the Electron browser test.`

@@ -1,4 +1,4 @@
-import { timed } from "@openwork/timeline";
+import { timed } from "@harness/timeline";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -209,7 +209,7 @@ function failureSummary(results: VisualExpectationResult[]): string {
 function visionModel(): string {
   const openAiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
   const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim() ?? "";
-  return process.env.OPENWORK_EVAL_VISION_MODEL?.trim()
+  return process.env.HARNESS_EVAL_VISION_MODEL?.trim()
     || (anthropicKey && !openAiKey ? ANTHROPIC_DEFAULT_MODEL : OPENAI_DEFAULT_MODEL);
 }
 
@@ -306,7 +306,7 @@ export async function validate(
   opts: ValidateOptions = {},
 ): Promise<VisualEvidenceResult> {
   // A caller-provided ask is a deterministic witness, not an LLM call, so defer never applies to it.
-  if (!opts.ask && process.env.OPENWORK_EVAL_VISION?.trim() === "defer") {
+  if (!opts.ask && process.env.HARNESS_EVAL_VISION?.trim() === "defer") {
     const visualEvidence: VisualEvidenceResult = {
       ok: true,
       description: "",

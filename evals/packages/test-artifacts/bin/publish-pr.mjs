@@ -16,7 +16,7 @@ const docShots = [];
 const gaps = [];
 let title;
 let all = false;
-let reviewUrl = process.env.OPENWORK_REVIEW_URL;
+let reviewUrl = process.env.HARNESS_REVIEW_URL;
 let dryRun = false;
 let force = false;
 let shouldOpen = false;

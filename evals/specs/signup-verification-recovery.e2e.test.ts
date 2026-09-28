@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { emailLinks, invitationWitnesses, membersFor, orgInvite, text } from "../worlds/org-invite.ts";
 
 const test = spec.world(orgInvite, { resources: { surfaces: ["web"], services: ["den"] }, needs: { placement: "local" }, timeout: 600_000 });

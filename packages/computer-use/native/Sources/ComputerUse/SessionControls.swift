@@ -7,7 +7,7 @@ final class ControlLease {
     private var fd: Int32 = -1
     init() throws {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("OpenWork/ComputerUse", isDirectory: true)
+            .appendingPathComponent("Harness/ComputerUse", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         fd = Darwin.open(directory.appendingPathComponent("control.lock").path, O_CREAT | O_RDWR | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard fd >= 0 else { throw UseError("control_unavailable", "Could not reserve computer control.", next: "human_takeover") }
@@ -49,7 +49,7 @@ final class SessionControls: NSObject {
         guard Self.hosted else { return }
         hostState.merge(values) { _, new in new }
         hostState["id"] = hostID
-        guard let data = try? JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "method": "openwork/ui", "params": hostState]) else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: ["jsonrpc": "2.0", "method": "harness/ui", "params": hostState]) else { return }
         FileHandle.standardOutput.write(data + Data([10]))
     }
     func hostAction(_ value: [String: Any]) {
@@ -140,7 +140,7 @@ final class SessionControls: NSObject {
         }
         let alert = NSAlert()
         alert.alertStyle = .informational
-        alert.messageText = "Allow OpenWork to use \(app.name)?"
+        alert.messageText = "Allow Harness to use \(app.name)?"
         alert.informativeText = "\(mode.explanation)\n\nChoose the window below. This approval lasts for this session, up to 15 minutes. App content may be sent to your selected model provider.\n\nRequested task: \(purpose)\n\nApp: \(app.bundleID)"
         alert.icon = app.app.icon
         alert.addButton(withTitle: mode == .control ? "Allow and start" : "Allow this session")
@@ -172,7 +172,7 @@ final class SessionControls: NSObject {
         if Self.hosted { showHosted(app: app, target: target, mode: mode, purpose: purpose) } else {
         let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 380, height: 230),
             styleMask: [.titled, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.title = "OpenWork Computer Use"
+        panel.title = "Harness Computer Use"
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
@@ -188,7 +188,7 @@ final class SessionControls: NSObject {
         let expiry = NSTextField(labelWithString: "Access ends in 15:00")
         expiry.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         expiry.textColor = .secondaryLabelColor
-        let status = NSTextField(wrappingLabelWithString: "OpenWork is working. You can take over at any time.")
+        let status = NSTextField(wrappingLabelWithString: "Harness is working. You can take over at any time.")
         status.font = .systemFont(ofSize: 12)
         status.textColor = .secondaryLabelColor
         let toggle = NSButton(title: "Take over", target: self, action: #selector(togglePause))
@@ -245,7 +245,7 @@ final class SessionControls: NSObject {
                 }
             }
         })
-        stopObserver = DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.differentai.openwork.computer-use.stop"), object: nil, queue: .main) { [weak self] _ in
+        stopObserver = DistributedNotificationCenter.default().addObserver(forName: Notification.Name("com.vaishnavjai.harness.computer-use.stop"), object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.onStop?() }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -285,7 +285,7 @@ final class PermissionSetup: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 370), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Computer Use"; window.isReleasedWhenClosed = false
-        let title = NSTextField(labelWithString: "Choose what OpenWork can use")
+        let title = NSTextField(labelWithString: "Choose what Harness can use")
         title.font = .boldSystemFont(ofSize: 23)
         let description = NSTextField(wrappingLabelWithString: "macOS permissions enable the helper. You approve an app, a window and a control mode separately for each session. Your input interrupts control; Stop in the preview ends access.")
         let accessibility = NSTextField(labelWithString: "")
@@ -293,7 +293,7 @@ final class PermissionSetup: NSObject, NSApplicationDelegate {
         let axButton = NSButton(title: "Open Accessibility settings", target: self, action: #selector(openAccessibility))
         let captureButton = NSButton(title: "Open Screen Recording settings", target: self, action: #selector(openCapture))
         let stop = NSButton(title: "Stop all Computer Use sessions", target: self, action: #selector(stopAll))
-        let footer = NSTextField(wrappingLabelWithString: "After allowing access, return to Library → Computer Use in OpenWork to finish setup. If macOS asks you to restart, quit and reopen OpenWork. Windows and Linux desktop control are not available in this version.")
+        let footer = NSTextField(wrappingLabelWithString: "After allowing access, return to Library → Computer Use in Harness to finish setup. If macOS asks you to restart, quit and reopen Harness. Windows and Linux desktop control are not available in this version.")
         footer.font = .systemFont(ofSize: 12); footer.textColor = .secondaryLabelColor
         let stack = NSStackView(views: [title, description, accessibility, axButton, capture, captureButton, stop, footer])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
@@ -322,6 +322,6 @@ final class PermissionSetup: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!)
     }
     @objc private func stopAll() {
-        DistributedNotificationCenter.default().postNotificationName(Notification.Name("com.differentai.openwork.computer-use.stop"), object: nil, userInfo: nil, deliverImmediately: true)
+        DistributedNotificationCenter.default().postNotificationName(Notification.Name("com.vaishnavjai.harness.computer-use.stop"), object: nil, userInfo: nil, deliverImmediately: true)
     }
 }

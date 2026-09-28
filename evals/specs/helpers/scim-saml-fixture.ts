@@ -10,7 +10,7 @@ export function signedScimSamlFixture() {
     privateKeyEncoding: { type: "pkcs8", format: "pem" },
     publicKeyEncoding: { type: "spki", format: "pem" },
   });
-  const cert = execFileSync("openssl", ["req", "-new", "-x509", "-key", "/dev/stdin", "-subj", "/CN=scim-saml.openwork.test", "-days", "1"], {
+  const cert = execFileSync("openssl", ["req", "-new", "-x509", "-key", "/dev/stdin", "-subj", "/CN=scim-saml.harness.test", "-days", "1"], {
     input: privateKey, encoding: "utf8", timeout: 10_000,
   });
   const issuer = "http://127.0.0.1/scim-saml";

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { pr5047ElectronProof } from "../worlds/pr5047-electron-proof";
 
 const baselineOnly=process.env.PR5047_BASELINE_ONLY === "1";

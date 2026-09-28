@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import {
   agentSessionSend,
@@ -44,7 +44,7 @@ function completedExecuteOutputs(value: unknown): Record<string, unknown>[] {
   for (const message of value) {
     if (!isRecord(message) || !Array.isArray(message.parts)) continue;
     for (const part of message.parts) {
-      if (!isRecord(part) || part.type !== "tool" || part.tool !== "openwork_execute" || !isRecord(part.state)) continue;
+      if (!isRecord(part) || part.type !== "tool" || part.tool !== "harness_execute" || !isRecord(part.state)) continue;
       if (part.state.status !== "completed" || typeof part.state.output !== "string") continue;
       const parsed: unknown = JSON.parse(part.state.output);
       if (isRecord(parsed)) outputs.push(parsed);
@@ -88,7 +88,7 @@ test("an agent messages another session by id while the person keeps looking at 
 
     const relay = "Relay from session 1: the archive importer shipped this morning.";
     const first = await step("session 1 sends to session 2 by id; session 2 receives and answers; the window receives no command", async () => {
-      world.script.toolCall = { name: "openwork_execute", arguments: { id: "session.send", args: { sessionId: target, text: relay } } };
+      world.script.toolCall = { name: "harness_execute", arguments: { id: "session.send", args: { sessionId: target, text: relay } } };
       const turn = await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
         model,
         parts: [{ type: "text", text: `${ORCHESTRATE_MARKER} Let the importer session know it shipped.` }],
@@ -120,7 +120,7 @@ test("an agent messages another session by id while the person keeps looking at 
       expect(commands(window.handled)).toEqual([]);
       evidence.recordAssertionEvidence(
         "session.send reaches a session by id without any UI command",
-        `Session 1's openwork_execute(session.send) returned accepted=true, messageId=${messageId}, effects.ui=none; session 2 gained exactly that user message plus a reply; session 3 has no messages; the window's mailbox saw ${commands(window.handled).length} commands.`,
+        `Session 1's harness_execute(session.send) returned accepted=true, messageId=${messageId}, effects.ui=none; session 2 gained exactly that user message plus a reply; session 3 has no messages; the window's mailbox saw ${commands(window.handled).length} commands.`,
         commands(window.handled).length === 0,
       );
       return { messageId };
@@ -139,7 +139,7 @@ test("an agent messages another session by id while the person keeps looking at 
       });
 
       const second = "Second relay from session 1, sent while session 2 is busy.";
-      world.script.toolCall = { name: "openwork_execute", arguments: { id: "session.send", args: { sessionId: target, text: second } } };
+      world.script.toolCall = { name: "harness_execute", arguments: { id: "session.send", args: { sessionId: target, text: second } } };
       const startedAt = Date.now();
       await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
         model,
@@ -185,7 +185,7 @@ test("an agent messages another session by id while the person keeps looking at 
     await step("reveal: true is the explicit opt-in: the message is sent first, then one session.open for session 2 reaches the window on behalf of session 1", async () => {
       const before = await read(target);
       const text = "Third relay: please take a look at this one.";
-      world.script.toolCall = { name: "openwork_execute", arguments: { id: "session.send", args: { sessionId: target, text, reveal: true } } };
+      world.script.toolCall = { name: "harness_execute", arguments: { id: "session.send", args: { sessionId: target, text, reveal: true } } };
       await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
         model,
         parts: [{ type: "text", text: `${ORCHESTRATE_MARKER} Send and show me.` }],
@@ -212,7 +212,7 @@ test("an agent messages another session by id while the person keeps looking at 
 
     await step("an unknown session id is refused before anything reaches the engine or the window", async () => {
       const targetBefore = await read(target);
-      world.script.toolCall = { name: "openwork_execute", arguments: { id: "session.send", args: { sessionId: "ses_does_not_exist", text: "lost" } } };
+      world.script.toolCall = { name: "harness_execute", arguments: { id: "session.send", args: { sessionId: "ses_does_not_exist", text: "lost" } } };
       await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
         model,
         parts: [{ type: "text", text: `${ORCHESTRATE_MARKER} Message a session that does not exist.` }],

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { eventually, observeTranscript, readTranscriptMessages, spec } from "@openwork/testkit";
+import { eventually, observeTranscript, readTranscriptMessages, spec } from "@harness/testkit";
 import { streamedMarkdown, streamedMarkdownMarker, streamedMarkdownReasoning, streamedToolHistory } from "../worlds/chat.ts";
 import {
   chatStreamContinuityWeb,
@@ -224,10 +224,10 @@ historyTest("v1 keeps long tool-rich history ordered and its detected links avai
       return { ...geometry, stable };
     }, { within: 5_000, label: "keyboard browsing settles above the latest turn", until: (value) => value.stable });
   };
-  const scrollStorageKey = "openwork:session-scroll:v1";
+  const scrollStorageKey = "harness:session-scroll:v1";
   const savedScroll = async (sessionId: string): Promise<unknown> => {
-    const organizationId = await probe.storage("openwork.den.activeOrgId");
-    const port = await probe.storage("openwork.server.port");
+    const organizationId = await probe.storage("harness.den.activeOrgId");
+    const port = await probe.storage("harness.server.port");
     if (typeof organizationId !== "string" || !organizationId.trim()
       || (typeof port !== "string" && typeof port !== "number") || !/^\d+$/.test(String(port))) {
       throw new Error("Streamed history fixture is missing its organization or local server port");
@@ -537,14 +537,14 @@ continuityTest("CONT-01 restores the exact cumulative prefix while one answer st
     await selectMode("Default agent", "Build");
     await select(world.neighbor);
     await selectMode("Default agent", "Build");
-    expect(await probe.storage("openwork.preferences")).toMatchObject({ selectedAgent: null });
+    expect(await probe.storage("harness.preferences")).toMatchObject({ selectedAgent: null });
     await user.click({ role: "button", label: "New task" });
     await user.see("composer", { editable: true });
     await selectMode("Default agent", "Build");
-    expect(await probe.storage("openwork.preferences")).toMatchObject({ selectedAgent: "build" });
+    expect(await probe.storage("harness.preferences")).toMatchObject({ selectedAgent: "build" });
     await select(world.session);
     await user.see({ role: "button", label: "Build" });
-    expect(await probe.storage("openwork.sessionAgents.v1")).toMatchObject({
+    expect(await probe.storage("harness.sessionAgents.v1")).toMatchObject({
       [world.session.sessionId]: "build",
       [world.neighbor.sessionId]: "build",
     });
@@ -707,7 +707,7 @@ continuityTest("CONT-01 restores the exact cumulative prefix while one answer st
     expect((await world.engineHttpEvents()).promptPosts).toEqual({ [world.session.sessionId]: 1 });
     await select(world.session);
     await user.see({ role: "button", label: "Plan" });
-    expect(await probe.storage("openwork.sessionAgents.v1")).toMatchObject({
+    expect(await probe.storage("harness.sessionAgents.v1")).toMatchObject({
       [world.session.sessionId]: "plan",
       [world.neighbor.sessionId]: "build",
     });
@@ -792,7 +792,7 @@ continuityTest("CONT-01 restores the exact cumulative prefix while one answer st
       info: expect.objectContaining({ role: "user", agent: "plan" }),
       parts: expect.arrayContaining([expect.objectContaining({ type: "text", text: world.planPrompt })]),
     })]));
-    expect(await probe.storage("openwork.sessionAgents.v1")).toMatchObject({
+    expect(await probe.storage("harness.sessionAgents.v1")).toMatchObject({
       [world.session.sessionId]: "plan",
       [world.neighbor.sessionId]: "build",
       [created.sessionId]: "plan",
@@ -813,22 +813,22 @@ continuityTest("CONT-01 restores the exact cumulative prefix while one answer st
     const expectDefaultSelection = async () => {
       await user.see("Run task", { timeoutMs: 30_000 });
       await user.notSee({ role: "button", label: /^(Build|Plan)$/ });
-      expect(await probe.storage("openwork.sessionAgents.v1")).toMatchObject({
+      expect(await probe.storage("harness.sessionAgents.v1")).toMatchObject({
         [world.session.sessionId]: null,
         [world.neighbor.sessionId]: "plan",
         [newTaskSessionId]: "plan",
       });
-      expect(await probe.storage("openwork.preferences")).toMatchObject({ selectedAgent: "plan" });
+      expect(await probe.storage("harness.preferences")).toMatchObject({ selectedAgent: "plan" });
     };
 
     await selectMode("Plan", "Default agent");
-    expect(await probe.storage("openwork.sessionAgents.v1")).toMatchObject({ [world.session.sessionId]: null });
+    expect(await probe.storage("harness.sessionAgents.v1")).toMatchObject({ [world.session.sessionId]: null });
     await select(world.neighbor);
     await selectMode("Build", "Plan");
     await user.click({ role: "button", label: "New task" });
     await user.see("composer", { editable: true });
     await selectMode("Plan", "Build");
-    expect(await probe.storage("openwork.preferences")).toMatchObject({ selectedAgent: "build" });
+    expect(await probe.storage("harness.preferences")).toMatchObject({ selectedAgent: "build" });
     await selectMode("Build", "Plan");
     await select(world.session);
     await expectDefaultSelection();

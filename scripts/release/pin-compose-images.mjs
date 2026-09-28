@@ -9,10 +9,10 @@
  *
  * Usage:
  *   node scripts/release/pin-compose-images.mjs pin --version X.Y.Z \
- *     --digest openwork-den-api=sha256:... --digest openwork-den-web=sha256:...
+ *     --digest harness-den-api=sha256:... --digest harness-den-web=sha256:...
  *   node scripts/release/pin-compose-images.mjs docs --commit <40-hex sha>
  *
- * `pin` rewrites every ghcr.io/different-ai/openwork-* image line to
+ * `pin` rewrites every ghcr.io/vaishnavjai/harness-* image line to
  * <image>:<version>@<digest> and requires a digest for each image found.
  * `docs` recomputes the compose file's sha256 and rewrites the raw.githubusercontent
  * commit URL and checksum in the documents that tell evaluators to download it.
@@ -31,10 +31,10 @@ export const DOC_PATHS = [
   "packages/docs/self-host/evaluate-with-docker-compose.mdx",
   "packaging/docker/README.md",
 ];
-export const PINNED_IMAGES = ["openwork-den-api", "openwork-den-web"];
+export const PINNED_IMAGES = ["harness-den-api", "harness-den-web"];
 
-const IMAGE_LINE_PATTERN = /^(\s*image:\s*ghcr\.io\/different-ai\/)(openwork-[a-z-]+):([0-9A-Za-z._-]+)@(sha256:[0-9a-f]{64})\s*$/gm;
-const RAW_URL_PATTERN = /(https:\/\/raw\.githubusercontent\.com\/different-ai\/openwork\/)([0-9a-f]{40})(\/packaging\/docker\/docker-compose\.eval\.yml)/g;
+const IMAGE_LINE_PATTERN = /^(\s*image:\s*ghcr\.io\/different-ai\/)(harness-[a-z-]+):([0-9A-Za-z._-]+)@(sha256:[0-9a-f]{64})\s*$/gm;
+const RAW_URL_PATTERN = /(https:\/\/raw\.githubusercontent\.com\/different-ai\/harness\/)([0-9a-f]{40})(\/packaging\/docker\/docker-compose\.eval\.yml)/g;
 const CHECKSUM_PATTERN = /'([0-9a-f]{64})'(\s*\\\s*\n\s*'docker-compose\.eval\.yml' \| shasum -a 256 --check)/g;
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;

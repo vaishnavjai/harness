@@ -53,9 +53,9 @@ export async function bootAppWebWorld(
   const selectedEnv = appWebEnvironment(env);
   const lifetimeMinutes = options.lifetimeMinutes ?? 120;
   if (!Number.isInteger(lifetimeMinutes) || lifetimeMinutes < 10 || lifetimeMinutes > 1430) throw new Error("app-web lifetime must be 10-1430 minutes.");
-  if (options.place === "daytona" && selectedEnv.OPENWORK_DEV_DEN_PROXY_TARGET !== undefined
-    && selectedEnv.OPENWORK_DEV_DEN_PROXY_TARGET !== "https://app.openworklabs.com") {
-    throw new Error("Remote app-web supports only https://app.openworklabs.com as its Den proxy target.");
+  if (options.place === "daytona" && selectedEnv.HARNESS_DEV_DEN_PROXY_TARGET !== undefined
+    && selectedEnv.HARNESS_DEV_DEN_PROXY_TARGET !== "https://app.harness.invalid") {
+    throw new Error("Remote app-web supports only https://app.harness.invalid as its Den proxy target.");
   }
   const runtimeName = `${receiptName("app-web", resolveStage(env))}-${randomUUID().slice(0, 8)}`;
   if (options.place === "freestyle") {
@@ -82,7 +82,7 @@ export async function bootAppWebWorld(
       await Promise.all([owned.runtimeDirectory, owned.fixtureRoot].map((path) => rm(path, { recursive: true, force: true })));
     });
     return { placement: "local", sourceSha: source.sha, sourceDirty: String(source.dirty), sourceKind: "working-tree", runtimeName,
-      webUrl: runtime.webUrl, openworkUrl: runtime.openworkUrl, runtimeDirectory: runtime.runtimeDirectory };
+      webUrl: runtime.webUrl, harnessUrl: runtime.harnessUrl, runtimeDirectory: runtime.runtimeDirectory };
   }
   if (!options.ref || !/^[a-f0-9]{40}$/.test(options.ref)) throw new Error("Daytona app-web requires a full pushed source SHA.");
   let sandboxId: string | undefined;
@@ -101,7 +101,7 @@ export async function bootAppWebWorld(
   const previewIssuedAt = Date.now();
   const preview = await deps.preview(sandboxId, WEB_PORT, undefined, (lifetimeMinutes + 10) * 60);
   const runtime = await deps.remote(sandboxId, runtimeName, "/workspace", room.source, {
-    env: { ...selectedEnv, OPENWORK_WEB_PORT: String(WEB_PORT), VITE_HOST: "0.0.0.0" },
+    env: { ...selectedEnv, HARNESS_WEB_PORT: String(WEB_PORT), VITE_HOST: "0.0.0.0" },
     browserHostSuffix: preview.browserHostSuffix,
   });
   stack.adopt(runtime, (owned) => owned.stop());
@@ -113,7 +113,7 @@ export async function bootAppWebWorld(
     sourceSha: room.source.actualSha, sourceFingerprint: room.source.preparedFingerprint, sandboxId, runtimeName,
     webUrl: { value: preview.browserOrigin, secret: true }, previewExpiresInSeconds: String((lifetimeMinutes + 10) * 60),
     previewExpires: new Date(previewIssuedAt + (lifetimeMinutes + 10) * 60_000).toISOString(),
-    runtimeWebUrl: runtime.webUrl, runtimeOpenworkUrl: runtime.openworkUrl, runtimeDirectory: runtime.runtimeDirectory,
+    runtimeWebUrl: runtime.webUrl, runtimeHarnessUrl: runtime.harnessUrl, runtimeDirectory: runtime.runtimeDirectory,
   };
 }
 

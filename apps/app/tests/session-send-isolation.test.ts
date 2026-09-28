@@ -3,20 +3,20 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { OpenworkSessionHistory } from "../src/app/lib/openwork-server";
+import type { HarnessSessionHistory } from "../src/app/lib/harness-server";
 import { useOpeningSessionHistory } from "../src/react-app/domains/session/surface/session-history";
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
 import { composeNativeSessionHistory } from "../src/app/lib/opencode-session-native";
 import { createClient } from "../src/app/lib/opencode";
 import { interruptSessionTurn } from "../src/app/lib/opencode-interruption";
-import { buildOpenworkSessionSystemContext, clearOpenworkEnvSystemContextCache } from "../src/react-app/domains/session/sync/env-context";
+import { buildHarnessSessionSystemContext, clearHarnessEnvSystemContextCache } from "../src/react-app/domains/session/sync/env-context";
 
 const originalWindow = globalThis.window;
 const originalFetch = globalThis.fetch;
 afterEach(() => {
   Object.defineProperty(globalThis, "window", { configurable: true, value: originalWindow });
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
-  clearOpenworkEnvSystemContextCache();
+  clearHarnessEnvSystemContextCache();
 });
 
 function fixture() {
@@ -48,7 +48,7 @@ function fixture() {
     return Response.json(respond(request));
   };
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: raw });
-  Object.defineProperty(globalThis, "window", { configurable: true, value: { fetch: raw, __OPENWORK_ELECTRON__: {
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { fetch: raw, __HARNESS_ELECTRON__: {
     invokeDesktop: async (command: string, url: string, init: RequestInit) => {
       expect(command).toBe("__fetch");
       const request = new Request(url, init);
@@ -69,10 +69,10 @@ test("only the uncached send-history preflight requests isolated transport; cach
       const host = document.createElement("div");
       const root = createRoot(host);
       const calls: ({ desktopTransport: "main" } | undefined)[] = [];
-      const history: OpenworkSessionHistory = { session: { id: "ses_history", title: "History", version: "1", time: { created: 1, updated: 1 } }, messages: [] };
+      const history: HarnessSessionHistory = { session: { id: "ses_history", title: "History", version: "1", time: { created: 1, updated: 1 } }, messages: [] };
       const key = ["send-history-isolation", String(warm)];
       if (warm) client.setQueryData(key, history);
-      let readSend: (() => Promise<OpenworkSessionHistory["messages"]>) | undefined;
+      let readSend: (() => Promise<HarnessSessionHistory["messages"]>) | undefined;
       function Harness() {
         const opening = useOpeningSessionHistory({ owner: String(warm), sessionId: "ses_history", snapshotQueryKey: key,
           readSnapshot: async () => history,
@@ -102,14 +102,14 @@ test("only the uncached send-history preflight requests isolated transport; cach
 
 test("ordinary-send environment preflight opts in without changing other environment reads or disclosing values", async () => {
   const world = fixture();
-  const client = createOpenworkServerClient({ baseUrl: "http://127.0.0.1:8788", token: "fixture-client", hostToken: "fixture-host" });
-  const context = await buildOpenworkSessionSystemContext(client, { cacheKey: "ses_root", readPendingChanges: () => false, desktopTransport: "main" });
+  const client = createHarnessServerClient({ baseUrl: "http://127.0.0.1:8788", token: "fixture-client", hostToken: "fixture-host" });
+  const context = await buildHarnessSessionSystemContext(client, { cacheKey: "ses_root", readPendingChanges: () => false, desktopTransport: "main" });
   expect(context).toContain("FIXTURE_KEY");
   expect(context).not.toContain("fixture-host");
   expect(world.renderer).toHaveLength(0);
   expect(world.main).toHaveLength(1);
   expect(world.main[0].headers.get("authorization")).toBe("Bearer fixture-client");
-  expect(world.main[0].headers.get("x-openwork-host-token")).toBe("fixture-host");
+  expect(world.main[0].headers.get("x-harness-host-token")).toBe("fixture-host");
   await client.listUserEnvKeys();
   expect(world.renderer).toHaveLength(1);
   expect(world.main).toHaveLength(1);
@@ -117,7 +117,7 @@ test("ordinary-send environment preflight opts in without changing other environ
 
 test("Stop verification uses its scoped client for foreground descendants, ownership, idle and approvals", async () => {
   const world = fixture();
-  const client = createClient(world.base, world.directory, { token: "fixture-client", mode: "openwork" }, { desktopTransport: "main" });
+  const client = createClient(world.base, world.directory, { token: "fixture-client", mode: "harness" }, { desktopTransport: "main" });
   await interruptSessionTurn(world.base, client, "ses_root", world.directory, { timeoutMs: 2_000 });
   expect(world.renderer).toHaveLength(0);
   const paths = world.main.map(request => new URL(request.url).pathname.replace("/workspace/ws_fixture/opencode", ""));

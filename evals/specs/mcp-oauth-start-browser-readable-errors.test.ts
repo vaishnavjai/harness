@@ -1,7 +1,7 @@
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import { mcpMock, needs, server, test } from "@openwork/testkit";
-import { isRecord } from "../worlds/openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import { mcpMock, needs, server, test } from "@harness/testkit";
+import { isRecord } from "../worlds/harness-server-cli.ts";
 
 // Journey: a member clicks Connect in the Den web dashboard. The browser sends
 // a credentialed cross-origin GET to den-api's OAuth-start route. Every outcome
@@ -49,8 +49,8 @@ test("Den OAuth-start answers browser preflights, successes and handshake failur
 
   const reachableId = await createConnection("Reachable provider", den.mocks.connector.mcpUrl);
   const startPath = (id: string) => `/v1/mcp-connections/${id}/connect/start`;
-  const redirectRejectionMessage = "The provider's sign-in server has not approved OpenWork's redirect address, so it refused to register OpenWork as an OAuth client. Retrying will not help until the provider allowlists it.";
-  const redirectRejectionAction = "Ask the provider to allowlist OpenWork's OAuth redirect URI (or approve its client metadata URL) on their MCP authorization server, or configure a pre-registered OAuth client if the provider offers one.";
+  const redirectRejectionMessage = "The provider's sign-in server has not approved Harness's redirect address, so it refused to register Harness as an OAuth client. Retrying will not help until the provider allowlists it.";
+  const redirectRejectionAction = "Ask the provider to allowlist Harness's OAuth redirect URI (or approve its client metadata URL) on their MCP authorization server, or configure a pre-registered OAuth client if the provider offers one.";
 
   // 1. Preflight: the browser asks before sending Authorization and the org header.
   const preflight = await denFetch(den.admin, startPath(reachableId), {
@@ -58,16 +58,16 @@ test("Den OAuth-start answers browser preflights, successes and handshake failur
     headers: {
       origin: webOrigin,
       "access-control-request-method": "GET",
-      "access-control-request-headers": "authorization,x-openwork-org-id,accept",
+      "access-control-request-headers": "authorization,x-harness-org-id,accept",
     },
   });
   expect(preflight.response.status, preflight.text).toBe(204);
   expectReadableFor(preflight.response, "preflight");
   const allowHeaders = (preflight.response.headers.get("access-control-allow-headers") ?? "").toLowerCase();
   expect(allowHeaders).toContain("authorization");
-  expect(allowHeaders).toContain("x-openwork-org-id");
+  expect(allowHeaders).toContain("x-harness-org-id");
   expect((preflight.response.headers.get("access-control-allow-methods") ?? "").toUpperCase()).toContain("GET");
-  evidence.recordAssertionEvidence("Preflight for OAuth start is answered for the trusted web origin", `OPTIONS returned HTTP 204 with allow-origin ${webOrigin}, credentials, Authorization and X-OpenWork-Org-Id allowed.`, true);
+  evidence.recordAssertionEvidence("Preflight for OAuth start is answered for the trusted web origin", `OPTIONS returned HTTP 204 with allow-origin ${webOrigin}, credentials, Authorization and X-Harness-Org-Id allowed.`, true);
 
   // 2. Success: the authorize URL response is readable.
   const started = await denFetch(den.admin, startPath(reachableId), { headers: { ...headers, origin: webOrigin } });

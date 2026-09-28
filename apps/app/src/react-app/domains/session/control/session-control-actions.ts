@@ -2,11 +2,11 @@
 import { useCallback, useMemo } from "react";
 
 import { createClient, unwrap } from "../../../../app/lib/opencode";
-import { openworkCatalogModels, openworkModelsListArgsSchema, type OpenworkCatalogModel } from "@openwork/types/openwork-affordance";
-import type { OpenworkServerClient, OpenworkWorkspaceInfo } from "../../../../app/lib/openwork-server";
+import { harnessCatalogModels, harnessModelsListArgsSchema, type HarnessCatalogModel } from "@harness/types/harness-affordance";
+import type { HarnessServerClient, HarnessWorkspaceInfo } from "../../../../app/lib/harness-server";
 import { deleteRouteSession } from "../../../shell/route-workspaces";
 import type { ResolvedWorkspaceEndpoint } from "../../../../app/lib/workspace-endpoint";
-import { useControlAction, type OpenworkControlAction } from "../../../shell/control/control-provider";
+import { useControlAction, type HarnessControlAction } from "../../../shell/control/control-provider";
 import { useCheckDesktopRestriction } from "../../cloud/desktop-config-provider";
 import { useDenAuth } from "../../cloud/den-auth-provider";
 import { filterEntitledModelOptions } from "../../connections/provider-auth/provider-policy";
@@ -18,7 +18,7 @@ import { selectSessionAttention } from "../status/session-attention";
 import { isSameWorkbenchSession, useWorkbenchStore } from "../chat/workbench-store";
 import { controlWorkspaceLabel as workspaceLabel, listControlSessions, type ControlSessionLike as SessionLike } from "./list-control-sessions";
 
-type SessionControlWorkspace = OpenworkWorkspaceInfo & {
+type SessionControlWorkspace = HarnessWorkspaceInfo & {
   displayNameResolved: string;
 };
 
@@ -29,7 +29,7 @@ type UseSessionControlActionsInput = {
   selectedWorkspaceRoot: string;
   selectedSessionId: string | null;
   canCreateTask: boolean;
-  openworkClient: OpenworkServerClient | null;
+  harnessClient: HarnessServerClient | null;
   opencodeClient: ReturnType<typeof createClient> | null;
   archiveDisabledReason?: string;
   endpointForWorkspace: (workspace: SessionControlWorkspace | null | undefined) => ResolvedWorkspaceEndpoint | null;
@@ -75,7 +75,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
     navigateToSession,
     navigateToSessionRoot,
     openModelPicker,
-    openworkClient,
+    harnessClient,
     opencodeClient,
     archiveDisabledReason,
     refreshRouteState,
@@ -90,7 +90,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   const checkDesktopRestriction = useCheckDesktopRestriction();
   const { isSignedIn } = useDenAuth();
 
-  const createTaskControlAction = useMemo<OpenworkControlAction>(() => ({
+  const createTaskControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.create_task",
     label: "Create a new task",
     description: "Create a new session in the selected workspace and open it in the person's focused pane. Use session.create to start sessions without changing what is on screen.",
@@ -109,10 +109,10 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   const workspaceModels = useCallback(async (workspace: SessionControlWorkspace) => {
     const endpoint = endpointForWorkspace(workspace);
     if (!endpoint) throw new Error("Workspace runtime is not connected");
-    const client = createClient(endpoint.opencodeBaseUrl, workspace.path, { mode: "openwork", token: endpoint.token });
-    return openworkCatalogModels(unwrap(await client.provider.list({ directory: workspace.path })));
+    const client = createClient(endpoint.opencodeBaseUrl, workspace.path, { mode: "harness", token: endpoint.token });
+    return harnessCatalogModels(unwrap(await client.provider.list({ directory: workspace.path })));
   }, [endpointForWorkspace]);
-  useControlAction(useMemo<OpenworkControlAction>(() => ({
+  useControlAction(useMemo<HarnessControlAction>(() => ({
     id: "models.list",
     label: "List workspace models",
     description: "Effective available connected picker models with providerId/modelId, displayName, providerName and available:true. Requires an existing renderer host; reads any workspace without focus or navigation. Assigned models not yet engine-connected are omitted.",
@@ -121,7 +121,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
     sideEffect: "none",
     args: [{ name: "workspaceId", type: "string", required: true, description: "Workspace id or display name." }],
     execute: async (rawArgs) => {
-      const { workspaceId } = openworkModelsListArgsSchema.parse(rawArgs);
+      const { workspaceId } = harnessModelsListArgsSchema.parse(rawArgs);
       const matches = workspaces.filter((workspace) => workspace.id === workspaceId || workspaceLabel(workspace).toLowerCase() === workspaceId.toLowerCase());
       const workspace = matches[0];
       if (matches.length !== 1 || !workspace) throw new Error("Workspace is missing or ambiguous; pass its exact id.");
@@ -134,7 +134,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
     },
   }), [checkDesktopRestriction, isSignedIn, workspaceModels, workspaces]));
 
-  const listSessionsControlAction = useMemo<OpenworkControlAction>(() => ({
+  const listSessionsControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.list_sessions",
     label: "List available sessions",
     description: "Return every loaded session across workspaces (pinned first, then newest). Entries include `pinned`, `status` (idle, thinking, responding, waiting, compacting, error), `working` (own work or known busy/waiting descendants), `descendantActivity` ({ busy, waiting, unknown } counts), `inventoryComplete` (false when referenced descendant activity is unreadable; unknown alone does not imply working) and `model` ({ providerId, modelId, variant, displayName?, providerName? }: the model and reasoning effort the session is bound to, null before any model is bound). Check `working` before session.archive. Pass `limit` to cap the count or `workspaceId` to narrow to one workspace.",
@@ -148,7 +148,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
     execute: async (args) => {
       const query = stringArg(args, "workspaceId").toLowerCase();
       const targets = workspaces.filter((workspace) => !query || workspace.id.toLowerCase() === query || workspaceLabel(workspace).toLowerCase() === query);
-      const modelCatalogByWorkspaceId: Record<string, OpenworkCatalogModel[]> = {};
+      const modelCatalogByWorkspaceId: Record<string, HarnessCatalogModel[]> = {};
       await Promise.all(targets.map(async (workspace) => {
         modelCatalogByWorkspaceId[workspace.id] = await workspaceModels(workspace).catch(() => []);
       }));
@@ -180,7 +180,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [endpointForWorkspace, pinnedIds, sessionsByWorkspaceId, workspaceModels, workspaces]);
   useControlAction(listSessionsControlAction);
 
-  const openSessionControlAction = useMemo<OpenworkControlAction>(() => ({
+  const openSessionControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.open",
     label: "Open a session by ID",
     description: "Show a session to the person: focus it if visible, else open it in the focused pane. Only for when they should see it; use session.read to inspect and session.send to message a session without opening it.",
@@ -217,7 +217,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [navigateToSession, sessionsByWorkspaceId, workspaces]);
   useControlAction(openSessionControlAction);
 
-  const renameSessionControlAction = useMemo<OpenworkControlAction>(() => ({
+  const renameSessionControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.rename",
     label: "Rename a session",
     description: "Rename a session by ID. Use list_sessions first to match the title the user said.",
@@ -247,7 +247,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [opencodeClient, refreshRouteState, selectedWorkspaceRoot, sessionsByWorkspaceId, workspaces]);
   useControlAction(renameSessionControlAction);
 
-  const deleteSessionControlAction = useMemo<OpenworkControlAction>(() => ({
+  const deleteSessionControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.delete",
     label: "Delete a session",
     description: "Delete a session by ID. Destructive: only run after explicit user confirmation.",
@@ -258,13 +258,13 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
       { name: "sessionId", type: "string", required: true, description: "Session ID from session.list_sessions." },
       { name: "confirmed", type: "boolean", required: true, description: "Must be true after explicit user confirmation." },
     ],
-    disabled: !openworkClient,
+    disabled: !harnessClient,
     execute: async (args) => {
       const sessionId = stringArg(args, "sessionId");
       const confirmed = booleanArg(args, "confirmed");
       if (!sessionId) return { ok: false, error: "sessionId is required" };
       if (!confirmed) return { ok: false, error: "Deletion requires confirmed: true after explicit user confirmation" };
-      if (!openworkClient) return { ok: false, error: "OpenWork server is not connected" };
+      if (!harnessClient) return { ok: false, error: "Harness server is not connected" };
 
       const targetWorkspace = findSessionWorkspace(workspaces, sessionsByWorkspaceId, sessionId);
       if (!targetWorkspace) return { ok: false, error: "Session was not found in the current session list" };
@@ -277,10 +277,10 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
       await refreshRouteState();
       return { ok: true, sessionId, deleted: true };
     },
-  }), [endpointForWorkspace, navigateToSessionRoot, openworkClient, refreshRouteState, selectedSessionId, sessionsByWorkspaceId, workspaces]);
+  }), [endpointForWorkspace, navigateToSessionRoot, harnessClient, refreshRouteState, selectedSessionId, sessionsByWorkspaceId, workspaces]);
   useControlAction(deleteSessionControlAction);
 
-  const modelPickerControlAction = useMemo<OpenworkControlAction>(() => ({
+  const modelPickerControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.model_picker.open",
     label: "Open the model picker",
     description: "Open the current session model picker.",
@@ -314,7 +314,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
     return selectedWorkspaceId || undefined;
   }, [selectedWorkspaceId, workspaces]);
 
-  const pinControlAction = useMemo<OpenworkControlAction>(() => ({
+  const pinControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.pin",
     label: "Pin or unpin a session",
     description: "Toggle pin on a session. Pinned sessions appear in a global section at the top of the sidebar.",
@@ -331,7 +331,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), []);
   useControlAction(pinControlAction);
 
-  const archiveControlAction = useMemo<OpenworkControlAction>(() => ({
+  const archiveControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.archive",
     label: "Archive or unarchive a session",
     description: archiveDisabledReason ?? "Archive an idle session, preserving context. Check `working` in session.list_sessions first. A working session is not archived: the result is code target_working (if the user wants it closed, ask them to stop it in the app, then archive once working is false; otherwise leave it running). A session cannot archive itself or its parent during its own turn (code self_archive_while_working): finish the turn; the reviewer archives. Pass archived=false to restore without restarting work.",
@@ -367,7 +367,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [archiveDisabledReason, archiveSession, opencodeClient]);
   useControlAction(archiveControlAction);
 
-  const groupCreateControlAction = useMemo<OpenworkControlAction>(() => ({
+  const groupCreateControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.group.create",
     label: "Create a session group",
     description: "Create a new group (folder/separator) in the current workspace sidebar. Sessions can then be moved into it.",
@@ -391,7 +391,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [resolveWorkspaceId]);
   useControlAction(groupCreateControlAction);
 
-  const groupMoveControlAction = useMemo<OpenworkControlAction>(() => ({
+  const groupMoveControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.group.move",
     label: "Move a session to a group",
     description: "Assign a session to a group (folder). Pass groupId=null or omit to remove from current group. Use session.group.list to see available groups.",
@@ -415,7 +415,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [resolveWorkspaceId, sessionsByWorkspaceId, workspaces]);
   useControlAction(groupMoveControlAction);
 
-  const groupRemoveControlAction = useMemo<OpenworkControlAction>(() => ({
+  const groupRemoveControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.group.remove",
     label: "Remove a session group",
     description: "Remove a group from the workspace. Sessions in the group become ungrouped (not deleted).",
@@ -441,7 +441,7 @@ export function useSessionControlActions(input: UseSessionControlActionsInput) {
   }), [resolveWorkspaceId]);
   useControlAction(groupRemoveControlAction);
 
-  const groupListControlAction = useMemo<OpenworkControlAction>(() => ({
+  const groupListControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.group.list",
     label: "List session groups",
     description: "List all groups in a workspace with their IDs and labels.",

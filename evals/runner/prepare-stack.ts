@@ -13,12 +13,12 @@ export default async function setup(project: TestProject): Promise<void> {
   }
   const files = specifications.filter(spec => spec.project === project).map(spec => spec.moduleId);
   if (files.length === 0) {
-    console.error("[openwork/evals] world plan: no files selected for this project/shard; suite preparation=none");
+    console.error("[harness/evals] world plan: no files selected for this project/shard; suite preparation=none");
     return;
   }
   const plan = planSuite(files, {
     pattern: project.vitest.getGlobalTestNamePattern() ?? project.config.testNamePattern,
-    surface: process.env.OPENWORK_EVAL_APP_SURFACE,
+    surface: process.env.HARNESS_EVAL_APP_SURFACE,
   });
   console.error(plan.diagnostic);
   // The seed/environment owns isolated per-world resources and cleanup.

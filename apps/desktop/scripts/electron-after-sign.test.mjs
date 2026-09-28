@@ -12,9 +12,9 @@ function recorder() {
 }
 
 for (const appPath of [
-  "/tmp/dist/mac-arm64/OpenWork.app",
-  "/tmp/dist/mac-arm64/OpenWork Cloud.app",
-  "/tmp/dist/mac-x64/OpenWork Enterprise.app",
+  "/tmp/dist/mac-arm64/Harness.app",
+  "/tmp/dist/mac-arm64/Harness Cloud.app",
+  "/tmp/dist/mac-x64/Harness Enterprise.app",
 ]) {
   test(`verifies the bundle itself for ${appPath}`, () => {
     const { calls, runCommand } = recorder();
@@ -32,7 +32,7 @@ test("a failing check fails the build", () => {
   const runCommand = (command) => {
     if (command === "spctl") throw new Error("spctl --assess failed with status 3");
   };
-  assert.throws(() => verifySignedApp("/tmp/OpenWork Cloud.app", { runCommand }), /spctl/);
+  assert.throws(() => verifySignedApp("/tmp/Harness Cloud.app", { runCommand }), /spctl/);
 });
 
 test("the build step never launches the packaged app", () => {

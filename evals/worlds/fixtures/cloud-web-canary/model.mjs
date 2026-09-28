@@ -12,7 +12,7 @@ const text = (content) => typeof content === "string" ? content : Array.isArray(
   ? content.filter((part) => part.type === "text").map((part) => part.text).join("\n") : "";
 
 export function configuration(env = process.env) {
-  const workspace = env.CANARY_WORKSPACE_PATH ?? "/tmp/openwork-workspace";
+  const workspace = env.CANARY_WORKSPACE_PATH ?? "/tmp/harness-workspace";
   const filename = env.CANARY_FILE_NAME ?? "web-canary-note.txt";
   const marker = env.CANARY_MARKER;
   const key = env.CANARY_MODEL_KEY;

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { desktopUpdateRegressionsWorld } from "../worlds/desktop-update-regressions.ts";
 
 const test = spec.world(desktopUpdateRegressionsWorld, {

@@ -10,14 +10,14 @@ import {
   isLocalManagedMcpPrivateAddress,
 } from "./local-managed-mcp-url-guard.js";
 
-const previousDevMode = process.env.OPENWORK_DEV_MODE;
-const previousPrivateOverride = process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS;
+const previousDevMode = process.env.HARNESS_DEV_MODE;
+const previousPrivateOverride = process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS;
 
 afterEach(() => {
-  if (previousDevMode === undefined) delete process.env.OPENWORK_DEV_MODE;
-  else process.env.OPENWORK_DEV_MODE = previousDevMode;
-  if (previousPrivateOverride === undefined) delete process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS;
-  else process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS = previousPrivateOverride;
+  if (previousDevMode === undefined) delete process.env.HARNESS_DEV_MODE;
+  else process.env.HARNESS_DEV_MODE = previousDevMode;
+  if (previousPrivateOverride === undefined) delete process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS;
+  else process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS = previousPrivateOverride;
 });
 
 async function startRedirectServer(
@@ -91,8 +91,8 @@ describe("local managed MCP outbound URL guard", () => {
   });
 
   test("requires public HTTPS outside explicit local development", async () => {
-    delete process.env.OPENWORK_DEV_MODE;
-    delete process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS;
+    delete process.env.HARNESS_DEV_MODE;
+    delete process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS;
     await expect(assertLocalManagedMcpUrl("http://127.0.0.1:3978/mcp")).rejects.toThrow("HTTPS");
     await expect(assertLocalManagedMcpUrl("https://169.254.169.254/latest/meta-data")).rejects.toThrow("private or reserved");
     await expect(assertLocalManagedMcpUrl("https://192.0.0.1/mcp")).rejects.toThrow("private or reserved");
@@ -100,8 +100,8 @@ describe("local managed MCP outbound URL guard", () => {
   });
 
   test("rejects a redirect to a non-web protocol before a second request", async () => {
-    process.env.OPENWORK_DEV_MODE = "1";
-    delete process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS;
+    process.env.HARNESS_DEV_MODE = "1";
+    delete process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS;
     const fixture = await startRedirectServer("file:///tmp/private");
     try {
       await expect(createLocalManagedMcpGuardedFetch()(`${fixture.url}/mcp`)).rejects.toThrow("protocol");
@@ -112,8 +112,8 @@ describe("local managed MCP outbound URL guard", () => {
   });
 
   test("blocks cross-origin redirects for credential-bearing request bodies", async () => {
-    process.env.OPENWORK_DEV_MODE = "1";
-    delete process.env.OPENWORK_ALLOW_PRIVATE_MCP_URLS;
+    process.env.HARNESS_DEV_MODE = "1";
+    delete process.env.HARNESS_ALLOW_PRIVATE_MCP_URLS;
     const fixture = await startRedirectServer("https://1.1.1.1/token", 307);
     try {
       await expect(createLocalManagedMcpGuardedFetch()(`${fixture.url}/token`, {

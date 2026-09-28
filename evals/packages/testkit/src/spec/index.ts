@@ -1,4 +1,4 @@
-import { SkipError, unmetNeeds, validateWorldSurfaceSelection } from "@openwork/env";
+import { SkipError, unmetNeeds, validateWorldSurfaceSelection } from "@harness/env";
 import { fixtureTest, wrapTestApi } from "../fixture.ts";
 import {
   BufferedEvidenceSink,
@@ -9,7 +9,7 @@ import {
   registerWorldDisposable,
   replayEvidence,
 } from "./runtime.ts";
-import type { Place, TestNeeds } from "@openwork/env";
+import type { Place, TestNeeds } from "@harness/env";
 import type {
   Agent,
   Probe,
@@ -56,7 +56,7 @@ interface RuntimeContext<W> {
 }
 
 function combinedNeeds(filepath: string, needs: TestNeeds | undefined): TestNeeds {
-  const e2eOptIn = filepath.endsWith(".e2e.test.ts") ? ["OPENWORK_EVAL_E2E_TESTS"] : [];
+  const e2eOptIn = filepath.endsWith(".e2e.test.ts") ? ["HARNESS_EVAL_E2E_TESTS"] : [];
   return {
     ...needs,
     optIn: [...new Set([...e2eOptIn, ...(needs?.optIn ?? [])])],
@@ -108,8 +108,8 @@ function world<W>(worldFn: WorldFn<W>, options: SpecWorldOptions = {}) {
           return;
         }
         try {
-          if (resources !== undefined) validateWorldSurfaceSelection(resources, process.env.OPENWORK_EVAL_APP_SURFACE);
-          console.error(`[openwork/testkit] world=${worldFn.name || "anonymous"} resources=${JSON.stringify(resources ?? "legacy-undeclared")} placement=${place.kind}`);
+          if (resources !== undefined) validateWorldSurfaceSelection(resources, process.env.HARNESS_EVAL_APP_SURFACE);
+          console.error(`[harness/testkit] world=${worldFn.name || "anonymous"} resources=${JSON.stringify(resources ?? "legacy-undeclared")} placement=${place.kind}`);
           const built = await buildWithTimeout(worldFn, new SeedChannel(runtime), place, stack, options.timeout);
           runtime.setPrimary(built);
           await use({ state: "ready", world: built, runtime, buffer });

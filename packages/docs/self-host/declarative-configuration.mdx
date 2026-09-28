@@ -61,7 +61,7 @@ permissions; they do not grant extra privileges.
 ## A complete example
 
 The repository includes
-[an executable example](https://github.com/different-ai/openwork/tree/dev/examples/declarative-org)
+[an executable example](https://github.com/vaishnavjai/harness/tree/dev/examples/declarative-org)
 with teams, an inference provider, two MCP connections (no-auth HTTP and per-member
 OAuth), desktop policy assignments, and a marketplace.
 Use Node.js 24 or later; no additional packages are needed.
@@ -73,7 +73,7 @@ export INFERENCE_URL=https://your-inference.example/v1
 export COMPANY_INFERENCE_KEY=...
 export MCP_HTTP_URL=https://docs-mcp.example.com/mcp
 export MCP_OAUTH_URL=https://tools.example.com/mcp
-export MCP_CLIENT_ID=openwork-tools
+export MCP_CLIENT_ID=harness-tools
 export MCP_CLIENT_SECRET=...
 export MCP_ISSUER=https://identity.example.com/realms/company
 node examples/declarative-org/apply.mjs examples/declarative-org/organization.json

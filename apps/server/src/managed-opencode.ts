@@ -169,8 +169,8 @@ async function startManagedOpencodeServer(
     OPENCODE_SERVER_PASSWORD: password,
   };
   // The managed engine needs its own provider environment, but never the key
-  // that decrypts OpenWork-owned OAuth credentials.
-  delete env.OPENWORK_ENCRYPTION_KEY;
+  // that decrypts Harness-owned OAuth credentials.
+  delete env.HARNESS_ENCRYPTION_KEY;
   const injectedEnv = Object.entries({
     ...engineEnvDefaults,
     ...(options.env ?? {}),

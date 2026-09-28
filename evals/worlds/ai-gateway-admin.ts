@@ -1,5 +1,5 @@
-import { allocateFreePort } from "@openwork/cdp";
-import type { Place, Seed } from "@openwork/env";
+import { allocateFreePort } from "@harness/cdp";
+import type { Place, Seed } from "@harness/env";
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected a Den response object");
@@ -20,7 +20,7 @@ export async function aiGatewayAdmin(seed: Seed, { place }: { place: Place }) {
     web: true,
     env: {
       DEN_ORG_MODE: "multi_org", GATEWAY_ENABLED: "true",
-      ...(local ? { NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl } : {}),
+      ...(local ? { NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql", GATEWAY_PROXY_BASE_URL: gatewayUrl, GATEWAY_PUBLIC_BASE_URL: gatewayUrl } : {}),
       PROVISIONER_MODE: "stub", RESEND_API_KEY: "", STRIPE_SECRET_KEY: "", SENTRY_DSN: "",
     },
     org: {

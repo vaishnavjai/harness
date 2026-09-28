@@ -1,20 +1,20 @@
-# Deploy OpenWork EE on Google Cloud with GKE and Helm
+# Deploy Harness EE on Google Cloud with GKE and Helm
 
 Status: self-host operator guide
-Related: `packaging/helm/openwork-ee`, `packaging/helm/openwork-ee/examples/values.gcp-ingress.yaml`
+Related: `packaging/helm/harness-ee`, `packaging/helm/harness-ee/examples/values.gcp-ingress.yaml`
 
-This is the recommended Google Cloud path for a first production-like OpenWork
+This is the recommended Google Cloud path for a first production-like Harness
 EE self-host install. Use Helm on GKE Autopilot with Cloud SQL for MySQL. For
 web/API exposure, use GKE Ingress with Google-managed certificates, a reserved
 global IP address, and explicit backend health checks.
 
 Google recommends Gateway API for new L7 traffic management, and GKE Ingress is
-in maintenance mode. The current OpenWork chart emits Ingress resources, so GKE
+in maintenance mode. The current Harness chart emits Ingress resources, so GKE
 Ingress is the simplest supported GCP path today. Treat Gateway API support as a
 future chart/platform hardening item.
 
 Do not use raw Kubernetes `LoadBalancer` Services as the normal GCP path for
-OpenWork. GKE `LoadBalancer` Services are useful for TCP services and quick
+Harness. GKE `LoadBalancer` Services are useful for TCP services and quick
 smoke tests, but the customer-facing web app and SSO flow need HTTP(S) load
 balancing, host routing, managed certificates, and backend health checks.
 
@@ -22,15 +22,15 @@ balancing, host routing, managed certificates, and backend health checks.
 
 - Den API on port `8788`
 - Den Web on port `3005`
-- optional OpenWork Gateway service, disabled by default (`inference.enabled`)
+- optional Harness Gateway service, disabled by default (`inference.enabled`)
 - one Cloud SQL for MySQL database
-- one single-org OpenWork deployment
+- one single-org Harness deployment
 - one external GKE Ingress backed by a Google Cloud Application Load Balancer
 - one Google-managed certificate covering web and API hosts
 
 Google Cloud owns the GKE cluster, Autopilot compute lifecycle, VPC networking,
 Cloud Load Balancing, managed certificates, Cloud SQL, IAM, and firewall rules.
-The OpenWork Helm chart owns OpenWork Deployments, Services, ConfigMaps,
+The Harness Helm chart owns Harness Deployments, Services, ConfigMaps,
 Secrets, health probes, the optional Ingress, and the database migration Job.
 The `BackendConfig` and `ManagedCertificate` resources in this guide are
 GKE-specific platform resources applied alongside the chart.
@@ -38,11 +38,11 @@ GKE-specific platform resources applied alongside the chart.
 ## Use Helm or something else?
 
 Use Helm on GKE for Google Cloud unless the customer explicitly cannot run
-Kubernetes. The OpenWork EE release artifact is already a Helm chart, and GKE
+Kubernetes. The Harness EE release artifact is already a Helm chart, and GKE
 Autopilot keeps the first customer path small while still supporting migration
 Jobs, separate web/API services, SSO-ready HTTPS, and later enterprise network
 controls. The practical gap to fill is GCP-specific ingress and database
-guidance, not a different OpenWork packaging format.
+guidance, not a different Harness packaging format.
 
 ## Prerequisites
 
@@ -53,8 +53,8 @@ guidance, not a different OpenWork packaging format.
 - Enabled APIs: Kubernetes Engine API, Compute Engine API, Cloud SQL Admin API,
   and Service Networking API.
 - A real admin email address for the first owner account.
-- A domain you control, such as `openwork.example.com` and
-  `api.openwork.example.com`.
+- A domain you control, such as `harness.example.com` and
+  `api.harness.example.com`.
 
 Google Cloud docs used for this guide:
 
@@ -74,7 +74,7 @@ For a first deployment, create a regional Autopilot cluster:
 ```bash
 export GCP_PROJECT=REPLACE_PROJECT_ID
 export GCP_REGION=us-central1
-export GKE_CLUSTER=openwork-ee
+export GKE_CLUSTER=harness-ee
 
 gcloud config set project "$GCP_PROJECT"
 
@@ -112,7 +112,7 @@ Create Cloud SQL for MySQL with private IP in the same VPC as the GKE cluster.
 The most important requirements are:
 
 - MySQL 8-compatible Cloud SQL instance.
-- Database name: `openwork_den`.
+- Database name: `harness_den`.
 - Private services access configured for the VPC.
 - Private IP enabled on the Cloud SQL instance.
 - GKE is VPC-native and can reach the private IP.
@@ -123,7 +123,7 @@ Private IP requires a one-time private services access connection for the VPC:
 
 ```bash
 export VPC_NETWORK=default
-export SQL_RANGE=openwork-sql-range
+export SQL_RANGE=harness-sql-range
 
 gcloud compute addresses create "$SQL_RANGE" \
   --global \
@@ -140,7 +140,7 @@ gcloud services vpc-peerings connect \
 Create the instance and database:
 
 ```bash
-export SQL_INSTANCE=openwork-ee-mysql
+export SQL_INSTANCE=harness-ee-mysql
 
 gcloud sql instances create "$SQL_INSTANCE" \
   --database-version=MYSQL_8_0 \
@@ -148,10 +148,10 @@ gcloud sql instances create "$SQL_INSTANCE" \
   --network="projects/$GCP_PROJECT/global/networks/$VPC_NETWORK" \
   --no-assign-ip
 
-gcloud sql databases create openwork_den \
+gcloud sql databases create harness_den \
   --instance="$SQL_INSTANCE"
 
-gcloud sql users create openwork \
+gcloud sql users create harness \
   --instance="$SQL_INSTANCE" \
   --password=REPLACE_DB_PASSWORD
 ```
@@ -166,23 +166,23 @@ gcloud sql instances describe "$SQL_INSTANCE" \
 Example database URL:
 
 ```text
-mysql://openwork:<password>@<cloud-sql-private-ip>:3306/openwork_den
+mysql://harness:<password>@<cloud-sql-private-ip>:3306/harness_den
 ```
 
-This guide uses direct private IP because the current OpenWork chart does not
+This guide uses direct private IP because the current Harness chart does not
 inject Cloud SQL Auth Proxy sidecars. Cloud SQL Auth Proxy is a stronger future
 hardening path when the chart supports sidecars or an operator-managed proxy
 pattern.
 
 If the Cloud SQL instance enforces encrypted client connections, use
 `?sslaccept=accept` for the simple private-MySQL smoke path. This keeps TLS on
-without requiring a cloud CA bundle to be mounted into the OpenWork image. Use
+without requiring a cloud CA bundle to be mounted into the Harness image. Use
 strict certificate verification later, after you provide the required CA bundle,
 with a hardened value such as `sslmode=verify-ca` or `sslmode=verify-full`.
 Verify the same URL works for both the migration Job and runtime pods before
 testing the browser flow.
 
-Before installing OpenWork, verify network access from the cluster:
+Before installing Harness, verify network access from the cluster:
 
 ```bash
 kubectl run mysql-client \
@@ -192,7 +192,7 @@ kubectl run mysql-client \
   --image=mysql:8 \
   -- mysql \
     --host="REPLACE_CLOUD_SQL_PRIVATE_IP" \
-    --user=openwork \
+    --user=harness \
     --password \
     --execute "select 1"
 ```
@@ -202,10 +202,10 @@ kubectl run mysql-client \
 Reserve a global IP address for the HTTPS load balancer:
 
 ```bash
-gcloud compute addresses create openwork-ee-ip \
+gcloud compute addresses create harness-ee-ip \
   --global
 
-gcloud compute addresses describe openwork-ee-ip \
+gcloud compute addresses describe harness-ee-ip \
   --global \
   --format='value(address)'
 ```
@@ -213,17 +213,17 @@ gcloud compute addresses describe openwork-ee-ip \
 Create the namespace:
 
 ```bash
-kubectl create namespace openwork-ee
+kubectl create namespace harness-ee
 ```
 
 Create a Google-managed certificate resource:
 
 ```bash
-kubectl apply -n openwork-ee -f - <<'YAML'
+kubectl apply -n harness-ee -f - <<'YAML'
 apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
-  name: openwork-ee-cert
+  name: harness-ee-cert
 spec:
   domains:
     - REPLACE_WEB_HOST
@@ -231,14 +231,14 @@ spec:
 YAML
 ```
 
-Create explicit backend health checks for the two OpenWork services:
+Create explicit backend health checks for the two Harness services:
 
 ```bash
-kubectl apply -n openwork-ee -f - <<'YAML'
+kubectl apply -n harness-ee -f - <<'YAML'
 apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
-  name: openwork-ee-den-api-backend
+  name: harness-ee-den-api-backend
 spec:
   healthCheck:
     type: HTTP
@@ -250,7 +250,7 @@ spec:
 apiVersion: cloud.google.com/v1
 kind: BackendConfig
 metadata:
-  name: openwork-ee-den-web-backend
+  name: harness-ee-den-web-backend
 spec:
   healthCheck:
     type: HTTP
@@ -261,7 +261,7 @@ spec:
 YAML
 ```
 
-The Helm values annotate the OpenWork Services so GKE associates these
+The Helm values annotate the Harness Services so GKE associates these
 `BackendConfig` objects with the Google Cloud backend services.
 
 ## 4. Prepare Helm values
@@ -269,7 +269,7 @@ The Helm values annotate the OpenWork Services so GKE associates these
 Copy the starter file:
 
 ```bash
-cp packaging/helm/openwork-ee/examples/values.gcp-ingress.yaml values.gcp.yaml
+cp packaging/helm/harness-ee/examples/values.gcp-ingress.yaml values.gcp.yaml
 ```
 
 Replace every `REPLACE_*` placeholder.
@@ -290,10 +290,10 @@ To send transactional email, configure SMTP in the same values file:
 ```yaml
 secret:
   values:
-    emailFrom: "OpenWork <no-reply@example.com>"
+    emailFrom: "Harness <no-reply@example.com>"
     smtpHost: "smtp.example.com"
     smtpPort: "587"
-    smtpUser: "openwork@example.com"
+    smtpUser: "harness@example.com"
     smtpPass: "REPLACE_SMTP_PASSWORD"
     smtpSecure: "false"
 ```
@@ -305,7 +305,7 @@ add those keys to the existing Kubernetes Secret referenced by
 `SMTP_HOST`; leave `smtpHost` blank only when SMTP-backed transactional email
 should be disabled.
 
-Use a values file, not a long list of `--set` flags. Several OpenWork values are
+Use a values file, not a long list of `--set` flags. Several Harness values are
 comma-separated strings, such as `config.public.corsOrigins`, and plain `--set`
 parsing commonly breaks them.
 
@@ -318,24 +318,24 @@ Before installing, render the chart and verify the migration Job will use your
 Cloud SQL URL:
 
 ```bash
-helm template openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
-  -f values.gcp.yaml > /tmp/openwork-rendered.yaml
+helm template harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
+  -f values.gcp.yaml > /tmp/harness-rendered.yaml
 
-grep -E 'DATABASE_URL|DEN_BASE_URL|DEN_WEB_PUBLIC_ORIGIN|EMAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURE' /tmp/openwork-rendered.yaml
+grep -E 'DATABASE_URL|DEN_BASE_URL|DEN_WEB_PUBLIC_ORIGIN|EMAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURE' /tmp/harness-rendered.yaml
 ```
 
 Redact secrets before sharing rendered manifests or terminal output.
 
-## 5. Install OpenWork
+## 5. Install Harness
 
 Published chart releases live in GHCR:
 
 ```bash
-helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
   --create-namespace \
   -f values.gcp.yaml
 ```
@@ -343,8 +343,8 @@ helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee
 For a checkout-local test:
 
 ```bash
-helm upgrade --install openwork-ee ./packaging/helm/openwork-ee \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee ./packaging/helm/harness-ee \
+  --namespace harness-ee \
   --create-namespace \
   -f values.gcp.yaml
 ```
@@ -355,7 +355,7 @@ private packages or private forks do:
 
 ```bash
 kubectl create secret docker-registry ghcr-pull-secret \
-  --namespace openwork-ee \
+  --namespace harness-ee \
   --docker-server=ghcr.io \
   --docker-username="$GITHUB_USER" \
   --docker-password="$GITHUB_TOKEN"
@@ -371,7 +371,7 @@ imagePullSecrets:
 The migration Job runs before the Deployments are useful. If it fails, fix that
 before debugging web/API readiness.
 
-Avoid `kubectl describe job openwork-ee-migrate` in shared reports because the
+Avoid `kubectl describe job harness-ee-migrate` in shared reports because the
 hook Job currently includes `DATABASE_URL` and `DEN_DB_ENCRYPTION_KEY` in the
 rendered environment. Use logs and redacted rendered manifests instead.
 
@@ -387,15 +387,15 @@ migrations:
 Then run Helm and inspect the normal Job logs:
 
 ```bash
-helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
   --create-namespace \
   -f values.gcp.yaml \
   --wait=false
 
-kubectl get jobs,pods -n openwork-ee
-kubectl logs -n openwork-ee -l job-name=openwork-ee-migrate --all-containers=true
+kubectl get jobs,pods -n harness-ee
+kubectl logs -n harness-ee -l job-name=harness-ee-migrate --all-containers=true
 ```
 
 Return to the default hook mode after debugging:
@@ -412,15 +412,15 @@ migrations:
 Get the reserved IP address:
 
 ```bash
-gcloud compute addresses describe openwork-ee-ip \
+gcloud compute addresses describe harness-ee-ip \
   --global \
   --format='value(address)'
 ```
 
 Create DNS records:
 
-- `openwork.example.com` -> the reserved global IP address.
-- `api.openwork.example.com` -> the reserved global IP address.
+- `harness.example.com` -> the reserved global IP address.
+- `api.harness.example.com` -> the reserved global IP address.
 
 GKE can take several minutes to provision the load balancer. Google-managed
 certificates can take up to an hour to become active after DNS points at the
@@ -429,9 +429,9 @@ load balancer.
 Check status:
 
 ```bash
-kubectl get ingress -n openwork-ee
-kubectl describe managedcertificate openwork-ee-cert -n openwork-ee
-kubectl describe ingress openwork-ee -n openwork-ee
+kubectl get ingress -n harness-ee
+kubectl describe managedcertificate harness-ee-cert -n harness-ee
+kubectl describe ingress harness-ee -n harness-ee
 ```
 
 If you are still using temporary hosts before DNS/TLS is ready, temporarily
@@ -444,9 +444,9 @@ when ConfigMap or Secret content changes. On older chart versions, manually
 restart the deployments after changing public origin values:
 
 ```bash
-kubectl rollout restart deployment/openwork-ee-den-api deployment/openwork-ee-den-web -n openwork-ee
-kubectl rollout status deployment/openwork-ee-den-api -n openwork-ee --timeout=180s
-kubectl rollout status deployment/openwork-ee-den-web -n openwork-ee --timeout=180s
+kubectl rollout restart deployment/harness-ee-den-api deployment/harness-ee-den-web -n harness-ee
+kubectl rollout status deployment/harness-ee-den-api -n harness-ee --timeout=180s
+kubectl rollout status deployment/harness-ee-den-web -n harness-ee --timeout=180s
 ```
 
 ## 8. Verify readiness
@@ -454,21 +454,21 @@ kubectl rollout status deployment/openwork-ee-den-web -n openwork-ee --timeout=1
 Check Kubernetes state:
 
 ```bash
-helm status openwork-ee -n openwork-ee
-kubectl get pods -n openwork-ee
-kubectl get jobs -n openwork-ee
-kubectl get ingress -n openwork-ee
-kubectl describe backendconfig openwork-ee-den-api-backend -n openwork-ee
-kubectl describe backendconfig openwork-ee-den-web-backend -n openwork-ee
-kubectl logs -n openwork-ee deploy/openwork-ee-den-api
-kubectl logs -n openwork-ee deploy/openwork-ee-den-web
+helm status harness-ee -n harness-ee
+kubectl get pods -n harness-ee
+kubectl get jobs -n harness-ee
+kubectl get ingress -n harness-ee
+kubectl describe backendconfig harness-ee-den-api-backend -n harness-ee
+kubectl describe backendconfig harness-ee-den-web-backend -n harness-ee
+kubectl logs -n harness-ee deploy/harness-ee-den-api
+kubectl logs -n harness-ee deploy/harness-ee-den-web
 ```
 
 Check readiness from your machine:
 
 ```bash
-curl -fsS https://api.openwork.example.com/ready
-curl -fsS https://openwork.example.com/api/ready
+curl -fsS https://api.harness.example.com/ready
+curl -fsS https://harness.example.com/api/ready
 ```
 
 ## 9. Bootstrap the first owner
@@ -493,8 +493,8 @@ secret:
 For releases that include initial-administrator bootstrap, inject the
 release-documented one-time setup secret through the Kubernetes Secret referenced
 by `secret.existingSecret`. Do not store the code in the values file or a
-ConfigMap. Then open `https://openwork.example.com/setup`, enter the configured
-owner email and one-time operator code, and create the first account. OpenWork
+ConfigMap. Then open `https://harness.example.com/setup`, enter the configured
+owner email and one-time operator code, and create the first account. Harness
 creates the singleton organization, grants owner and configured platform-admin
 access, and signs the administrator in. Public signup remains disabled. After
 the first user exists, the setup code cannot bootstrap another account.
@@ -517,19 +517,19 @@ demo IdPs.
 Configure the IdP application with this callback URL:
 
 ```text
-https://openwork.example.com/api/auth/sso/callback/openwork-sso-<org-id>
+https://harness.example.com/api/auth/sso/callback/harness-sso-<org-id>
 ```
 
-In OpenWork, sign in as the owner, open the organization SSO settings, and enter
+In Harness, sign in as the owner, open the organization SSO settings, and enter
 the IdP issuer/client details. After saving, the organization sign-in path is:
 
 ```text
-https://openwork.example.com/sso/<singleOrgSlug>
+https://harness.example.com/sso/<singleOrgSlug>
 ```
 
-For SAML, OpenWork shows the generated ACS URL and metadata URL after the SAML
+For SAML, Harness shows the generated ACS URL and metadata URL after the SAML
 connection is registered. Use those values in the IdP rather than guessing.
-OpenWork rejects unsigned or weak SAML responses, so configure the IdP to sign
+Harness rejects unsigned or weak SAML responses, so configure the IdP to sign
 assertions.
 
 After SSO is configured, root sign-in shows the SSO-only experience for the
@@ -540,14 +540,14 @@ single organization. Password sign-in for that organization is rejected.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Ingress does not reconcile | HTTP load balancing add-on is disabled or Ingress annotation is wrong | Keep HTTP load balancing enabled and use `kubernetes.io/ingress.class: gce` |
-| Backends are unhealthy | GKE load balancer health checks do not match OpenWork readiness endpoints | Apply the `BackendConfig` resources and keep the service annotations from the starter values |
+| Backends are unhealthy | GKE load balancer health checks do not match Harness readiness endpoints | Apply the `BackendConfig` resources and keep the service annotations from the starter values |
 | Ingress events report `TimeoutSec should be less than checkIntervalSec` | The backend health-check timeout is greater than or equal to its effective interval | Set `checkIntervalSec: 15` and `timeoutSec: 5` on both `BackendConfig` resources |
 | Managed certificate is not `Active` | DNS does not point at the load balancer or provisioning is still running | Point both hosts at the reserved global IP and wait; check `kubectl describe managedcertificate` |
 | Migration Job fails to connect to MySQL | Private services access, VPC, credentials, IP, or TLS mode are wrong | Test from `mysql-client`, confirm the private IP, and confirm GKE and Cloud SQL share VPC reachability |
 | Migration Job logs show `self-signed certificate in certificate chain` | Strict certificate verification is being used without the cloud MySQL CA bundle | Use `?sslaccept=accept` for the smoke path or mount/configure the CA bundle before strict verification |
 | `ImagePullBackOff` from GHCR | Private image or missing pull token | Add `imagePullSecrets` |
 | Browser auth loops or CORS errors | Public origins do not match DNS/TLS | Set `webOrigin`, `apiOrigin`, `corsOrigins`, `betterAuthTrustedOrigins`, and `authCallbackUrl` to the final HTTPS domains |
-| SSO callback rejected | IdP callback URL does not match OpenWork | Use the callback/ACS URL shown by OpenWork for that org/provider |
+| SSO callback rejected | IdP callback URL does not match Harness | Use the callback/ACS URL shown by Harness for that org/provider |
 | SSO settings show Enterprise gating | `DEN_PLAN_GATING_ENABLED=true` or org is not entitled | Leave plan gating off for self-host smoke tests, or grant enterprise entitlement |
 
 ## 12. Cleanup
@@ -555,8 +555,8 @@ single organization. Password sign-in for that organization is rejected.
 For a disposable test:
 
 ```bash
-helm uninstall openwork-ee -n openwork-ee
-gcloud compute addresses delete openwork-ee-ip --global
+helm uninstall harness-ee -n harness-ee
+gcloud compute addresses delete harness-ee-ip --global
 gcloud container clusters delete "$GKE_CLUSTER" --location "$GCP_REGION"
 gcloud sql instances delete "$SQL_INSTANCE"
 ```

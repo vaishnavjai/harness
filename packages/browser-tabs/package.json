@@ -1,8 +1,8 @@
 {
-  "name": "@openwork/browser-tabs",
+  "name": "@harness/browser-tabs",
   "private": true,
   "type": "module",
-  "description": "Ownership, surfacing, and background-rendering policy for OpenWork's built-in browser tabs.",
+  "description": "Ownership, surfacing, and background-rendering policy for Harness's built-in browser tabs.",
   "exports": {
     ".": {
       "types": "./index.d.ts",

@@ -1,6 +1,6 @@
 # Acme Web
 
-Seeded Acme Den, the OpenWork web app, a managed OpenCode engine, and the real
+Seeded Acme Den, the Harness web app, a managed OpenCode engine, and the real
 `ee/apps/gateway` service. Only the Anthropic-compatible upstream is simulated;
 it returns **Acme AI Gateway is working.** No paid model credentials or LiteLLM
 are required.
@@ -12,9 +12,9 @@ The co-located runtime needs MySQL, Redis, Node, pnpm, and OpenCode. Prepare the
 shared packages once:
 
 ```sh
-pnpm --filter @openwork/types build
-pnpm --filter @openwork-ee/den-db build
-pnpm --filter @openwork/email build
+pnpm --filter @harness/types build
+pnpm --filter @harness-ee/den-db build
+pnpm --filter @harness/email build
 pnpm world up acme-web --place local --stage gateway-demo --detach --timeout 600000
 pnpm world outputs acme-web --stage gateway-demo
 ```
@@ -66,7 +66,7 @@ pnpm world down acme-web --stage gateway-demo
 
 This world runs co-located (`--place local`) or inside a private Freestyle VM.
 Host-driven `--place daytona` provisioning is not implemented. It exercises organization AI Gateway providers, not the separate
-OpenWork Models subscription/credit-billing flow.
+Harness Models subscription/credit-billing flow.
 
 ## Private Freestyle review
 
@@ -98,7 +98,7 @@ with the VM.
 ## Daytona
 
 ```sh
-OPENWORK_EVAL_REF=$(git rev-parse HEAD) pnpm world up acme-web --place daytona --stage gateway-demo --detach --timeout 1500000
+HARNESS_EVAL_REF=$(git rev-parse HEAD) pnpm world up acme-web --place daytona --stage gateway-demo --detach --timeout 1500000
 pnpm world outputs acme-web --stage gateway-demo --reveal
 ```
 
@@ -107,7 +107,7 @@ the real `ee/apps/gateway` beside Den when Den env sets `GATEWAY_ENABLED=true`,
 and the deterministic upstream (`evals/packages/labs/src/acme-upstream.mjs`)
 is uploaded into the same sandbox so gateway → upstream stays on loopback.
 Startup completes only after one message through the public gateway URL
-returns the fixed reply. The OpenWork web runtime runs on its own private
+returns the fixed reply. The Harness web runtime runs on its own private
 sandbox proxying this Den, and the launcher signs it into Den as alex so every
 AI Gateway provider, including ones added later in Den, reaches the model
 picker after a reload. `aiGateway` links to the AI Providers tab.

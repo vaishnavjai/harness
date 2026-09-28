@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { GatewayUsageBucket } from "@openwork/types/den/gateway-usage-limits";
+import type { GatewayUsageBucket } from "@harness/types/den/gateway-usage-limits";
 
-export const GATEWAY_APPROVAL_DISMISSALS_KEY = "openwork:gateway-approval-dismissals:v1";
+export const GATEWAY_APPROVAL_DISMISSALS_KEY = "harness:gateway-approval-dismissals:v1";
 
 // An increase can be approved once per bucket window. Do not key by session,
 // token, usage total, or query generation: those change without a new approval.

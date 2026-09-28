@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { sleep, spec } from "@openwork/testkit";
+import { sleep, spec } from "@harness/testkit";
 import {
   KNOWN_LAUNCH_REJECTIONS,
   describeException,
@@ -24,12 +24,12 @@ const test = spec.world(packagedActivatedLaunchWorld, { timeout: 180_000 });
  * runs both against one binary.
  */
 const ACTIVATION_GATE_HEADING = "Link this app to your organization";
-const SIGN_IN_HEADING = "Welcome to OpenWork";
+const SIGN_IN_HEADING = "Welcome to Harness";
 /** Local work stays behind the forced sign-in surface. */
 const SESSION_HEADING = "What do you need done?";
 
 /** Heading of the root error boundary's recovery screen (app-error-boundary.tsx). */
-const RECOVERY_HEADING = /OpenWork hit an unexpected error|OpenWork couldn't start/;
+const RECOVERY_HEADING = /Harness hit an unexpected error|Harness couldn't start/;
 
 /** Bounded observation window, not a guarantee against faults after it ends. */
 const REJECTION_SETTLE_MS = 3_000;
@@ -40,7 +40,7 @@ test("an activated enterprise install boots past the activation gate without a r
     label: "packaged distribution flavor",
     until: (value) => value !== null,
   });
-  if (flavor !== "enterprise") throw new Error(`Activation only exists in the enterprise flavor; point OPENWORK_EVAL_ELECTRON_BINARY at an enterprise build (got ${flavor})`);
+  if (flavor !== "enterprise") throw new Error(`Activation only exists in the enterprise flavor; point HARNESS_EVAL_ELECTRON_BINARY at an enterprise build (got ${flavor})`);
 
   // Stop on the first of: the sign-in surface, the activation gate, the recovery
   // screen, or a render crash, so a failure names what went wrong instead of
@@ -75,7 +75,7 @@ test("an activated enterprise install boots past the activation gate without a r
   expect(final.rootText, "local work became reachable without sign-in during settle").not.toContain(SESSION_HEADING);
   expect(final.rootText, "an activated install returned to the activation gate").not.toContain(ACTIVATION_GATE_HEADING);
   const usable = final.controls.filter((control) => control.visible && control.enabled);
-  expect(usable.some((control) => control.tag === "button" && control.text === "Sign in to OpenWork"), "Sign in must remain visible and enabled").toBe(true);
+  expect(usable.some((control) => control.tag === "button" && control.text === "Sign in to Harness"), "Sign in must remain visible and enabled").toBe(true);
   expect(usable.some((control) => control.tag === "button" && control.text === "Paste sign-in code"), "Sign-in code disclosure must remain visible and enabled").toBe(true);
   const exceptions = world.exceptions();
   const knownRejections = exceptions.filter(isKnownRejection);

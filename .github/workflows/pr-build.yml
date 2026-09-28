@@ -37,8 +37,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Build server and bundled plugins
-        run: pnpm --filter openwork-server build
+        run: pnpm --filter @harness/server build
       - name: Typecheck Electron main against the IPC contract
-        run: pnpm --filter @openwork/desktop typecheck:electron
+        run: pnpm --filter @harness/desktop typecheck:electron
       - name: Build app renderer
-        run: pnpm --filter @openwork/app build
+        run: pnpm --filter @harness/app build

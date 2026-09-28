@@ -217,7 +217,7 @@ export type WorkspaceConnectionState = {
   checkedAt?: number | null;
 };
 
-export type ResetOpenworkMode = "onboarding" | "all";
+export type ResetHarnessMode = "onboarding" | "all";
 
 export type WorkspaceBlueprintStarterKind = "prompt" | "session" | "action";
 
@@ -270,7 +270,7 @@ export type WorkspaceBlueprint = {
   } | null;
 };
 
-export type WorkspaceOpenworkConfig = {
+export type WorkspaceHarnessConfig = {
   version: number;
   workspace?: {
     name?: string | null;
@@ -285,7 +285,7 @@ export type WorkspaceOpenworkConfig = {
   } | null;
 };
 
-export type CapabilityOrigin = "local" | "openwork-connect";
+export type CapabilityOrigin = "local" | "harness-connect";
 
 export type SkillCard = {
   name: string;

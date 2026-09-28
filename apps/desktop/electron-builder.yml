@@ -1,10 +1,10 @@
 extends: ./electron-builder.base.yml
-appId: com.differentai.openwork
-productName: OpenWork
+appId: com.vaishnavjai.harness
+productName: Harness
 protocols:
-  - name: OpenWork
+  - name: Harness
     schemes:
-      - openwork
+      - harness
 linux:
-  executableName: openwork
-artifactName: openwork-${os}-${arch}-${version}.${ext}
+  executableName: harness
+artifactName: harness-${os}-${arch}-${version}.${ext}

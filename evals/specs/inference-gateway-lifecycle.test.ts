@@ -1,12 +1,12 @@
 import { createServer, type ServerResponse } from "node:http";
 import { expect } from "vitest";
-import { denFetch, type DenSession } from "@openwork/behaviors";
+import { denFetch, type DenSession } from "@harness/behaviors";
 import {
   eventually, gatewayBearerKey, gatewayBearerKeyLookupDigest, inferenceBearerKey,
   legacyInferenceBearerKeyLookupDigest, localMysqlIsRunning, queryDenDatabase, server, test,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 
-const local = process.env.OPENWORK_EVAL_DAYTONA !== "1" && !process.env.OPENWORK_EVAL_DEN_API_URL;
+const local = process.env.HARNESS_EVAL_DAYTONA !== "1" && !process.env.HARNESS_EVAL_DEN_API_URL;
 const mysql = await localMysqlIsRunning();
 const title = !local ? "inference lifecycle skipped - needs isolated local placement"
   : !mysql ? "inference lifecycle skipped - needs scratch MySQL on 127.0.0.1:3306"
@@ -81,7 +81,7 @@ test.skipIf(!local || !mysql)(title, { timeout: 600_000 }, async ({ place }) => 
   await using google = await googleWitness();
   const name = `Gateway lifecycle ${Date.now()}`;
   await using den = await server({ place, web: false, env: {
-    NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql",
+    NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql",
     GATEWAY_ENABLED: "true",
     GATEWAY_PROXY_BASE_URL: "http://127.0.0.1:18791",
     GATEWAY_PUBLIC_BASE_URL: "http://127.0.0.1:18791",
@@ -96,7 +96,7 @@ test.skipIf(!local || !mysql)(title, { timeout: 600_000 }, async ({ place }) => 
   const orgs = await denFetch(den.admin, "/v1/me/orgs", { headers: { authorization: `Bearer ${den.admin.token}` } });
   const orgId = text(list(record(orgs.body).orgs).find((org) => org.name === name)?.id);
   async function request(session: DenSession, path: string, method = "GET", body?: Record<string, unknown>) {
-    return denFetch(session, path, { method, headers: { authorization: `Bearer ${session.token}`, "x-openwork-org-id": orgId, accept: "application/json" },
+    return denFetch(session, path, { method, headers: { authorization: `Bearer ${session.token}`, "x-harness-org-id": orgId, accept: "application/json" },
       ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000) });
   }
   const org = await request(den.admin, "/v1/org");
@@ -168,7 +168,7 @@ test.skipIf(!local || !mysql)(title, { timeout: 600_000 }, async ({ place }) => 
   await sql("UPDATE organization SET metadata = JSON_SET(COALESCE(metadata, JSON_OBJECT()), '$.inference', JSON_OBJECT('enabled', true, 'tier', 'tier1')) WHERE id = ?", [orgId]);
   const modelsList = await request(member, "/v1/llm-providers");
   expect(modelsList.response.status).toBe(200);
-  const legacyId = text(list(record(modelsList.body).llmProviders).find((provider) => provider.source === "openwork")?.id);
+  const legacyId = text(list(record(modelsList.body).llmProviders).find((provider) => provider.source === "harness")?.id);
   async function modelsConnect() {
     expect((await request(member, "/v1/llm-providers")).response.status).toBe(200);
     const result = await request(member, `/v1/llm-providers/${legacyId}/connect`);

@@ -240,7 +240,7 @@ function isSafeArchivePath(name) {
   return !normalized.split("/").some((part) => part === ".." || part === "");
 }
 
-function defaultOpenworkConfig(targetDir, preset = "starter") {
+function defaultHarnessConfig(targetDir, preset = "starter") {
   return {
     version: 1,
     workspace: {
@@ -307,12 +307,12 @@ export async function importWorkspaceConfig({ archivePath, targetDir, name }) {
   const opencodeDir = path.join(targetDir, ".opencode");
   if (!(await pathExists(opencodeDir))) throw new Error("Archive is missing .opencode config");
 
-  const openworkPath = path.join(opencodeDir, "openwork.json");
+  const harnessPath = path.join(opencodeDir, "harness.json");
   let preset = "starter";
   let workspaceName = typeof name === "string" && name.trim() ? name.trim() : null;
 
-  if (await pathExists(openworkPath)) {
-    const raw = await readFile(openworkPath, "utf8");
+  if (await pathExists(harnessPath)) {
+    const raw = await readFile(harnessPath, "utf8");
     try {
       const config = JSON.parse(raw);
       config.authorizedRoots = [targetDir];
@@ -322,14 +322,14 @@ export async function importWorkspaceConfig({ archivePath, targetDir, name }) {
       if (typeof config.workspace?.preset === "string" && config.workspace.preset.trim()) {
         preset = config.workspace.preset.trim();
       }
-      await writeFile(openworkPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+      await writeFile(harnessPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
     } catch {
-      const config = defaultOpenworkConfig(targetDir, preset);
-      await writeFile(openworkPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+      const config = defaultHarnessConfig(targetDir, preset);
+      await writeFile(harnessPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
     }
   } else {
-    const config = defaultOpenworkConfig(targetDir, preset);
-    await writeFile(openworkPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+    const config = defaultHarnessConfig(targetDir, preset);
+    await writeFile(harnessPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
   }
 
   return {

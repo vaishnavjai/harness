@@ -1,6 +1,6 @@
 // Local UI-control HTTP bridge: a loopback server exposing the legacy
 // /snapshot, /actions and /execute routes plus the semantic /context, /query
-// and /command surface. Dispatched to the renderer's window.__openworkControl.
+// and /command surface. Dispatched to the renderer's window.__harnessControl.
 // Extracted from main.mjs; state and lifecycle live in this factory
 // (createRuntimeManager pattern).
 import { randomBytes } from "node:crypto";
@@ -64,7 +64,7 @@ export function createUiControlServer({
     return JSON.stringify(JSON.stringify(value ?? {}));
   }
 
-  async function evaluateOpenworkControl(expression) {
+  async function evaluateHarnessControl(expression) {
     const win = await getWindow();
     // Commands mutate renderer state directly and do not require the desktop
     // window to become active. Foreground activation must be an explicit
@@ -72,55 +72,55 @@ export function createUiControlServer({
     return win.webContents.executeJavaScript(expression, true);
   }
 
-  async function runOpenworkControlCommand(command, args = {}) {
+  async function runHarnessControlCommand(command, args = {}) {
     const argsJsonLiteral = jsonForJavaScript(args);
     if (command === "snapshot") {
-      return evaluateOpenworkControl(`(async () => {
-        const control = window.__openworkControl;
-        if (!control) return { ok: false, error: "OpenWork control surface is not available yet." };
+      return evaluateHarnessControl(`(async () => {
+        const control = window.__harnessControl;
+        if (!control) return { ok: false, error: "Harness control surface is not available yet." };
         control.setEnabled?.(true);
         return { ok: true, ...control.snapshot() };
       })()`);
     }
     if (command === "actions") {
-      return evaluateOpenworkControl(`(async () => {
-        const control = window.__openworkControl;
-        if (!control) return { ok: false, error: "OpenWork control surface is not available yet." };
+      return evaluateHarnessControl(`(async () => {
+        const control = window.__harnessControl;
+        if (!control) return { ok: false, error: "Harness control surface is not available yet." };
         control.setEnabled?.(true);
         return { ok: true, actions: control.listActions() };
       })()`);
     }
     if (command === "context") {
-      return evaluateOpenworkControl(`(async () => {
-        const control = window.__openworkControl;
-        if (!control) return { ok: false, error: "OpenWork control surface is not available yet." };
+      return evaluateHarnessControl(`(async () => {
+        const control = window.__harnessControl;
+        if (!control) return { ok: false, error: "Harness control surface is not available yet." };
         return { ok: true, context: control.context() };
       })()`);
     }
     if (command === "query" || command === "command") {
-      return evaluateOpenworkControl(`(async () => {
-        const control = window.__openworkControl;
+      return evaluateHarnessControl(`(async () => {
+        const control = window.__harnessControl;
         const input = JSON.parse(${argsJsonLiteral});
-        if (!control) return { ok: false, error: "OpenWork control surface is not available yet." };
+        if (!control) return { ok: false, error: "Harness control surface is not available yet." };
         if (!input || typeof input.id !== "string" || !input.id.trim()) {
-          return { ok: false, error: "Missing OpenWork affordance id." };
+          return { ok: false, error: "Missing Harness affordance id." };
         }
         return control[${JSON.stringify(command)}](input);
       })()`);
     }
     if (command === "execute") {
-      return evaluateOpenworkControl(`(async () => {
-        const control = window.__openworkControl;
+      return evaluateHarnessControl(`(async () => {
+        const control = window.__harnessControl;
         const input = JSON.parse(${argsJsonLiteral});
-        if (!control) return { ok: false, error: "OpenWork control surface is not available yet." };
+        if (!control) return { ok: false, error: "Harness control surface is not available yet." };
         if (!input || typeof input.actionId !== "string" || !input.actionId.trim()) {
-          return { ok: false, error: "Missing OpenWork actionId." };
+          return { ok: false, error: "Missing Harness actionId." };
         }
         control.setEnabled?.(true);
         return control.execute(input.actionId, input.args ?? {});
       })()`);
     }
-    return { ok: false, error: `Unknown OpenWork control command: ${command}` };
+    return { ok: false, error: `Unknown Harness control command: ${command}` };
   }
 
   async function start() {
@@ -137,27 +137,27 @@ export function createUiControlServer({
           return;
         }
         if (request.method === "GET" && url.pathname === "/snapshot") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("snapshot"));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("snapshot"));
           return;
         }
         if (request.method === "GET" && url.pathname === "/actions") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("actions"));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("actions"));
           return;
         }
         if (request.method === "GET" && url.pathname === "/context") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("context"));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("context"));
           return;
         }
         if (request.method === "POST" && url.pathname === "/query") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("query", await readJsonRequestBody(request)));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("query", await readJsonRequestBody(request)));
           return;
         }
         if (request.method === "POST" && url.pathname === "/command") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("command", await readJsonRequestBody(request)));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("command", await readJsonRequestBody(request)));
           return;
         }
         if (request.method === "POST" && url.pathname === "/execute") {
-          sendJsonResponse(response, 200, await runOpenworkControlCommand("execute", await readJsonRequestBody(request)));
+          sendJsonResponse(response, 200, await runHarnessControlCommand("execute", await readJsonRequestBody(request)));
           return;
         }
         if (request.method === "POST" && url.pathname === "/browser/task") {
@@ -197,7 +197,7 @@ export function createUiControlServer({
       } catch (error) {
         if (/^\/(?:browser|webmcp)(?:\/|$)/.test(request.url ?? "")) console.error("[ui-control] request failed");
         else console.error("[ui-control] request failed", error);
-        sendJsonResponse(response, 500, { ok: false, error: "OpenWork UI control request failed." });
+        sendJsonResponse(response, 500, { ok: false, error: "Harness UI control request failed." });
       }
     });
     await new Promise((resolve, reject) => {
@@ -206,15 +206,15 @@ export function createUiControlServer({
     });
     const address = uiControlServer.address();
     const port = typeof address === "object" && address ? address.port : null;
-    if (!port) throw new Error("Could not start OpenWork UI control bridge.");
-    uiControlDiscoveryPath = path.join(app.getPath("userData"), "openwork-ui-control.json");
+    if (!port) throw new Error("Could not start Harness UI control bridge.");
+    uiControlDiscoveryPath = path.join(app.getPath("userData"), "harness-ui-control.json");
     await writeFile(
       uiControlDiscoveryPath,
       `${JSON.stringify({ version: 2, app: appName, identifier: appIdentifier, platform: process.platform, baseUrl: `http://127.0.0.1:${port}`, token: uiControlToken }, null, 2)}\n`,
       "utf8",
     );
     // Make the discovery path available to child processes (server → managed OpenCode → plugin).
-    process.env.OPENWORK_UI_CONTROL_DISCOVERY = uiControlDiscoveryPath;
+    process.env.HARNESS_UI_CONTROL_DISCOVERY = uiControlDiscoveryPath;
   }
 
   async function stop() {

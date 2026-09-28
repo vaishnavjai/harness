@@ -6,12 +6,12 @@ import { createRequire } from "node:module";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 
-import type { OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 
 const workspaceId = "workspace-composer-snapshot-error";
 const sessionId = "session-composer-snapshot-error";
 
-function createSnapshot(targetSessionId: string, messageText: string): OpenworkSessionSnapshot {
+function createSnapshot(targetSessionId: string, messageText: string): HarnessSessionSnapshot {
   const messageId = `${targetSessionId}-user-message`;
   return {
     session: {
@@ -73,7 +73,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
     mock.module(moduleId, () => moduleExports);
   }
   const [
-    { createOpenworkServerClient },
+    { createHarnessServerClient },
     { IDLE_CLOUD_MCP_SUBMISSION_GATE_STATE },
     { useComposerStateStore },
     { getReactQueryClient },
@@ -83,7 +83,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
     { DenAuthProvider },
     { DesktopConfigProvider },
   ] = await Promise.all([
-    import("../src/app/lib/openwork-server"),
+    import("../src/app/lib/harness-server"),
     import("../src/react-app/domains/connections/cloud-mcp-submit-readiness"),
     import("../src/react-app/domains/session/surface/composer-state-store"),
     import("../src/react-app/infra/query-client"),
@@ -106,7 +106,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
   const fetchStub = async () => new Response("{}", { headers: { "content-type": "application/json" } });
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: fetchStub });
   Object.defineProperty(window, "fetch", { configurable: true, value: fetchStub });
-  window.localStorage.setItem("openwork.shell-config", JSON.stringify({ starterCards: false }));
+  window.localStorage.setItem("harness.shell-config", JSON.stringify({ starterCards: false }));
   let rejectSnapshot = false;
   let fetchedSnapshot = createSnapshot(sessionId, "Cached transcript remains visible.");
   mock.module("@/components/model-select", () => ({ ModelSelect: () => null }));
@@ -124,7 +124,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
   const key = snapshotKey(workspaceId, sessionId);
   queryClient.setQueryDefaults(key, { retryDelay: 0 });
   queryClient.setQueryData(key, fetchedSnapshot);
-  const client = createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
+  const client = createHarnessServerClient({ baseUrl: "http://127.0.0.1:1", token: "test-token" });
   const container = document.createElement("div");
   const unavailableContainer = document.createElement("div");
   document.body.append(container, unavailableContainer);
@@ -147,7 +147,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
             draftScope="local"
             isControlTarget={false}
             opencodeBaseUrl="http://127.0.0.1:1/opencode"
-            openworkToken="test-token"
+            harnessToken="test-token"
             developerMode
             modelLabel="Test model"
             onModelClick={() => {}}
@@ -168,7 +168,7 @@ test("the composer stays editable when snapshot refresh fails or the model is un
             modelVariantLabel="Default"
             modelVariant={null}
             onModelVariantChange={() => {}}
-            agentLabel="OpenWork"
+            agentLabel="Harness"
             selectedAgent={null}
             listAgents={async () => []}
             onSelectAgent={() => {}}

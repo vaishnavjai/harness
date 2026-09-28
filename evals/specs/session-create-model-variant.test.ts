@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import { agentSessionModel, MODEL_ID, MOCK_REPLY, PROVIDER_ID, TOOL_CALL_MARKER } from "../worlds/agent-session-model.ts";
 
@@ -9,7 +9,7 @@ import { agentSessionModel, MODEL_ID, MOCK_REPLY, PROVIDER_ID, TOOL_CALL_MARKER 
  * The first cut of `session.create` accepted `model` and dropped it, so the
  * created session ran at the engine default while the agent believed it had
  * asked for a specific effort. This spec crosses the real boundary: a scripted
- * model inside the managed engine issues the tool call, openwork-server
+ * model inside the managed engine issues the tool call, harness-server
  * proxies both engine writes, and the provider stand-in records the
  * `reasoning_effort` the created session's turn actually carried.
  */
@@ -70,13 +70,13 @@ test("session.create binds the requested reasoning effort and session.read expos
   const createOutput = await step("an agent creates a session with model.variant low through session.create", async () => {
     const result = await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
       model: engineModel,
-      parts: [{ type: "text", text: scripted("openwork_execute", {
+      parts: [{ type: "text", text: scripted("harness_execute", {
         id: "session.create",
         args: { model: requested, sessions: [{ title: CREATED_TITLE, prompt: CREATED_PROMPT }] },
       }) }],
     });
     const output = await probe.eventually(
-      async () => completedToolOutput(await world.engine("GET", `/session/${encodeURIComponent(orchestrator)}/message`), "openwork_execute"),
+      async () => completedToolOutput(await world.engine("GET", `/session/${encodeURIComponent(orchestrator)}/message`), "harness_execute"),
       { within: 60_000, label: "completed session.create tool call", until: (value) => value !== null },
     );
     if (output === null) throw new Error("session.create did not complete");
@@ -127,10 +127,10 @@ test("session.create binds the requested reasoning effort and session.read expos
   await step("session.read returns the same model without opening the session", async () => {
     await world.engine("POST", `/session/${encodeURIComponent(orchestrator)}/message`, {
       model: engineModel,
-      parts: [{ type: "text", text: scripted("openwork_query", { id: "session.read", args: { sessionId: createdId, count: 5 } }) }],
+      parts: [{ type: "text", text: scripted("harness_query", { id: "session.read", args: { sessionId: createdId, count: 5 } }) }],
     });
     const output = await probe.eventually(
-      async () => completedToolOutput(await world.engine("GET", `/session/${encodeURIComponent(orchestrator)}/message`), "openwork_query"),
+      async () => completedToolOutput(await world.engine("GET", `/session/${encodeURIComponent(orchestrator)}/message`), "harness_query"),
       { within: 60_000, label: "completed session.read tool call", until: (value) => value !== null },
     );
     if (output === null) throw new Error("session.read did not complete");

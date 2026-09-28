@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 import { enterpriseActivationRequired } from "../src/app/lib/enterprise-activation";
-import { parseDenAuthDeepLink } from "../src/app/lib/openwork-links";
+import { parseDenAuthDeepLink } from "../src/app/lib/harness-links";
 
 const appRootSource = readFileSync(
   new URL("../src/react-app/shell/app-root.tsx", import.meta.url),
@@ -35,18 +35,18 @@ const ditherBackdropSource = readFileSync(
 
 const publicDistribution = {
   flavor: "public" as const,
-  appName: "OpenWork",
-  appIdentifier: "com.differentai.openwork",
-  protocolScheme: "openwork",
+  appName: "Harness",
+  appIdentifier: "com.vaishnavjai.harness",
+  protocolScheme: "harness",
   requireSignin: false,
   requireActivation: false,
 };
 
 const enterpriseDistribution = {
   flavor: "enterprise" as const,
-  appName: "OpenWork Enterprise",
-  appIdentifier: "com.differentai.openwork",
-  protocolScheme: "openwork",
+  appName: "Harness Enterprise",
+  appIdentifier: "com.vaishnavjai.harness",
+  protocolScheme: "harness",
   requireSignin: true,
   requireActivation: true,
 };
@@ -61,7 +61,7 @@ describe("enterprise desktop activation", () => {
     expect(enterpriseActivationRequired(enterpriseDistribution, {
       enterpriseActivation: {
         activatedAt: "2026-07-27T12:00:00.000Z",
-        denBaseUrl: "https://app.openworklabs.com",
+        denBaseUrl: "https://app.harness.invalid",
       },
     })).toBe(false);
   });
@@ -80,10 +80,10 @@ describe("enterprise desktop activation", () => {
 
   test("uses the standard Den auth deep-link shape", () => {
     expect(parseDenAuthDeepLink(
-      "openwork://den-auth?grant=one-time-grant&denBaseUrl=https%3A%2F%2Fapp.openworklabs.com",
+      "harness://den-auth?grant=one-time-grant&denBaseUrl=https%3A%2F%2Fapp.harness.invalid",
     )).toEqual({
       grant: "one-time-grant",
-      denBaseUrl: "https://app.openworklabs.com",
+      denBaseUrl: "https://app.harness.invalid",
     });
   });
 
@@ -141,16 +141,16 @@ describe("enterprise desktop activation", () => {
     expect(activationGateSource).toContain('data-testid="organization-server-input"');
     expect(activationGateSource).toContain('data-testid="organization-server-confirm"');
     expect(activationGateSource).toContain("Connect this app to");
-    expect(activationGateSource).toContain("binds OpenWork Enterprise to it");
+    expect(activationGateSource).toContain("binds Harness Enterprise to it");
     expect(activationGateSource).toContain("Continue in browser");
-    expect(activationGateSource).not.toContain('htmlFor="enterprise-openwork-link"');
-    expect(activationGateSource).not.toContain("OpenWork link");
-    expect(activationGateSource).not.toContain("enterprise-openwork-link-connect");
+    expect(activationGateSource).not.toContain('htmlFor="enterprise-harness-link"');
+    expect(activationGateSource).not.toContain("Harness link");
+    expect(activationGateSource).not.toContain("enterprise-harness-link-connect");
     expect(activationGateSource).toContain("Link this app to your organization");
     expect(activationGateSource).toContain("Enter your workspace address — the page where you downloaded this app. Sign-in finishes in your browser and returns here.");
     expect(activationGateSource).toContain("const pastedLink = parseManualAuthInput(serverInput);");
     expect(activationGateSource).toContain("{pendingConfirmation ? null : (");
-    expect(activationGateSource).not.toContain("Have an OpenWork link");
+    expect(activationGateSource).not.toContain("Have a Harness link");
     expect(activationGateSource).not.toContain("Use workspace address instead");
     expect(activationGateSource).not.toContain("manualAuthOpen");
     expect(activationGateSource).not.toMatch(/(?:paste|hide) sign-in code/i);

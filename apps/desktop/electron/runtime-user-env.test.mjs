@@ -9,9 +9,9 @@ test("resolves the user env store from the effective desktop profile", () => {
   assert.equal(
     resolveUserEnvFilePath({
       HOME: "/Users/example",
-      XDG_CONFIG_HOME: "/tmp/openwork-dev-profile/config",
+      XDG_CONFIG_HOME: "/tmp/harness-dev-profile/config",
     }),
-    path.join("/tmp/openwork-dev-profile/config", "openwork", "env.json"),
+    path.join("/tmp/harness-dev-profile/config", "harness", "env.json"),
   );
 });
 
@@ -72,7 +72,7 @@ test("refreshes an injected user env key when its stored value changes", () => {
 
 test("dev child env reconciliation preserves an inherited OPENCODE_DB override", () => {
   const inheritedEnv = {
-    OPENWORK_DEV_MODE: "1",
+    HARNESS_DEV_MODE: "1",
     OPENCODE_DB: "/tmp/installed-production/opencode.db",
   };
   const processEnv = { ...inheritedEnv };

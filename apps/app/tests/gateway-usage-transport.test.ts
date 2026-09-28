@@ -20,8 +20,8 @@ test("reads plain JSON using the member transport and explicit organization head
   expect(calls[0].url).toEndWith("/v1/gateway/usage-limits/me");
   const headers = new Headers(calls[0].init?.headers);
   expect(headers.get("authorization")).toBe("Bearer test-member-token");
-  expect(headers.get("x-openwork-org-id")).toBe("org_test");
-  expect(headers.get("x-openwork-legacy-org-id")).toBe("org_test");
+  expect(headers.get("x-harness-org-id")).toBe("org_test");
+  expect(headers.get("x-harness-legacy-org-id")).toBe("org_test");
   expect(calls[0].init?.credentials).toBe("include");
   expect(calls[0].init?.body).toBeUndefined();
 });
@@ -54,7 +54,7 @@ test("requires a bounded reason and posts only bucketId and trimmed reason", asy
   expect(calls[0].url).toEndWith("/v1/gateway/usage-limit-reset-requests");
   expect(calls[0].init?.method).toBe("POST");
   expect(calls[0].init?.body).toBe(JSON.stringify({ bucketId: "bucket_test", reason: "Finish task" }));
-  expect(new Headers(calls[0].init?.headers).get("x-openwork-org-id")).toBe("org_test");
+  expect(new Headers(calls[0].init?.headers).get("x-harness-org-id")).toBe("org_test");
 });
 
 test.each([401, 403, 409, 503])("does not turn HTTP %s into unlimited usage", async (status) => {

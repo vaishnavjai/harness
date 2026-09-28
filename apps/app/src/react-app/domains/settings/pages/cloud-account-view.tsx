@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 import * as React from "react";
-import { desktopPolicyDefinitions } from "@openwork/types/den/desktop-policies";
+import { desktopPolicyDefinitions } from "@harness/types/den/desktop-policies";
 import { ArrowUpRight } from "lucide-react";
 import { useNavigate } from "react-router";
 

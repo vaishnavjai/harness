@@ -25,7 +25,7 @@ import { useSessionActivityStore } from "../src/react-app/domains/session/status
 // with the full text. The user saw a stalled conversation on return that
 // "finished" all at once.
 
-const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", openworkToken: "token" };
+const syncInput = { workspaceId: "workspace-a", baseUrl: "http://127.0.0.1:1234", harnessToken: "token" };
 const previousQueryClient = Reflect.get(globalThis, "__owReactQueryClient");
 const key = transcriptKey("workspace-a", "session-a");
 

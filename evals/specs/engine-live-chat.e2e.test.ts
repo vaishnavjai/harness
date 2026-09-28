@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { browserScript, spec, resolveEvalEngine, type SpecBodyContext } from "@openwork/testkit";
+import { browserScript, spec, resolveEvalEngine, type SpecBodyContext } from "@harness/testkit";
 import { engineLiveDesktop } from "../worlds/engine-live-desktop.ts";
 import { record } from "../worlds/engine-live-parity.ts";
 import { delayNativeSessionWrites } from "../worlds/engine-write-delay.ts";
 
 const test = spec.world(engineLiveDesktop, { timeout: 900_000,
   resources: { surfaces: ["desktop"], services: ["den", "mock"], nativeReason: "Use real inference with native local providers, local processes and conversation controls. Only the external connector is a controlled witness." },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 test(`LIVE-CONNECTORS ${resolveEvalEngine()}: the real model searches Den capabilities and executes the discovered connector`, async ctx => {
@@ -20,14 +20,14 @@ test(`LIVE-CONNECTORS ${resolveEvalEngine()}: the real model searches Den capabi
   const runtime = (await world.request("/experimental/engine-v2-preview/status")).body;
   const connector = await world.connectReports();
   await step("Discover the assigned report capability and execute its current ID", async () => {
-    await turn(ctx, "Use the openwork-cloud connection: search_capabilities for current_amber_report, then execute_capability with the name returned by search. Report the exact report text. Do not guess its name or read files.", connector.proof);
+    await turn(ctx, "Use the harness-cloud connection: search_capabilities for current_amber_report, then execute_capability with the name returned by search. Report the exact report text. Do not guess its name or read files.", connector.proof);
     const calls = await connector.toolCalls();
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) expect(call).toMatchObject({ name: "current_amber_report", args: {} });
   });
   const successfulCalls = (await connector.toolCalls()).length;
   await step("Return a connector failure honestly in the same conversation", async () => {
-    await turn(ctx, "Use openwork-cloud search_capabilities for unavailable_violet_status, then execute_capability on that discovered capability. If the service fails, reply UNAVAILABLE. Do not invent a status.", "UNAVAILABLE");
+    await turn(ctx, "Use harness-cloud search_capabilities for unavailable_violet_status, then execute_capability on that discovered capability. If the service fails, reply UNAVAILABLE. Do not invent a status.", "UNAVAILABLE");
     const calls = (await connector.toolCalls()).slice(successfulCalls);
     expect(calls.length).toBeGreaterThan(0);
     for (const call of calls) expect(call).toMatchObject({ name: "unavailable_violet_status", args: {} });
@@ -50,7 +50,7 @@ test(`LIVE-CLOUD ${resolveEvalEngine()}: the real model retrieves, refreshes and
   const retrievedNames = new Set([cloud.capability]);
   const retrieve = async (expected: string) => {
     const before = new Set((await world.messages()).filter(record).map(messageId));
-    const answer = await turn(ctx, "Use the live-cobalt organization skill to report the CURRENT cobalt release code. Retrieve its instructions afresh through OpenWork Connect. If retrieval fails reply UNAVAILABLE. Never use remembered instructions, shell or local files.", expected);
+    const answer = await turn(ctx, "Use the live-cobalt organization skill to report the CURRENT cobalt release code. Retrieve its instructions afresh through Harness Connect. If retrieval fails reply UNAVAILABLE. Never use remembered instructions, shell or local files.", expected);
     const tools = (await world.messages()).filter(record).filter(message => !before.has(messageId(message)))
       .flatMap(message => Array.isArray(message.parts) ? message.parts : Array.isArray(message.content) ? message.content : [])
       .filter(record).filter(part => part.type === "tool");
@@ -59,7 +59,7 @@ test(`LIVE-CLOUD ${resolveEvalEngine()}: the real model retrieves, refreshes and
     // Learn aliases only from a successful tool response for this capability.
     for (const part of tools) {
       const metadata = record(part.state) && part.state.status === "completed" && record(part.state.metadata) ? part.state.metadata : null;
-      const content = metadata && record(metadata.openworkMcpApp) ? metadata.openworkMcpApp.structuredContent : null;
+      const content = metadata && record(metadata.harnessMcpApp) ? metadata.harnessMcpApp.structuredContent : null;
       if (record(content) && content.capability === cloud.capability && typeof content.name === "string") retrievedNames.add(content.name);
     }
     // V2 may wrap the Connect call in its execute tool's code input.
@@ -90,7 +90,7 @@ test(`LIVE-CLOUD ${resolveEvalEngine()}: the real model retrieves, refreshes and
     await retrieve(cloud.proof);
     if (world.engine === "v2") {
       const native = (await world.request(`/workspace/${cloud.workspace}/opencode2/api/skill`)).body;
-      expect(JSON.stringify(native)).not.toContain("openwork-cloud-");
+      expect(JSON.stringify(native)).not.toContain("harness-cloud-");
       expect(JSON.stringify(native)).not.toContain(cloud.proof);
     }
   });
@@ -115,7 +115,7 @@ test(`LIVE-CLOUD ${resolveEvalEngine()}: the real model retrieves, refreshes and
 test(`LIVE-ORG ${resolveEvalEngine()}: sign in and send the first real message while organization setup is slow`, async ctx => {
   const { world, user, probe, step, evidence } = ctx;
   const gateway = await ready(ctx);
-  const modelId = gateway?.modelId ?? process.env.OPENWORK_LIVE_MODEL;
+  const modelId = gateway?.modelId ?? process.env.HARNESS_LIVE_MODEL;
   if (!modelId) throw new Error("The signed-in cold-send check requires an explicitly connected real model");
   await step("Sign into a fresh organization before the first task", async () => {
     await world.signInOrganization();
@@ -124,7 +124,7 @@ test(`LIVE-ORG ${resolveEvalEngine()}: sign in and send the first real message w
       if (Date.now() > deadline) throw new Error("Organization onboarding did not finish");
       const label = await probe.eval(browserScript(() => {
         const labels = [...document.querySelectorAll("button")].filter(button => !button.disabled).map(button => button.textContent?.trim());
-        return ["Continue with organization", "Continue to workspace", "Continue without OpenWork Models", "Continue"].find(label => labels.includes(label));
+        return ["Continue with organization", "Continue to workspace", "Continue without Harness Models", "Continue"].find(label => labels.includes(label));
       }, []));
       if (label) await user.click({ role: "button", label });
       else await new Promise(resolve => setTimeout(resolve, 200));
@@ -180,13 +180,13 @@ async function openSavedConversation(ctx: Context, sessionId: string) {
 async function chooseNativeMenu(ctx: Context, label: string) {
   // macOS menus have no DOM/CDP target. Use the existing development bridge
   // to select an enabled entry from the real popup opened by a user gesture.
-  const menu = await ctx.probe.eventually(() => ctx.probe.eval(browserScript(() => window.__OPENWORK_ELECTRON__.contextMenu.inspect(), []), { awaitPromise: true }), {
+  const menu = await ctx.probe.eventually(() => ctx.probe.eval(browserScript(() => window.__HARNESS_ELECTRON__.contextMenu.inspect(), []), { awaitPromise: true }), {
     within: 15_000, label: "native context menu opens", until: menu => record(menu) && menu.open === true,
   });
   const current = record(menu) && record(menu.current) ? menu.current : null;
   const item = current && Array.isArray(current.items) ? current.items.find(item => record(item) && item.label === label && item.enabled !== false) : null;
   if (!record(item) || typeof item.id !== "string") throw new Error(`The native menu has no enabled ${label} item`);
-  expect(await ctx.probe.eval(browserScript(id => window.__OPENWORK_ELECTRON__.contextMenu.choose(id), [item.id]), { awaitPromise: true })).toBe(true);
+  expect(await ctx.probe.eval(browserScript(id => window.__HARNESS_ELECTRON__.contextMenu.choose(id), [item.id]), { awaitPromise: true })).toBe(true);
 }
 
 async function ready({ world, user, probe, step, evidence }: Context) {
@@ -201,9 +201,9 @@ async function ready({ world, user, probe, step, evidence }: Context) {
       await user.see("composer", { editable: true, timeoutMs: 90_000 });
     });
   }
-  const provider = gateway?.name ?? process.env.OPENWORK_LIVE_PROVIDER;
+  const provider = gateway?.name ?? process.env.HARNESS_LIVE_PROVIDER;
   if (provider) await step("Connect the real provider using the app's masked API-key form", async () => {
-    const keyName = process.env.OPENWORK_LIVE_KEY_ENV;
+    const keyName = process.env.HARNESS_LIVE_KEY_ENV;
     const key = gateway?.key ?? (keyName ? process.env[keyName]?.trim() : undefined);
     if (!key) throw new Error("Live provider requested without a credential; no mock fallback is allowed");
     await world.openProviderSettings();
@@ -244,8 +244,8 @@ async function ready({ world, user, probe, step, evidence }: Context) {
     await user.click({ role: "button", label: "Save key" });
     if (settings === "settings") await user.click({ role: "button", label: "Back to app" });
     else await user.press("Escape");
-    const model = gateway?.modelId ?? process.env.OPENWORK_LIVE_MODEL;
-    if (!model) throw new Error("Specify OPENWORK_LIVE_MODEL for the connected provider");
+    const model = gateway?.modelId ?? process.env.HARNESS_LIVE_MODEL;
+    if (!model) throw new Error("Specify HARNESS_LIVE_MODEL for the connected provider");
     await world.selectModel(model);
   });
   await probe.eventually(() => probe.composer(), { within: 90_000, label: "real model available", until: state => !state.modelUnavailable });

@@ -1,9 +1,9 @@
-import { browserScript, evaluate } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
-import { configureBrowserFixtureModel, startBrowserFixture } from "@openwork/env";
-import type { Den, Seed } from "@openwork/env";
+import { browserScript, evaluate } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
+import { configureBrowserFixtureModel, startBrowserFixture } from "@harness/env";
+import type { Den, Seed } from "@harness/env";
 import { builtinBrowserWorld } from "./browser-panel.ts";
-import { selectModel } from "@openwork/behaviors";
+import { selectModel } from "@harness/behaviors";
 
 function record(value: unknown): value is Record<string, unknown> { return !!value && typeof value === "object" && !Array.isArray(value); }
 
@@ -22,7 +22,7 @@ export async function browserBackgroundWorld(seed: Seed) {
      */
     async commandFrom(sessionId: string, id: string, args: Record<string, unknown>): Promise<unknown> {
       return evaluate(base.app.client, browserScript((id, encodedArgs, sessionId) =>
-        window.__openworkControl.command({ id, args: JSON.parse(encodedArgs), origin: { sessionId } }),
+        window.__harnessControl.command({ id, args: JSON.parse(encodedArgs), origin: { sessionId } }),
       [id, JSON.stringify(args), sessionId]), { awaitPromise: true, timeoutMs: 120_000 });
     },
     async [Symbol.asyncDispose]() { await fixture[Symbol.asyncDispose](); },
@@ -39,7 +39,7 @@ export async function browserWebMcpWorld(seed: Seed) {
     await configureBrowserFixtureModel(base.app, workspacePath, origin);
     const enginePath = `/workspace/${base.workspace.workspaceId}/opencode`;
     await seed.evalIn(base.app, browserScript(async (disposePath) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop('openworkServerInfo');
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop('harnessServerInfo');
       const response = await fetch(info.baseUrl + disposePath, {
         method: 'POST', headers: { Authorization: 'Bearer ' + info.clientToken },
         signal: AbortSignal.timeout(30000),
@@ -75,9 +75,9 @@ export async function setBrowserPolicy(seed: Seed, app: Surface, den: Den, origi
     method: "PATCH", body: JSON.stringify({ policyName: current.policyName, policy }),
   });
   if (!patched.response.ok) throw new Error("The organization rejected its browser policy update.");
-  await seed.evalIn(app, () => window.dispatchEvent(new Event('openwork-den-settings-changed')));
+  await seed.evalIn(app, () => window.dispatchEvent(new Event('harness-den-settings-changed')));
 }
 
 export async function setBrowserEnabled(seed: Seed, app: Surface, enabled: boolean) {
-  await seed.evalIn(app, browserScript((enabled) => window.__OPENWORK_ELECTRON__.browser.setControlEnabled(enabled), [enabled]), { awaitPromise: true });
+  await seed.evalIn(app, browserScript((enabled) => window.__HARNESS_ELECTRON__.browser.setControlEnabled(enabled), [enabled]), { awaitPromise: true });
 }

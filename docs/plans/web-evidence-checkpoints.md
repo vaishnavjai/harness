@@ -55,7 +55,7 @@ with the exact expected text. A disk mutation in one fork must not affect the
 other or the immutable checkpoint. Delete both forks and snapshot.
 
 The receipt explicitly identifies this as a **synthetic VM prerequisite**, not
-an OpenWork E2E, browser proof or screenshot proof. Publish source SHA, individual
+a Harness E2E, browser proof or screenshot proof. Publish source SHA, individual
 checks, snapshot-ready and fork-ready latency, and cleanup result. No raw SDK
 errors, private links or credentials belong in the artifact. Provider TTL bounds
 resources if the runner disappears; successful completion also requires cleanup.
@@ -154,7 +154,7 @@ be able to open the report and launch the restored browser without a local key.
 Add an agent-first testkit journey following the write-a-spec skill:
 
 1. Boot the exact branch SHA into the isolated evidence web world.
-2. Create ten actual OpenWork sessions and capture screenshot A + checkpoint.
+2. Create ten actual Harness sessions and capture screenshot A + checkpoint.
 3. Start a deterministic mock reply; hold it at a known partial response; capture B.
 4. Allow the original journey to finish, then destroy the original VM.
 5. Open the branch-built review app, select A and click Open from here.

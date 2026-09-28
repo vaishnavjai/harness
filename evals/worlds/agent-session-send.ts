@@ -1,9 +1,9 @@
 import { mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { join } from "node:path";
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 import {
-  bootManagedOpenworkServer,
+  bootManagedHarnessServer,
   close,
   isRecord,
   listen,
@@ -11,8 +11,8 @@ import {
   sendJson,
   sendMockError,
   sendStream,
-  type ManagedOpenworkServer,
-} from "./openwork-server-cli.ts";
+  type ManagedHarnessServer,
+} from "./harness-server-cli.ts";
 
 export const MOCK_REPLY = "MOCK OK";
 /** A user message carrying this marker makes the mock model run the scripted tool call. */
@@ -150,8 +150,8 @@ function uiControlItems(value: unknown): HandledUiControlItem[] {
 }
 
 /**
- * A managed openwork-server with a real engine, a scripted OpenAI-compatible
- * mock model, and a fake OpenWork window that polls the UI-control mailbox
+ * A managed harness-server with a real engine, a scripted OpenAI-compatible
+ * mock model, and a fake Harness window that polls the UI-control mailbox
  * and refuses every command. The window is the witness for "nothing on
  * screen changed": the renderer only navigates when a command reaches it.
  */
@@ -196,7 +196,7 @@ export async function agentSessionSend(seed: Seed): Promise<AgentSessionSendWorl
   const token = "agent-session-send-client-token";
   let output = "";
   const sink = (chunk: string) => { output += chunk; };
-  let managed: ManagedOpenworkServer | null = null;
+  let managed: ManagedHarnessServer | null = null;
   const windows = new Set<FakeWindow>();
 
   const dispose = async () => {
@@ -210,7 +210,7 @@ export async function agentSessionSend(seed: Seed): Promise<AgentSessionSendWorl
   };
 
   try {
-    managed = await bootManagedOpenworkServer({ scratch, workspace, token, sink });
+    managed = await bootManagedHarnessServer({ scratch, workspace, token, sink });
     const server = managed;
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
 

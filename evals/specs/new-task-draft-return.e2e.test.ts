@@ -1,7 +1,7 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import { currentTestEvidence } from "@openwork/test-evidence";
-import type { Seed } from "@openwork/env";
+import { spec } from "@harness/testkit";
+import { currentTestEvidence } from "@harness/test-evidence";
+import type { Seed } from "@harness/env";
 import { existingSessionDraft } from "../worlds/session-draft.ts";
 
 async function draftReturn(seed: Seed) {
@@ -30,7 +30,7 @@ test("an unsent new-task prompt survives navigation without a sidebar draft row"
   const draft = "Ask about the deploy checklist before Friday";
   const existing = { testId: `sidebar-session-${world.session.sessionId}` };
   const draftRow = { testId: `sidebar-new-task-draft-${world.workspace.workspaceId}` };
-  const draftKeys = () => probe.storage("openwork.session-drafts.v2", (value) => {
+  const draftKeys = () => probe.storage("harness.session-drafts.v2", (value) => {
     if (typeof value !== "object" || value === null || !("drafts" in value) || typeof value.drafts !== "object" || value.drafts === null) return [];
     return Object.keys(value.drafts);
   });
@@ -113,7 +113,7 @@ existingDraftTest("an existing conversation restores drafts without sidebar mark
     assertObserved("Reopening restores the exact multiline follow-up, not the independent new-task draft",
       { recovered, expected: draft, excluded: newDraft }, restoredFollowUp && excludedNewTaskDraft);
   };
-  const draftKeys = () => probe.storage("openwork.session-drafts.v2", (value) => {
+  const draftKeys = () => probe.storage("harness.session-drafts.v2", (value) => {
     if (typeof value !== "object" || value === null || !("drafts" in value) || typeof value.drafts !== "object" || value.drafts === null) return [];
     return Object.keys(value.drafts);
   });

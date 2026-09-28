@@ -67,7 +67,7 @@ describe("desktop Den bootstrap settings", () => {
       value: {
         localStorage: memoryStorage(),
         dispatchEvent: () => true,
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           invokeDesktop: async (command: string, payload?: { baseUrl: string; apiBaseUrl?: string | null; requireSignin: boolean }) => {
             if (command === "getDesktopBootstrapConfig") return bootstrapConfig;
             if (command === "setDesktopBootstrapConfig" && payload) {
@@ -94,8 +94,8 @@ describe("desktop Den bootstrap settings", () => {
   });
 
   test("reads the desktop base URL from bootstrap instead of stale localStorage", async () => {
-    window.localStorage.setItem("openwork.den.baseUrl", "https://stale.example.com");
-    window.localStorage.setItem("openwork.den.apiBaseUrl", "https://api.example.com");
+    window.localStorage.setItem("harness.den.baseUrl", "https://stale.example.com");
+    window.localStorage.setItem("harness.den.apiBaseUrl", "https://api.example.com");
 
     await initializeDenBootstrapConfig();
 
@@ -143,7 +143,7 @@ describe("desktop Den bootstrap settings", () => {
       value: {
         localStorage: memoryStorage(),
         dispatchEvent: () => true,
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           meta: {
             desktopBootstrap: {
               baseUrl: "https://preload.example.com",
@@ -173,7 +173,7 @@ describe("desktop Den bootstrap settings", () => {
       value: {
         localStorage: memoryStorage(),
         dispatchEvent: () => true,
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           invokeDesktop: async (command: string, url?: string) => {
             if (command === "getDesktopBootstrapConfig") {
               return {
@@ -212,8 +212,8 @@ describe("desktop Den bootstrap settings", () => {
 
   test("saves base URL changes to bootstrap and clears legacy endpoint storage", async () => {
     await initializeDenBootstrapConfig();
-    window.localStorage.setItem("openwork.den.baseUrl", "https://stale.example.com");
-    window.localStorage.setItem("openwork.den.apiBaseUrl", "https://api.example.com");
+    window.localStorage.setItem("harness.den.baseUrl", "https://stale.example.com");
+    window.localStorage.setItem("harness.den.apiBaseUrl", "https://api.example.com");
 
     await setDenBootstrapConfig({
       baseUrl: "https://saved.example.com",
@@ -228,8 +228,8 @@ describe("desktop Den bootstrap settings", () => {
     });
 
     expect(bootstrapConfig.baseUrl).toBe("https://saved.example.com");
-    expect(window.localStorage.getItem("openwork.den.baseUrl")).toBeNull();
-    expect(window.localStorage.getItem("openwork.den.apiBaseUrl")).toBeNull();
+    expect(window.localStorage.getItem("harness.den.baseUrl")).toBeNull();
+    expect(window.localStorage.getItem("harness.den.apiBaseUrl")).toBeNull();
     expect(readDenSettings().baseUrl).toBe("https://saved.example.com");
   });
 
@@ -281,13 +281,13 @@ describe("desktop Den bootstrap settings", () => {
     expect(window.localStorage.getItem(CLOUD_MCP_SYNC_MARKER_STORAGE_KEY)).toBeNull();
 
     window.localStorage.setItem(CLOUD_MCP_SYNC_MARKER_STORAGE_KEY, "stale-marker");
-    window.localStorage.setItem("openwork.react.dashboardTileCache.v1.user_alice.org_ops", "private report");
-    window.localStorage.setItem("openwork.react.dashboardTileCache.v1.user_bob.org_finance", "private forecast");
+    window.localStorage.setItem("harness.react.dashboardTileCache.v1.user_alice.org_ops", "private report");
+    window.localStorage.setItem("harness.react.dashboardTileCache.v1.user_bob.org_finance", "private forecast");
     window.localStorage.setItem("unrelated.preference", "keep me");
     clearDenSession();
     expect(window.localStorage.getItem(CLOUD_MCP_SYNC_MARKER_STORAGE_KEY)).toBeNull();
-    expect(window.localStorage.getItem("openwork.react.dashboardTileCache.v1.user_alice.org_ops")).toBeNull();
-    expect(window.localStorage.getItem("openwork.react.dashboardTileCache.v1.user_bob.org_finance")).toBeNull();
+    expect(window.localStorage.getItem("harness.react.dashboardTileCache.v1.user_alice.org_ops")).toBeNull();
+    expect(window.localStorage.getItem("harness.react.dashboardTileCache.v1.user_bob.org_finance")).toBeNull();
     expect(window.localStorage.getItem("unrelated.preference")).toBe("keep me");
   });
 });

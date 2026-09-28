@@ -38,7 +38,7 @@ test("a captured error renders the recovery screen with the details collapsed", 
   error.stack = "Error: render exploded\n    at sessionRoute (session-route.tsx:1797)";
   const html = renderFallback(error);
 
-  expect(html).toContain("OpenWork hit an unexpected error");
+  expect(html).toContain("Harness hit an unexpected error");
   expect(html).toContain("Reload");
   expect(html).toContain('aria-expanded="false"');
   expect(html).toContain("Technical details");
@@ -60,7 +60,7 @@ test("the copy payload carries message, stack, app version and distribution flav
   const report = buildCrashReport(describeCrash(error), context);
 
   expect(report.split("\n\n")).toEqual([
-    "OpenWork 0.18.44 (desktop, enterprise)",
+    "Harness 0.18.44 (desktop, enterprise)",
     "Local context is missing",
     error.stack,
   ]);
@@ -68,26 +68,26 @@ test("the copy payload carries message, stack, app version and distribution flav
 
 test("the copy payload omits an empty stack", () => {
   expect(buildCrashReport({ message: "plain", stack: "" }, context)).toBe(
-    "OpenWork 0.18.44 (desktop, enterprise)\n\nplain",
+    "Harness 0.18.44 (desktop, enterprise)\n\nplain",
   );
 });
 
 test("redaction drops query strings and fragments from URLs in the message and stack", () => {
   const error = new Error(
-    "Sign-in failed for https://app.openworklabs.com/signin?code=eval-secret-code&state=xyz#accessToken=at",
+    "Sign-in failed for https://app.harness.invalid/signin?code=eval-secret-code&state=xyz#accessToken=at",
   );
-  error.stack = `Error: ${error.message}\n    at finishSignIn (https://app.openworklabs.com/assets/index-abc.js:1:2345)`;
+  error.stack = `Error: ${error.message}\n    at finishSignIn (https://app.harness.invalid/assets/index-abc.js:1:2345)`;
 
   const crash = describeCrash(error);
   const report = buildCrashReport(crash, context);
 
-  expect(crash.message).toBe("Sign-in failed for https://app.openworklabs.com/signin");
+  expect(crash.message).toBe("Sign-in failed for https://app.harness.invalid/signin");
   expect(crash.stack).toBe(
-    "Error: Sign-in failed for https://app.openworklabs.com/signin\n    at finishSignIn (https://app.openworklabs.com/assets/index-abc.js:1:2345)",
+    "Error: Sign-in failed for https://app.harness.invalid/signin\n    at finishSignIn (https://app.harness.invalid/assets/index-abc.js:1:2345)",
   );
   expect(report).not.toContain("eval-secret-code");
   expect(report).not.toContain("accessToken");
-  expect(report).toContain("https://app.openworklabs.com/signin");
+  expect(report).toContain("https://app.harness.invalid/signin");
 });
 
 test("redaction drops credentials embedded in a URL authority", () => {
@@ -103,11 +103,11 @@ test("redaction masks bare token-like pairs outside URLs", () => {
   expect(redactCrashText("Handoff rejected: token=eyJhbGci.payload grant=g-123 state=ok")).toBe(
     "Handoff rejected: token=[redacted] grant=[redacted] state=ok",
   );
-  expect(redactCrashText("openworkToken=tok&accessToken=at")).toBe("openworkToken=[redacted]&accessToken=[redacted]");
+  expect(redactCrashText("harnessToken=tok&accessToken=at")).toBe("harnessToken=[redacted]&accessToken=[redacted]");
 });
 
 test("redaction keeps file:// stack frames and dev-server line:col positions intact", () => {
-  const packaged = "    at render (file:///Applications/OpenWork.app/Contents/Resources/app/dist/assets/index-abc.js:1:2345)";
+  const packaged = "    at render (file:///Applications/Harness.app/Contents/Resources/app/dist/assets/index-abc.js:1:2345)";
   expect(redactCrashText(packaged)).toBe(packaged);
   expect(redactCrashText("    at AppRoot (http://localhost:5173/src/react-app/shell/app-root.tsx?t=1725000000:371:23)")).toBe(
     "    at AppRoot (http://localhost:5173/src/react-app/shell/app-root.tsx:371:23)",
@@ -124,7 +124,7 @@ test("the revealed technical details show the redacted message, never the query 
   const root = createRoot(container);
   const logError = spyOn(console, "error").mockImplementation(() => {});
   function Throws(): ReactNode {
-    throw new Error("Deep link rejected: openwork://open?token=eval-secret-token");
+    throw new Error("Deep link rejected: harness://open?token=eval-secret-token");
   }
   try {
     await act(async () => {
@@ -132,7 +132,7 @@ test("the revealed technical details show the redacted message, never the query 
     });
     const toggle = Array.from(container.querySelectorAll("button")).find((button) => /technical details/i.test(button.textContent ?? ""));
     await act(async () => { toggle?.click(); });
-    expect(container.textContent).toContain("Deep link rejected: openwork://open");
+    expect(container.textContent).toContain("Deep link rejected: harness://open");
     expect(container.textContent).not.toContain("eval-secret-token");
   } finally {
     await act(async () => { root.unmount(); });
@@ -229,7 +229,7 @@ test("Copy details writes redacted quoted assignments from a caught error to the
     const payload = writeText.mock.calls[0][0];
     const parts = payload.split("\n\n");
     expect(parts).toHaveLength(3);
-    expect(parts[0]).toContain("OpenWork ");
+    expect(parts[0]).toContain("Harness ");
     expect(parts[1]).toContain("Recovery failed:");
     expect(parts[1]).toContain("status=502");
     expect(parts[2]).toContain("Error: recovery trace");
@@ -261,20 +261,20 @@ test("children render untouched when nothing throws", () => {
 test("the architecture check shows progress without mounting the gated application", async () => {
   const ownedDom = typeof window === "undefined";
   if (ownedDom) GlobalRegistrator.register({ url: "http://localhost/" });
-  const bridge = window.__OPENWORK_ELECTRON__;
-  Reflect.set(window, "__OPENWORK_ELECTRON__", { system: {} });
+  const bridge = window.__HARNESS_ELECTRON__;
+  Reflect.set(window, "__HARNESS_ELECTRON__", { system: {} });
   try {
     const html = renderToStaticMarkup(
       <BootStateProvider>
         <ArchitectureMismatchGate><p>private workspace</p></ArchitectureMismatchGate>
       </BootStateProvider>,
     );
-    expect(html).toContain("Checking this OpenWork installation");
+    expect(html).toContain("Checking this Harness installation");
     expect(html).toContain("Reload");
     expect(html).not.toContain("private workspace");
   } finally {
-    if (bridge === undefined) Reflect.deleteProperty(window, "__OPENWORK_ELECTRON__");
-    else Reflect.set(window, "__OPENWORK_ELECTRON__", bridge);
+    if (bridge === undefined) Reflect.deleteProperty(window, "__HARNESS_ELECTRON__");
+    else Reflect.set(window, "__HARNESS_ELECTRON__", bridge);
     if (ownedDom) await GlobalRegistrator.unregister();
   }
 });
@@ -291,8 +291,8 @@ test.each(["ready", "error"])("pending startup remains actionable and settles to
   const logError = spyOn(console, "error").mockImplementation(() => {});
   const startup = Promise.withResolvers<ReactNode>();
   const hash = window.location.hash;
-  const stored = window.localStorage.getItem("openwork.server.active");
-  window.localStorage.setItem("openwork.server.active", "https://self-hosted.example.test/opencode");
+  const stored = window.localStorage.getItem("harness.server.active");
+  window.localStorage.setItem("harness.server.active", "https://self-hosted.example.test/opencode");
   let mounted = 0;
   function Session() {
     mounted += 1;
@@ -310,7 +310,7 @@ test.each(["ready", "error"])("pending startup remains actionable and settles to
         </StrictMode>,
       );
     });
-    expect(container.textContent).toContain("Starting OpenWork");
+    expect(container.textContent).toContain("Starting Harness");
     expect(mounted).toBe(0);
     const retry = container.querySelector("button");
     expect(retry?.textContent).toBe("Reload");
@@ -321,25 +321,25 @@ test.each(["ready", "error"])("pending startup remains actionable and settles to
       if (outcome === "ready") startup.resolve(<Session />);
       else startup.reject(new Error("bootstrap IPC failed"));
     });
-    expect(container.textContent).not.toContain("Starting OpenWork");
+    expect(container.textContent).not.toContain("Starting Harness");
     if (outcome === "ready") {
       expect(container.textContent).toBe("restored thread");
       expect(mounted).toBeGreaterThan(0);
     } else {
-      expect(container.textContent).toContain("OpenWork hit an unexpected error");
+      expect(container.textContent).toContain("Harness hit an unexpected error");
       expect(container.textContent).toContain("Reload");
       expect(container.textContent).not.toContain("bootstrap IPC failed");
       expect(mounted).toBe(0);
     }
     expect(window.location.hash).toBe(hash);
-    expect(window.localStorage.getItem("openwork.server.active")).toBe("https://self-hosted.example.test/opencode");
+    expect(window.localStorage.getItem("harness.server.active")).toBe("https://self-hosted.example.test/opencode");
   } finally {
     await act(async () => { root.unmount(); });
     container.remove();
     reload.mockRestore();
     logError.mockRestore();
-    if (stored === null) window.localStorage.removeItem("openwork.server.active");
-    else window.localStorage.setItem("openwork.server.active", stored);
+    if (stored === null) window.localStorage.removeItem("harness.server.active");
+    else window.localStorage.setItem("harness.server.active", stored);
     Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", actEnvironment);
     if (ownedDom) await GlobalRegistrator.unregister();
   }

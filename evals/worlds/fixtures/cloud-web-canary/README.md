@@ -43,7 +43,7 @@ Parent supplies these environment variables securely, never in committed files:
 | `CANARY_WORKER_ID` | Optional expected worker ID; otherwise captured after UI provisioning |
 | `CANARY_MODEL_URL`, `CANARY_MODEL_KEY` | Fixture origin and bearer key (at least 16 characters) |
 | `CANARY_MARKER` | Unique synthetic 8-128 character identifier: letters, digits, `_`, `-` |
-| `CANARY_WORKSPACE_PATH` | Worker directory; default `/tmp/openwork-workspace` |
+| `CANARY_WORKSPACE_PATH` | Worker directory; default `/tmp/harness-workspace` |
 | `CANARY_FILE_NAME` | Plain `.txt` filename; default `web-canary-note.txt` |
 | `PORT` | Fixture listen port; default `8099` |
 
@@ -68,7 +68,7 @@ table's variables:
 ```sh
 pnpm install --frozen-lockfile
 pnpm --dir evals install --frozen-lockfile
-OPENWORK_EVAL_DAYTONA=0 OPENWORK_EVAL_LIVE=1 CANARY_CONSENT=isolated-synthetic-daytona pnpm evals:pr specs/cloud-web-canary.live.test.ts
+HARNESS_EVAL_DAYTONA=0 HARNESS_EVAL_LIVE=1 CANARY_CONSENT=isolated-synthetic-daytona pnpm evals:pr specs/cloud-web-canary.live.test.ts
 ```
 
 This exact-name live lane bypasses E2E auto-placement/provisioning. The world

@@ -6,16 +6,16 @@ import { join } from "node:path";
 
 import { EXTERNAL_OPEN_CAPTURE_FILENAME, openExternalUrl, shouldCaptureExternalOpens } from "./open-external.mjs";
 
-const captureEnv = { OPENWORK_DEV_MODE: "1", OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS: "1" };
+const captureEnv = { HARNESS_DEV_MODE: "1", HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS: "1" };
 
 const inactiveCaptureCases = [
   { isPackaged: true, env: captureEnv },
   { isPackaged: undefined, env: captureEnv },
   { isPackaged: false, env: {} },
-  { isPackaged: false, env: { OPENWORK_DEV_MODE: "1" } },
-  { isPackaged: false, env: { OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS: "1" } },
-  { isPackaged: false, env: { ...captureEnv, OPENWORK_DEV_MODE: "0" } },
-  { isPackaged: false, env: { ...captureEnv, OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS: "true" } },
+  { isPackaged: false, env: { HARNESS_DEV_MODE: "1" } },
+  { isPackaged: false, env: { HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS: "1" } },
+  { isPackaged: false, env: { ...captureEnv, HARNESS_DEV_MODE: "0" } },
+  { isPackaged: false, env: { ...captureEnv, HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS: "true" } },
 ];
 
 describe("external-open capture", () => {
@@ -27,7 +27,7 @@ describe("external-open capture", () => {
   });
 
   it("appends JSON-string URL lines only in the fixture userData directory", async (t) => {
-    const userData = await mkdtemp(join(tmpdir(), "openwork-external-capture-test-"));
+    const userData = await mkdtemp(join(tmpdir(), "harness-external-capture-test-"));
     t.after(() => rm(userData, { recursive: true, force: true }));
     const writes = [];
     let shellCalls = 0;
@@ -210,7 +210,7 @@ describe("openExternalUrl", () => {
     let spawnCalled = false;
 
     const result = await openExternalUrl("https://example.com", {
-      env: { OPENWORK_SIMULATE_OPEN_EXTERNAL_FAILURE: "1" },
+      env: { HARNESS_SIMULATE_OPEN_EXTERNAL_FAILURE: "1" },
       openExternal: async () => {
         opened = true;
       },

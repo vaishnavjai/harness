@@ -1,6 +1,6 @@
 import { mkdir, realpath } from "node:fs/promises";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
-import { browserScript } from "@openwork/cdp";
+import { resolveEvalEngine, type Seed } from "@harness/env";
+import { browserScript } from "@harness/cdp";
 import { configureProvider } from "./chat.ts";
 
 export async function taskActivityWeb(seed: Seed) {
@@ -38,10 +38,10 @@ export async function taskActivityWeb(seed: Seed) {
   }, engine);
   const session = await seed.session(app, { title: "Delegated activity" });
   const native = () => seed.evalIn(app, browserScript(async (workspaceId, sessionId, engine) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port")
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port")
       + "/workspace/" + encodeURIComponent(workspaceId) + (engine === "v2" ? "/opencode2/api" : "/opencode");
     const response = await fetch(base + "/session/" + encodeURIComponent(sessionId) + "/message?limit=50", {
-      headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+      headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
     });
     if (!response.ok) throw new Error("Native history: " + response.status);
     const raw: unknown = await response.json();
@@ -53,7 +53,7 @@ export async function taskActivityWeb(seed: Seed) {
         let childId = metadata?.sessionId ?? metadata?.sessionID;
         if (!childId) {
           const childrenResponse = await fetch(base + "/session?limit=100", {
-            headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+            headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
           });
           const children = await childrenResponse.json();
           const matches = (Array.isArray(children) ? children : children.data ?? [])
@@ -62,7 +62,7 @@ export async function taskActivityWeb(seed: Seed) {
         }
         const childHistory = part.state?.status === "error" && childId
           ? await (await fetch(base + "/session/" + encodeURIComponent(childId) + "/message?limit=20", {
-            headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+            headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
           })).text() : undefined;
         return { messageId: message.info?.id ?? message.id, callId: part.callID ?? part.id,
           childId, status: part.state?.status, error: part.state?.error, metadata, childHistory };

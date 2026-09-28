@@ -1,12 +1,12 @@
 import { connect } from "node:net";
-import { evalIn, quitDesktop, readComposerState } from "@openwork/behaviors";
-import { addInitScript, browserScript } from "@openwork/cdp";
-import type { Surface } from "@openwork/cdp";
-import { mcpMock, resolveEvalEngine } from "@openwork/env";
-import type { MockHandle, Place, Seed } from "@openwork/env";
-import { desktop as launchDesktop } from "@openwork/hosts";
-import type { DesktopHandle } from "@openwork/hosts";
-import type { MockAgentWorkload } from "@openwork/labs";
+import { evalIn, quitDesktop, readComposerState } from "@harness/behaviors";
+import { addInitScript, browserScript } from "@harness/cdp";
+import type { Surface } from "@harness/cdp";
+import { mcpMock, resolveEvalEngine } from "@harness/env";
+import type { MockHandle, Place, Seed } from "@harness/env";
+import { desktop as launchDesktop } from "@harness/hosts";
+import type { DesktopHandle } from "@harness/hosts";
+import type { MockAgentWorkload } from "@harness/labs";
 import { configureProvider } from "./chat.ts";
 
 /**
@@ -65,7 +65,7 @@ function pidIsAlive(pid: number): boolean {
 
 declare global {
   interface Window {
-    __openworkSlowHistoryFault?: { state: { delayed: number; bounded: number }; dispose: () => void };
+    __harnessSlowHistoryFault?: { state: { delayed: number; bounded: number }; dispose: () => void };
   }
 }
 
@@ -78,7 +78,7 @@ declare global {
  */
 export async function slowUncappedHistoryReads(app: Surface, workspaceId: string, sessionId: string, delayMs: number) {
   const script = await addInitScript(app.client, browserScript((workspaceId, sessionId, delayMs) => {
-    if (window.top !== window || window.__openworkSlowHistoryFault) return;
+    if (window.top !== window || window.__harnessSlowHistoryFault) return;
     const paths = ["workspace", "w"].map((mount) =>
       `/${mount}/${encodeURIComponent(workspaceId)}/opencode/session/${encodeURIComponent(sessionId)}/message`);
     const originalFetch = window.fetch;
@@ -87,7 +87,7 @@ export async function slowUncappedHistoryReads(app: Surface, workspaceId: string
       const [input, init] = args;
       const url = new URL(input instanceof Request ? input.url : String(input), location.href);
       const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
-      const port = localStorage.getItem("openwork.server.port");
+      const port = localStorage.getItem("harness.server.port");
       const owned = Boolean(port) && url.origin === `http://127.0.0.1:${port}` && method === "GET" && paths.includes(url.pathname);
       if (!owned) return originalFetch.apply(window, args);
       if (url.searchParams.has("limit")) { state.bounded += 1; return originalFetch.apply(window, args); }
@@ -102,20 +102,20 @@ export async function slowUncappedHistoryReads(app: Surface, workspaceId: string
       return originalFetch.apply(window, args);
     };
     window.fetch = wrappedFetch;
-    window.__openworkSlowHistoryFault = {
+    window.__harnessSlowHistoryFault = {
       state,
-      dispose: () => { if (window.fetch === wrappedFetch) window.fetch = originalFetch; delete window.__openworkSlowHistoryFault; },
+      dispose: () => { if (window.fetch === wrappedFetch) window.fetch = originalFetch; delete window.__harnessSlowHistoryFault; },
     };
   }, [workspaceId, sessionId, delayMs]));
   return {
     read: () => evalIn(app, () => {
-      const fault = window.__openworkSlowHistoryFault;
+      const fault = window.__harnessSlowHistoryFault;
       if (!fault) throw new Error("Slow history fault lost its document");
       return { ...fault.state };
     }),
     async dispose() {
       await script.dispose().catch(() => undefined);
-      await evalIn(app, () => { window.__openworkSlowHistoryFault?.dispose(); }).catch(() => undefined);
+      await evalIn(app, () => { window.__harnessSlowHistoryFault?.dispose(); }).catch(() => undefined);
     },
   };
 }
@@ -182,7 +182,7 @@ export async function restartedThreadWorld(seed: Seed, ctx: { place: Place }) {
       [providerId]: {
         npm: "@ai-sdk/openai-compatible",
         name: restartedThreadModelName,
-        options: { baseURL: `${mock.url}/v1`, apiKey: "sk-openwork-eval" },
+        options: { baseURL: `${mock.url}/v1`, apiKey: "sk-harness-eval" },
         models: { [modelId]: { name: restartedThreadModelName } },
       },
     },
@@ -222,7 +222,7 @@ export async function restartedThreadWorld(seed: Seed, ctx: { place: Place }) {
       restarted = await launchDesktop({
         name: "thread-restart-relaunch",
         profileDir,
-        env: { PORT: vitePort, OPENWORK_ELECTRON_START_URL: rendererOrigin },
+        env: { PORT: vitePort, HARNESS_ELECTRON_START_URL: rendererOrigin },
         prepareSharedResources: false,
       });
       const origin = String(await evalIn(restarted, () => window.location.origin));

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { queryDenDatabase } from "@openwork/testkit";
+import { queryDenDatabase } from "@harness/testkit";
 
 // Arrange assignments only; removal and reprovisioning must cross Den's SCIM API.
 export async function seedMemberGrantFixture(databaseUrl: string, organizationId: string, managedMemberId: string, controlMemberId: string) {

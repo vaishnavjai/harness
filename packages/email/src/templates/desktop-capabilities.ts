@@ -1,4 +1,4 @@
-export const DEFAULT_OPENWORK_DOWNLOAD_URL = "https://openworklabs.com/download"
+export const DEFAULT_HARNESS_DOWNLOAD_URL = "https://github.com/vaishnavjai/harness/releases"
 
 export type DesktopCapability = {
   title: string

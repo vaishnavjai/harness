@@ -1,7 +1,7 @@
-import { openworkPluginPath } from "./openwork-extensions-plugin-path.js";
+import { harnessPluginPath } from "./harness-extensions-plugin-path.js";
 import { fileURLToPath } from "node:url";
 export function managedPolicyPluginPath(next = false): string {
-  return openworkPluginPath(next ? "managed-policy-next" : "managed-policy");
+  return harnessPluginPath(next ? "managed-policy-next" : "managed-policy");
 }
 
 // Remove only our own registrations, including file-URL copies persisted by

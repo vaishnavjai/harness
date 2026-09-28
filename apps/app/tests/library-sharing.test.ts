@@ -139,10 +139,10 @@ describe("Library sharing words", () => {
   });
 
   test("shared items name who shared them; connections name who else can use them", () => {
-    expect(librarySharedByCaption({ edges: [{ kind: "person", sharedById: "m", sharedByName: "Alex", grantedAt: null }] }, "OpenWork")).toBe("Shared by Alex");
-    expect(librarySharedByCaption({ edges: [] }, "OpenWork")).toBe("From OpenWork");
-    expect(libraryConnectionAudience([{ kind: "org_wide" }], "OpenWork")).toBe("Everyone in OpenWork");
-    expect(libraryConnectionAudience([{ kind: "team", teamId: "t", teamName: "Support" }], "OpenWork")).toBe("People in Support");
+    expect(librarySharedByCaption({ edges: [{ kind: "person", sharedById: "m", sharedByName: "Alex", grantedAt: null }] }, "Harness")).toBe("Shared by Alex");
+    expect(librarySharedByCaption({ edges: [] }, "Harness")).toBe("From Harness");
+    expect(libraryConnectionAudience([{ kind: "org_wide" }], "Harness")).toBe("Everyone in Harness");
+    expect(libraryConnectionAudience([{ kind: "team", teamId: "t", teamName: "Support" }], "Harness")).toBe("People in Support");
   });
 
   test("a skill file round-trips through its frontmatter", () => {

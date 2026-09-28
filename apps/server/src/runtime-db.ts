@@ -1,5 +1,5 @@
 import { dirname, join, resolve } from "node:path";
-import { openworkConfigDir } from "@openwork/paths";
+import { harnessConfigDir } from "@harness/paths";
 import type { Database as BunDatabase } from "bun:sqlite";
 import type { BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import type { DatabaseSync } from "node:sqlite";
@@ -33,10 +33,10 @@ export function importNodeSqlite(): Promise<typeof import("node:sqlite")> {
 }
 
 export function runtimeDbPath(config: ServerConfig): string {
-  const override = process.env.OPENWORK_RUNTIME_DB?.trim();
+  const override = process.env.HARNESS_RUNTIME_DB?.trim();
   if (override) return resolve(override);
   const configPath = config.configPath?.trim();
-  const configDir = configPath ? dirname(configPath) : openworkConfigDir();
+  const configDir = configPath ? dirname(configPath) : harnessConfigDir();
   return join(configDir, "runtime.sqlite");
 }
 

@@ -52,7 +52,7 @@ test("excludes a release tag protected by the live manifest", () => {
 
 test("includes sidecar bundles only when explicitly requested", () => {
   const releases = [
-    release("openwork-orchestrator-v0.18.6"),
+    release("harness-orchestrator-v0.18.6"),
     release("openwrk-v0.11.74"),
   ];
   assert.deepEqual(selectReleasesToPurge(releases, {
@@ -63,7 +63,7 @@ test("includes sidecar bundles only when explicitly requested", () => {
     includeSidecarBundles: true,
     protectedTags: [],
   }), [
-    { tag: "openwork-orchestrator-v0.18.6", group: "sidecar-orchestrator" },
+    { tag: "harness-orchestrator-v0.18.6", group: "sidecar-orchestrator" },
     { tag: "openwrk-v0.11.74", group: "sidecar-openwrk" },
   ]);
 });

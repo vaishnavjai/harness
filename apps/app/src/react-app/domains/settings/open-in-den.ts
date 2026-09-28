@@ -29,12 +29,12 @@ export function denLibraryFocus(target: DenLibraryTarget): string | null {
     return connectionId ? `connection-${connectionId}` : null;
   }
   if (target.pluginId) return `plugin-${target.pluginId}`;
-  if (target.id.startsWith("openwork-connect:")) {
+  if (target.id.startsWith("harness-connect:")) {
     const pluginId = target.id.split(":")[1];
     return pluginId ? `plugin-${pluginId}` : null;
   }
-  if (target.id.startsWith("openwork-connect://")) {
-    const pluginId = target.id.slice("openwork-connect://".length).split("/")[1];
+  if (target.id.startsWith("harness-connect://")) {
+    const pluginId = target.id.slice("harness-connect://".length).split("/")[1];
     return pluginId ? `plugin-${pluginId}` : null;
   }
   if (target.id.startsWith("marketplace:")) {

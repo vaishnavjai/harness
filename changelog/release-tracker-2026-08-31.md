@@ -17,10 +17,10 @@ Portable Agent Plugins arrive and desktop sessions run calmer
 Adds portable Agent Plugin support and workspace-pinned Automations while eliminating desktop request storms and hardening access security.
 
 #### Main changes
-- OpenWork can now import and run portable Agent Plugins, bringing Anthropic-compatible plugin packs into the desktop app.
+- Harness can now import and run portable Agent Plugins, bringing Anthropic-compatible plugin packs into the desktop app.
 - Automations can be pinned to an explicit workspace, and remote-session commands now arrive in native local desktop sessions.
 - Fixed request storms and reload loops across Settings, desktop policies, the Library, the composer, and session search so long sessions stay fast.
-- Gmail replies gained collapsible quoting and reply attachments, and OpenWork Cloud members receive complimentary OpenWork Web access.
+- Gmail replies gained collapsible quoting and reply attachments, and Harness Cloud members receive complimentary Harness Web access.
 - Strengthened SAML validation, organization API key authentication, and hosted-origin access checks, and made the desktop recover from socket and renderer crashes.
 
 #### Lines of code changed since previous release
@@ -39,7 +39,7 @@ True
 - Added portable Agent Plugin support.
 - Added workspace-pinned Automations and native delivery of remote-session commands.
 - Added collapsible Gmail reply quoting and reply attachments.
-- Granted complimentary OpenWork Web access to OpenWork Cloud members.
+- Granted complimentary Harness Web access to Harness Cloud members.
 
 #### Major bugs resolved
 True
@@ -60,4 +60,4 @@ True
 1
 
 #### Deprecated details
-- Removed the dead legacy session surface from openwork-server.
+- Removed the dead legacy session surface from harness-server.

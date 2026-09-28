@@ -1,8 +1,8 @@
 {
-  "name": "@openwork/browser-logins",
+  "name": "@harness/browser-logins",
   "private": true,
   "type": "module",
-  "description": "Sync selected logins from a browser profile into OpenWork's built-in browser: source discovery, readers, decryption, site grouping, and sensitivity defaults.",
+  "description": "Sync selected logins from a browser profile into Harness's built-in browser: source discovery, readers, decryption, site grouping, and sensitivity defaults.",
   "exports": {
     ".": {
       "types": "./index.d.ts",

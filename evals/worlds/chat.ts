@@ -1,14 +1,14 @@
-import { addInitScript, browserScript, reattachSurface, reload, type Surface } from "@openwork/cdp";
-import { CATALOG_FAST_VARIANT, FAST_DEFAULT_VARIANT, fastVariantId } from "@openwork/types/cloud-model-fast";
+import { addInitScript, browserScript, reattachSurface, reload, type Surface } from "@harness/cdp";
+import { CATALOG_FAST_VARIANT, FAST_DEFAULT_VARIANT, fastVariantId } from "@harness/types/cloud-model-fast";
 import { spawn } from "node:child_process";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { evalIn, assertNoLiveSecret, liveOpenAiEnabled, liveOpenAiModel, liveProviderId, provisionLiveOpenAi } from "@openwork/behaviors";
-import { resolveEvalEngine, SkipError, type Seed } from "@openwork/env";
-import type { MockAgentWorkload, MockMcpHandle } from "@openwork/labs";
+import { evalIn, assertNoLiveSecret, liveOpenAiEnabled, liveOpenAiModel, liveProviderId, provisionLiveOpenAi } from "@harness/behaviors";
+import { resolveEvalEngine, SkipError, type Seed } from "@harness/env";
+import type { MockAgentWorkload, MockMcpHandle } from "@harness/labs";
 import { chatContinuity } from "./chat-continuity.ts";
 
 const repoRoot = resolve(import.meta.dirname, "../..");
@@ -18,9 +18,9 @@ type AppSurface = "electron" | "web";
 declare global {
   interface Window {
     __modelEffortRequests?: unknown[];
-    __openworkSubmissionFault?: { attempts: number; release: () => void };
-    __openworkLongHistoryFault?: { dispose: () => void };
-    __openworkWarmHistoryFault?: {
+    __harnessSubmissionFault?: { attempts: number; release: () => void };
+    __harnessLongHistoryFault?: { dispose: () => void };
+    __harnessWarmHistoryFault?: {
       state: {
         armed: boolean;
         released: boolean;
@@ -40,7 +40,7 @@ declare global {
       release: () => void;
       dispose: () => void;
     };
-    __openworkStoppingFault?: {
+    __harnessStoppingFault?: {
       state: {
         attempts: number;
         held: number;
@@ -140,8 +140,8 @@ export async function configureProvider(
 ): Promise<void> {
   // TODO(primitive): configure a workspace provider and select its model.
   const result = await seed.evalIn(app, browserScript(async (workspaceId, providerId, modelId, defaultModel, opencodeJson) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return "missing local server credentials";
     const opencode = JSON.parse(opencodeJson);
     const request = async (path: string, init?: RequestInit) => {
@@ -174,18 +174,18 @@ export async function configureProvider(
     if (patched !== "ok") return patched;
     const reloaded = await request("/workspace/" + encodeURIComponent(workspaceId) + "/engine/reload", { method: "POST" });
     if (reloaded !== "ok") return reloaded;
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch { preferences = {}; }
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: providerId, modelID: modelId },
       modelVariant: null,
       providerStepCompleted: true,
     }));
-    localStorage.setItem("openwork.defaultModel", defaultModel);
-    localStorage.removeItem("openwork.sessionModels." + workspaceId);
+    localStorage.setItem("harness.defaultModel", defaultModel);
+    localStorage.removeItem("harness.sessionModels." + workspaceId);
     return "ok";
   }, [workspaceId, providerId, modelId, `${providerId}/${modelId}`, JSON.stringify(opencode)]), { awaitPromise: true, timeoutMs: 120_000 });
   if (result !== "ok") throw new Error(`Provider configuration failed: ${String(result)}`);
@@ -203,8 +203,8 @@ export async function configureProvider(
     const expectedRef = providerId + "/" + modelId;
     let observed = "";
     while (Date.now() < deadline) {
-      const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-      const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") };
+      const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+      const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token") };
       try {
         const statusResponse = await fetch(base + "/experimental/engine-v2-preview/status", { headers });
         const status = statusResponse.ok ? await statusResponse.json() : null;
@@ -215,7 +215,7 @@ export async function configureProvider(
         }
         const mounted = base + "/workspace/" + encodeURIComponent(workspaceId);
         const response = await fetch(mounted + (engine === "v2" ? "/opencode2/api/model" : "/opencode/session"), { headers });
-        if (response.ok && window.__openworkControl) {
+        if (response.ok && window.__harnessControl) {
           let catalogName: string | null = null;
           if (engine === "v2") {
             const record = (value: unknown): value is Record<string, unknown> =>
@@ -234,7 +234,7 @@ export async function configureProvider(
           const name = configuredName ?? catalogName ?? modelId;
           const chip = document.querySelector<HTMLElement>('button[aria-label="Change model"]');
           const chipText = chip?.innerText.trim() ?? "";
-          const stored = localStorage.getItem("openwork.defaultModel");
+          const stored = localStorage.getItem("harness.defaultModel");
           observed = JSON.stringify({ composerModel: chipText, storedDefault: stored, expected: { name, ref: expectedRef } });
           if (stored === expectedRef && chipText.startsWith(name)) return true;
         }
@@ -267,11 +267,11 @@ export async function arrangeControl(
   return seed.evalIn(app, browserScript(async (action, argsJson) => {
     const deadline = Date.now() + 30000;
     while (Date.now() < deadline) {
-      const available = window.__openworkControl?.listActions().find((candidate) => candidate.id === action && !candidate.disabled);
+      const available = window.__harnessControl?.listActions().find((candidate) => candidate.id === action && !candidate.disabled);
       if (available) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const result = await window.__openworkControl.execute(action, JSON.parse(argsJson));
+    const result = await window.__harnessControl.execute(action, JSON.parse(argsJson));
     if (!result?.ok) throw new Error(String(result?.error ?? "control action failed"));
     return result.value;
   }, [action, JSON.stringify(args ?? null)]), { awaitPromise: true, timeoutMs: 120_000 });
@@ -354,8 +354,8 @@ async function splitPaneQuestions(
   // Arrange an allowed native question tool independently of custom-agent defaults.
   // TODO(primitive): write workspace fixture files through a first-class seed API.
   const questionPolicyWritten = await seed.evalIn(app, browserScript(async (workspaceId, content) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     const response = await fetch("http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId) + "/files/content", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
@@ -508,10 +508,10 @@ export async function restartUpdateTaskWorld(seed: Seed) {
   const originalTimeOrigin = await evalIn(base.app, () => performance.timeOrigin);
   await seed.evalIn(base.app, () => {
     const currentVersion = "0.18.0";
-    window.__openworkReadDesktopVersionMetadataEval = () => ({
+    window.__harnessReadDesktopVersionMetadataEval = () => ({
       minAppVersion: "0.1.0", latestAppVersion: "9.9.9", publishedDesktopVersions: ["9.9.9"],
     });
-    window.__openworkUpdaterEvalBridge = {
+    window.__harnessUpdaterEvalBridge = {
       getChannel: async () => ({ channel: "stable", currentVersion }),
       setChannel: async (channel) => ({ channel, currentVersion }),
       check: async () => ({ available: true, channel: "stable", currentVersion, latestVersion: "9.9.9" }),
@@ -519,7 +519,7 @@ export async function restartUpdateTaskWorld(seed: Seed) {
       // Do not replace a binary in a journey. Unlike the download-only fixture,
       // confirmation goes through real main-process app.relaunch()/app.quit().
       installAndRestart: async () => {
-        await window.__OPENWORK_ELECTRON__.shell.relaunch();
+        await window.__HARNESS_ELECTRON__.shell.relaunch();
         return { ok: true };
       },
       onDownloadProgress: () => () => {},
@@ -580,7 +580,7 @@ export async function newSplitPrimary(seed: Seed) {
   const switchSession = await seedSessionRetry(seed, app, { title: "Split switch target" });
   const session = await seedSessionRetry(seed, app, { title: "New split primary" });
   const splitFacts = () => evalIn(app, () => {
-    const context = window.__openworkControl?.context?.();
+    const context = window.__harnessControl?.context?.();
     const layout = context?.conversations?.layout;
     const primaryPane = document.querySelector<HTMLElement>('[data-workbench-pane="primary"]');
     const secondaryPanes = [...document.querySelectorAll<HTMLElement>('[data-workbench-pane="secondary"]')];
@@ -605,10 +605,10 @@ export async function newSplitPrimary(seed: Seed) {
     };
   });
   const agentContextViaServer = () => evalIn(app, async () => {
-    const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + "/experimental/ui-control/request", {
+    const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + "/experimental/ui-control/request", {
       method: "POST",
       headers: {
-        Authorization: "Bearer " + localStorage.getItem("openwork.server.token"),
+        Authorization: "Bearer " + localStorage.getItem("harness.server.token"),
         "content-type": "application/json",
       },
       body: JSON.stringify({ kind: "context" }),
@@ -687,7 +687,7 @@ export async function modelPickerEffortWeb(seed: Seed) {
       options: { baseURL: `${witness.url}/v1`, apiKey: "synthetic-fast-key" },
       models: { [fastModelId]: { name: "Fast witness", reasoning: true, variants: {
         high: { reasoningEffort: "high" },
-        [CATALOG_FAST_VARIANT]: { disabled: true, openworkNativeFast: 1 },
+        [CATALOG_FAST_VARIANT]: { disabled: true, harnessNativeFast: 1 },
       } } },
     },
   } }, engine);
@@ -696,13 +696,13 @@ export async function modelPickerEffortWeb(seed: Seed) {
     fastProviderId, fastModelId, fastDefaultVariant: FAST_DEFAULT_VARIANT, fastHighVariant: fastVariantId("high"),
     modelRequests: () => seed.evalIn(app, () => window.__modelEffortRequests ?? []),
     runtimeFacts: async () => ({
-      ...await seed.evalIn(app, () => ({ browser: navigator.userAgent, electronBridge: Boolean(window.__OPENWORK_ELECTRON__) })),
+      ...await seed.evalIn(app, () => ({ browser: navigator.userAgent, electronBridge: Boolean(window.__HARNESS_ELECTRON__) })),
       sourceSha: app.actualSourceSha,
     }),
     readNative: (path: string) => seed.evalIn(app, browserScript(async (path) => {
-      const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+      const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
       const response = await fetch(base + path, {
-        headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+        headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
         signal: AbortSignal.timeout(15_000),
       });
       const body: unknown = await response.json();
@@ -736,7 +736,7 @@ async function startManualApprovalServer(approvalTimeoutMs: number) {
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
     const { startServer } = await import("./src/server.ts");
-    const root = mkdtempSync(join(tmpdir(), "openwork-attachment-spec-"));
+    const root = mkdtempSync(join(tmpdir(), "harness-attachment-spec-"));
     const server = await startServer({
       host: "127.0.0.1", port: 0, token: "owt_spec_token", hostToken: "owt_spec_host_token",
       approval: { mode: "manual", timeoutMs: ${approvalTimeoutMs} }, corsOrigins: ["*"],
@@ -748,15 +748,15 @@ async function startManualApprovalServer(approvalTimeoutMs: number) {
     setInterval(() => {}, 60000);
   `;
   // Isolate runtime state: without this the spawned server reads the host's
-  // ~/.config/openwork/runtime.sqlite, and a persisted managed policy there
+  // ~/.config/harness/runtime.sqlite, and a persisted managed policy there
   // turns every write into an instant 403 policy_unavailable.
   const child = spawn("bun", ["--conditions=development", "-e", script], {
     cwd: join(repoRoot, "apps", "server"),
-    env: { ...process.env, OPENWORK_RUNTIME_DB: join(mkdtempSync(join(tmpdir(), "openwork-attachment-spec-runtime-")), "runtime.sqlite") },
+    env: { ...process.env, HARNESS_RUNTIME_DB: join(mkdtempSync(join(tmpdir(), "harness-attachment-spec-runtime-")), "runtime.sqlite") },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const port = await new Promise<number>((resolvePort, reject) => {
-    const timer = setTimeout(() => reject(new Error("Standalone openwork-server did not report a port within 30s.")), 30_000);
+    const timer = setTimeout(() => reject(new Error("Standalone harness-server did not report a port within 30s.")), 30_000);
     let buffered = "";
     let stderr = "";
     child.stdout.setEncoding("utf8");
@@ -772,7 +772,7 @@ async function startManualApprovalServer(approvalTimeoutMs: number) {
     child.stderr.on("data", (chunk: string) => { stderr += chunk; });
     child.on("exit", (code) => {
       clearTimeout(timer);
-      reject(new Error(`Standalone openwork-server exited early (code ${code}): ${(stderr || buffered).slice(0, 500)}`));
+      reject(new Error(`Standalone harness-server exited early (code ${code}): ${(stderr || buffered).slice(0, 500)}`));
     });
     child.on("error", reject);
   });
@@ -851,7 +851,7 @@ export async function attachmentUpload(seed: Seed) {
             attempts: 0,
             release: () => { release(); window.fetch = originalFetch; },
           };
-          window.__openworkSubmissionFault = fault;
+          window.__harnessSubmissionFault = fault;
           window.fetch = async (input, init) => {
             const url = input instanceof Request ? input.url : String(input);
             const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -867,7 +867,7 @@ export async function attachmentUpload(seed: Seed) {
         });
       },
       async releaseUploads() {
-        await seed.evalIn(app, () => window.__openworkSubmissionFault?.release());
+        await seed.evalIn(app, () => window.__harnessSubmissionFault?.release());
       },
       approvalTimeoutMs,
       uploadStatus: uploadResponse.status,
@@ -933,15 +933,15 @@ export async function renderCycle(seed: Seed) {
     });
     // TODO(primitive): enable the renderer profiler before desktop launch.
     await seed.evalIn(app, () => {
-      localStorage.setItem("openwork.debug.profiler", "1");
-      localStorage.removeItem("openwork.debug.profilerOverlay");
+      localStorage.setItem("harness.debug.profiler", "1");
+      localStorage.removeItem("harness.debug.profilerOverlay");
       location.reload();
       return true;
     });
     const controlsReady = await seed.evalIn(app, async () => {
       const deadline = Date.now() + 30000;
       while (Date.now() < deadline) {
-        if (window.__openworkControl?.listActions().some((action) => action.id === "session.create_task" && !action.disabled)) return true;
+        if (window.__harnessControl?.listActions().some((action) => action.id === "session.create_task" && !action.disabled)) return true;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       return false;
@@ -951,7 +951,7 @@ export async function renderCycle(seed: Seed) {
     await seed.composerText(app, `Reply with exactly: ${renderCycleFirstReply}`);
     // TODO(primitive): send an arranged historical turn and await its completion.
     const historical = await seed.evalIn(app, browserScript(async (expectedReply) => {
-      const sent = await window.__openworkControl.execute("composer.send", null);
+      const sent = await window.__harnessControl.execute("composer.send", null);
       if (!sent?.ok) throw new Error(String(sent?.error ?? "composer.send failed"));
       const deadline = Date.now() + 30000;
       while (Date.now() < deadline) {
@@ -974,7 +974,7 @@ export async function renderCycle(seed: Seed) {
 }
 
 export async function streamedToolHistory(seed: Seed) {
-  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 transcript history (OPENWORK_EVAL_ENGINE=v1)");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 transcript history (HARNESS_EVAL_ENGINE=v1)");
   const providerId = "streamed-history-mock";
   const modelId = "streamed-history-model";
   const prompt = "Continue the history review and report the latest tool result.";
@@ -1015,8 +1015,8 @@ export async function streamedToolHistory(seed: Seed) {
   // Persist through native HTTP boundaries while the real SSE subscriber builds
   // its cache. Never inject renderer messages or import the merge implementation.
   await seed.evalIn(app, browserScript(async (historyPath, history, commands, providerId, modelId) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-    const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" };
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+    const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" };
     const deadline = Date.now() + 150000;
     const post = async (path: string, body: unknown) => {
       if (Date.now() >= deadline) throw new Error("Native history arrangement exceeded 150 seconds");
@@ -1105,18 +1105,18 @@ export async function streamedMarkdown(seed: Seed) {
   });
   // A tiny H.264 clip, served through the same authenticated file endpoint as user files.
   await seed.evalIn(app, browserScript(async (workspaceId, dataBase64) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
     const response = await fetch(base + "/workspace/" + encodeURIComponent(workspaceId) + "/files/raw", {
       method: "POST",
-      headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" },
       body: JSON.stringify({ path: "clip.mp4", dataBase64 }),
     });
     if (!response.ok) throw new Error("Video fixture write failed: " + response.status);
   }, [workspace.workspaceId, (await readFile(new URL("../fixtures/assistant-video.mp4", import.meta.url))).toString("base64")]), { awaitPromise: true });
   const engine = resolveEvalEngine();
   const ready = await seed.evalIn(app, browserScript(async (workspaceId, engine, providerId, modelId) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-    const headers = { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") };
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+    const headers = { Authorization: "Bearer " + localStorage.getItem("harness.server.token") };
     const deadline = Date.now() + 60000;
     while (Date.now() < deadline) {
       const status = await (await fetch(base + "/experimental/engine-v2-preview/status", { headers })).json();
@@ -1139,7 +1139,7 @@ export async function streamedMarkdown(seed: Seed) {
       await seed.evalIn(app, () => {
         const originalFetch = window.fetch;
         const fault = { attempts: 0, release: () => {} };
-        window.__openworkSubmissionFault = fault;
+        window.__harnessSubmissionFault = fault;
         window.fetch = async (input, init) => {
           const url = input instanceof Request ? input.url : String(input);
           const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -1159,14 +1159,14 @@ export async function streamedMarkdown(seed: Seed) {
       });
     },
     async submissionAttempts() {
-      return seed.evalIn(app, () => window.__openworkSubmissionFault?.attempts ?? 0);
+      return seed.evalIn(app, () => window.__harnessSubmissionFault?.attempts ?? 0);
     },
     async rejectSubmission() {
-      await seed.evalIn(app, () => window.__openworkSubmissionFault?.release());
+      await seed.evalIn(app, () => window.__harnessSubmissionFault?.release());
     },
     async videoState(play = false) {
       return seed.evalIn(app, browserScript(async (play) => {
-        const video = document.querySelector<HTMLVideoElement>('video[data-openwork-video-path="clip.mp4"]');
+        const video = document.querySelector<HTMLVideoElement>('video[data-harness-video-path="clip.mp4"]');
         if (!video) return null;
         if (play) await video.play();
         return { controls: video.controls, autoplay: video.autoplay, ready: video.readyState >= 2,
@@ -1325,7 +1325,7 @@ async function writeProviderConfig(path: string, providerId: string, modelId: st
       [providerId]: {
         npm: "@ai-sdk/openai-compatible",
         name: modelName,
-        options: { baseURL: baseUrl, apiKey: "sk-openwork-eval" },
+        options: { baseURL: baseUrl, apiKey: "sk-harness-eval" },
         models: { [modelId]: { name: modelName } },
       },
     },
@@ -1337,7 +1337,7 @@ async function selectModelInWorld(seed: Seed, app: Awaited<ReturnType<Seed["desk
   const selected = await seed.evalIn(app, browserScript(async (modelName) => {
     const deadline = Date.now() + 60000;
     if (!document.querySelector<HTMLInputElement>('input[placeholder="Search providers and models..."]')) {
-      const result = await window.__openworkControl.execute("session.model_picker.open", null);
+      const result = await window.__harnessControl.execute("session.model_picker.open", null);
       if (!result?.ok) return false;
     }
     while (Date.now() < deadline) {
@@ -1546,8 +1546,8 @@ async function configureCrossWorkspaces(
 ): Promise<void> {
   // TODO(primitive): configure one provider across several workspaces and select its model.
   const configured = await seed.evalIn(app, browserScript(async (workspaceIdsJson, providerBaseUrl) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return "missing local server credentials";
     const workspaceIds = JSON.parse(workspaceIdsJson);
     const root = "http://127.0.0.1:" + port;
@@ -1574,17 +1574,17 @@ async function configureCrossWorkspaces(
       const reload = await fetch(root + "/workspace/" + encodeURIComponent(workspaceId) + "/engine/reload", { method: "POST", headers });
       if (!reload.ok && reload.status !== 504) return "reload:" + reload.status + ":" + (await reload.text()).slice(0, 300);
     }
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch { preferences = {}; }
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: "composer-switch-mock", modelID: "composer-switch-model" },
       modelVariant: null,
       providerStepCompleted: true,
     }));
-    localStorage.setItem("openwork.defaultModel", "composer-switch-mock/composer-switch-model");
+    localStorage.setItem("harness.defaultModel", "composer-switch-mock/composer-switch-model");
     return "ok";
   }, [JSON.stringify(workspaceIds), `${baseUrl}/v1`]), { awaitPromise: true, timeoutMs: 180_000 });
   if (configured !== "ok") throw new Error(`Cross-workspace provider configuration failed: ${String(configured)}`);
@@ -1761,7 +1761,7 @@ export async function sessionSubmitErrorIsolation(seed: Seed) {
   const sessionA = await seedSessionRetry(seed, base.app, { title: "Storage failure task A" });
   const endpoint = base.app.client.webSocketDebuggerUrl;
   if (!endpoint) throw new Error("Submit fault requires the desktop CDP endpoint");
-  const origin = await evalIn(base.app, () => "http://127.0.0.1:" + localStorage.getItem("openwork.server.port"));
+  const origin = await evalIn(base.app, () => "http://127.0.0.1:" + localStorage.getItem("harness.server.port"));
   const paths = (id: string) => ["workspace", "w"].flatMap(mount => ["opencode", "opencode2/api"].map(engine =>
     `/${mount}/${encodeURIComponent(base.workspace.workspaceId)}/${engine}/session/${encodeURIComponent(id)}/prompt_async`));
   const pathsA = paths(sessionA.sessionId);
@@ -1874,12 +1874,12 @@ export async function snapshotFailure(seed: Seed) {
   const failureJson = await seed.evalIn(app, browserScript(async () => {
     const deadline = Date.now() + 30000;
     while (Date.now() < deadline) {
-      const available = window.__openworkControl?.listActions()
+      const available = window.__harnessControl?.listActions()
         .find((candidate) => candidate.id === "eval.session_snapshot.fail" && !candidate.disabled);
       if (available) break;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    const result = await window.__openworkControl.execute("eval.session_snapshot.fail", null);
+    const result = await window.__harnessControl.execute("eval.session_snapshot.fail", null);
     if (!result?.ok) throw new Error(String(result?.error ?? "control action failed"));
     return JSON.stringify(result.result);
   }, []), { awaitPromise: true, timeoutMs: 120_000 });
@@ -1899,12 +1899,12 @@ export const longHistoryLast = "LONG-HISTORY-LAST-MESSAGE 7c31";
 
 /** A long stored conversation opened cold, from another selected session. */
 export async function longHistory(seed: Seed, options: { holdAncillaryReads?: boolean } = {}) {
-  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (OPENWORK_EVAL_ENGINE=v1)");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (HARNESS_EVAL_ENGINE=v1)");
   const app = await seed.desktop({ name: "session-full-history" });
   const workspace = await seed.workspace(app, seed.tmpPath("session-full-history"));
   const createStoredSession = (title: string) => seed.evalIn(app, browserScript(async (workspaceId, title) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) throw new Error("Long history arrangement requires the owned local server");
     const response = await fetch(`http://127.0.0.1:${port}/workspace/${encodeURIComponent(workspaceId)}/opencode/session`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -1921,8 +1921,8 @@ export async function longHistory(seed: Seed, options: { holdAncillaryReads?: bo
     : await seedSessionRetry(seed, app, { title: longHistoryTitle });
   // TODO(primitive): store many engine messages without a model turn.
   const seeded = await seed.evalIn(app, browserScript(async (workspaceId, sessionId, count, first, last) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return "missing local server credentials";
     const base = "http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId)
       + "/opencode/session/" + encodeURIComponent(sessionId) + "/message";
@@ -1951,11 +1951,11 @@ export async function longHistory(seed: Seed, options: { holdAncillaryReads?: bo
       location.hash = `/workspace/${encodeURIComponent(workspaceId)}/session/${encodeURIComponent(sessionId)}`;
     }, [workspace.workspaceId, other.sessionId]));
   }
-  const ancillaryFaultKey = `openwork.eval.long-history-ancillary.${session.sessionId}`;
+  const ancillaryFaultKey = `harness.eval.long-history-ancillary.${session.sessionId}`;
   const ancillaryFault = options.holdAncillaryReads
     ? await addInitScript(app.client, browserScript((workspaceId, sessionId, storageKey, count, last) => {
       if (window.top !== window) return;
-      const port = localStorage.getItem("openwork.server.port");
+      const port = localStorage.getItem("harness.server.port");
       if (!port || !/^\d+$/.test(port)) throw new Error("Long history fault requires the owned local server port");
       const serverOrigin = `http://127.0.0.1:${port}`;
       const paths = ["workspace", "w"].map((mount) => `/${mount}/${encodeURIComponent(workspaceId)}/opencode/session`);
@@ -2129,7 +2129,7 @@ export async function longHistory(seed: Seed, options: { holdAncillaryReads?: bo
         window.removeEventListener("pagehide", dispose);
         window.removeEventListener("click", captureOpen, true);
       };
-      window.__openworkLongHistoryFault = { dispose };
+      window.__harnessLongHistoryFault = { dispose };
       window.addEventListener("pagehide", dispose, { once: true });
       window.fetch = wrappedFetch;
       publish();
@@ -2139,14 +2139,14 @@ export async function longHistory(seed: Seed, options: { holdAncillaryReads?: bo
     app, workspace, session, other, ancillaryFaultKey,
     async [Symbol.asyncDispose]() {
       if (!ancillaryFault) return;
-      try { await evalIn(app, () => window.__openworkLongHistoryFault?.dispose(), { timeoutMs: 5_000, reattachAttempts: 0 }); }
+      try { await evalIn(app, () => window.__harnessLongHistoryFault?.dispose(), { timeoutMs: 5_000, reattachAttempts: 0 }); }
       finally { await ancillaryFault.dispose(); }
     },
   };
 }
 
 export async function warmCachedLongHistory(seed: Seed) {
-  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (OPENWORK_EVAL_ENGINE=v1)");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (HARNESS_EVAL_ENGINE=v1)");
   const base = await longHistory(seed, { holdAncillaryReads: false });
   return {
     ...base,
@@ -2156,14 +2156,14 @@ export async function warmCachedLongHistory(seed: Seed) {
 
 async function warmHistoryFault(seed: Seed, app: Surface, workspaceId: string, sessionId: string) {
   await seed.evalIn(app, browserScript((workspaceId, sessionId, tail) => {
-    if (window.__openworkWarmHistoryFault) throw new Error("A warm history fault is already active");
-    const port = localStorage.getItem("openwork.server.port");
+    if (window.__harnessWarmHistoryFault) throw new Error("A warm history fault is already active");
+    const port = localStorage.getItem("harness.server.port");
     if (!port) throw new Error("Warm history fault requires the local server port");
     const origin = `http://127.0.0.1:${port}`;
     const paths = ["workspace", "w"].map((mount) =>
       `/${mount}/${encodeURIComponent(workspaceId)}/opencode/session/${encodeURIComponent(sessionId)}`);
     const originalFetch = window.fetch;
-    const state: NonNullable<Window["__openworkWarmHistoryFault"]>["state"] = {
+    const state: NonNullable<Window["__harnessWarmHistoryFault"]>["state"] = {
       armed: false, released: false, expired: false, held: 0, mutations: 0, reads: [],
     };
     const pending = new Set<() => void>();
@@ -2230,7 +2230,7 @@ async function warmHistoryFault(seed: Seed, app: Surface, workspaceId: string, s
     };
     window.fetch = wrappedFetch;
     expiry = setTimeout(expire, 120_000);
-    window.__openworkWarmHistoryFault = {
+    window.__harnessWarmHistoryFault = {
       state,
       arm: () => {
         if (state.armed || state.released) throw new Error("Warm history fault cannot be armed again");
@@ -2245,9 +2245,9 @@ async function warmHistoryFault(seed: Seed, app: Surface, workspaceId: string, s
 
   return {
     read: () => seed.evalIn(app, () => {
-      const fault = window.__openworkWarmHistoryFault;
+      const fault = window.__harnessWarmHistoryFault;
       if (!fault) throw new Error("Warm history fault lost its document");
-      const composer: unknown = window.__openwork?.slice("composer");
+      const composer: unknown = window.__harness?.slice("composer");
       const snapshot = composer && typeof composer === "object" && "snapshotQuery" in composer ? composer.snapshotQuery : null;
       return {
         ...fault.state,
@@ -2260,19 +2260,19 @@ async function warmHistoryFault(seed: Seed, app: Surface, workspaceId: string, s
       };
     }),
     arm: () => seed.evalIn(app, () => {
-      const fault = window.__openworkWarmHistoryFault;
+      const fault = window.__harnessWarmHistoryFault;
       if (!fault) throw new Error("Warm history fault lost its document");
       fault.arm();
     }),
     release: () => seed.evalIn(app, () => {
-      const fault = window.__openworkWarmHistoryFault;
+      const fault = window.__harnessWarmHistoryFault;
       if (!fault || fault.state.held < 1 || fault.state.expired) throw new Error("No uncapped history response is held");
       fault.release();
     }),
     async [Symbol.asyncDispose]() {
       await seed.evalIn(app, () => {
-        window.__openworkWarmHistoryFault?.dispose();
-        delete window.__openworkWarmHistoryFault;
+        window.__harnessWarmHistoryFault?.dispose();
+        delete window.__harnessWarmHistoryFault;
       });
     },
   };
@@ -2293,8 +2293,8 @@ async function stoppingFeedbackFault(
   sessionId: string,
 ) {
   await seed.evalIn(app, browserScript((workspaceId, sessionId) => {
-    if (window.__openworkStoppingFault) throw new Error("A Stop feedback fault is already active");
-    const port = localStorage.getItem("openwork.server.port");
+    if (window.__harnessStoppingFault) throw new Error("A Stop feedback fault is already active");
+    const port = localStorage.getItem("harness.server.port");
     if (!port) throw new Error("Stop feedback fault requires the local server port");
     const serverOrigin = `http://127.0.0.1:${port}`;
     const encodedWorkspaceId = encodeURIComponent(workspaceId);
@@ -2399,14 +2399,14 @@ async function stoppingFeedbackFault(
       cancelAnimationFrame(frame);
       window.removeEventListener("click", capture, true);
     };
-    window.__openworkStoppingFault = { state, fail: () => release(true), dispose };
+    window.__harnessStoppingFault = { state, fail: () => release(true), dispose };
   }, [workspaceId, sessionId]));
 
   let disposed = false;
   return {
     async read() {
       return seed.evalIn(app, browserScript((sessionId) => {
-        const fault = window.__openworkStoppingFault;
+        const fault = window.__harnessStoppingFault;
         if (!fault) throw new Error("Stop feedback fault lost its document");
         const root = [...document.querySelectorAll<HTMLElement>("[data-session-surface-id]")]
           .find((candidate) => candidate.dataset.sessionSurfaceId === sessionId) ?? null;
@@ -2415,7 +2415,7 @@ async function stoppingFeedbackFault(
         const run = root?.querySelector<HTMLButtonElement>('button[aria-label="Run task"]') ?? null;
         const error = root?.querySelector<HTMLElement>('[data-testid="session-error-card"]') ?? null;
         const aggregate = root?.querySelector<HTMLElement>("[data-tool-aggregate]") ?? null;
-        const composer: unknown = window.__openwork?.slice("composer");
+        const composer: unknown = window.__harness?.slice("composer");
         const snapshotQuery = composer && typeof composer === "object" && "snapshotQuery" in composer
           ? composer.snapshotQuery
           : null;
@@ -2444,7 +2444,7 @@ async function stoppingFeedbackFault(
     },
     async fail() {
       await seed.evalIn(app, () => {
-        const fault = window.__openworkStoppingFault;
+        const fault = window.__harnessStoppingFault;
         if (!fault || fault.state.held < 1) throw new Error("No native Stop response is held");
         fault.fail();
       });
@@ -2453,8 +2453,8 @@ async function stoppingFeedbackFault(
       if (disposed) return;
       disposed = true;
       await seed.evalIn(app, () => {
-        window.__openworkStoppingFault?.dispose();
-        delete window.__openworkStoppingFault;
+        window.__harnessStoppingFault?.dispose();
+        delete window.__harnessStoppingFault;
       });
     },
   };
@@ -2489,8 +2489,8 @@ export async function unfinishedToolsWeb(seed: Seed) {
     engine,
     startStopFault: () => stoppingFeedbackFault(seed, base.app, base.workspace.workspaceId, session.sessionId),
     nativeStatus: () => seed.evalIn(base.app, browserScript(async (statusPath, sessionId) => {
-      const port = localStorage.getItem("openwork.server.port");
-      const token = localStorage.getItem("openwork.server.token");
+      const port = localStorage.getItem("harness.server.port");
+      const token = localStorage.getItem("harness.server.token");
       const response = await fetch(`http://127.0.0.1:${port}${statusPath}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2572,8 +2572,8 @@ export async function computerMentions(seed: Seed) {
     async submittedParts() {
       // TODO(primitive): inspect submitted engine parts, including synthetic routing instructions.
       return seed.evalIn(app, browserScript(async (workspaceId) => {
-        const port = localStorage.getItem("openwork.server.port");
-        const token = localStorage.getItem("openwork.server.token");
+        const port = localStorage.getItem("harness.server.port");
+        const token = localStorage.getItem("harness.server.token");
         const base = "http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId) + "/opencode/session";
         const headers = { Authorization: "Bearer " + token };
         const listed = await fetch(base, { headers });
@@ -2597,7 +2597,7 @@ export async function computerMentions(seed: Seed) {
 
 /** One profile across engine switches; the journey, not the seed, creates its history. */
 export async function workspaceEngineUpgrade(seed: Seed) {
-  if (resolveEvalEngine() !== "v1") throw new SkipError("upgrade baseline requires OPENWORK_EVAL_ENGINE=v1");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("upgrade baseline requires HARNESS_EVAL_ENGINE=v1");
   const live = liveOpenAiEnabled();
   const orgName = "Workspace engine upgrade";
   const mocks: Record<string, ReturnType<Seed["mock"]>> = live ? {} : { agent: seed.mock({ agentWorkloads: [{
@@ -2615,8 +2615,8 @@ export async function workspaceEngineUpgrade(seed: Seed) {
     const app = await seed.desktop({ den, as: "admin", workspacePath: primaryPath });
     const request = async (path: string, method = "GET", body?: unknown) => {
       const result = await seed.evalIn(app, browserScript(async (path, method, body) => {
-        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + path, {
-          method, headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" },
+        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + path, {
+          method, headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" },
           body, signal: AbortSignal.timeout(30_000),
         });
         const json: unknown = await response.json();
@@ -2661,9 +2661,9 @@ export async function workspaceEngineUpgrade(seed: Seed) {
         // issue an API request that could satisfy the refresh witness itself.
         return seed.evalIn(app, browserScript((workspaceId, engine, since) => {
           const sessionPath = `/workspace/${workspaceId}/${engine === "v2" ? "opencode2/api" : "opencode"}/session`;
-          const route = window.__openwork?.slice("route");
+          const route = window.__harness?.slice("route");
           const workspace = route?.workspaces.find(workspace => workspace.id === workspaceId);
-          const requests = (window.__openwork?.events(200) ?? []).flatMap(event => {
+          const requests = (window.__harness?.events(200) ?? []).flatMap(event => {
             const data = event.data;
             if (event.name !== "log.fetch" || typeof data !== "object" || data === null
               || !("url" in data) || typeof data.url !== "string"
@@ -2704,7 +2704,7 @@ export async function workspaceEngineUpgrade(seed: Seed) {
   }
 }
 
-/** A running conversation whose workspace skills can change through OpenWork. */
+/** A running conversation whose workspace skills can change through Harness. */
 export async function skillLifecycle(seed: Seed) {
   const live = liveOpenAiEnabled();
   const orgName = "Skill lifecycle";
@@ -2715,8 +2715,8 @@ export async function skillLifecycle(seed: Seed) {
     const workspace = await seed.workspace(app, seed.tmpPath("skill-lifecycle"));
     const request = async (path: string) => {
       const response = await seed.evalIn(app, browserScript(async (path) => {
-        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + path, {
-          headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+        const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + path, {
+          headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
           signal: AbortSignal.timeout(10000),
         });
         return { status: response.status, json: await response.json() };
@@ -2730,8 +2730,8 @@ export async function skillLifecycle(seed: Seed) {
     // This world arranges an opted-in native v2 conversation, including when
     // invoked by the standard E2E command without an engine override.
     await seed.evalIn(app, async () => {
-      const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + "/experimental/engine-v2-preview", {
-        method: "PUT", headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" },
+      const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + "/experimental/engine-v2-preview", {
+        method: "PUT", headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: true, chatRouting: true }), signal: AbortSignal.timeout(180000),
       });
       if (!response.ok) throw new Error("Could not enable the native engine");
@@ -2757,7 +2757,7 @@ export async function skillLifecycle(seed: Seed) {
         const result = await fetch(`${den.mocks.model.url}/admin/agent-workloads`, {
           method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify({ workloads: [{ latestUserTurn: true, promptMarker: prompt,
-            finalReply: "OpenWork: UNAVAILABLE", finalReplyFrom: "last-tool-text",
+            finalReply: "Harness: UNAVAILABLE", finalReplyFrom: "last-tool-text",
             steps: [{ tool: "skill", argumentsFrom: "skill-catalog", arguments: { skill: skillName } }],
           }] }),
         });

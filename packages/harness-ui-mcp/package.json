@@ -1,0 +1,28 @@
+{
+  "name": "@harness/ui-mcp",
+  "version": "0.2.0",
+  "description": "MCP server for Harness app context and semantic UI control",
+  "author": "Harness contributors",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "harness-ui-mcp": "index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "scripts": {
+    "check": "node --check index.mjs",
+    "test": "node --check index.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vaishnavjai/harness.git",
+    "directory": "packages/harness-ui-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "private": true
+}

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 
 test("scoped send preflight and Stop retain ownership, interruption and environment contracts", { timeout: 120_000 }, async ({ evidence }) => {
   needs({ commands: ["pnpm", "bun"], placement: "local" });

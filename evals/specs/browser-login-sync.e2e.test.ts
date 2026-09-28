@@ -1,9 +1,9 @@
 import { expect } from "vitest";
-import { eventually, spec } from "@openwork/testkit";
+import { eventually, spec } from "@harness/testkit";
 import { browserLoginSyncWorld } from "../worlds/browser-panel.ts";
 
 const test = spec.world(browserLoginSyncWorld, {
-  needs: { optIn: ["OPENWORK_EVAL_BROWSER_LOGIN_SYNC"] },
+  needs: { optIn: ["HARNESS_EVAL_BROWSER_LOGIN_SYNC"] },
 });
 
 test("selected browser logins stay synced until the user pauses or forgets them", async ({ world, user, step }) => {

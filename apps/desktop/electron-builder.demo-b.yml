@@ -1,6 +1,6 @@
 extends: electron-builder.yml
-appId: com.differentai.openwork.demo.consumer
-productName: OpenWork Demo B
+appId: com.vaishnavjai.harness.demo.consumer
+productName: Harness Demo B
 protocols: []
 directories:
   output: dist-electron-demo-b

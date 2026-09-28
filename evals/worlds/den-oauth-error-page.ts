@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { denFetch } from "@openwork/behaviors";
-import type { Seed } from "@openwork/env";
-import { isRecord } from "./openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import type { Seed } from "@harness/env";
+import { isRecord } from "./harness-server-cli.ts";
 
 function requiredString(value: unknown, key: string): string {
   const field = isRecord(value) ? value[key] : undefined;
@@ -10,7 +10,7 @@ function requiredString(value: unknown, key: string): string {
 }
 
 /**
- * A registered OAuth client that then asks OpenWork to return to an address it
+ * A registered OAuth client that then asks Harness to return to an address it
  * never registered. Better Auth cannot send that error back to the client, so
  * the browser must land on Den web's own error page.
  */

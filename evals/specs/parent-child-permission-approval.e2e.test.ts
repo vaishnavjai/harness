@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { parentChildPermissionWorld, scopedPermissionRefreshWorld } from "../worlds/first-run.ts";
 import { delegatedQuestionHandoff, permissionStopRecovery } from "../worlds/chat.ts";
 

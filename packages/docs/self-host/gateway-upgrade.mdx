@@ -3,7 +3,7 @@ title: "Upgrade Gateway safely"
 description: "Plan the database and writer cutover before enabling Gateway, and disable management without an unsafe schema downgrade."
 ---
 
-Use this guide when moving an existing Den/Models or Gateway installation to the Gateway-capable release. For a fresh deployment's configuration and environment reference, see [Enable OpenWork Gateway](/self-host/gateway).
+Use this guide when moving an existing Den/Models or Gateway installation to the Gateway-capable release. For a fresh deployment's configuration and environment reference, see [Enable Harness Gateway](/self-host/gateway).
 
 <Warning>
   Migration `0097_gateway_access_matrix` renames live tables and columns. It is not an online, atomic, or rolling-compatible migration. Quiesce readers and writers before migration and keep them stopped until schema verification and rollout of matching images are complete. Helm's current pre-upgrade hook does not make this cutover safe automatically.
@@ -15,7 +15,7 @@ Use the Gateway-capable chart implementation introduced in `0.2.0` (or a later r
 
 Pin the shared `image.tag` and inspect all component overrides: `denApi.image.tag`, `denWeb.image.tag`, and the effective `gateway.image.tag`/`inference.image.tag`. A nonempty component tag wins over the shared tag; the shared tag wins over `Chart.appVersion`. An empty canonical component tag clears its legacy override, but still requires a compatible shared tag. The retention job uses the effective Gateway image too.
 
-Keep the installed release name, `*-inference` Service/Deployment/container names and selectors, and `ghcr.io/different-ai/openwork-inference` repository. Product naming changed to OpenWork Gateway; installed resource identifiers did not. `den-gateway` is the separate Web proxy, not a replacement image.
+Keep the installed release name, `*-inference` Service/Deployment/container names and selectors, and `ghcr.io/vaishnavjai/harness-inference` repository. Product naming changed to Harness Gateway; installed resource identifiers did not. `den-gateway` is the separate Web proxy, not a replacement image.
 
 ## Why the default hook is insufficient
 
@@ -50,7 +50,7 @@ This skips the chart Job and its migration-specific TCP configuration validation
 
 For migration `0097`, the runner must use **one dedicated MySQL connection**, execute statements sequentially at `--> statement-breakpoint` boundaries, and stop on the first error. It requires MySQL `8.0.16+` (including 8.4), enforced CHECK support, strict SQL mode (`STRICT_TRANS_TABLES` or `STRICT_ALL_TABLES`), `CREATE TEMPORARY TABLES`, and ordinary migration DDL/DML rights. MariaDB and TiDB are explicitly refused. A serverless/HTTP transport that cannot preserve connection-local temporary tables is not sufficient; choose a reviewed migration connection rather than bypassing preflight. Runtime `planetscale` mode alone does not validate this.
 
-The embedded preflight checks the complete prior schema, indexes, IDs, ownership, credential subjects, and grant audiences before persistent DDL. It rejects duplicate or dual-audience grants rather than silently merging or deleting them. See the release's [0097 migration contract](https://github.com/different-ai/openwork/blob/dev/ee/packages/den-db/drizzle/0097_gateway_access_matrix.md) for the exact sentinels and preservation rules; use the copy from your pinned release, not an unreviewed moving branch.
+The embedded preflight checks the complete prior schema, indexes, IDs, ownership, credential subjects, and grant audiences before persistent DDL. It rejects duplicate or dual-audience grants rather than silently merging or deleting them. See the release's [0097 migration contract](https://github.com/vaishnavjai/harness/blob/dev/ee/packages/den-db/drizzle/0097_gateway_access_matrix.md) for the exact sentinels and preservation rules; use the copy from your pinned release, not an unreviewed moving branch.
 
 ## Quiesced cutover
 
@@ -70,7 +70,7 @@ If embedded preflight fails before the first persistent DDL, close the connectio
 - Existing provider grants receive the migration's default group/set mapping; historical usage selection fields remain unknown/null rather than being attributed to invented selections.
 - Unused legacy OAuth states are marked used because they lack the new set/client binding. Members must start those sign-in flows again; existing credentials are not deleted or revoked by that action.
 - Gateway's `gateway_keys` starts empty. Members receive independent `ow_gw_` keys through the normal connect/provisioning flow; existing Models `ow_inf_` keys are not copied into it.
-- Models keys, subscription billing, limits, usage buckets, and ledger remain separate. Keep `OPENWORK_INFERENCE_BASE_URL`, `STRIPE_INFERENCE_PRICE_ID`, and `config.inference.*` legacy contracts intact.
+- Models keys, subscription billing, limits, usage buckets, and ledger remain separate. Keep `HARNESS_INFERENCE_BASE_URL`, `STRIPE_INFERENCE_PRICE_ID`, and `config.inference.*` legacy contracts intact.
 
 ## Disable without a schema downgrade
 
@@ -105,15 +105,15 @@ There are additional environment differences in this legacy service-only mode. V
 
 Stopping new management admission does not mean stopping all new model requests, member connections, or OAuth operations. If the goal is security revocation, use the appropriate provider/grant/key controls or an explicit traffic stop. If the component, its dependencies, or ingress is stopped, **do not promise existing traffic will continue** merely because the disable flag itself is non-revoking.
 
-OpenWork Models remains available to eligible hosted admins alongside Gateway, whether or not deployment Gateway management is enabled; existing single-org custom-provider behavior remains. Retiring the organization opt-in and changing deployment management configuration neither cancel nor create a subscription and do not revoke Models or Gateway keys.
+Harness Models remains available to eligible hosted admins alongside Gateway, whether or not deployment Gateway management is enabled; existing single-org custom-provider behavior remains. Retiring the organization opt-in and changing deployment management configuration neither cancel nor create a subscription and do not revoke Models or Gateway keys.
 
 Keep schema-compatible images when disabling. **Do not run `helm rollback` to an older pre-migration image against the renamed schema.** Recover by fixing forward with compatible images, or use a separately approved, quiesced database-and-image restore from the verified backup. A restore can lose post-backup writes and must account for credentials, usage, and billing reconciliation. Keep traffic stopped until schema and all readers/writers agree again.
 
 ## Release references
 
-- [Gateway chart values and compatibility](https://github.com/different-ai/openwork/blob/dev/packaging/helm/openwork-ee/README.md#gateway-compatibility-chart-020)
-- [0097 migration contract](https://github.com/different-ai/openwork/blob/dev/ee/packages/den-db/drizzle/0097_gateway_access_matrix.md)
-- [0098 model-policy backfill](https://github.com/different-ai/openwork/blob/dev/ee/packages/den-db/drizzle/0098_gateway_provider_model_universe.md)
-- [0099 credential-set creator](https://github.com/different-ai/openwork/blob/dev/ee/packages/den-db/drizzle/0099_gateway_credential_set_creator.md)
+- [Gateway chart values and compatibility](https://github.com/vaishnavjai/harness/blob/dev/packaging/helm/harness-ee/README.md#gateway-compatibility-chart-020)
+- [0097 migration contract](https://github.com/vaishnavjai/harness/blob/dev/ee/packages/den-db/drizzle/0097_gateway_access_matrix.md)
+- [0098 model-policy backfill](https://github.com/vaishnavjai/harness/blob/dev/ee/packages/den-db/drizzle/0098_gateway_provider_model_universe.md)
+- [0099 credential-set creator](https://github.com/vaishnavjai/harness/blob/dev/ee/packages/den-db/drizzle/0099_gateway_credential_set_creator.md)
 
 These source links help locate the files. Review their counterparts in the exact release being deployed; a README, rendered chart, healthy pod, or registered migration is not a production migration receipt.

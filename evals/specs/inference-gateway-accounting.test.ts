@@ -2,11 +2,11 @@ import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { eventually, localMysqlIsRunning, queryDenDatabase, server, test } from "@openwork/testkit";
+import { eventually, localMysqlIsRunning, queryDenDatabase, server, test } from "@harness/testkit";
 
 // This journey exercises the protected retention HTTP boundary and real MySQL,
 // never a production database or an in-memory approximation of locking.
-const local = process.env.OPENWORK_EVAL_DAYTONA !== "1" && !process.env.OPENWORK_EVAL_DEN_API_URL;
+const local = process.env.HARNESS_EVAL_DAYTONA !== "1" && !process.env.HARNESS_EVAL_DEN_API_URL;
 const mysql = await localMysqlIsRunning();
 const title = !local ? "accounting skipped: needs isolated local placement"
   : !mysql ? "accounting skipped: needs scratch MySQL on 127.0.0.1:3306"
@@ -15,7 +15,7 @@ const title = !local ? "accounting skipped: needs isolated local placement"
 test.skipIf(!local || !mysql)(title, { timeout: 600_000 }, async ({ place, evidence }) => {
   await using den = await server({ place, web: false, org: { name: "Accounting retention fixture" } });
   const databaseUrl = den.database?.url;
-  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/openwork_eval_")) throw new Error("Isolated scratch DB required");
+  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/harness_eval_")) throw new Error("Isolated scratch DB required");
   const port = await new Promise<number>((resolve, reject) => {
     const probe = createServer();
     probe.once("error", reject);
@@ -45,7 +45,7 @@ test.skipIf(!local || !mysql)(title, { timeout: 600_000 }, async ({ place, evide
       `INSERT INTO inference_request_logs
        (id, organization_id, org_membership_id, inference_key_id, route, protocol, upstream_provider_id,
         upstream_host, upstream_path, method, upstream_model, stream, outcome, usage_source,
-        input_tokens, output_tokens, total_tokens, cost_micro_usd, started_at, completed_at, first_byte_at, openwork_request_id)
+        input_tokens, output_tokens, total_tokens, cost_micro_usd, started_at, completed_at, first_byte_at, harness_request_id)
        VALUES (?, 'org_00000000000000000000000001', ?, 'ink_00000000000000000000000001', 'org_provider', 'openai_chat', 'openai',
         'upstream.invalid', '/chat/completions', 'POST', ?, false, 'ok', ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
       [id, member, model, known ? "json" : "missing", known ? tokens : null, known ? tokens : null, known ? 0 : null,

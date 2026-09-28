@@ -1,11 +1,11 @@
 import { expect } from "vitest";
-import { denFetch, signIn } from "@openwork/behaviors";
-import { eventually, inviteMember, needs, server, test, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { denFetch, signIn } from "@harness/behaviors";
+import { eventually, inviteMember, needs, server, test, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 import { enableScimFixtureSso } from "./helpers/scim-fixture.ts";
 
 const requirements: TestNeeds = {
-  optIn: ["OPENWORK_EVAL_E2E_TESTS"],
+  optIn: ["HARNESS_EVAL_E2E_TESTS"],
   // enableScimFixtureSso writes to the isolated testkit database that only a local Den exposes.
   placement: "local",
 };
@@ -82,7 +82,7 @@ test(title, { timeout: 1_800_000 }, async ({ evidence, place }) => {
   const orgName = `Okta SCIM Lifecycle ${runId}`;
   const managedDomain = "okta-scim.test";
   const managedEmail = `avery.${runId}@${managedDomain}`;
-  const controlPassword = "OpenWorkEval123!";
+  const controlPassword = "HarnessEval123!";
 
   await using den = await server({
     place,
@@ -92,7 +92,7 @@ test(title, { timeout: 1_800_000 }, async ({ evidence, place }) => {
     },
   });
   const control = await inviteMember(den, "control", {
-    email: `control.${runId}@openwork.test`,
+    email: `control.${runId}@harness.test`,
     name: "Control Member",
     password: controlPassword,
   });
@@ -122,7 +122,7 @@ test(title, { timeout: 1_800_000 }, async ({ evidence, place }) => {
   const adminHeaders = {
     authorization: `Bearer ${den.admin.token}`,
     cookie: sessionCookie,
-    "x-openwork-org-id": organizationId,
+    "x-harness-org-id": organizationId,
   };
   const sso = await denFetch(den.ref, "/v1/sso/saml", {
     method: "POST",
@@ -130,7 +130,7 @@ test(title, { timeout: 1_800_000 }, async ({ evidence, place }) => {
     body: JSON.stringify({
       issuer: `http://127.0.0.1/okta/exk-${runId}`,
       domain: managedDomain,
-      entryPoint: `https://okta.example.test/app/openwork/exk-${runId}/sso/saml`,
+      entryPoint: `https://okta.example.test/app/harness/exk-${runId}/sso/saml`,
       cert: "okta-test-signing-certificate",
       audience: den.ref.apiUrl,
     }),

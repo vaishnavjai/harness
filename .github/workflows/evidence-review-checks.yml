@@ -64,7 +64,7 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v4
       - run: |
-          pnpm --filter @openwork/review... install --frozen-lockfile --ignore-scripts
+          pnpm --filter @harness/review... install --frozen-lockfile --ignore-scripts
           pnpm --dir evals install --frozen-lockfile --ignore-scripts
       - name: Verify selection, workflow trust and publication contracts
         run: node --test .github/scripts/internal-proof-contributor.test.mjs .github/scripts/required-verification.test.mjs .github/scripts/evidence-preview-card.test.mjs .github/scripts/evidence-presentation.test.mjs .github/scripts/pr-proof.test.mjs evals/scripts/run-parity-proof.test.mjs evals/packages/test-artifacts/test/*.test.ts evals/scripts/publish-review.test.mjs
@@ -81,12 +81,12 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v4
       - run: |
-          pnpm --filter @openwork/review-app... --filter @openwork/world... --filter @openwork/types... install --frozen-lockfile --ignore-scripts
+          pnpm --filter @harness/review-app... --filter @harness/world... --filter @harness/types... install --frozen-lockfile --ignore-scripts
           pnpm --dir evals install --frozen-lockfile --ignore-scripts
       - name: Build and verify the existing review journey
         env:
-          OPENWORK_EVAL_REVIEW: "1"
+          HARNESS_EVAL_REVIEW: "1"
         run: |
-          pnpm --filter @openwork/review-app build
+          pnpm --filter @harness/review-app build
           node --test evals/bin/evals.test.mjs
           pnpm evals:pr specs/evidence-review.test.ts

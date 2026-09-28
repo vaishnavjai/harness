@@ -1,9 +1,9 @@
 import { expect, onTestFinished } from "vitest";
-import { denFetch, grantOpenWorkWebAccess } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { eventually, needs, server, SkipError, test } from "@openwork/testkit";
+import { denFetch, grantHarnessWebAccess } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { eventually, needs, server, SkipError, test } from "@harness/testkit";
 
-const PROVIDER_NAME = "Anthropic via OpenWork Gateway";
+const PROVIDER_NAME = "Anthropic via Harness Gateway";
 const PROVIDER_ID = "anthropic";
 const UPSTREAM_SECRET = "sk-ant-fake-upstream-key-never-reaches-a-worker";
 const GATEWAY_ORIGIN = "http://127.0.0.1:18791";
@@ -23,7 +23,7 @@ function auth(session: DenSession): Record<string, string> {
 }
 
 function orgHeaders(session: DenSession, orgId: string): Record<string, string> {
-  return { ...auth(session), "x-openwork-org-id": orgId };
+  return { ...auth(session), "x-harness-org-id": orgId };
 }
 
 async function organizationId(session: DenSession): Promise<string> {
@@ -94,7 +94,7 @@ async function memberConnect(member: DenSession, orgId: string, providerId: stri
 
 async function resolveGateway(member: DenSession, orgId: string) {
   const response = await denFetch(member, "/v1/cloud/gateway/resolve", {
-    headers: { ...orgHeaders(member, orgId), "x-openwork-gateway-key": "synthetic-cloud-gateway-key" },
+    headers: { ...orgHeaders(member, orgId), "x-harness-gateway-key": "synthetic-cloud-gateway-key" },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   return { status: response.response.status, body: isRecord(response.body) ? response.body : {}, text: response.text };
@@ -117,27 +117,27 @@ async function runtimeEnvMatches(resolution: Record<string, unknown>, key: strin
   const token = stringAt(resolution, "hostToken");
   if (!url || !token) throw new Error("The trusted gateway resolution omitted the worker URL or host token.");
   const response = await fetch(`${url.replace(/\/$/, "")}/env/${encodeURIComponent(key)}`, {
-    headers: { "x-openwork-host-token": token }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), redirect: "error",
+    headers: { "x-harness-host-token": token }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS), redirect: "error",
   });
   const payload: unknown = await response.json();
   return response.ok && isRecord(payload) && isRecord(payload.item) && payload.item.value === expected;
 }
 
 test("GATEWAY-WEB-01 a hosted-web worker receives only the member's usable Gateway inventory", { timeout: 600_000 }, async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"], env: ["DAYTONA_API_KEY", "DAYTONA_SNAPSHOT"] });
-  if (process.env.OPENWORK_EVAL_DEN_API_URL?.trim()) throw new SkipError("Gateway worker materialization requires an isolated Den, not an attached service");
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"], env: ["DAYTONA_API_KEY", "DAYTONA_SNAPSHOT"] });
+  if (process.env.HARNESS_EVAL_DEN_API_URL?.trim()) throw new SkipError("Gateway worker materialization requires an isolated Den, not an attached service");
   await using den = await server({
     place,
     web: false,
     env: {
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql", DEN_ORG_MODE: "multi_org",
       GATEWAY_ENABLED: "true",
       GATEWAY_PROXY_BASE_URL: GATEWAY_ORIGIN,
       GATEWAY_PUBLIC_BASE_URL: GATEWAY_ORIGIN,
       DEN_GATEWAY_KEY: "synthetic-cloud-gateway-key",
-      DEN_OPENWORK_WEB_ENABLED: "true",
-      DEN_BOOTSTRAP_ADMIN_EMAILS: "gateway-admin@openwork.test",
-      STRIPE_OPENWORK_WEB_PRICE_ID: "price_gateway_worker_witness",
+      DEN_HARNESS_WEB_ENABLED: "true",
+      DEN_BOOTSTRAP_ADMIN_EMAILS: "gateway-admin@harness.test",
+      STRIPE_HARNESS_WEB_PRICE_ID: "price_gateway_worker_witness",
       PROVISIONER_MODE: "daytona",
       DAYTONA_API_KEY: process.env.DAYTONA_API_KEY,
       DAYTONA_API_URL: process.env.DAYTONA_API_URL,
@@ -150,7 +150,7 @@ test("GATEWAY-WEB-01 a hosted-web worker receives only the member's usable Gatew
     },
     org: {
       name: "Inference Gateway Web Worker Sync",
-      admin: { name: "Gateway Admin", email: "gateway-admin@openwork.test" },
+      admin: { name: "Gateway Admin", email: "gateway-admin@harness.test" },
       members: { member: { name: "Gateway Member" } },
     },
   });
@@ -158,7 +158,7 @@ test("GATEWAY-WEB-01 a hosted-web worker receives only the member's usable Gatew
   if (!member) throw new Error("The isolated Den did not provision its member.");
 
   const orgId = await organizationId(den.admin);
-  await grantOpenWorkWebAccess(den.admin, orgId, "Synthetic hosted-web Gateway worker coverage");
+  await grantHarnessWebAccess(den.admin, orgId, "Synthetic hosted-web Gateway worker coverage");
   const modelId = await firstCatalogModelId(den.admin, orgId);
   const usableProviderId = await createProvider(den.admin, orgId, modelId, { name: PROVIDER_NAME, allMembers: true });
   const unassignedProviderId = await createProvider(den.admin, orgId, modelId, { name: "Unassigned Gateway Provider", allMembers: false });

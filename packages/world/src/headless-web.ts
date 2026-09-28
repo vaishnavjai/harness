@@ -10,15 +10,15 @@ import {
   desktopBootstrapPath,
   globalOpencodeConfigDir,
   opencodeDbCandidates,
-  openworkEnvStorePath,
-  openworkServerConfigPath,
-  openworkServerDataDir,
-} from "@openwork/paths";
+  harnessEnvStorePath,
+  harnessServerConfigPath,
+  harnessServerDataDir,
+} from "@harness/paths";
 import {
   buildHeadlessCorsOrigins,
   buildHeadlessRuntimeManifest,
   buildHeadlessServerLaunch,
-  buildOpenworkServerArgs,
+  buildHarnessServerArgs,
   mergeHeadlessServerConfig,
   normalizeDenTarget,
   resolveHeadlessRuntimeManifestPath,
@@ -32,7 +32,7 @@ import { headlessBrowserEnvironment } from "./headless-browser.ts";
 
 const DEFAULT_WEB_PORT = "5178";
 const DEFAULT_SERVER_PORT = "8778";
-const DEFAULT_DEN_TARGET = "https://app.openworklabs.com";
+const DEFAULT_DEN_TARGET = "https://app.harness.invalid";
 
 export interface HeadlessWebLaunchOptions {
   repoRoot: string;
@@ -179,13 +179,13 @@ function isOwnedRuntimeProcess(
   if (!command) return false;
   if (kind === "web") {
     return command.includes("vite")
-      && commandHasArgument(command, "@openwork/app")
+      && commandHasArgument(command, "@harness/app")
       && commandHasArgument(command, runtimePort(manifest.webUrl));
   }
   if (kind === "server") {
     return command.includes("apps/server/src/cli.ts")
       && commandHasArgument(command, manifest.serverConfigPath)
-      && commandHasArgument(command, runtimePort(manifest.openworkUrl));
+      && commandHasArgument(command, runtimePort(manifest.harnessUrl));
   }
   return command.includes("headless-monitor.mjs")
     && commandHasArgument(command, manifest.runtimeManifestPath);
@@ -239,7 +239,7 @@ function parseRuntimeManifest(value: unknown): HeadlessRuntimeManifest | null {
   if (!isRecord(value) || value.mode !== "local-server" || !isRecord(value.pids)) return null;
   const requiredStrings = [
     "webUrl",
-    "openworkUrl",
+    "harnessUrl",
     "healthUrl",
     "workspace",
     "token",
@@ -259,7 +259,7 @@ function parseRuntimeManifest(value: unknown): HeadlessRuntimeManifest | null {
   return {
     mode: "local-server",
     webUrl: String(value.webUrl),
-    openworkUrl: String(value.openworkUrl),
+    harnessUrl: String(value.harnessUrl),
     healthUrl: String(value.healthUrl),
     workspace: String(value.workspace),
     token: String(value.token),
@@ -276,7 +276,7 @@ function parseRuntimeManifest(value: unknown): HeadlessRuntimeManifest | null {
     pids: {
       launcher,
       web: parsedPid(value.pids.web),
-      openworkServer: parsedPid(value.pids.openworkServer),
+      harnessServer: parsedPid(value.pids.harnessServer),
     },
     ...(parsedPid(value.supervisorPid) === null ? {} : { supervisorPid: parsedPid(value.supervisorPid) }),
     ...(parsedWorld(value.world) ? { world: parsedWorld(value.world) } : {}),
@@ -375,7 +375,7 @@ async function requirePath(path: string, kind: "directory" | "file", label: stri
   const metadata = await stat(path).catch(() => null);
   const valid = kind === "directory" ? metadata?.isDirectory() : metadata?.isFile();
   if (!valid) {
-    throw new Error(`${label} is unavailable at ${path}. Start the installed production OpenWork desktop once and confirm its local state exists.`);
+    throw new Error(`${label} is unavailable at ${path}. Start the installed production Harness desktop once and confirm its local state exists.`);
   }
 }
 
@@ -413,16 +413,16 @@ export async function resolveInstalledProductionHeadlessState(options: {
   }
   const env = options.env ?? process.env;
   const homeDir = options.homeDir ?? homedir();
-  const userDataDir = join(homeDir, "Library", "Application Support", "com.differentai.openwork");
+  const userDataDir = join(homeDir, "Library", "Application Support", "com.vaishnavjai.harness");
   const pathOptions = { env, homeDir, platform };
-  const dataDir = openworkServerDataDir(pathOptions);
-  const serverConfigPath = openworkServerConfigPath(pathOptions);
-  const envStorePath = openworkEnvStorePath(pathOptions);
+  const dataDir = harnessServerDataDir(pathOptions);
+  const serverConfigPath = harnessServerConfigPath(pathOptions);
+  const envStorePath = harnessEnvStorePath(pathOptions);
   const bootstrapPath = desktopBootstrapPath(pathOptions);
   const opencodeConfigDir = globalOpencodeConfigDir(pathOptions);
-  const serverTokenStorePath = join(userDataDir, "openwork-server-tokens.json");
-  const serverStatePath = join(userDataDir, "openwork-server-state.json");
-  const workspaceStatePath = join(userDataDir, "openwork-workspaces.json");
+  const serverTokenStorePath = join(userDataDir, "harness-server-tokens.json");
+  const serverStatePath = join(userDataDir, "harness-server-state.json");
+  const workspaceStatePath = join(userDataDir, "harness-workspaces.json");
   const dbCandidates = opencodeDbCandidates({ ...pathOptions, defaultChannel: "latest" });
   let opencodeDb: string | null = null;
   for (const candidate of dbCandidates) {
@@ -432,7 +432,7 @@ export async function resolveInstalledProductionHeadlessState(options: {
     }
   }
   for (const [path, kind, label] of [
-    [dataDir, "directory", "Installed production OpenWork data directory"],
+    [dataDir, "directory", "Installed production Harness data directory"],
     [opencodeConfigDir, "directory", "Installed production OpenCode config directory"],
     [workspaceStatePath, "file", "Installed production workspace state"],
     [serverTokenStorePath, "file", "Installed production server token store"],
@@ -474,15 +474,15 @@ export function installedProductionHeadlessEnv(state: InstalledProductionHeadles
     XDG_DATA_HOME: join(state.homeDir, ".local", "share"),
     XDG_CACHE_HOME: join(state.homeDir, ".cache"),
     XDG_STATE_HOME: join(state.homeDir, ".local", "state"),
-    OPENWORK_DATA_DIR: state.dataDir,
-    OPENWORK_DESKTOP_BOOTSTRAP_PATH: state.bootstrapPath,
-    OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "0",
-    OPENWORK_DESKTOP_WORKSPACE_STATE_PATH: state.workspaceStatePath,
-    OPENWORK_DEV_SHARED_STATE: "1",
-    OPENWORK_ENV_STORE: state.envStorePath,
-    OPENWORK_SERVER_CONFIG: state.serverConfigPath,
-    OPENWORK_SERVER_STATE_PATH: state.serverStatePath,
-    OPENWORK_SERVER_TOKEN_STORE_PATH: state.serverTokenStorePath,
+    HARNESS_DATA_DIR: state.dataDir,
+    HARNESS_DESKTOP_BOOTSTRAP_PATH: state.bootstrapPath,
+    HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY: "0",
+    HARNESS_DESKTOP_WORKSPACE_STATE_PATH: state.workspaceStatePath,
+    HARNESS_DEV_SHARED_STATE: "1",
+    HARNESS_ENV_STORE: state.envStorePath,
+    HARNESS_SERVER_CONFIG: state.serverConfigPath,
+    HARNESS_SERVER_STATE_PATH: state.serverStatePath,
+    HARNESS_SERVER_TOKEN_STORE_PATH: state.serverTokenStorePath,
     OPENCODE_DB: state.opencodeDb,
     OPENCODE_CONFIG_DIR: state.opencodeConfigDir,
   };
@@ -503,13 +503,13 @@ export function assertHeadlessLaunchSafety(
 ): void {
   if (state !== "installed-production") return;
   if (
-    readBool(env.OPENWORK_REMOTE_ACCESS)
-    || Boolean(env.OPENWORK_PUBLIC_HOST?.trim())
+    readBool(env.HARNESS_REMOTE_ACCESS)
+    || Boolean(env.HARNESS_PUBLIC_HOST?.trim())
     || !isLoopbackHost(env.VITE_HOST)
     || !isLoopbackHost(env.HOST)
   ) {
     throw new Error(
-      "LIVE SHARED PRODUCTION STATE headless worlds require loopback-only access; OPENWORK_REMOTE_ACCESS, OPENWORK_PUBLIC_HOST, and non-loopback HOST/VITE_HOST values are refused.",
+      "LIVE SHARED PRODUCTION STATE headless worlds require loopback-only access; HARNESS_REMOTE_ACCESS, HARNESS_PUBLIC_HOST, and non-loopback HOST/VITE_HOST values are refused.",
     );
   }
 }
@@ -517,21 +517,21 @@ export function assertHeadlessLaunchSafety(
 export function resolveHeadlessClientConnection(input: {
   state: HeadlessWebState;
   env: NodeJS.ProcessEnv;
-  openworkUrl: string;
-  openworkPort: number;
+  harnessUrl: string;
+  harnessPort: number;
   token: string;
 }): HeadlessClientConnection {
   if (input.state === "installed-production") {
     return {
-      url: input.openworkUrl,
-      port: String(input.openworkPort),
+      url: input.harnessUrl,
+      port: String(input.harnessPort),
       token: input.token,
     };
   }
   return {
-    url: input.env.VITE_OPENWORK_URL ?? input.openworkUrl,
-    port: input.env.VITE_OPENWORK_PORT ?? String(input.openworkPort),
-    token: input.env.VITE_OPENWORK_TOKEN ?? input.token,
+    url: input.env.VITE_HARNESS_URL ?? input.harnessUrl,
+    port: input.env.VITE_HARNESS_PORT ?? String(input.harnessPort),
+    token: input.env.VITE_HARNESS_TOKEN ?? input.token,
   };
 }
 
@@ -581,7 +581,7 @@ async function stopAcquiredChild(child: ChildProcess): Promise<void> {
 
 export function headlessRuntimeProcessesAreOwned(manifest: HeadlessRuntimeManifest): boolean {
   const webPid = manifest.pids.web;
-  const serverPid = manifest.pids.openworkServer;
+  const serverPid = manifest.pids.harnessServer;
   return webPid !== null
     && serverPid !== null
     && isOwnedRuntimeProcess(manifest, webPid, "web")
@@ -603,7 +603,7 @@ async function removeRuntimeManifest(manifest: HeadlessRuntimeManifest): Promise
 
 async function stopManifest(manifest: HeadlessRuntimeManifest): Promise<void> {
   await killOwnedRuntimeProcess(manifest, manifest.pids.web, "web");
-  await killOwnedRuntimeProcess(manifest, manifest.pids.openworkServer, "server");
+  await killOwnedRuntimeProcess(manifest, manifest.pids.harnessServer, "server");
   await killOwnedRuntimeProcess(manifest, manifest.supervisorPid, "supervisor");
   await removeRuntimeManifest(manifest);
 }
@@ -625,8 +625,8 @@ async function waitForOwnedRuntimeExit(manifest: HeadlessRuntimeManifest): Promi
   while (headlessRuntimeProcessesAreOwned(manifest)) await delay(500);
   const webRunning = manifest.pids.web !== null
     && isOwnedRuntimeProcess(manifest, manifest.pids.web, "web");
-  const serverRunning = manifest.pids.openworkServer !== null
-    && isOwnedRuntimeProcess(manifest, manifest.pids.openworkServer, "server");
+  const serverRunning = manifest.pids.harnessServer !== null
+    && isOwnedRuntimeProcess(manifest, manifest.pids.harnessServer, "server");
   return `headless process exited (web=${webRunning ? "running" : "stopped"}, server=${serverRunning ? "running" : "stopped"})`;
 }
 
@@ -635,7 +635,7 @@ export async function monitorHeadlessRuntime(runtimeManifestPath: string): Promi
   if (!manifest || manifest.runtimeManifestPath !== runtimeManifestPath) return;
   await waitForOwnedRuntimeExit(manifest);
   await killOwnedRuntimeProcess(manifest, manifest.pids.web, "web");
-  await killOwnedRuntimeProcess(manifest, manifest.pids.openworkServer, "server");
+  await killOwnedRuntimeProcess(manifest, manifest.pids.harnessServer, "server");
   await removeRuntimeManifest(manifest);
 }
 
@@ -704,7 +704,7 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
   }
   const repoRoot = resolve(options.repoRoot);
   const env = options.env ?? process.env;
-  if (options.browserHostSuffix && (options.state !== "isolated" || env.OPENWORK_PUBLIC_HOST)) {
+  if (options.browserHostSuffix && (options.state !== "isolated" || env.HARNESS_PUBLIC_HOST)) {
     throw new Error("External browser origins require isolated state and loopback runtime addresses.");
   }
   assertWorldName(options.name);
@@ -746,28 +746,28 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
   }
   if (existing) await stopManifest(existing);
 
-  const remoteAccessEnabled = readBool(env.OPENWORK_REMOTE_ACCESS);
+  const remoteAccessEnabled = readBool(env.HARNESS_REMOTE_ACCESS);
   const host = remoteAccessEnabled ? "0.0.0.0" : "127.0.0.1";
   const viteHost = env.VITE_HOST ?? env.HOST ?? host;
-  const publicHost = env.OPENWORK_PUBLIC_HOST ?? null;
+  const publicHost = env.HARNESS_PUBLIC_HOST ?? null;
   const clientHost = publicHost ?? (host === "0.0.0.0" ? "127.0.0.1" : host);
-  const declaredWorkspace = resolve(options.workspace ?? env.OPENWORK_WORKSPACE ?? repoRoot);
+  const declaredWorkspace = resolve(options.workspace ?? env.HARNESS_WORKSPACE ?? repoRoot);
   const productionState = options.state === "installed-production"
     ? await resolveInstalledProductionHeadlessState({ env, fallbackWorkspace: declaredWorkspace })
     : null;
   const workspace = productionState?.workspace ?? declaredWorkspace;
-  const openworkPort = await resolvePort(env.OPENWORK_PORT ?? DEFAULT_SERVER_PORT, "127.0.0.1");
-  const webPort = await resolvePort(env.OPENWORK_WEB_PORT ?? DEFAULT_WEB_PORT, "127.0.0.1");
+  const harnessPort = await resolvePort(env.HARNESS_PORT ?? DEFAULT_SERVER_PORT, "127.0.0.1");
+  const webPort = await resolvePort(env.HARNESS_WEB_PORT ?? DEFAULT_WEB_PORT, "127.0.0.1");
   const rotateTokens = options.rotateTokens === true || (options.replace === true && options.keepTokens !== true);
   const resolvedTokens = productionState ?? resolveHeadlessTokens({
-    envToken: env.OPENWORK_TOKEN,
-    envHostToken: env.OPENWORK_HOST_TOKEN,
+    envToken: env.HARNESS_TOKEN,
+    envHostToken: env.HARNESS_HOST_TOKEN,
     previous: rotateTokens ? null : existing,
     generate: randomUUID,
   });
   const serverConfigPath = productionState?.serverConfigPath
-    ?? (options.name === "dev-headless" && env.OPENWORK_DEV_HEADLESS_WEB_CONFIG
-      ? resolveHeadlessServerConfigPath(repoRoot, env.OPENWORK_DEV_HEADLESS_WEB_CONFIG)
+    ?? (options.name === "dev-headless" && env.HARNESS_DEV_HEADLESS_WEB_CONFIG
+      ? resolveHeadlessServerConfigPath(repoRoot, env.HARNESS_DEV_HEADLESS_WEB_CONFIG)
       : runtimePaths.serverConfigPath);
   if (!productionState) {
     const existingConfig = await readFile(serverConfigPath, "utf8").catch(() => null);
@@ -779,51 +779,51 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
   }
   const webLogPath = runtimePaths.webLogPath;
   const headlessLogPath = runtimePaths.headlessLogPath;
-  const openworkUrl = `http://${clientHost}:${openworkPort}`;
+  const harnessUrl = `http://${clientHost}:${harnessPort}`;
   const webUrl = `http://${clientHost}:${webPort}`;
-  const browserEnv = headlessBrowserEnvironment({ browserHostSuffix: options.browserHostSuffix, openworkUrl });
-  const denProxyEnabled = env.OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY === undefined
+  const browserEnv = headlessBrowserEnvironment({ browserHostSuffix: options.browserHostSuffix, harnessUrl });
+  const denProxyEnabled = env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY === undefined
     ? true
-    : readBool(env.OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY);
-  const denTarget = denProxyEnabled ? normalizeDenTarget(env.OPENWORK_DEV_DEN_PROXY_TARGET) : null;
+    : readBool(env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY);
+  const denTarget = denProxyEnabled ? normalizeDenTarget(env.HARNESS_DEV_DEN_PROXY_TARGET) : null;
   const denApiUrl = denTarget ? (options.browserHostSuffix ? "/api/den" : `${webUrl}/api/den`) : null;
   const clientConnection = resolveHeadlessClientConnection({
     state: options.state,
     env,
-    openworkUrl,
-    openworkPort,
+    harnessUrl,
+    harnessPort,
     token: resolvedTokens.token,
   });
   const viteEnv: NodeJS.ProcessEnv = {
     ...env,
-    OPENWORK_DEV_MODE: "1",
+    HARNESS_DEV_MODE: "1",
     HOST: viteHost,
     PORT: String(webPort),
-    VITE_OPENWORK_URL: clientConnection.url,
-    VITE_OPENWORK_PORT: clientConnection.port,
-    VITE_OPENWORK_TOKEN: clientConnection.token,
-    VITE_OPENWORK_FORCE_ENV_SETTINGS: "1",
-    VITE_OPENWORK_DEPLOYMENT: env.VITE_OPENWORK_DEPLOYMENT ?? "web",
+    VITE_HARNESS_URL: clientConnection.url,
+    VITE_HARNESS_PORT: clientConnection.port,
+    VITE_HARNESS_TOKEN: clientConnection.token,
+    VITE_HARNESS_FORCE_ENV_SETTINGS: "1",
+    VITE_HARNESS_DEPLOYMENT: env.VITE_HARNESS_DEPLOYMENT ?? "web",
     ...browserEnv,
     ...(denTarget && denApiUrl ? {
-      OPENWORK_DEV_HEADLESS_DEN_TARGET: denTarget,
+      HARNESS_DEV_HEADLESS_DEN_TARGET: denTarget,
       VITE_DEN_API_BASE_URL: env.VITE_DEN_API_BASE_URL ?? denApiUrl,
       ...(denTarget === DEFAULT_DEN_TARGET ? {} : { VITE_DEN_BASE_URL: env.VITE_DEN_BASE_URL ?? denTarget }),
     } : {}),
   };
   const headlessEnv: NodeJS.ProcessEnv = {
     ...env,
-    OPENWORK_DEV_MODE: "1",
+    HARNESS_DEV_MODE: "1",
     ...(productionState ? installedProductionHeadlessEnv(productionState) : isolatedHeadlessEngineEnv(runtimePaths, env)),
-    ...(productionState ? {} : { OPENWORK_WORKSPACE: workspace }),
-    OPENWORK_HOST: host,
-    OPENWORK_REMOTE_ACCESS: remoteAccessEnabled ? "1" : "0",
-    OPENWORK_PORT: String(openworkPort),
-    OPENWORK_TOKEN: resolvedTokens.token,
-    OPENWORK_HOST_TOKEN: resolvedTokens.hostToken,
-    OPENWORK_SERVER_CONFIG: serverConfigPath,
-    OPENWORK_MANAGE_OPENCODE: "1",
-    OPENWORK_OPENCODE_BIN: env.OPENWORK_OPENCODE_BIN ?? "opencode",
+    ...(productionState ? {} : { HARNESS_WORKSPACE: workspace }),
+    HARNESS_HOST: host,
+    HARNESS_REMOTE_ACCESS: remoteAccessEnabled ? "1" : "0",
+    HARNESS_PORT: String(harnessPort),
+    HARNESS_TOKEN: resolvedTokens.token,
+    HARNESS_HOST_TOKEN: resolvedTokens.hostToken,
+    HARNESS_SERVER_CONFIG: serverConfigPath,
+    HARNESS_MANAGE_OPENCODE: "1",
+    HARNESS_OPENCODE_BIN: env.HARNESS_OPENCODE_BIN ?? "opencode",
   };
   const pnpmExecPath = env.npm_execpath?.trim();
   const pnpmCommand = pnpmExecPath ? env.npm_node_execpath?.trim() || "node" : "pnpm";
@@ -834,10 +834,10 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
   const launchId = randomUUID();
   const provisionalManifest = (
     webPid: number | null,
-    openworkServerPid: number | null,
+    harnessServerPid: number | null,
   ): HeadlessRuntimeManifest => buildHeadlessRuntimeManifest({
     webUrl,
-    openworkUrl,
+    harnessUrl,
     workspace,
     token: resolvedTokens.token,
     hostToken: resolvedTokens.hostToken,
@@ -847,13 +847,13 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
     headlessLogPath,
     denTarget,
     webPid,
-    openworkServerPid,
+    harnessServerPid,
     world: { name: options.name, state: options.state, launchId },
   });
   try {
     const webProcess = spawnLogged(pnpmCommand, [...pnpmArgs,
       "--filter",
-      "@openwork/app",
+      "@harness/app",
       "exec",
       "vite",
       "--host",
@@ -864,9 +864,9 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
     ], webLogPath, repoRoot, viteEnv);
     acquiredChildren.push(webProcess);
     acquiredManifest = provisionalManifest(webProcess.pid ?? null, null);
-    const serverLaunch = buildHeadlessServerLaunch(repoRoot, buildOpenworkServerArgs({
+    const serverLaunch = buildHeadlessServerLaunch(repoRoot, buildHarnessServerArgs({
       host,
-      port: openworkPort,
+      port: harnessPort,
       configPath: serverConfigPath,
       corsOrigins: buildHeadlessCorsOrigins({ webUrl, webPort }),
     }));
@@ -879,7 +879,7 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
     acquiredManifest = manifest;
     await Promise.all([
       waitForSpawn(webProcess, "headless web"),
-      waitForSpawn(serverProcess, "openwork-server"),
+      waitForSpawn(serverProcess, "harness-server"),
     ]);
     await writeRuntimeManifest(manifest);
     await waitForHealthy(manifest);
@@ -931,6 +931,6 @@ export async function launchHeadlessWeb(options: HeadlessWebLaunchOptions): Prom
     const cleanupDetail = cleanupErrors.length === 0
       ? ""
       : ` Cleanup could not confirm ownership release: ${cleanupErrors.join("; ")}.`;
-    throw new Error(`${messageText(error)} Headless server: ${openworkUrl}; web: ${webUrl}.${cleanupDetail}`);
+    throw new Error(`${messageText(error)} Headless server: ${harnessUrl}; web: ${webUrl}.${cleanupDetail}`);
   }
 }

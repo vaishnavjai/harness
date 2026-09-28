@@ -15,7 +15,7 @@ spec that pins the contract. No delivery behavior changed.
 
 ## Documented intent (not inferred)
 
-- PR [#2215](https://github.com/different-ai/openwork/pull/2215) "notification
+- PR [#2215](https://github.com/vaishnavjai/harness/pull/2215) "notification
   center + auto-reload engine when idle" (merged 2026-06-13) introduced three
   delivery classes:
 
@@ -28,11 +28,11 @@ spec that pins the contract. No delivery behavior changed.
 - The entry-point module `apps/app/src/react-app/shell/notifications.ts`
   restates it in its header: "Direct feedback for user actions (e.g. 'skill
   installed') should keep using `toast` … and stay out of the center."
-- PR [#4818](https://github.com/different-ai/openwork/pull/4818) (the archive
+- PR [#4818](https://github.com/vaishnavjai/harness/pull/4818) (the archive
   toast identity fix, merged 2026-09-10) explicitly considered a "durable
   activity log / bulk summary" for archive actions and recorded it as "useful
   future scope, not needed here".
-- No product doc in `docs/` or the bundled OpenWork documentation describes the
+- No product doc in `docs/` or the bundled Harness documentation describes the
   in-app bell; the only prose is the Desktop Notifications settings copy, which
   calls native OS notifications "separate from the in-app notification bell".
 - No GitHub issue asks for user-action confirmations in the center.
@@ -40,7 +40,7 @@ spec that pins the contract. No delivery behavior changed.
 ## Observed implementation (origin/dev 2fcbae60e)
 
 - Store: `react-app/kernel/notification-store.ts`, Zustand + `localStorage`
-  key `openwork:notifications:v1`, 100 entries / 30 days, unread entries with
+  key `harness:notifications:v1`, 100 entries / 30 days, unread entries with
   the same `dedupeKey` coalesce, actions are serializable descriptors
   (`open-model-picker`, `reload-engine`, `open-extensions-marketplace`,
   `install-marketplace-plugin`) so they remain valid after a restart.
@@ -96,7 +96,7 @@ recommended.
 
 ## Root cause of the mismatch
 
-The empty-state hint `notifications.empty_hint` ("Updates from OpenWork Cloud
+The empty-state hint `notifications.empty_hint` ("Updates from Harness Cloud
 and your workspaces will show up here.") described the *sources* of entries
 without describing the *class*. A person who just archived a session and saw a
 "Session archived" toast reads "your workspaces" as covering that event, opens

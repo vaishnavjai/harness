@@ -1,13 +1,13 @@
 /** @jsxImportSource react */
 import { useEffect, useRef, useState } from "react";
-import type { EngineV2PreviewStatus, OpenworkServerClient } from "@/app/lib/openwork-server";
+import type { EngineV2PreviewStatus, HarnessServerClient } from "@/app/lib/harness-server";
 import { isDesktopRuntime } from "@/app/lib/runtime-env";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import type { PaletteItem } from "./command-palette-search";
 
-export type OpencodeEngineClient = Pick<OpenworkServerClient, "getEngineV2PreviewStatus" | "switchOpencodeEngine" | "migrateOpencodeHistory">;
+export type OpencodeEngineClient = Pick<HarnessServerClient, "getEngineV2PreviewStatus" | "switchOpencodeEngine" | "migrateOpencodeHistory">;
 
 export function useOpencodeEngineControls(client: OpencodeEngineClient | null | undefined, active = true) {
   const migrationRequested = useRef(false);
@@ -43,7 +43,7 @@ export function useOpencodeEngineControls(client: OpencodeEngineClient | null | 
   };
   const select = (engine: "v1" | "v2") => client && void run(async () => {
     const next = await client.switchOpencodeEngine(engine);
-    window.dispatchEvent(new CustomEvent("openwork-engine-changed"));
+    window.dispatchEvent(new CustomEvent("harness-engine-changed"));
     return next;
   });
   const items: PaletteItem[] = (["v1", "v2"] satisfies Array<"v1" | "v2">).map((engine) => ({
@@ -55,7 +55,7 @@ export function useOpencodeEngineControls(client: OpencodeEngineClient | null | 
   }));
   items.push({ id: "opencode.migrate-v2", title: "Migrate chats to OpenCode v2", keywords: ["migration", "history", "import", "v1", "v2"],
     group: "actions", disabled: disabled || !status?.migration,
-    detail: blockedReason ?? (!status?.migration ? "Update OpenWork to migrate chats." : undefined),
+    detail: blockedReason ?? (!status?.migration ? "Update Harness to migrate chats." : undefined),
     action: () => setMigrationOpen(true) });
   const migration = status?.migration;
   const message = migration?.state === "running" ? `Migrating chats: ${migration.imported + migration.skipped} of ${migration.total}`

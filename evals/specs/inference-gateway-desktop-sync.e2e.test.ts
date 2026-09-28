@@ -1,16 +1,16 @@
 import { expect, onTestFinished } from "vitest";
-import { screenshot, validate } from "@openwork/test-evidence";
-import { setViewport } from "@openwork/cdp";
-import { denFetch, evalIn, go, readAvailableModels } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { app, browserScript, eventually, needs, server, SkipError, test } from "@openwork/testkit";
+import { screenshot, validate } from "@harness/test-evidence";
+import { setViewport } from "@harness/cdp";
+import { denFetch, evalIn, go, readAvailableModels } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { app, browserScript, eventually, needs, server, SkipError, test } from "@harness/testkit";
 
 /**
  * Desktop half of the inference gateway (plan §3 #2): after cloud provider
  * sync, one runtime opencode provider exists per `inference_providers` row —
  * id = the `ipr_` id, `api`/`options.baseURL` = the gateway URL, the scoped env
  * name from /connect set to the member's `ow_gw_` key — and the model
- * picker badges that provider group "via OpenWork Gateway".
+ * picker badges that provider group "via Harness Gateway".
  *
  * The inference app is not booted here: materialization depends only on
  * den-api's connect payload. The gateway round-trip is proved by
@@ -18,11 +18,11 @@ import { app, browserScript, eventually, needs, server, SkipError, test } from "
  */
 
 const ORGANIZATION_NAME = "Inference Gateway Desktop Sync";
-const PROVIDER_NAME = "Anthropic via OpenWork Gateway";
+const PROVIDER_NAME = "Anthropic via Harness Gateway";
 const CATALOG_PROVIDER_ID = "anthropic";
 const CATALOG_ENV_KEY = "ANTHROPIC_API_KEY";
 const GATEWAY_KEY_PREFIX = "ow_gw_";
-const GATEWAY_BADGE_LABEL = "via OpenWork Gateway";
+const GATEWAY_BADGE_LABEL = "via Harness Gateway";
 const FAKE_UPSTREAM_KEY = "sk-ant-fake-upstream-key-never-reaches-a-device";
 // Nothing listens here on purpose: the desktop must materialize the URL as given, not probe it.
 const GATEWAY_ORIGIN = "http://127.0.0.1:18791";
@@ -38,7 +38,7 @@ function auth(session: DenSession): Record<string, string> {
 }
 
 function orgHeaders(session: DenSession, orgId: string): Record<string, string> {
-  return { ...auth(session), "x-openwork-org-id": orgId };
+  return { ...auth(session), "x-harness-org-id": orgId };
 }
 
 function stringAt(record: Record<string, unknown> | null, key: string): string {
@@ -158,10 +158,10 @@ async function readLocalServer(desktopApp: Parameters<typeof evalIn>[0], iprId: 
     function record(value: unknown): Record<string, unknown> | null {
       return typeof value === "object" && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : null;
     }
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info || info.running !== true) return { error: "local server not running" };
     const baseUrl = String(info.baseUrl ?? "").replace(/\/+$/, "");
-    const hostHeaders = { "x-openwork-host-token": String(info.hostToken ?? "") };
+    const hostHeaders = { "x-harness-host-token": String(info.hostToken ?? "") };
     const clientHeaders = { authorization: "Bearer " + String(info.clientToken ?? info.ownerToken ?? "") };
     const readJson = async (path: string, headers: Record<string, string>) => {
       const response = await fetch(baseUrl + path, { headers, signal: AbortSignal.timeout(5_000) });
@@ -199,13 +199,13 @@ async function readLocalServer(desktopApp: Parameters<typeof evalIn>[0], iprId: 
   };
 }
 
-test("a gateway provider materializes on the desktop as its own ipr_ provider with the member's OpenWork key and a gateway badge", async ({ evidence, place }) => {
-  needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
-  if (process.env.OPENWORK_EVAL_DEN_API_URL?.trim()) throw new SkipError("Gateway deployment configuration requires an isolated Den, not an attached service");
+test("a gateway provider materializes on the desktop as its own ipr_ provider with the member's Harness key and a gateway badge", async ({ evidence, place }) => {
+  needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
+  if (process.env.HARNESS_EVAL_DEN_API_URL?.trim()) throw new SkipError("Gateway deployment configuration requires an isolated Den, not an attached service");
   await using den = await server({
     place,
     env: {
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql",
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql",
       GATEWAY_ENABLED: "true",
       GATEWAY_PROXY_BASE_URL: GATEWAY_ORIGIN,
       GATEWAY_PUBLIC_BASE_URL: GATEWAY_ORIGIN,
@@ -260,7 +260,7 @@ test("a gateway provider materializes on the desktop as its own ipr_ provider wi
   expect(Object.keys(runtimeModels)).toEqual([wireModelId]);
   expect(Object.keys(runtimeModels)).not.toContain(modelId);
   expect(syncEntry?.providerId, local.syncStatusRaw).toBe(iprId);
-  expect(syncEntry?.source).toBe("openwork_gateway");
+  expect(syncEntry?.source).toBe("harness_gateway");
   expect(syncEntry?.name).toBe(PROVIDER_NAME);
   evidence.recordAssertionEvidence(
     "Cloud provider sync materializes the gateway row as its own runtime provider pointed at the gateway",
@@ -268,7 +268,7 @@ test("a gateway provider materializes on the desktop as its own ipr_ provider wi
     runtimeProvider.api === gatewayUrl
       && stringAt(runtimeOptions, "baseURL") === gatewayUrl
       && runtimeEnv.includes(envName)
-      && syncEntry?.source === "openwork_gateway",
+      && syncEntry?.source === "harness_gateway",
   );
 
   // --- Env store: the member's Gateway key, never a Models or upstream key. ---
@@ -284,7 +284,7 @@ test("a gateway provider materializes on the desktop as its own ipr_ provider wi
     local.envValue === memberKey && !local.envDump.includes(FAKE_UPSTREAM_KEY),
   );
 
-  // --- Picker: the model is selectable under a group badged "via OpenWork Gateway". ---
+  // --- Picker: the model is selectable under a group badged "via Harness Gateway". ---
   await go(desktopApp, `/workspace/${desktopApp.workspaceId}/session`);
   const models = await readAvailableModels(desktopApp);
   const gatewayModel = models.find((model) => model.id === wireModelId && model.providerName === PROVIDER_NAME) ?? null;
@@ -340,7 +340,7 @@ test("a gateway provider materializes on the desktop as its own ipr_ provider wi
   // Negative half needs a witness: at least one non-gateway group exists and is not badged.
   expect(unbadged.length).toBeGreaterThan(0);
   evidence.recordAssertionEvidence(
-    "The picker badges only the gateway provider group as via OpenWork Gateway",
+    "The picker badges only the gateway provider group as via Harness Gateway",
     `Model ${wireModelId} is selectable under ${String(gatewayModel?.providerName)}; group header ${JSON.stringify(gatewayGroup?.text)} carries the badge, ${otherBadged.length} other group(s) do, and ${unbadged.length} non-gateway group(s) do not.`,
     gatewayModel?.selectable === true && gatewayGroup?.badged === true && otherBadged.length === 0 && unbadged.length > 0,
   );

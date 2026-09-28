@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import { allocateFreePort, setViewport, evaluate, browserScript } from "@openwork/cdp";
-import { chrome, localHost } from "@openwork/hosts";
-import { freestyleEvidenceWeb, attachEvidenceBrowser } from "@openwork/env";
+import { allocateFreePort, setViewport, evaluate, browserScript } from "@harness/cdp";
+import { chrome, localHost } from "@harness/hosts";
+import { freestyleEvidenceWeb, attachEvidenceBrowser } from "@harness/env";
 import type { EvidenceCheckpoint } from "../../packages/freestyle/src/checkpoint-schema.ts";
-import { uploadReview } from "@openwork/review/storage";
-import type { ReviewReport } from "@openwork/review";
+import { uploadReview } from "@harness/review/storage";
+import type { ReviewReport } from "@harness/review";
 import { client } from "../../packages/freestyle/src/index.ts";
 import { deleteEvidenceVm, FORK_KIND, readEvidenceSession, continueEvidenceStream } from "../../packages/freestyle/src/checkpoints.ts";
 
@@ -20,11 +20,11 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
  * checkpointed; the runner-local review app and browsers exercise the result.
  */
 export async function checkpointWorld() {
-  if (process.env.OPENWORK_EVIDENCE_CHECKPOINTS !== "1") throw new Error("Opt in with OPENWORK_EVIDENCE_CHECKPOINTS=1");
+  if (process.env.HARNESS_EVIDENCE_CHECKPOINTS !== "1") throw new Error("Opt in with HARNESS_EVIDENCE_CHECKPOINTS=1");
   const sourceSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
-  if (process.env.OPENWORK_EVIDENCE_SOURCE_SHA && process.env.OPENWORK_EVIDENCE_SOURCE_SHA !== sourceSha) throw new Error("Evidence source must equal the runner checkout");
+  if (process.env.HARNESS_EVIDENCE_SOURCE_SHA && process.env.HARNESS_EVIDENCE_SOURCE_SHA !== sourceSha) throw new Error("Evidence source must equal the runner checkout");
   const resources = new AsyncDisposableStack();
-  const temporary = await mkdtemp(join(tmpdir(), "openwork-web-checkpoint-"));
+  const temporary = await mkdtemp(join(tmpdir(), "harness-web-checkpoint-"));
   resources.defer(() => rm(temporary, { recursive: true, force: true }));
   try {
     // The evidence world advertises its checkpoint capability; spreading keeps it.
@@ -41,7 +41,7 @@ export async function checkpointWorld() {
     const processHandle = spawn(process.execPath, [join(root, "apps/review/node_modules/next/dist/bin/next"), "start", "--hostname", "127.0.0.1", "--port", String(port)], {
       cwd: join(root, "apps/review"), stdio: "ignore",
       env: { PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "production", VERCEL: "1", VERCEL_ENV: "preview",
-        OPENWORK_REVIEW_LOCAL_DIR: storage, FREESTYLE_API_KEY: process.env.FREESTYLE_API_KEY },
+        HARNESS_REVIEW_LOCAL_DIR: storage, FREESTYLE_API_KEY: process.env.FREESTYLE_API_KEY },
     });
     resources.defer(async () => {
       if (processHandle.exitCode !== null) return;

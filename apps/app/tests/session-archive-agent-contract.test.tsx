@@ -8,7 +8,7 @@ import { MemoryRouter } from "react-router";
 import type { ResolvedWorkspaceEndpoint } from "../src/app/lib/workspace-endpoint";
 import type { ArchiveSessionOptions, ArchiveSessionOutcome } from "../src/react-app/domains/session/sidebar/use-session-archive";
 import type { RouteSession, RouteWorkspace } from "../src/react-app/shell/route-workspaces";
-import type { OpenworkControlAPI, OpenworkControlAction } from "../src/react-app/shell/control/control-provider";
+import type { HarnessControlAPI, HarnessControlAction } from "../src/react-app/shell/control/control-provider";
 
 // The archive hook talks to a real (fake) engine over HTTP; happy-dom's fetch
 // polyfill cannot parse Bun.serve responses, so keep the runtime's fetch.
@@ -27,13 +27,13 @@ Object.defineProperty(globalThis, "AbortSignal", { configurable: true, value: Na
 // Base UI picks its layout-effect shim at module load, so the app must be
 // imported after the DOM exists or the dialog portal never mounts.
 const [
-  { createOpenworkServerClient },
+  { createHarnessServerClient },
   { toast },
   { isWorkingStatus, listControlSessions },
   { useSessionArchive },
-  { OpenworkControlProvider, useControlAction },
+  { HarnessControlProvider, useControlAction },
 ] = await Promise.all([
-  import("../src/app/lib/openwork-server"),
+  import("../src/app/lib/harness-server"),
   import("../src/components/ui/sonner"),
   import("../src/react-app/domains/session/control/list-control-sessions"),
   import("../src/react-app/domains/session/sidebar/use-session-archive"),
@@ -120,7 +120,7 @@ describe("session.list_sessions exposes live activity", () => {
 });
 
 describe("control bridge contract: channel and structured codes", () => {
-  async function mountAction(action: OpenworkControlAction): Promise<OpenworkControlAPI> {
+  async function mountAction(action: HarnessControlAction): Promise<HarnessControlAPI> {
     const host = document.createElement("div");
     document.body.append(host);
     const root = createRoot(host);
@@ -129,10 +129,10 @@ describe("control bridge contract: channel and structured codes", () => {
       return null;
     }
     await act(async () => root.render(
-      <MemoryRouter><OpenworkControlProvider><Register /></OpenworkControlProvider></MemoryRouter>,
+      <MemoryRouter><HarnessControlProvider><Register /></HarnessControlProvider></MemoryRouter>,
     ));
     cleanups.push(async () => { await act(async () => root.unmount()); host.remove(); });
-    const api = window.__openworkControl;
+    const api = window.__harnessControl;
     if (!api) throw new Error("control API was not published");
     return api;
   }
@@ -236,7 +236,7 @@ describe("archiving a working session: the warning goes back through the request
       token: "",
       workspaceId: "ws",
       isRemote: false,
-      client: createOpenworkServerClient({ baseUrl: engine.baseUrl }),
+      client: createHarnessServerClient({ baseUrl: engine.baseUrl }),
       mountedBaseUrl: engine.baseUrl,
       opencodeBaseUrl: engine.baseUrl,
     };
@@ -259,7 +259,7 @@ describe("archiving a working session: the warning goes back through the request
       useSessionControlActions({
         workspaces: [workspace], sessionsByWorkspaceId: { ws: sessions }, selectedWorkspaceId: "ws",
         selectedWorkspaceRoot: directory, selectedSessionId: null, canCreateTask: false,
-        openworkClient: endpoint.client, opencodeClient: createClient(engine.baseUrl),
+        harnessClient: endpoint.client, opencodeClient: createClient(engine.baseUrl),
         endpointForWorkspace: () => endpoint, navigateToSession: () => {}, navigateToSessionRoot: () => {},
         createTaskInWorkspace: () => null, openModelPicker: () => {}, refreshRouteState: () => {},
         archiveSession: archive.archiveSession,
@@ -267,7 +267,7 @@ describe("archiving a working session: the warning goes back through the request
       useEffect(() => { archiveSession = archive.archiveSession; });
       return archive.archiveDialog;
     }
-    await act(async () => root.render(<MemoryRouter><OpenworkControlProvider><Harness /></OpenworkControlProvider></MemoryRouter>));
+    await act(async () => root.render(<MemoryRouter><HarnessControlProvider><Harness /></HarnessControlProvider></MemoryRouter>));
     const unmount = async () => { await act(async () => root.unmount()); host.remove(); };
     cleanups.push(unmount);
     if (!archiveSession) throw new Error("archive hook did not mount");
@@ -540,7 +540,7 @@ describe("archiving a working session: the warning goes back through the request
     await mountArchive(engine, [session("ses_target", "Archive target", 2)]);
     const late = Promise.withResolvers<Response>();
     const requests = stubFetch(engine, request => new URL(request.url).pathname.endsWith("/message") ? late.promise : undefined);
-    const api = window.__openworkControl;
+    const api = window.__harnessControl;
     if (!api) throw new Error("control API was not published");
     const started = performance.now();
     let result: unknown;
@@ -561,7 +561,7 @@ describe("archiving a working session: the warning goes back through the request
         return NativeResponse.json({ message: "Engine unavailable for archive" }, { status: 503 });
       }
     });
-    const api = window.__openworkControl;
+    const api = window.__harnessControl;
     if (!api) throw new Error("control API was not published");
     const start = Date.now();
     let result: unknown;

@@ -1,5 +1,5 @@
 import { expect, vi } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 import { UiControlMailbox } from "../../apps/server/src/ui-control.ts";
 
 // No renderer, engine, private profile, or installed app is used here. This
@@ -25,7 +25,7 @@ test("mailbox registration expires after a poll gap, independently of pin or eng
     await vi.advanceTimersByTimeAsync(1);
     expect(mailbox.connected()).toBe(false);
     const rejected = await mailbox.request("query", { id: "session.read", args: { sessionId: "fixture-idle" } });
-    expect(rejected).toEqual({ ok: false, error: "No OpenWork window is connected to this server. Open the OpenWork app or its web tab and try again." });
+    expect(rejected).toEqual({ ok: false, error: "No Harness window is connected to this server. Open the Harness app or its web tab and try again." });
     // Rejected work was never enqueued and cannot mutate later.
     expect(await mailbox.pending({ wait: false, signal })).toEqual([]);
     expect(mailbox.connected()).toBe(true);

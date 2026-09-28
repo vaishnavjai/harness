@@ -2,15 +2,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { DashboardConnectionCard } from "./dashboard-connection-card";
 import { connectionCardPayloadFromChatToolResult } from "@/components/tools/error-attribution";
-import type { ConnectionActionPayload } from "@openwork/types/connection-action-app";
+import type { ConnectionActionPayload } from "@harness/types/connection-action-app";
 import { Play } from "lucide-react";
 
 import {
-  OpenworkServerError,
-  type OpenworkMcpAppResource,
-  type OpenworkMcpAppToolResult,
-  type OpenworkServerClient,
-} from "@/app/lib/openwork-server";
+  HarnessServerError,
+  type HarnessMcpAppResource,
+  type HarnessMcpAppToolResult,
+  type HarnessServerClient,
+} from "@/app/lib/harness-server";
 import { McpAppSandboxView, type PreservedMcpAppResult } from "@/components/chat/mcp-app-frame";
 import { snapshotMcpAppArguments, type McpAppOrigin } from "@/components/chat/mcp-app-origin";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ import type { DashboardMcpAppEntry } from "./granted-dashboard-store";
 
 /** A workspace MCP runtime a tile may launch through. */
 export type DashboardLaunchEndpoint = {
-  client: OpenworkServerClient;
+  client: HarnessServerClient;
   workspaceId: string;
 };
 
@@ -47,7 +47,7 @@ type TileDocument = { id: number; active: boolean; failed: boolean };
 
 type ReadyTileState = {
   phase: "ready";
-  app: OpenworkMcpAppResource;
+  app: HarnessMcpAppResource;
   result: PreservedMcpAppResult;
   endpoint: DashboardLaunchEndpoint;
   origin: McpAppOrigin;
@@ -129,7 +129,7 @@ function sameLaunchEndpoint(left: DashboardLaunchEndpoint, right: DashboardLaunc
   return left.workspaceId === right.workspaceId && (left.client === right.client || left.client.baseUrl === right.client.baseUrl);
 }
 
-function appMatchesEntry(app: OpenworkMcpAppResource, entry: DashboardMcpAppEntry) {
+function appMatchesEntry(app: HarnessMcpAppResource, entry: DashboardMcpAppEntry) {
   return app.serverName === entry.serverName && app.toolName === entry.toolName && app.resourceUri === entry.resourceUri;
 }
 
@@ -150,7 +150,7 @@ function tileConnectionState(entry: DashboardMcpAppEntry, value: unknown, args: 
 }
 
 function invalidatesTileDocument(cause: unknown) {
-  return cause instanceof OpenworkServerError && (
+  return cause instanceof HarnessServerError && (
     [401, 403, 404, 410].includes(cause.status)
     || cause.code.startsWith("invalid_resource")
     || ["tool_denied", "tool_not_visible", "tool_not_found", "tool_resource_mismatch", "tool_requires_approval",
@@ -189,7 +189,7 @@ function McpAppTileContent({
   fallbackEndpoints?: DashboardLaunchEndpoint[];
 }) {
   const workspace = useWorkspace();
-  const { openworkServerClient, workspaceId } = workspace;
+  const { harnessServerClient, workspaceId } = workspace;
   // Provider annotations are not an authorization boundary. A safe-looking
   // tile runs on load only after this user has successfully run this exact
   // element once; approval-gated tools stay run-on-request forever.
@@ -201,11 +201,11 @@ function McpAppTileContent({
   );
   const manualLaunch = !runsAutomatically;
   const launchEndpoints = useMemo(() => [
-    ...(openworkServerClient && workspaceId ? [{ client: openworkServerClient, workspaceId }] : []),
+    ...(harnessServerClient && workspaceId ? [{ client: harnessServerClient, workspaceId }] : []),
     ...(fallbackEndpoints ?? []),
   ].filter((endpoint, index, all) => (
     all.findIndex((other) => sameLaunchEndpoint(other, endpoint)) === index
-  )), [fallbackEndpoints, openworkServerClient, workspaceId]);
+  )), [fallbackEndpoints, harnessServerClient, workspaceId]);
   // Cached app HTML is interactive, so it follows the same per-user launch
   // consent as a live call and never mounts on a first visit.
   const [nonce, setNonce] = useState(0);
@@ -372,10 +372,10 @@ function McpAppTileContent({
       const launch = entry.connectionId
         ? { connectionId: entry.connectionId, toolName: entry.toolName, resourceUri: entry.resourceUri, arguments: {} }
         : undefined;
-      let target: { endpoint: DashboardLaunchEndpoint; app: OpenworkMcpAppResource } | null = null;
+      let target: { endpoint: DashboardLaunchEndpoint; app: HarnessMcpAppResource } | null = null;
       let reused: ReadyTileState | null = null;
       let fallbackEndpoint: DashboardLaunchEndpoint | null = null;
-      let result: OpenworkMcpAppToolResult | undefined;
+      let result: HarnessMcpAppToolResult | undefined;
       let approvalWasRequired = false;
       let acquiredLaunchId: string | undefined;
       let keepLaunch = false;
@@ -401,7 +401,7 @@ function McpAppTileContent({
             reused = current;
           } catch (cause) {
             assertActive();
-            if (!(cause instanceof OpenworkServerError) || cause.status !== 422 || !["mcp_app_resource_changed", "mcp_app_refresh_denied"].includes(cause.code)) throw cause;
+            if (!(cause instanceof HarnessServerError) || cause.status !== 422 || !["mcp_app_resource_changed", "mcp_app_refresh_denied"].includes(cause.code)) throw cause;
             fallbackEndpoint = current.endpoint;
             clearDocument({ phase: "loading" });
             attempt.document = undefined;
@@ -427,7 +427,7 @@ function McpAppTileContent({
           if (!target) return { phase: "error", message: "This tool no longer advertises an interactive app." };
           const { endpoint, app } = target;
           attempt.endpoint = endpoint;
-          if (!app.launchId) throw new OpenworkServerError(422, "missing_launch_context", "This App has no live launch context. Update OpenWork and run the tile again.");
+          if (!app.launchId) throw new HarnessServerError(422, "missing_launch_context", "This App has no live launch context. Update Harness and run the tile again.");
           acquiredLaunchId = app.launchId;
           ownedLaunches.current.set(app.launchId, endpoint);
           const request = {
@@ -439,7 +439,7 @@ function McpAppTileContent({
             result = await endpoint.client.callMcpAppTool(endpoint.workspaceId, request);
           } catch (cause) {
             assertActive();
-            if (!(cause instanceof OpenworkServerError) || cause.code !== "tool_requires_approval") throw cause;
+            if (!(cause instanceof HarnessServerError) || cause.code !== "tool_requires_approval") throw cause;
             approvalWasRequired = true;
             if (!userInitiated || fallbackEndpoint) return { phase: "idle", revokeAutoLaunch: true };
             if (!endpointIsActive(endpoint)) throw new Error("This App launch has closed or changed. Run the tile again.");
@@ -526,7 +526,7 @@ function McpAppTileContent({
       }
     }).catch((cause: unknown) => {
       if (!isCurrent()) return;
-      const connection = tileConnectionState(entry, cause instanceof OpenworkServerError ? cause.details : undefined, launchArguments);
+      const connection = tileConnectionState(entry, cause instanceof HarnessServerError ? cause.details : undefined, launchArguments);
       if (connection) {
         clearDocument(connection);
         releaseLaunches();

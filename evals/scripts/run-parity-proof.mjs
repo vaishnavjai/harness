@@ -41,7 +41,7 @@ export async function runParityProof(spec, dependencies = {}) {
   for (const { engine, args } of plan) {
     // Each invocation retains its own CLI/testkit evidence. A failed or skipped
     // engine fails the job even when the other engine passes.
-    const code = await run(args, { ...process.env, ...binaries, OPENWORK_EVAL_ENGINE: engine });
+    const code = await run(args, { ...process.env, ...binaries, HARNESS_EVAL_ENGINE: engine });
     if (code !== 0) failed = true;
   }
   return failed ? 1 : 0;

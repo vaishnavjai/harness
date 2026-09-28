@@ -1,7 +1,7 @@
-import { evaluate, browserScript } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
-import { connect, debuggerUrlFor, listTargets, setViewport, type Surface } from "@openwork/cdp";
-import { chrome, daytonaSandbox, defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
+import { evaluate, browserScript } from "@harness/cdp";
+import type { Seed } from "@harness/env";
+import { connect, debuggerUrlFor, listTargets, setViewport, type Surface } from "@harness/cdp";
+import { chrome, daytonaSandbox, defaultDaytonaExec, execInSandbox } from "@harness/hosts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -25,7 +25,7 @@ export async function reauthPopup(seed: Seed) {
   if (den.placement?.kind !== "daytona") throw new Error("This journey requires Daytona placement");
   const sandbox = den.placement.sandboxId;
   const remote = async (script: string, timeoutMs = 30_000) => (await execInSandbox(defaultDaytonaExec, sandbox, script, { timeoutMs, context: "SSO fixture arrangement" })).stdout;
-  const sql = async (statement: string) => remote(`echo ${Buffer.from(statement).toString("base64")} | base64 -d | mysql -h127.0.0.1 -uroot -ppassword -N openwork_den`);
+  const sql = async (statement: string) => remote(`echo ${Buffer.from(statement).toString("base64")} | base64 -d | mysql -h127.0.0.1 -uroot -ppassword -N harness_den`);
   const preview = await defaultDaytonaExec(["preview-url", sandbox, "-p", "19190", "--expires", "86400"]);
   if (preview.code !== 0) throw new Error("Could not expose test IdP");
   const issuer = new URL(text(preview.stdout.match(/https:\/\/[^\s]+/)?.[0])).origin;
@@ -55,10 +55,10 @@ PY`);
   if (!signIn.response.ok) throw new Error(`Fixture login: ${signIn.response.status}`);
   const sessionCookie = text(signIn.response.headers.getSetCookie().find((value) => value.includes("session_token=")));
   const cookie = text(sessionCookie.split(";")[0]);
-  const headers = { cookie, "x-openwork-org-id": organizationId };
+  const headers = { cookie, "x-harness-org-id": organizationId };
   const registration = await seed.api(den.admin, "/v1/sso/oidc", {
     method: "POST", headers,
-    body: JSON.stringify({ issuer, domain, clientId: "openwork-eval-oidc-client", clientSecret: "openwork-eval-oidc-secret", scopes: ["openid", "email", "profile"], skipDiscovery: true, authorizationEndpoint: `${issuer}/authorize`, tokenEndpoint: `${issuer}/token`, jwksEndpoint: `${issuer}/jwks`, userInfoEndpoint: `${issuer}/userinfo`, tokenEndpointAuthentication: "client_secret_post" }),
+    body: JSON.stringify({ issuer, domain, clientId: "harness-eval-oidc-client", clientSecret: "harness-eval-oidc-secret", scopes: ["openid", "email", "profile"], skipDiscovery: true, authorizationEndpoint: `${issuer}/authorize`, tokenEndpoint: `${issuer}/token`, jwksEndpoint: `${issuer}/jwks`, userInfoEndpoint: `${issuer}/userinfo`, tokenEndpointAuthentication: "client_secret_post" }),
   });
   if (!registration.response.ok) throw new Error(`SSO registration: ${registration.response.status} ${registration.text}`);
   // Synthetic .test domains cannot publish DNS; only domain ownership is arranged.
@@ -129,7 +129,7 @@ PY`);
         window.dispatchEvent(new MessageEvent("message", {
           origin: kind === "foreign-origin" ? "https://foreign.example.test" : location.origin,
           data: {
-            type: "openwork:reauth-complete",
+            type: "harness:reauth-complete",
             nonce: nonce ?? (kind === "wrong-nonce" ? "unrelated" : document.querySelector<HTMLElement>("[data-reauth-nonce]")?.dataset.reauthNonce),
             error: null,
           },

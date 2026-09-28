@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
-const services = JSON.parse(await readFile("/opt/openwork-preview/services.json", "utf8"));
-const outputs = JSON.parse(await readFile("/opt/openwork-preview/outputs.json", "utf8"));
-const headers = { authorization: `Bearer ${outputs.openworkToken.value}` };
+const services = JSON.parse(await readFile("/opt/harness-preview/services.json", "utf8"));
+const outputs = JSON.parse(await readFile("/opt/harness-preview/outputs.json", "utf8"));
+const headers = { authorization: `Bearer ${outputs.harnessToken.value}` };
 const deadline = Date.now() + 60_000;
 while (true) {
   try {

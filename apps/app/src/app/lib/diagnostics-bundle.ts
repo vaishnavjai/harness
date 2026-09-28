@@ -3,19 +3,19 @@ import { connectionDiagnosticHistory } from "./connection-diagnostic-history";
 import {
   appBuildInfo,
   engineInfo,
-  openworkServerInfo,
+  harnessServerInfo,
   type AppBuildInfo,
   type EngineInfo,
   type OpencodeExecutionSnapshot,
-  type OpenworkServerInfo,
+  type HarnessServerInfo,
 } from "./desktop";
 import { readPerfLogs, type PerfLogRecord } from "./perf-log";
 import { sanitizeCloudMcpHealthDiagnostic } from "./diagnostic-sanitizer";
 import {
-  readOpenworkServerSettings,
-  type OpenworkServerSettings,
-  type OpenworkServerStatus,
-} from "./openwork-server";
+  readHarnessServerSettings,
+  type HarnessServerSettings,
+  type HarnessServerStatus,
+} from "./harness-server";
 import { isDesktopRuntime } from "../utils";
 
 export type DiagnosticsBundleContext = {
@@ -25,9 +25,9 @@ export type DiagnosticsBundleContext = {
   developerMode?: boolean;
   hostConnectUrl?: string;
   hostConnectUrlUsesMdns?: boolean;
-  hostInfo?: OpenworkServerInfo | null;
-  openworkServerStatus?: OpenworkServerStatus;
-  openworkServerUrl?: string;
+  hostInfo?: HarnessServerInfo | null;
+  harnessServerStatus?: HarnessServerStatus;
+  harnessServerUrl?: string;
   runtimeWorkspaceId?: string | null;
   cloudMcpHealth?: unknown;
 };
@@ -37,8 +37,8 @@ export type DiagnosticsBundleInputs = {
   desktopRuntime: boolean;
   appInfo: AppBuildInfo | null;
   engineInfo: EngineInfo | null;
-  openworkServerSettings: OpenworkServerSettings;
-  hostInfo: OpenworkServerInfo | null;
+  harnessServerSettings: HarnessServerSettings;
+  hostInfo: HarnessServerInfo | null;
   developerLogs: DevLogRecord[];
   perfLogs: PerfLogRecord[];
   context?: DiagnosticsBundleContext;
@@ -62,7 +62,7 @@ function pickAppInfo(info: AppBuildInfo | null) {
     version: info.version,
     gitSha: info.gitSha ?? null,
     buildEpoch: info.buildEpoch ?? null,
-    openworkDevMode: info.openworkDevMode ?? null,
+    harnessDevMode: info.harnessDevMode ?? null,
   };
 }
 
@@ -99,7 +99,7 @@ function pickEngineInfo(info: EngineInfo | null) {
   };
 }
 
-function pickHostInfo(info: OpenworkServerInfo | null) {
+function pickHostInfo(info: HarnessServerInfo | null) {
   if (!info) return null;
   return {
     running: Boolean(info.running),
@@ -113,7 +113,7 @@ function pickHostInfo(info: OpenworkServerInfo | null) {
   };
 }
 
-function defaultHostConnectUrl(hostInfo: OpenworkServerInfo | null) {
+function defaultHostConnectUrl(hostInfo: HarnessServerInfo | null) {
   return hostInfo?.connectUrl ?? hostInfo?.mdnsUrl ?? hostInfo?.lanUrl ?? hostInfo?.baseUrl ?? "";
 }
 
@@ -125,8 +125,8 @@ function addSecretValue(secrets: string[], value: string | null | undefined) {
 
 function collectSecretValues(input: DiagnosticsBundleInputs) {
   const secrets: string[] = [];
-  addSecretValue(secrets, input.openworkServerSettings.token);
-  addSecretValue(secrets, input.openworkServerSettings.hostToken);
+  addSecretValue(secrets, input.harnessServerSettings.token);
+  addSecretValue(secrets, input.harnessServerSettings.hostToken);
   addSecretValue(secrets, input.hostInfo?.clientToken);
   addSecretValue(secrets, input.hostInfo?.ownerToken);
   addSecretValue(secrets, input.hostInfo?.hostToken);
@@ -144,8 +144,8 @@ function scrubKnownSecretValues(value: string, secrets: string[]) {
 
 export function composeDiagnosticsBundleJson(input: DiagnosticsBundleInputs): string {
   const context = input.context;
-  const urlOverride = input.openworkServerSettings.urlOverride?.trim() ?? "";
-  const token = input.openworkServerSettings.token?.trim() ?? "";
+  const urlOverride = input.harnessServerSettings.urlOverride?.trim() ?? "";
+  const token = input.harnessServerSettings.token?.trim() ?? "";
   const hostConnectUrl = context?.hostConnectUrl ?? defaultHostConnectUrl(input.hostInfo);
   const hostConnectUrlUsesMdns = context?.hostConnectUrlUsesMdns ?? hostConnectUrl.includes(".local");
   const clientConnected = context?.clientConnected === true;
@@ -163,9 +163,9 @@ export function composeDiagnosticsBundleJson(input: DiagnosticsBundleInputs): st
       clientConnected,
       anyActiveRuns: context?.anyActiveRuns === true,
     },
-    openworkServer: {
-      status: context?.openworkServerStatus ?? (clientConnected ? "connected" : "disconnected"),
-      url: context?.openworkServerUrl ?? "",
+    harnessServer: {
+      status: context?.harnessServerStatus ?? (clientConnected ? "connected" : "disconnected"),
+      url: context?.harnessServerUrl ?? "",
       settings: {
         urlOverride: urlOverride || null,
         tokenPresent: Boolean(token),
@@ -213,7 +213,7 @@ async function readEngineInfo(desktopRuntime: boolean) {
 async function readHostInfo(desktopRuntime: boolean) {
   if (!desktopRuntime) return null;
   try {
-    return await openworkServerInfo();
+    return await harnessServerInfo();
   } catch {
     return null;
   }
@@ -231,7 +231,7 @@ export async function buildDiagnosticsBundleJson(context?: DiagnosticsBundleCont
     desktopRuntime,
     appInfo,
     engineInfo: engine,
-    openworkServerSettings: readOpenworkServerSettings(),
+    harnessServerSettings: readHarnessServerSettings(),
     hostInfo,
     developerLogs: readDevLogs(80),
     perfLogs: readPerfLogs(80),

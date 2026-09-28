@@ -1,4 +1,4 @@
-# web.openworklabs.com runtime channel:
+# web.harness.invalid runtime channel:
 # Every push builds a snapshot from dev HEAD. The snapshot is not production until
 # the scheduled/manual promotion updates the production pin and redeploys Den API.
 # This promotion is intentionally separate because rapid merges previously recycled
@@ -33,7 +33,7 @@ concurrency:
 jobs:
   publish-daytona-snapshot:
     name: Build Web Runtime Snapshot
-    if: github.repository == 'different-ai/openwork'
+    if: github.repository == 'vaishnavjai/harness'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Check channel
@@ -70,7 +70,7 @@ jobs:
           set -euo pipefail
 
           short_sha="$(git rev-parse --short=7 HEAD)"
-          snapshot_name="${DAYTONA_SNAPSHOT_NAME_BASE:-openwork}-dev-${short_sha}"
+          snapshot_name="${DAYTONA_SNAPSHOT_NAME_BASE:-harness}-dev-${short_sha}"
           snapshot_region="${DEFAULT_SNAPSHOT_REGION:-}"
           {
             echo "snapshot_name=$snapshot_name"
@@ -158,7 +158,7 @@ jobs:
           daytona login --api-key "$DAYTONA_API_KEY"
 
           echo "Publishing Daytona snapshot: ${DAYTONA_SNAPSHOT_NAME}"
-          ./scripts/create-daytona-openwork-snapshot.sh "${DAYTONA_SNAPSHOT_NAME}"
+          ./scripts/create-daytona-harness-snapshot.sh "${DAYTONA_SNAPSHOT_NAME}"
 
       - name: Checkout snapshot pin automation
         if: steps.channel.outputs.enabled == 'true' && vars.DAYTONA_CLOUD_ENV_GROUP_ID != ''
@@ -283,7 +283,7 @@ jobs:
 
           result="$(node scripts/prune-daytona-dev-snapshots.mjs \
             ${DAYTONA_API_URL:+--api-url "$DAYTONA_API_URL"} \
-            --name-base "${DAYTONA_SNAPSHOT_NAME_BASE:-openwork}" \
+            --name-base "${DAYTONA_SNAPSHOT_NAME_BASE:-harness}" \
             --keep "$DAYTONA_SNAPSHOT_NAME" \
             --keep "$current_pin" \
             --keep-count 5)"
@@ -299,7 +299,7 @@ jobs:
           release_result="$(node scripts/prune-daytona-dev-snapshots.mjs \
             ${DAYTONA_API_URL:+--api-url "$DAYTONA_API_URL"} \
             --channel release \
-            --name-base "${DAYTONA_SNAPSHOT_NAME_BASE:-openwork}" \
+            --name-base "${DAYTONA_SNAPSHOT_NAME_BASE:-harness}" \
             --keep "$current_pin" \
             --keep-count 20)"
           echo "$release_result"

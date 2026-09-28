@@ -5,8 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { publishPr, publishReviewPr } from "../src/publish-pr.ts";
 import { assembleReview, renderReviewComment } from "../src/review.ts";
-import { reviewSchema, summarizeReview } from "@openwork/review";
-import { uploadReview } from "@openwork/review/storage";
+import { reviewSchema, summarizeReview } from "@harness/review";
+import { uploadReview } from "@harness/review/storage";
 import { readFile, readdir } from "node:fs/promises";
 import type { CommandRunner } from "../src/publish-pr.ts";
 import type { TestRunRecord } from "../src/schema.ts";
@@ -74,7 +74,7 @@ function recordingExec(calls: RecordedCommand[], comments: object[] = [], attach
 }
 
 test("publishPr dry-run makes no gh calls", async () => {
-  const testRunDir = await mkdtemp(join(tmpdir(), "openwork-test-artifacts-publish-"));
+  const testRunDir = await mkdtemp(join(tmpdir(), "harness-test-artifacts-publish-"));
   try {
     await writeFile(join(testRunDir, "test-run.json"), JSON.stringify(testRunRecord(testRunDir)));
     const calls: RecordedCommand[] = [];
@@ -93,7 +93,7 @@ test("publishPr dry-run makes no gh calls", async () => {
 });
 
 test("automatic reviews accumulate records but preserve manual, legacy and unavailable records", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-auto-review-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-auto-review-"));
   try {
     const directories = [join(root, "first"), join(root, "second")];
     for (const directory of directories) {
@@ -159,7 +159,7 @@ test("automatic reviews accumulate records but preserve manual, legacy and unava
 });
 
 test("publishPr deletes a legacy sticky comment and posts attachments", async () => {
-  const testRunDir = await mkdtemp(join(tmpdir(), "openwork-test-artifacts-current-"));
+  const testRunDir = await mkdtemp(join(tmpdir(), "harness-test-artifacts-current-"));
   try {
     await writeFile(join(testRunDir, "test-run.json"), JSON.stringify(testRunRecord(testRunDir)));
     await writeFile(join(testRunDir, "01-published.png"), Buffer.from("regular png"));
@@ -182,7 +182,7 @@ test("publishPr deletes a legacy sticky comment and posts attachments", async ()
 });
 
 test("publishPr publishes persisted legacy roll.json input", async () => {
-  const testRunDir = await mkdtemp(join(tmpdir(), "openwork-test-artifacts-legacy-"));
+  const testRunDir = await mkdtemp(join(tmpdir(), "harness-test-artifacts-legacy-"));
   try {
     const current = testRunRecord(testRunDir);
     await writeFile(join(testRunDir, "roll.json"), JSON.stringify({
@@ -212,7 +212,7 @@ test("publishPr publishes persisted legacy roll.json input", async () => {
 });
 
 test("publishPr refuses a symlinked screenshot before any PR comment", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-test-artifacts-symlink-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-test-artifacts-symlink-"));
   const testRunDir = join(root, "test-run");
   try {
     await mkdir(testRunDir);
@@ -232,7 +232,7 @@ test("publishPr refuses a symlinked screenshot before any PR comment", async () 
 });
 
 test("publishPr posts a notice without attachments when gh lacks --attach", async () => {
-  const testRunDir = await mkdtemp(join(tmpdir(), "openwork-test-artifacts-old-gh-"));
+  const testRunDir = await mkdtemp(join(tmpdir(), "harness-test-artifacts-old-gh-"));
   try {
     await writeFile(join(testRunDir, "test-run.json"), JSON.stringify(testRunRecord(testRunDir)));
     await writeFile(join(testRunDir, "01-published.png"), Buffer.from("regular png"));
@@ -271,7 +271,7 @@ async function reviewFixture(root: string, name: string) {
 }
 
 test("review composition preserves sources, deduplicates images, and validates evidence references", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-review-compose-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-review-compose-"));
   try {
     const first = await reviewFixture(root, "First behavior");
     const second = await reviewFixture(root, "Second behavior");
@@ -360,7 +360,7 @@ test("review composition preserves sources, deduplicates images, and validates e
 });
 
 test("review publication validates before uploading and preserves the comment when upload or head checks fail", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-review-publish-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-review-publish-"));
   try {
     const directory = await reviewFixture(root, "Publication");
     const options = {

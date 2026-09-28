@@ -24,11 +24,11 @@ test("either engine failing or skipping keeps proof red; both always run", async
   for (const codes of [[0, 0], [1, 0], [0, 1], [2, 0], [0, 2]]) {
     const calls = [];
     const result = await runParityProof("evals/specs/engine-gateway-parity.e2e.test.ts", {
-      prepare: async () => ({ OPENWORK_OPENCODE_BIN: "/pinned/v1", OPENWORK_OPENCODE2_BIN: "/pinned/v2" }),
+      prepare: async () => ({ HARNESS_OPENCODE_BIN: "/pinned/v1", HARNESS_OPENCODE2_BIN: "/pinned/v2" }),
       run: async (args, env) => {
-        assert.equal(env.OPENWORK_OPENCODE_BIN, "/pinned/v1");
-        assert.equal(env.OPENWORK_OPENCODE2_BIN, "/pinned/v2");
-        assert.equal(env.OPENWORK_EVAL_ENGINE, args.at(-1));
+        assert.equal(env.HARNESS_OPENCODE_BIN, "/pinned/v1");
+        assert.equal(env.HARNESS_OPENCODE2_BIN, "/pinned/v2");
+        assert.equal(env.HARNESS_EVAL_ENGINE, args.at(-1));
         calls.push(args); return codes[calls.length - 1];
       },
     });

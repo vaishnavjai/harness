@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import {
   connectionActionMcpApp,
   connectionActionPrompt,
@@ -16,7 +16,7 @@ const test = spec.world(connectionActionMcpApp, {
   timeout: 600_000,
   resources: { surfaces: ["desktop"], services: ["den", "mock"], nativeReason: "Authenticate uses the desktop OAuth callback and native connection host." },
 });
-const connectionUri = "ui://openwork/connection-action/v2/view.html";
+const connectionUri = "ui://harness/connection-action/v2/view.html";
 const cardSelector = '[data-message-role="assistant"] [data-testid="desktop-connection-card"]';
 
 function record(value: unknown): Record<string, unknown> {
@@ -33,7 +33,7 @@ function toolPayload(part: Record<string, unknown>) {
   const state = record(part.state);
   expect(state.status).toBe("completed");
   const metadata = isRecord(state.metadata) ? state.metadata : {};
-  const result = metadata.openworkMcpResult ?? metadata.openworkMcpApp;
+  const result = metadata.harnessMcpResult ?? metadata.harnessMcpApp;
   if (isRecord(result)) {
     expect(result.isError).not.toBe(true);
     if (isRecord(result.structuredContent)) return result.structuredContent;
@@ -104,7 +104,7 @@ test("a member can Authenticate or Skip in the native connection card and contin
       expect(connectionTools.map(tool => tool.name).sort()).toEqual(["connection_action", "connection_action_intent"]);
       const resources = rows(record((await gateway("resources/list")).result).resources);
       expect(resources).toEqual(expect.arrayContaining([expect.objectContaining({ uri: connectionUri })]));
-      const legacyUri = "ui://openwork/connection-action/v1/view.html";
+      const legacyUri = "ui://harness/connection-action/v1/view.html";
       expect(resources).not.toEqual(expect.arrayContaining([expect.objectContaining({ uri: legacyUri })]));
       const retired = await gateway("resources/read", { uri: legacyUri });
       expect(retired.error).toBeDefined();
@@ -132,7 +132,7 @@ test("a member can Authenticate or Skip in the native connection card and contin
       await user.screenshot();
     });
 
-    const expectedConnection = { connectionId: world.connection.id, connectionName: "Notion", state: "needs_connection", actor: "member", action: { type: "connect", surface: "openwork_your_connections" } };
+    const expectedConnection = { connectionId: world.connection.id, connectionName: "Notion", state: "needs_connection", actor: "member", action: { type: "connect", surface: "harness_your_connections" } };
 
     for (const [index, entry] of journeys.entries()) {
     if (index > 0) sessionId = await agent.createSession(`Connection decision ${index + 1}`);

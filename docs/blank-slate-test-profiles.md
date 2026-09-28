@@ -9,16 +9,16 @@ installed profile.
 Packaged app (macOS):
 
 ```bash
-open -a "OpenWork Enterprise" --args --blank-slate
+open -a "Harness Enterprise" --args --blank-slate
 # or any flavor:
-open -a "OpenWork" --args --blank-slate
+open -a "Harness" --args --blank-slate
 ```
 
 Direct binary (useful for CDP-driven testing):
 
 ```bash
-OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=9898 \
-  "dist-electron/mac-arm64/OpenWork Enterprise.app/Contents/MacOS/OpenWork Enterprise" --blank-slate
+HARNESS_ELECTRON_REMOTE_DEBUG_PORT=9898 \
+  "dist-electron/mac-arm64/Harness Enterprise.app/Contents/MacOS/Harness Enterprise" --blank-slate
 ```
 
 Dev mode:
@@ -29,21 +29,21 @@ pnpm dev:electron -- --blank-slate
 
 ## What it does
 
-Each launch creates one unique temporary root (`$TMPDIR/openwork-test-profile-*`)
+Each launch creates one unique temporary root (`$TMPDIR/harness-test-profile-*`)
 and redirects every persisted path into it before any other module loads:
 
 - Electron `userData` and `home`
 - `HOME`/`USERPROFILE`, `XDG_CONFIG_HOME`/`DATA`/`CACHE`/`STATE`,
   `APPDATA`/`LOCALAPPDATA`
-- desktop bootstrap (`OPENWORK_DESKTOP_BOOTSTRAP_PATH`) — an enterprise build
+- desktop bootstrap (`HARNESS_DESKTOP_BOOTSTRAP_PATH`) — an enterprise build
   therefore starts at the activation gate, not an inherited control plane
-- OpenWork server config, env store, token store, runtime DB, data dir
+- Harness server config, env store, token store, runtime DB, data dir
 - OpenCode config dir and database
 
 It also:
 
 - enables Chromium's mock keychain so the real login keychain is never touched
-- skips `openwork://` protocol registration, Windows shortcut writes, brand
+- skips `harness://` protocol registration, Windows shortcut writes, brand
   icon/name persistence, and Linux desktop integration
 - suffixes the window title with `Test profile`
 - spawns a detached cleanup worker on quit that removes the whole temporary

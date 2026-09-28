@@ -1,7 +1,7 @@
-import type { BrowserEvaluation } from "@openwork/cdp";
-import { browserScript } from "@openwork/cdp";
-import { describeAppState, dumpScreenState, evaluateOnSurface, isInteractive, probeAppStateOnSurface } from "@openwork/cdp";
-import type { AppStateProbe, EvaluateOptions, Surface } from "@openwork/cdp";
+import type { BrowserEvaluation } from "@harness/cdp";
+import { browserScript } from "@harness/cdp";
+import { describeAppState, dumpScreenState, evaluateOnSurface, isInteractive, probeAppStateOnSurface } from "@harness/cdp";
+import type { AppStateProbe, EvaluateOptions, Surface } from "@harness/cdp";
 
 export interface SessionToolCall {
   capability: string;
@@ -33,7 +33,7 @@ export async function evalIn<T>(
   expression: BrowserEvaluation<T>,
   opts: EvaluateOptions & { reattachAttempts?: number } = {},
 ): Promise<Awaited<T>> {
-  // Target healing lives in @openwork/cdp; behaviours just evaluate.
+  // Target healing lives in @harness/cdp; behaviours just evaluate.
   return evaluateOnSurface(app, expression, {
     ...opts,
     timeoutMs: opts.timeoutMs ?? DEFAULT_DOM_PROBE_TIMEOUT_MS,
@@ -321,7 +321,7 @@ export async function waitForConnectionCard(app: Surface, name: string, workspac
       await new Promise((resolve) => setTimeout(resolve, 1_500));
       continue;
     }
-    await evalIn(app, () => (window.__openworkControl.execute('extensions.refresh-marketplace', null)), { awaitPromise: true, timeoutMs: 15_000 })
+    await evalIn(app, () => (window.__harnessControl.execute('extensions.refresh-marketplace', null)), { awaitPromise: true, timeoutMs: 15_000 })
       .catch(() => undefined);
     await evalIn(app, () => {
       const button = [...document.querySelectorAll('button')]
@@ -414,7 +414,7 @@ export async function enabledButtons(app: Surface): Promise<string[]> {
   return labels;
 }
 
-/** Invoke a registered `window.__openworkControl` action, the product's own automation seam. */
+/** Invoke a registered `window.__harnessControl` action, the product's own automation seam. */
 export async function control(
   app: Surface,
   action: string,
@@ -424,7 +424,7 @@ export async function control(
   // Control actions are non-idempotent; a timeout must surface, not re-fire.
   const result = await evalIn(
     app,
-    browserScript((action, value) => (window.__openworkControl.execute(action, value)), [action, args ?? null]),
+    browserScript((action, value) => (window.__harnessControl.execute(action, value)), [action, args ?? null]),
     { timeoutMs: 60_000, reattachAttempts: 0, ...opts, awaitPromise: true },
   );
   if (!isRecord(result) || result.ok !== true) {

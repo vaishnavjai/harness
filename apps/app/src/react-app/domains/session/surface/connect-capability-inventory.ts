@@ -35,7 +35,7 @@ export type ConnectPluginFile = {
   versionId: string | null;
   updatedAt: string | null;
   skillName?: string;
-  skillOrigin?: "openwork-connect";
+  skillOrigin?: "harness-connect";
   marketplaceName?: string;
   pluginName?: string;
   connectCapabilityName?: string;
@@ -157,7 +157,7 @@ function remoteMcpStatus(
       ? "Organization setup is required."
       : plugin.cloudReadiness?.state === "not_synced"
         ? "Marketplace content has not synced yet."
-        : "This OpenWork Connect capability is not ready.",
+        : "This Harness Connect capability is not ready.",
   };
 }
 
@@ -168,11 +168,11 @@ function toSkill(
 ): ConnectSkillCard {
   return {
     name: object.title,
-    path: `openwork-connect://${marketplace.id}/${plugin.id}/${object.id}`,
+    path: `harness-connect://${marketplace.id}/${plugin.id}/${object.id}`,
     description: object.description ?? undefined,
     content: object.latestVersion?.rawSourceText ?? undefined,
     trigger: skillTrigger(object),
-    origin: "openwork-connect",
+    origin: "harness-connect",
     marketplaceName: marketplace.name,
     pluginName: plugin.name,
     connectCapabilityName: marketplaceCapabilityName(plugin.id, object.id),
@@ -186,7 +186,7 @@ function toMcpEntries(
 ): Array<{ entry: McpServerEntry; status: McpStatus }> {
   const specs = remoteMcpSpecs(object);
   return specs.map((spec) => {
-    const id = `openwork-connect:${plugin.id}:${object.id}:${spec.name}`;
+    const id = `harness-connect:${plugin.id}:${object.id}:${spec.name}`;
     const displayName = specs.length === 1 ? object.title : `${object.title} · ${spec.name}`;
     const connection = matchingConnection(plugin, object, spec);
     const orgMcpConnectionId = connection?.id?.trim();
@@ -195,7 +195,7 @@ function toMcpEntries(
         id,
         name: displayName,
         config: { type: "remote", url: spec.url },
-        origin: "openwork-connect",
+        origin: "harness-connect",
         marketplaceName: marketplace.name,
         pluginName: plugin.name,
         connectCapabilityName: marketplaceCapabilityName(plugin.id, object.id),
@@ -320,7 +320,7 @@ export async function listAssignedConnectCapabilities(input: {
           versionId: object.latestVersion?.id ?? null,
           updatedAt: object.updatedAt,
           skillName: skill.name,
-          skillOrigin: "openwork-connect",
+          skillOrigin: "harness-connect",
           marketplaceName: skill.marketplaceName,
           pluginName: skill.pluginName,
           connectCapabilityName: skill.connectCapabilityName,
@@ -330,7 +330,7 @@ export async function listAssignedConnectCapabilities(input: {
           configObjectId: object.id,
           objectType: object.objectType,
           title: object.title,
-          path: `openwork-connect://${marketplace.id}/${resolved.plugin.id}/${object.id}`,
+          path: `harness-connect://${marketplace.id}/${resolved.plugin.id}/${object.id}`,
           versionId: object.latestVersion?.id ?? null,
           updatedAt: object.updatedAt,
         });
@@ -340,7 +340,7 @@ export async function listAssignedConnectCapabilities(input: {
           configObjectId: object.id,
           objectType: object.objectType,
           title: object.title,
-          path: `openwork-connect://${marketplace.id}/${resolved.plugin.id}/${object.id}`,
+          path: `harness-connect://${marketplace.id}/${resolved.plugin.id}/${object.id}`,
           versionId: object.latestVersion?.id ?? null,
           updatedAt: object.updatedAt,
         });

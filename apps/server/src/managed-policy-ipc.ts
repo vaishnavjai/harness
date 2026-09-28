@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { managedPolicyActionSchema, type ManagedPolicyAction } from "./managed-policy-rules.js";
 
-const channel = "openwork.managed-policy";
-const unavailable = "OpenWork policy service is unavailable.";
+const channel = "harness.managed-policy";
+const unavailable = "Harness policy service is unavailable.";
 const maxPending = 256;
 const requestSchema = z.object({
   channel: z.literal(channel),

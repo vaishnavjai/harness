@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { reviewBrowserWorld, reviewNarrowWorld } from "../worlds/evidence-review.ts";
 
 const test = spec.world(reviewBrowserWorld, {

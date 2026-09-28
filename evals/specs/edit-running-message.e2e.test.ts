@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { readTranscriptMessages, resolveEvalEngine, spec } from "@openwork/testkit";
+import { readTranscriptMessages, resolveEvalEngine, spec } from "@harness/testkit";
 import { engineParity } from "../worlds/engine-parity.ts";
 
 const test = spec.world(engineParity, {
   timeout: 300_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 function record(value: unknown): value is Record<string, unknown> {

@@ -1,4 +1,4 @@
-import type { Place, Seed } from "@openwork/env";
+import type { Place, Seed } from "@harness/env";
 import { aiGatewayAdmin } from "./ai-gateway-admin.ts";
 
 function record(value: unknown): Record<string, unknown> {

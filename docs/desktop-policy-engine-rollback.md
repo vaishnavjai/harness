@@ -1,11 +1,11 @@
 # Desktop managed-policy engine rollback
 
-OpenWork no longer automatically registers `managed-policy` in OpenCode v1 or
+Harness no longer automatically registers `managed-policy` in OpenCode v1 or
 `managed-policy-next` in OpenCode v2. Agent tools no longer wait for these
 plugins' per-tool HTTP or IPC policy checks. The v2 engine is started without
 the policy IPC channel; v1 no longer receives a policy-evaluation credential.
 
-Restart OpenWork and its managed engines after upgrading. Rewriting generated
+Restart Harness and its managed engines after upgrading. Rewriting generated
 configuration does not unload hooks already installed in a running engine.
 
 ## Configuration cleanup

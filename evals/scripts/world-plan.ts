@@ -88,7 +88,7 @@ export function discoverWorlds(file: string, source = readFileSync(file, "utf8")
   const directTestNames = new Set<string>();
   for (const statement of ast.statements) {
     if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)
-      || statement.moduleSpecifier.text !== "@openwork/testkit") continue;
+      || statement.moduleSpecifier.text !== "@harness/testkit") continue;
     const bindings = statement.importClause?.namedBindings;
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const binding of bindings.elements) {

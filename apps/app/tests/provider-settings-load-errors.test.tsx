@@ -86,11 +86,11 @@ function createHarness() {
     providerBaseUrl: () => baseUrl,
     selectedWorkspaceRoot: () => workspace.path,
     runtimeWorkspaceId: () => workspace.id,
-    openworkServer: {
+    harnessServer: {
       getSnapshot: () => ({
-        openworkServerStatus: "disconnected",
-        openworkServerClient: null,
-        openworkServerCapabilities: null,
+        harnessServerStatus: "disconnected",
+        harnessServerClient: null,
+        harnessServerCapabilities: null,
       }),
     },
     setProviders: (value) => { ui.providers = value; },
@@ -128,7 +128,7 @@ function ProviderSettings({ harness }: { harness: Harness }) {
       onDisconnectProvider={() => undefined}
       canDisconnectProvider={() => true}
       canAddProviders={true}
-      showOpenWorkModelsSubscribe={ui.connected.length === 0}
+      showHarnessModelsSubscribe={ui.connected.length === 0}
     />
   );
 }

@@ -16,17 +16,17 @@ try {
   // .env.dev is optional; the inline fallbacks below still apply.
 }
 const composeFile = path.join(rootDir, "packaging", "docker", "docker-compose.web-local.yml")
-const composeProject = "openwork-den-local"
+const composeProject = "harness-den-local"
 
 const apiPort = process.env.DEN_API_PORT?.trim() || process.env.DEN_CONTROLLER_PORT?.trim() || "8788"
 const gatewayPort = process.env.GATEWAY_PORT ?? process.env.INFERENCE_PORT?.trim() ?? "8791"
 const webPort = process.env.DEN_WEB_PORT?.trim() || "3005"
-const appPort = process.env.OPENWORK_APP_PORT?.trim() || process.env.PORT?.trim() || "5173"
-const extraAppPorts = (process.env.OPENWORK_EXTRA_APP_PORTS?.trim() || "5174")
+const appPort = process.env.HARNESS_APP_PORT?.trim() || process.env.PORT?.trim() || "5173"
+const extraAppPorts = (process.env.HARNESS_EXTRA_APP_PORTS?.trim() || "5174")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean)
-const databaseUrl = process.env.DATABASE_URL?.trim() || "mysql://root:password@127.0.0.1:3306/openwork_den"
+const databaseUrl = process.env.DATABASE_URL?.trim() || "mysql://root:password@127.0.0.1:3306/harness_den"
 const databaseRedisUrl = process.env.DATABASE_REDIS_URL?.trim() || "redis://127.0.0.1:6379"
 const dbEncryptionKey =
   process.env.DEN_DB_ENCRYPTION_KEY?.trim() ||
@@ -220,11 +220,11 @@ async function main() {
   }
 
   console.log("[den] Building Den database package...")
-  await run("pnpm", ["--filter", "@openwork-ee/den-db", "build"], {
+  await run("pnpm", ["--filter", "@harness-ee/den-db", "build"], {
     env: { ...process.env, DATABASE_URL: databaseUrl },
   })
   console.log("[den] Applying ordered local migrations before starting services...")
-  await run("pnpm", ["--filter", "@openwork-ee/den-db", "db:migrate:local"], {
+  await run("pnpm", ["--filter", "@harness-ee/den-db", "db:migrate:local"], {
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -242,9 +242,9 @@ async function main() {
       "run",
       "dev:local",
       "--output-logs=full",
-        "--filter=@openwork-ee/den-api",
-        "--filter=@openwork-ee/gateway",
-        "--filter=@openwork-ee/den-web",
+        "--filter=@harness-ee/den-api",
+        "--filter=@harness-ee/gateway",
+        "--filter=@harness-ee/den-web",
     ],
     {
       cwd: rootDir,

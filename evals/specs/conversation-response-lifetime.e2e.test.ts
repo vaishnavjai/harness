@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import { conversationResponseLifetime } from "../worlds/conversation-response-lifetime.ts";
 
@@ -8,12 +8,12 @@ const test = spec.world(conversationResponseLifetime, {
   timeout: 240_000,
 });
 
-test("a member can reopen a conversation while OpenWork verifies it in the background", async ({ world, step, evidence }) => {
+test("a member can reopen a conversation while Harness verifies it in the background", async ({ world, step, evidence }) => {
   await step("before: the engine returns the conversation before its ownership check finishes", async () => {
     expect(world.ordering).toEqual({ ownershipDelayMs: 250, message: "immediate" });
     evidence.recordAssertionEvidence(
       "The proof recreates the production response order that exposed the failure",
-      "The fake engine returns conversation messages immediately and delays the ownership lookup by 250 ms, leaving the completed response waiting inside OpenWork.",
+      "The fake engine returns conversation messages immediately and delays the ownership lookup by 250 ms, leaving the completed response waiting inside Harness.",
       true,
     );
   });
@@ -37,7 +37,7 @@ test("a member can reopen a conversation while OpenWork verifies it in the backg
     const conversations = observed.results.filter((result) => result.body.includes("The conversation is ready."));
     if (internalErrors.length > 0) {
       const runtimeCause = observed.output.split("\n").find((line) => line.includes("Response body object should not be disturbed or locked"));
-      throw new Error(`OpenWork returned ${internalErrors.length} internal server errors instead of the conversation. Runtime cause: ${runtimeCause ?? "not recorded"}`);
+      throw new Error(`Harness returned ${internalErrors.length} internal server errors instead of the conversation. Runtime cause: ${runtimeCause ?? "not recorded"}`);
     }
     expect(statuses).toEqual(Array.from({ length: 24 }, () => 200));
     expect(conversations).toHaveLength(24);

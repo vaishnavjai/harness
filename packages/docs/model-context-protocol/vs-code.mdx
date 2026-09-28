@@ -1,25 +1,25 @@
 ---
 title: "Connect VS Code"
 sidebarTitle: "VS Code"
-description: "Add OpenWork MCP to VS Code with one command: code --add-mcp with the URL https://api.openworklabs.com/mcp/agent, then start the server and sign in."
+description: "Add Harness MCP to VS Code with one command: code --add-mcp with the URL https://api.harness.invalid/mcp/agent, then start the server and sign in."
 ---
 
-Give VS Code your organization's OpenWork skills, plugins, and connections.
+Give VS Code your organization's Harness skills, plugins, and connections.
 
 <Steps>
 <Step title="Add the server">
-[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22openwork%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.openworklabs.com%2Fmcp%2Fagent%22%7D) in one click, or run:
+[Install in VS Code](vscode:mcp/install?%7B%22name%22%3A%22harness%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fapi.harness.invalid%2Fmcp%2Fagent%22%7D) in one click, or run:
 
 ```sh
-code --add-mcp '{"name":"openwork","type":"http","url":"https://api.openworklabs.com/mcp/agent"}'
+code --add-mcp '{"name":"harness","type":"http","url":"https://api.harness.invalid/mcp/agent"}'
 ```
 
 </Step>
 <Step title="Sign in">
-Run `MCP: List Servers` > `openwork` > `Start Server`, sign in to OpenWork, and pick your organization.
+Run `MCP: List Servers` > `harness` > `Start Server`, sign in to Harness, and pick your organization.
 </Step>
 <Step title="Try it">
-Ask: "Which OpenWork organization am I connected to?"
+Ask: "Which Harness organization am I connected to?"
 </Step>
 </Steps>
 
@@ -30,9 +30,9 @@ Ask: "Which OpenWork organization am I connected to?"
 ```json
 {
   "servers": {
-    "openwork": {
+    "harness": {
       "type": "http",
-      "url": "https://api.openworklabs.com/mcp/agent"
+      "url": "https://api.harness.invalid/mcp/agent"
     }
   }
 }
@@ -40,9 +40,9 @@ Ask: "Which OpenWork organization am I connected to?"
 
   </Accordion>
   <Accordion title="Switch organizations">
-    Remove the stored `openwork` token, start the server again, and pick another organization.
+    Remove the stored `harness` token, start the server again, and pick another organization.
   </Accordion>
   <Accordion title="Support status">
-    Setup only: these steps follow OpenWork's OAuth profile, but native end-to-end proof is not complete. See the [MCP Gateway reference](/cloud/run-in-the-cloud/cloud-mcp#reference).
+    Setup only: these steps follow Harness's OAuth profile, but native end-to-end proof is not complete. See the [MCP Gateway reference](/cloud/run-in-the-cloud/cloud-mcp#reference).
   </Accordion>
 </AccordionGroup>

@@ -1,11 +1,11 @@
 import { expect, onTestFinished, test } from "vitest";
-import { denFetch, ensureMemberSession, signIn } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
+import { denFetch, ensureMemberSession, signIn } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
 
-const apiUrl = process.env.OPENWORK_EVAL_DEN_API_URL?.trim().replace(/\/+$/, "") ?? "";
+const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim().replace(/\/+$/, "") ?? "";
 const title = apiUrl
   ? "grant-native cloud skills can be shared by their creator without recipient re-sharing"
-  : "skill grant access skipped: set OPENWORK_EVAL_DEN_API_URL";
+  : "skill grant access skipped: set HARNESS_EVAL_DEN_API_URL";
 let requestId = 0;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,7 +66,7 @@ async function mintMcpToken(session: DenSession, orgId: string): Promise<string>
     method: "POST",
     headers: {
       authorization: `Bearer ${session.token}`,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: JSON.stringify({}),
   });
@@ -81,7 +81,7 @@ async function organizationMemberIdByEmail(session: DenSession, orgId: string, e
   const result = await denFetch(session, "/v1/org", {
     headers: {
       authorization: `Bearer ${session.token}`,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
   });
   const members = isRecord(result.body) && Array.isArray(result.body.members)
@@ -140,35 +140,35 @@ function matchNamed(result: unknown, capabilityName: string): Record<string, unk
 test.skipIf(!apiUrl)(title, async () => {
   const den = {
     apiUrl,
-    webUrl: (process.env.OPENWORK_EVAL_DEN_WEB_URL?.trim() || apiUrl.replace("127.0.0.1", "localhost")).replace(/\/+$/, ""),
+    webUrl: (process.env.HARNESS_EVAL_DEN_WEB_URL?.trim() || apiUrl.replace("127.0.0.1", "localhost")).replace(/\/+$/, ""),
   };
   const admin = await signIn(den, {
-    email: process.env.OPENWORK_EVAL_DEMO_EMAIL?.trim() || "alex@acme.test",
-    password: process.env.OPENWORK_EVAL_DEMO_PASSWORD?.trim() || "OpenWorkDemo123!",
+    email: process.env.HARNESS_EVAL_DEMO_EMAIL?.trim() || "alex@acme.test",
+    password: process.env.HARNESS_EVAL_DEMO_PASSWORD?.trim() || "HarnessDemo123!",
   });
   const orgId = await organizationId(admin);
   await selectOrganization(admin, orgId);
   const creator = await ensureMemberSession(den, admin, {
-    email: process.env.OPENWORK_EVAL_CREATOR_EMAIL?.trim() || "casey.spec@acme.test",
-    password: process.env.OPENWORK_EVAL_MEMBER_PASSWORD?.trim() || "OpenWorkDemo123!",
+    email: process.env.HARNESS_EVAL_CREATOR_EMAIL?.trim() || "casey.spec@acme.test",
+    password: process.env.HARNESS_EVAL_MEMBER_PASSWORD?.trim() || "HarnessDemo123!",
     name: "Casey Spec",
-    markVerifiedCmd: process.env.OPENWORK_EVAL_MARK_VERIFIED_CMD?.trim(),
+    markVerifiedCmd: process.env.HARNESS_EVAL_MARK_VERIFIED_CMD?.trim(),
   });
   await selectOrganization(creator, orgId);
-  const deniedEmail = process.env.OPENWORK_EVAL_MEMBER_EMAIL?.trim() || "nova.spec@acme.test";
+  const deniedEmail = process.env.HARNESS_EVAL_MEMBER_EMAIL?.trim() || "nova.spec@acme.test";
   const denied = await ensureMemberSession(den, admin, {
     email: deniedEmail,
-    password: process.env.OPENWORK_EVAL_MEMBER_PASSWORD?.trim() || "OpenWorkDemo123!",
+    password: process.env.HARNESS_EVAL_MEMBER_PASSWORD?.trim() || "HarnessDemo123!",
     name: "Nova Spec",
-    markVerifiedCmd: process.env.OPENWORK_EVAL_MARK_VERIFIED_CMD?.trim(),
+    markVerifiedCmd: process.env.HARNESS_EVAL_MARK_VERIFIED_CMD?.trim(),
   });
   await selectOrganization(denied, orgId);
-  const thirdEmail = process.env.OPENWORK_EVAL_THIRD_MEMBER_EMAIL?.trim() || "riley.spec@acme.test";
+  const thirdEmail = process.env.HARNESS_EVAL_THIRD_MEMBER_EMAIL?.trim() || "riley.spec@acme.test";
   const third = await ensureMemberSession(den, admin, {
     email: thirdEmail,
-    password: process.env.OPENWORK_EVAL_MEMBER_PASSWORD?.trim() || "OpenWorkDemo123!",
+    password: process.env.HARNESS_EVAL_MEMBER_PASSWORD?.trim() || "HarnessDemo123!",
     name: "Riley Spec",
-    markVerifiedCmd: process.env.OPENWORK_EVAL_MARK_VERIFIED_CMD?.trim(),
+    markVerifiedCmd: process.env.HARNESS_EVAL_MARK_VERIFIED_CMD?.trim(),
   });
   await selectOrganization(third, orgId);
   const skillName = `spec-grant-native-${Date.now()}`;
@@ -178,7 +178,7 @@ test.skipIf(!apiUrl)(title, async () => {
     method: "POST",
     headers: {
       authorization: `Bearer ${creator.token}`,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: JSON.stringify({
       name: skillName,
@@ -195,7 +195,7 @@ test.skipIf(!apiUrl)(title, async () => {
       method: "POST",
       headers: {
         authorization: `Bearer ${creator.token}`,
-        "x-openwork-org-id": orgId,
+        "x-harness-org-id": orgId,
       },
     }).catch(() => undefined);
   });
@@ -258,7 +258,7 @@ test.skipIf(!apiUrl)(title, async () => {
     method: "POST",
     headers: {
       authorization: `Bearer ${creator.token}`,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: JSON.stringify({ orgMembershipId: deniedMemberId, role: "viewer" }),
   });
@@ -284,7 +284,7 @@ test.skipIf(!apiUrl)(title, async () => {
     method: "POST",
     headers: {
       authorization: `Bearer ${denied.token}`,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: JSON.stringify({ orgMembershipId: thirdMemberId, role: "viewer" }),
   });

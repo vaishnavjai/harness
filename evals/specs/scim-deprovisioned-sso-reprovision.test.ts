@@ -1,10 +1,10 @@
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import type { DenRef } from "@openwork/behaviors";
-import { startMockIdpLab } from "@openwork/labs";
-import type { StartedMockIdpLab } from "@openwork/labs";
-import { createAdmin, eventually, inviteMember, queryDenDatabase, server, test } from "@openwork/testkit";
-import type { Den } from "@openwork/testkit";
+import { denFetch } from "@harness/behaviors";
+import type { DenRef } from "@harness/behaviors";
+import { startMockIdpLab } from "@harness/labs";
+import type { StartedMockIdpLab } from "@harness/labs";
+import { createAdmin, eventually, inviteMember, queryDenDatabase, server, test } from "@harness/testkit";
+import type { Den } from "@harness/testkit";
 import { seedMemberGrantFixture } from "./helpers/member-grant-fixture.ts";
 import { enableScimFixtureSso } from "./helpers/scim-fixture.ts";
 import { signedScimSamlFixture } from "./helpers/scim-saml-fixture.ts";
@@ -147,7 +147,7 @@ async function registerEnabledSso(den: Den, idp: StartedMockIdpLab, saml?: Retur
   const adminHeaders = {
     authorization: `Bearer ${den.admin.token}`,
     cookie: sessionCookie,
-    "x-openwork-org-id": organizationId,
+    "x-harness-org-id": organizationId,
   };
   const registration = idp.registration();
   const sso = await denFetch(den.ref, saml ? "/v1/sso/saml" : "/v1/sso/oidc", {
@@ -349,7 +349,7 @@ test(`a SCIM-deactivated member who tries ${protocol} SSO is refused without a g
     trustedOrigins: [new URL(idp.issuer).origin],
     org: { name: `SCIM SSO Ghost ${runId}`, admin: { name: "SCIM Admin" } },
   });
-  const control = await inviteMember(den, "control", { email: `control.${runId}@openwork.test`, name: "Control Member" });
+  const control = await inviteMember(den, "control", { email: `control.${runId}@harness.test`, name: "Control Member" });
   const { organizationId, adminHeaders } = await registerEnabledSso(den, idp, saml);
   const facts = await runDeprovisionedSsoJourney({
     den,
@@ -371,7 +371,7 @@ test(`a SCIM-deactivated member who tries ${protocol} SSO is refused without a g
   const runId = `${Date.now().toString(36)}${process.pid.toString(36)}`;
   const managedDomain = `okta-scim-${runId}.test`;
   const managedEmail = `avery.${runId}@${managedDomain}`;
-  const adminEmail = `admin.${runId}@openwork.test`;
+  const adminEmail = `admin.${runId}@harness.test`;
   await using idp = await startMockIdpLab({ domain: managedDomain, defaultSubject: { email: managedEmail, name: "Avery Morgan" } });
   await using den = await server({
     place,

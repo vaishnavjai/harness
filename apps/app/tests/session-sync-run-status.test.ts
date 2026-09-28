@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, jest, setSystemTime, spyOn, test } from "bun:test";
 import type { PermissionV2Request, SessionStatus } from "@opencode-ai/sdk/v2/client";
 
-import type { OpenworkSessionHistory, OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
-import { markTaskRunStart, takeTaskRunStart } from "../src/app/lib/analytics";
+import type { HarnessSessionHistory, HarnessSessionSnapshot } from "../src/app/lib/harness-server";
+import { markTaskRunStart, takeTaskRunStart } from "../src/app/lib/task-run-clock";
 import * as notifications from "../src/react-app/shell/desktop-notifications";
 import { createClientV2, createV2EventTranslationState, translateV2Event } from "../src/app/lib/opencode-v2-adapter";
 import { useSessionActivityStore } from "../src/react-app/domains/session/status/session-activity-store";
@@ -58,7 +58,7 @@ test("snapshot and live assistant projections preserve the reply parent", () => 
 type SyncInput = {
   workspaceId: string;
   baseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
 };
 
 type Subscription = {
@@ -71,7 +71,7 @@ const sessionId = "session-run-status";
 const syncInputs: SyncInput[] = [];
 const subscriptions: Subscription[] = [];
 
-function createSnapshot(status: SessionStatus): OpenworkSessionSnapshot {
+function createSnapshot(status: SessionStatus): HarnessSessionSnapshot {
   return {
     session: {
       id: sessionId,
@@ -88,7 +88,7 @@ function createSnapshot(status: SessionStatus): OpenworkSessionSnapshot {
   };
 }
 
-function createActiveHistory(kind: "text" | "tool" = "tool"): OpenworkSessionHistory {
+function createActiveHistory(kind: "text" | "tool" = "tool"): HarnessSessionHistory {
   const { session } = createSnapshot({ type: "busy" });
   return {
     session,
@@ -113,7 +113,7 @@ function createSyncInput(): SyncInput {
   const input = {
     workspaceId,
     baseUrl: "https://run-status.example/opencode",
-    openworkToken: "token",
+    harnessToken: "token",
   };
   syncInputs.push(input);
   return input;
@@ -235,7 +235,7 @@ afterEach(() => {
 
 describe("native v2 run lifecycle", () => {
   function nativeSync() {
-    const input = { workspaceId, baseUrl: "https://run-status.example/opencode2", openworkToken: "token" };
+    const input = { workspaceId, baseUrl: "https://run-status.example/opencode2", harnessToken: "token" };
     syncInputs.push(input);
     __createWorkspaceSessionSyncForTest(input);
     trackWorkspaceSessionSync(input, sessionId);
@@ -343,7 +343,7 @@ describe("native v2 run lifecycle", () => {
   });
 
   test("terminal listeners cannot have a queued successor's tracking consumed", () => {
-    const input = { workspaceId, baseUrl: "https://run-status.example/opencode2", openworkToken: "token",
+    const input = { workspaceId, baseUrl: "https://run-status.example/opencode2", harnessToken: "token",
       onSessionStatus: ({ status }: { status: SessionStatus }) => { if (status.type === "idle") markTaskRunStart(sessionId); } };
     syncInputs.push(input);
     __createWorkspaceSessionSyncForTest(input);
@@ -533,7 +533,7 @@ describe("session run status ordering", () => {
   for (const todosPresent of [false, true]) {
     test(`${todosPresent ? "todos-only" : "history-only"} hydration does not establish observed idle`, () => {
       const { session, messages } = createSnapshot({ type: "idle" });
-      const history: OpenworkSessionHistory = { session, messages, ...(todosPresent ? { todos: [] } : {}) };
+      const history: HarnessSessionHistory = { session, messages, ...(todosPresent ? { todos: [] } : {}) };
       setSystemTime(100);
       markSessionSnapshotFetchStart(history, 100);
       seedSessionState(workspaceId, history);
@@ -545,7 +545,7 @@ describe("session run status ordering", () => {
 
   test("status-only history seeds the observed status without clearing cached todos", () => {
     const { session, messages } = createSnapshot({ type: "idle" });
-    const history: OpenworkSessionHistory = { session, messages, status: { type: "idle" } };
+    const history: HarnessSessionHistory = { session, messages, status: { type: "idle" } };
     const todos = [{ id: "keep", content: "Keep this task", status: "pending", priority: "high" }];
     getReactQueryClient().setQueryData(todoKey(workspaceId, sessionId), todos);
     const todosBefore = getReactQueryClient().getQueryState(todoKey(workspaceId, sessionId));
@@ -628,7 +628,7 @@ describe("session run status ordering", () => {
     const input = {
       workspaceId,
       baseUrl: "https://run-status.example/opencode",
-      openworkToken: "token",
+      harnessToken: "token",
       onSessionStatus: (update: { sessionId: string; status: SessionStatus }) => {
         statusUpdates.push(update.status);
       },
@@ -1372,7 +1372,7 @@ describe("run status reconcile liveness health", () => {
     const input = {
       workspaceId,
       baseUrl: `https://run-status-health-${label}.example/opencode`,
-      openworkToken: "token",
+      harnessToken: "token",
     };
     syncInputs.push(input);
     const cleanup = __createWorkspaceSessionSyncForTest(input);
@@ -1473,7 +1473,7 @@ describe("run status reconcile liveness health", () => {
     const input = {
       workspaceId,
       baseUrl: "https://run-status-health-parked.example/opencode",
-      openworkToken: "token",
+      harnessToken: "token",
     };
     syncInputs.push(input);
     ensureWorkspaceSessionSync(input);
@@ -1567,7 +1567,7 @@ describe("run status reconcile liveness health", () => {
     const input = {
       workspaceId,
       baseUrl: "https://run-status-health-online.example/opencode",
-      openworkToken: "token",
+      harnessToken: "token",
     };
     syncInputs.push(input);
     ensureWorkspaceSessionSync(input);

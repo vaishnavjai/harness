@@ -30,7 +30,7 @@ export function parseInviteLinkInput(value: string): ParsedInviteLink | null {
 /**
  * A plain organization server or workspace URL. The explicit http(s) scheme
  * requirement mirrors normalizeDenBaseUrl, so raw sign-in grants and
- * openwork:// deep links never classify as server URLs.
+ * harness:// deep links never classify as server URLs.
  */
 export function parseServerUrlInput(value: string): ParsedServerUrl | null {
   const url = parseHttpUrl(value);

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createHeadlessThreadClient } from "@openwork/headless-threads";
+import { createHeadlessThreadClient } from "@harness/headless-threads";
 
 import { startServer } from "./server.js";
 import type { ServerConfig } from "./types.js";
@@ -53,7 +53,7 @@ const BEATS = [
 ];
 
 async function createWorkspaceRoot() {
-  const root = await mkdtemp(join(tmpdir(), "openwork-headless-threads-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-headless-threads-"));
   await mkdir(join(root, ".opencode"), { recursive: true });
   roots.push(root);
   return root;
@@ -114,7 +114,7 @@ function startMockOpencode() {
   };
 }
 
-async function startOpenworkServer(input: { workspaceRoot: string; opencodeBaseUrl: string }) {
+async function startHarnessServer(input: { workspaceRoot: string; opencodeBaseUrl: string }) {
   const config: ServerConfig = {
     host: "127.0.0.1",
     port: 0,
@@ -146,19 +146,19 @@ async function startOpenworkServer(input: { workspaceRoot: string; opencodeBaseU
   return { server, token: config.token };
 }
 
-test("drives two headless turns on a native OpenWork thread", async () => {
+test("drives two headless turns on a native Harness thread", async () => {
   const workspaceRoot = await createWorkspaceRoot();
   const engine = startMockOpencode();
-  const openwork = await startOpenworkServer({
+  const harness = await startHarnessServer({
     workspaceRoot,
     opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}`,
   });
 
   let clock = 0;
   const threads = createHeadlessThreadClient({
-    baseUrl: `http://127.0.0.1:${openwork.server.port}`,
+    baseUrl: `http://127.0.0.1:${harness.server.port}`,
     workspaceId: "ws_1",
-    token: openwork.token,
+    token: harness.token,
     defaultModel: { providerId: "anthropic", modelId: "claude-sonnet-5" },
     now: () => clock,
     // Each poll gap moves the engine exactly one beat, so the journey below is
@@ -230,29 +230,29 @@ test("drives two headless turns on a native OpenWork thread", async () => {
 test("leaves the thread readable through the session surface the app uses", async () => {
   const workspaceRoot = await createWorkspaceRoot();
   const engine = startMockOpencode();
-  const openwork = await startOpenworkServer({
+  const harness = await startHarnessServer({
     workspaceRoot,
     opencodeBaseUrl: `http://127.0.0.1:${engine.server.port}`,
   });
-  const base = `http://127.0.0.1:${openwork.server.port}`;
+  const base = `http://127.0.0.1:${harness.server.port}`;
 
   const thread = await createHeadlessThreadClient({
     baseUrl: base,
     workspaceId: "ws_1",
-    token: openwork.token,
+    token: harness.token,
   }).createThread({ title: "Refund policy" });
 
   // The app lists and opens sessions through the native workspace mount. A headless thread
   // is an ordinary session, so it has to be visible here with the same id.
   const listed = await fetch(`${base}/workspace/ws_1/opencode/session`, {
-    headers: { Authorization: `Bearer ${openwork.token}` },
+    headers: { Authorization: `Bearer ${harness.token}` },
   });
   expect(listed.status).toBe(200);
   const listedBody = await listed.json();
   expect(listedBody.map((item: { id: string }) => item.id)).toContain(thread.id);
 
   const opened = await fetch(`${base}/workspace/ws_1/opencode/session/${thread.id}`, {
-    headers: { Authorization: `Bearer ${openwork.token}` },
+    headers: { Authorization: `Bearer ${harness.token}` },
   });
   expect(opened.status).toBe(200);
   await expect(opened.json()).resolves.toMatchObject({ id: thread.id, title: "Refund policy" });

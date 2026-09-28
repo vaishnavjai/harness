@@ -37,7 +37,7 @@ const receiptSchema = z.object({
 });
 
 export type GmailAttachmentRequest = {
-  extensionId: "openwork-cloud-uploads";
+  extensionId: "harness-cloud-uploads";
   action: "gmail_create_draft_with_attachments";
   args: Omit<z.infer<typeof draftSchema>, "attachments"> & { paths: string[]; connectionId: string };
   context: Record<string, unknown> & { sessionId: string; callId: string };
@@ -110,7 +110,7 @@ export function createGmailAttachmentFulfillment(
   }
   const fulfill = async (input: unknown, output: unknown): Promise<void> => {
     // OpenCode 1.18.18 McpCatalog.toolName preserves hyphens in server names.
-    if (!isRecord(input) || input.tool !== "openwork-cloud_execute_capability") return;
+    if (!isRecord(input) || input.tool !== "harness-cloud_execute_capability") return;
     if (!isRecord(input.args) || typeof input.args.name !== "string") return;
     const native = NATIVE_GMAIL.exec(input.args.name);
     const connectionId = native?.[1];
@@ -139,7 +139,7 @@ export function createGmailAttachmentFulfillment(
     let result: unknown;
     try {
       result = await dependencies.callExtension({
-        extensionId: "openwork-cloud-uploads",
+        extensionId: "harness-cloud-uploads",
         action: "gmail_create_draft_with_attachments",
         args: { ...fields, paths: attachments, connectionId },
         context: { ...factoryContext, sessionId: input.sessionID, callId: input.callID },
@@ -168,7 +168,7 @@ export function createGmailAttachmentFulfillment(
   };
   return Object.assign(fulfill, {
     before: async (input: unknown, output: unknown): Promise<void> => {
-      if (!isRecord(input) || input.tool !== "openwork-cloud_execute_capability"
+      if (!isRecord(input) || input.tool !== "harness-cloud_execute_capability"
         || typeof input.sessionID !== "string" || typeof input.callID !== "string"
         || !isRecord(output) || !isRecord(output.args) || typeof output.args.name !== "string"
         || !NATIVE_GMAIL.test(output.args.name)) return;

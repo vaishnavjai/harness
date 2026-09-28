@@ -6,7 +6,7 @@ import { StringDecoder } from "node:string_decoder";
 const templateId = "0".repeat(32);
 export const templateOrigins = Object.fromEntries(
   Object.entries({ app: "ow", den: "den", api: "api", engine: "engine", gateway: "gateway", desktop: "desktop" })
-    .map(([service, prefix]) => [service, `https://${prefix}-${templateId}.preview.openwork.software`]),
+    .map(([service, prefix]) => [service, `https://${prefix}-${templateId}.preview.harness-legacy.invalid`]),
 );
 
 export function originReplacements(from, to) {

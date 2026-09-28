@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 import { useCallback, useMemo, useState } from "react";
-import { installConfigSchema, parseInstallLinkInput } from "@openwork/install-config";
+import { installConfigSchema, parseInstallLinkInput } from "@harness/install-config";
 
 import { clearDenSession, readDenBootstrapConfig, readDenSettings, setDenBootstrapConfig } from "@/app/lib/den";
 import { parseManualAuthInput } from "@/app/lib/manual-auth-input";
@@ -212,7 +212,7 @@ export function JoinOrganizationDialog({
 
     const settings = readDenSettings();
     const baseUrl = parsed.baseUrl ?? settings.baseUrl;
-    setStatus({ phase: "connecting", clientName: t("join_org.openwork_cloud"), host: hostFromUrl(baseUrl) });
+    setStatus({ phase: "connecting", clientName: t("join_org.harness_cloud"), host: hostFromUrl(baseUrl) });
     const result = await exchangeHandoffAndSignIn(parsed.grant, {
       baseUrl,
       // Pasted one-time codes are desktop-initiated sign-ins.
@@ -225,7 +225,7 @@ export function JoinOrganizationDialog({
       return true;
     }
 
-    setStatus({ phase: "success", clientName: t("join_org.openwork_cloud"), host: hostFromUrl(baseUrl) });
+    setStatus({ phase: "success", clientName: t("join_org.harness_cloud"), host: hostFromUrl(baseUrl) });
     finishConnected();
     return true;
   }, [finishConnected]);

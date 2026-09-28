@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 
 import {
-  readOpenworkCloudMcpHealth,
+  readHarnessCloudMcpHealth,
   type CloudMcpHealth,
   type CloudMcpNativeEngineResolver,
   type CloudMcpLiveStatusObserver,
@@ -23,14 +23,14 @@ import { ensureDir } from "./utils.js";
 const CONNECT_STATE_FILE = "connect-state.json";
 const CONNECT_STATE_MAX_BYTES = 16 * 1024;
 const CONNECT_SNAPSHOT_MAX_RUNTIME_ROWS = 100;
-const OPENWORK_CLOUD_MCP_NAME = "openwork-cloud";
+const HARNESS_CLOUD_MCP_NAME = "harness-cloud";
 type WorkspaceOpencodeClient = ReturnType<typeof createOpencodeClient>;
 
 type PersistedConnectState = {
   connectEnabled: boolean;
   updatedAt: number;
   /**
-   * Server-scoped OpenWork Connect (`openwork-cloud`) MCP desired config.
+   * Server-scoped Harness Connect (`harness-cloud`) MCP desired config.
    * Connect is identity/org scoped, not per-workspace — workspace runtime
    * copies remain for engine registration, but catalog/skill injection reads
    * this host-level entry.
@@ -114,13 +114,13 @@ export function googleWorkspaceCloudRequired(cloudHealth: CloudMcpHealth | null)
   const failure = cloudHealth?.firstFailure;
   return {
     ok: false,
-    error: "use_openwork_cloud",
-    message: "Local Google Workspace actions are retired. Use Google Workspace through OpenWork Cloud Connect only. Discover the capability with search_capabilities, then call execute_capability with the exact returned name. If Cloud reports a connection or authorization requirement, relay its exact next action; local credentials cannot be used.",
+    error: "use_harness_cloud",
+    message: "Local Google Workspace actions are retired. Use Google Workspace through Harness Cloud Connect only. Discover the capability with search_capabilities, then call execute_capability with the exact returned name. If Cloud reports a connection or authorization requirement, relay its exact next action; local credentials cannot be used.",
     nextAction: cloudHealth?.usable
       ? { tool: "search_capabilities", arguments: { query: "Google Workspace" } }
       : failure
         ? { code: failure.code, stage: failure.stage, recommendedAction: failure.recommendedAction }
-        : { recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose OpenWork Cloud agent access for this workspace." },
+        : { recommendedAction: "Open Settings > Library > Connections to check your Cloud connections, or Settings > Debug to diagnose Harness Cloud agent access for this workspace." },
   };
 }
 
@@ -178,12 +178,12 @@ export async function writeConnectState(config: ServerConfig, state: { connectEn
   });
 }
 
-/** Read the host-level openwork-cloud MCP config used for Connect catalog/skills. */
+/** Read the host-level harness-cloud MCP config used for Connect catalog/skills. */
 export async function readConnectCloudMcp(config: ServerConfig): Promise<Record<string, unknown> | null> {
   return (await readConnectState(config)).cloudMcp;
 }
 
-/** Persist the host-level openwork-cloud MCP config (server-scoped Connect). */
+/** Persist the host-level harness-cloud MCP config (server-scoped Connect). */
 export async function writeConnectCloudMcp(
   config: ServerConfig,
   cloudMcp: Record<string, unknown> | null,
@@ -265,7 +265,7 @@ async function resolveCloudHealth(config: ServerConfig, options: ConnectSnapshot
       },
     };
   }
-  const cloudHealth = await readOpenworkCloudMcpHealth({
+  const cloudHealth = await readHarnessCloudMcpHealth({
     config,
     workspace: resolved.workspace,
     directory: resolved.directory,
@@ -346,7 +346,7 @@ async function inspectConnectRuntime(
   if (globalInspection.status === "unreadable" || globalInspection.status === "invalid-row") {
     return { cloudMcpPresent: false, complete: false };
   }
-  if (Object.hasOwn(runtimeMcpMap(globalInspection.config), OPENWORK_CLOUD_MCP_NAME)) {
+  if (Object.hasOwn(runtimeMcpMap(globalInspection.config), HARNESS_CLOUD_MCP_NAME)) {
     return { cloudMcpPresent: true, complete: true };
   }
 
@@ -373,7 +373,7 @@ async function inspectConnectRuntime(
     if (inspection.status === "unreadable" || inspection.status === "invalid-row") {
       return { cloudMcpPresent: false, complete: false };
     }
-    if (Object.hasOwn(runtimeMcpMap(inspection.config), OPENWORK_CLOUD_MCP_NAME)) {
+    if (Object.hasOwn(runtimeMcpMap(inspection.config), HARNESS_CLOUD_MCP_NAME)) {
       return { cloudMcpPresent: true, complete: true };
     }
     if (inspection.status === "database-missing" || inspection.status === "table-missing") {

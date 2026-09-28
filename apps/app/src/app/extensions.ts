@@ -2,23 +2,23 @@
 // types.ts re-exports it for the rest of the app.
 export type ReloadReason = "plugins" | "skills" | "mcp" | "config" | "agents" | "commands";
 
-export type OpenWorkExtensionSourceFormat =
+export type HarnessExtensionSourceFormat =
   | "agent-plugin"
-  | "openwork-builtin"
-  | "openwork-extension-manifest"
+  | "harness-builtin"
+  | "harness-extension-manifest"
   | "claude-plugin"
   | "opencode-plugin"
   | "mcp-directory"
   | "manual";
 
-export type OpenWorkExtensionSource = {
-  format: OpenWorkExtensionSourceFormat;
+export type HarnessExtensionSource = {
+  format: HarnessExtensionSourceFormat;
   trusted: boolean;
   origin?: "builtin" | "den" | "workspace" | "local";
   reference?: string;
 };
 
-export type OpenWorkExtensionResourceType =
+export type HarnessExtensionResourceType =
   | "skill"
   | "agent"
   | "command"
@@ -33,8 +33,8 @@ export type OpenWorkExtensionResourceType =
   | "local-service"
   | "native-binary";
 
-export type OpenWorkExtensionResource = {
-  type: OpenWorkExtensionResourceType;
+export type HarnessExtensionResource = {
+  type: HarnessExtensionResourceType;
   id: string;
   label?: string;
   description?: string;
@@ -44,11 +44,11 @@ export type OpenWorkExtensionResource = {
   packageName?: string;
   providerId?: string;
   mcpServerName?: string;
-  localCommandRef?: "openwork.computerUseMcp" | "openwork.uiMcp";
+  localCommandRef?: "harness.computerUseMcp" | "harness.uiMcp";
   required?: boolean;
 };
 
-export type OpenWorkExtensionContributionType =
+export type HarnessExtensionContributionType =
   | "settings-panel"
   | "setup-instructions"
   | "composer-prompt"
@@ -59,8 +59,8 @@ export type OpenWorkExtensionContributionType =
   | "native-capability"
   | "test-action";
 
-export type OpenWorkExtensionContribution = {
-  type: OpenWorkExtensionContributionType;
+export type HarnessExtensionContribution = {
+  type: HarnessExtensionContributionType;
   ref?: string;
   label?: string;
   description?: string;
@@ -68,7 +68,7 @@ export type OpenWorkExtensionContribution = {
   location?: "settings-detail" | "composer" | "session-right-pane" | "session-rail" | "server" | "native";
 };
 
-export type OpenWorkExtensionSetup = {
+export type HarnessExtensionSetup = {
   instructions?: string;
   primaryCta?: string;
   secondaryCta?: string;
@@ -76,7 +76,7 @@ export type OpenWorkExtensionSetup = {
   testActionRef?: string;
 };
 
-export type OpenWorkExtensionLifecycle = {
+export type HarnessExtensionLifecycle = {
   reload?: ReloadReason[];
   detection?: string[];
 };
@@ -107,13 +107,13 @@ export type EnablementResult = {
   met: boolean;
 };
 
-export type OpenWorkExtensionManifest = {
+export type HarnessExtensionManifest = {
   schemaVersion: 1;
   id: string;
   name: string;
   description: string;
   preview?: boolean;
-  source: OpenWorkExtensionSource;
+  source: HarnessExtensionSource;
   icon?: {
     src?: string;
     simpleIconSlug?: string;
@@ -121,10 +121,10 @@ export type OpenWorkExtensionManifest = {
   composer?: {
     prompt: string;
   };
-  setup?: OpenWorkExtensionSetup;
-  resources: OpenWorkExtensionResource[];
-  contributions?: OpenWorkExtensionContribution[];
-  lifecycle?: OpenWorkExtensionLifecycle;
+  setup?: HarnessExtensionSetup;
+  resources: HarnessExtensionResource[];
+  contributions?: HarnessExtensionContribution[];
+  lifecycle?: HarnessExtensionLifecycle;
   /** Declarative conditions that must ALL be true for the extension to be "active". */
   enablement?: EnablementCondition[];
   defaultEnabled?: boolean;
@@ -132,37 +132,37 @@ export type OpenWorkExtensionManifest = {
   platform?: Array<"darwin" | "linux" | "windows" | "web">;
 };
 
-export type OpenWorkExtensionPlatform = NonNullable<OpenWorkExtensionManifest["platform"]>[number];
+export type HarnessExtensionPlatform = NonNullable<HarnessExtensionManifest["platform"]>[number];
 
 export function extensionContribution(
-  manifest: OpenWorkExtensionManifest | undefined,
-  type: OpenWorkExtensionContributionType,
-): OpenWorkExtensionContribution | undefined {
+  manifest: HarnessExtensionManifest | undefined,
+  type: HarnessExtensionContributionType,
+): HarnessExtensionContribution | undefined {
   return manifest?.contributions?.find((contribution) => contribution.type === type);
 }
 
 export function extensionResource(
-  manifest: OpenWorkExtensionManifest | undefined,
-  type: OpenWorkExtensionResourceType,
-): OpenWorkExtensionResource | undefined {
+  manifest: HarnessExtensionManifest | undefined,
+  type: HarnessExtensionResourceType,
+): HarnessExtensionResource | undefined {
   return manifest?.resources.find((resource) => resource.type === type);
 }
 
-export function isTrustedBuiltInExtension(manifest: OpenWorkExtensionManifest | undefined): boolean {
+export function isTrustedBuiltInExtension(manifest: HarnessExtensionManifest | undefined): boolean {
   return manifest?.source.origin === "builtin" && manifest.source.trusted;
 }
 
-export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] = [
+export const BUILT_IN_HARNESS_EXTENSION_MANIFESTS: HarnessExtensionManifest[] = [
   {
     schemaVersion: 1,
-    id: "openwork-browser",
-    name: "OpenWork Browser",
-    description: "Automate the built-in browser panel that stays visible inside OpenWork.",
-    source: { format: "openwork-builtin", origin: "builtin", trusted: true },
-    icon: { src: "/openwork-mark.svg" },
-    composer: { prompt: "Use the OpenWork Browser extension to " },
+    id: "harness-browser",
+    name: "Harness Browser",
+    description: "Automate the built-in browser panel that stays visible inside Harness.",
+    source: { format: "harness-builtin", origin: "builtin", trusted: true },
+    icon: { src: "/harness-mark.svg" },
+    composer: { prompt: "Use the Harness Browser extension to " },
     setup: {
-      instructions: "OpenWork Browser is ready by default in desktop workspaces.",
+      instructions: "Harness Browser is ready by default in desktop workspaces.",
     },
     resources: [
       {
@@ -173,12 +173,12 @@ export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] 
       },
     ],
     contributions: [
-      { type: "settings-panel", ref: "openwork.browser.settings", location: "settings-detail" },
-      { type: "session-side-panel", ref: "openwork.browser.panel", location: "session-right-pane" },
-      { type: "composer-prompt", prompt: "Use the OpenWork Browser extension to ", location: "composer" },
+      { type: "settings-panel", ref: "harness.browser.settings", location: "settings-detail" },
+      { type: "session-side-panel", ref: "harness.browser.panel", location: "session-right-pane" },
+      { type: "composer-prompt", prompt: "Use the Harness Browser extension to ", location: "composer" },
     ],
     enablement: [
-      { type: "toggle-enabled", ref: "openwork-browser", label: "Enabled" },
+      { type: "toggle-enabled", ref: "harness-browser", label: "Enabled" },
     ],
     lifecycle: { reload: ["plugins", "agents"], detection: ["plugin:opencode-chrome-devtools"] },
     defaultEnabled: true,
@@ -190,14 +190,14 @@ export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] 
     name: "Computer Use",
     description: "Work in the Mac app and window you approve. Read, use accessible controls, or allow mouse and keyboard control with a small window preview.",
     preview: true,
-    source: { format: "openwork-builtin", origin: "builtin", trusted: true },
-    icon: { src: "/openwork-mark.svg" },
+    source: { format: "harness-builtin", origin: "builtin", trusted: true },
+    icon: { src: "/harness-mark.svg" },
     composer: { prompt: "Use Computer Use to " },
     setup: {
-      instructions: "Enable Computer Use on macOS 14 or later and grant Accessibility and Screen Recording in the helper. For each session, choose an app window and allow reading, app controls, or mouse and keyboard. Choose Allow and start in OpenWork. Your input interrupts control; Stop in the preview ends access.",
+      instructions: "Enable Computer Use on macOS 14 or later and grant Accessibility and Screen Recording in the helper. For each session, choose an app window and allow reading, app controls, or mouse and keyboard. Choose Allow and start in Harness. Your input interrupts control; Stop in the preview ends access.",
       primaryCta: "Enable Computer Use",
       secondaryCta: "Check macOS permissions",
-      testActionRef: "openwork.computerUse.healthCheck",
+      testActionRef: "harness.computerUse.healthCheck",
     },
     resources: [
       {
@@ -206,21 +206,21 @@ export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] 
         label: "Computer Use MCP",
         mcpServerName: "computer-use",
         command: [],
-        localCommandRef: "openwork.computerUseMcp",
+        localCommandRef: "harness.computerUseMcp",
         required: true,
       },
       {
         type: "native-binary",
         id: "computer-use-native",
         label: "Computer Use session runtime",
-        packageName: "@openwork/computer-use",
+        packageName: "@harness/computer-use",
         required: true,
       },
     ],
     contributions: [
-      { type: "setup-instructions", ref: "openwork.computerUse.setup", location: "settings-detail" },
-      { type: "native-capability", ref: "openwork.computerUse.axPermissions", label: "Accessibility and Screen Recording" },
-      { type: "test-action", ref: "openwork.computerUse.healthCheck", label: "Verify Computer Use MCP" },
+      { type: "setup-instructions", ref: "harness.computerUse.setup", location: "settings-detail" },
+      { type: "native-capability", ref: "harness.computerUse.axPermissions", label: "Accessibility and Screen Recording" },
+      { type: "test-action", ref: "harness.computerUse.healthCheck", label: "Verify Computer Use MCP" },
       { type: "composer-prompt", prompt: "Use Computer Use to ", location: "composer" },
     ],
     enablement: [
@@ -236,7 +236,7 @@ export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] 
     id: "ollama",
     name: "Ollama",
     description: "Local model provider at http://localhost:11434.",
-    source: { format: "openwork-builtin", origin: "builtin", trusted: true },
+    source: { format: "harness-builtin", origin: "builtin", trusted: true },
     icon: { src: "/ext-ollama.svg" },
     composer: { prompt: "Use the Ollama extension to " },
     setup: {
@@ -249,8 +249,8 @@ export const BUILT_IN_OPENWORK_EXTENSION_MANIFESTS: OpenWorkExtensionManifest[] 
       { type: "provider", id: "ollama", providerId: "ollama", packageName: "@ai-sdk/openai-compatible", required: true },
     ],
     contributions: [
-      { type: "settings-panel", ref: "openwork.ollama.settings", location: "settings-detail" },
-      { type: "test-action", ref: "openwork.ollama.listModels", label: "Check local models" },
+      { type: "settings-panel", ref: "harness.ollama.settings", location: "settings-detail" },
+      { type: "test-action", ref: "harness.ollama.listModels", label: "Check local models" },
       { type: "composer-prompt", prompt: "Use the Ollama extension to ", location: "composer" },
     ],
     enablement: [

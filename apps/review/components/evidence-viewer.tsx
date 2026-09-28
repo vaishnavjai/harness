@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ReviewReport } from "@openwork/review";
+import type { ReviewReport } from "@harness/review";
 import { CopyButton } from "./copy-button";
 import { OpenCheckpoint } from "./open-checkpoint";
 

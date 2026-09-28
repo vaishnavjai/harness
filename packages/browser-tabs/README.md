@@ -1,6 +1,6 @@
-# @openwork/browser-tabs
+# @harness/browser-tabs
 
-The policy layer for OpenWork's built-in browser. The desktop app has one
+The policy layer for Harness's built-in browser. The desktop app has one
 native browser surface shared by every conversation, but each tab belongs to
 the conversation that opened it. This package decides, without Electron or
 React:

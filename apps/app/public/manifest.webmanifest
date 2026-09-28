@@ -1,6 +1,6 @@
 {
-  "name": "OpenWork",
-  "short_name": "OpenWork",
+  "name": "Harness",
+  "short_name": "Harness",
   "description": "Local-first agent workspace",
   "start_url": "/",
   "display": "standalone",
@@ -13,7 +13,7 @@
       "type": "image/png"
     },
     {
-      "src": "/openwork-mark.svg",
+      "src": "/harness-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"

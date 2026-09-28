@@ -1,10 +1,10 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect, onTestFinished } from "vitest";
-import { observeText, textProgressFailures, control, denFetch, evalIn, go, readAvailableModels, selectModel, sendComposerMessage, waitFor } from "@openwork/behaviors";
-import type { DenSession, ModelFacts } from "@openwork/behaviors";
-import { screenshot, validate } from "@openwork/test-evidence";
-import { app, eventually, mcpMock, needs, server, sleep, test, unmetNeeds } from "@openwork/testkit";
-import type { TestNeeds } from "@openwork/testkit";
+import { observeText, textProgressFailures, control, denFetch, evalIn, go, readAvailableModels, selectModel, sendComposerMessage, waitFor } from "@harness/behaviors";
+import type { DenSession, ModelFacts } from "@harness/behaviors";
+import { screenshot, validate } from "@harness/test-evidence";
+import { app, eventually, mcpMock, needs, server, sleep, test, unmetNeeds } from "@harness/testkit";
+import type { TestNeeds } from "@harness/testkit";
 
 /**
  * ACCEPTANCE TEST for #3671: org-published LLM providers never finish syncing
@@ -53,7 +53,7 @@ const QUIET_DELAY_MS = 30_000;
 const OBSERVATION_WINDOW_MS = 60_000;
 // Intended poll cadence: one sync pass per 5 minutes (defaultIntervalMs =
 // 5 * 60 * 1_000, apps/server/src/cloud-provider-sync.ts:132; the testkit
-// desktop sets no OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS override, so the
+// desktop sets no HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS override, so the
 // env branch at cloud-provider-sync.ts:481-484 stays on the default). Each
 // pass issues exactly ONE GET /v1/llm-providers/:llmProviderId/connect per
 // provider (fetchProviders, cloud-provider-sync.ts:294-306), so a 60s window
@@ -65,7 +65,7 @@ const CONNECT_BOUND_PER_PROVIDER = 3;
 // which makes per-provider rate = total / provider count.
 const CONNECT_ROUTE = "/v1/llm-providers/:llmProviderId/connect";
 
-const requirements: TestNeeds = { optIn: ["OPENWORK_EVAL_E2E_TESTS"] };
+const requirements: TestNeeds = { optIn: ["HARNESS_EVAL_E2E_TESTS"] };
 const missingRequirements = unmetNeeds(requirements, process.env);
 const title = missingRequirements.length > 0
   ? `cloud provider sync contract skipped — needs: ${missingRequirements.join(", ")}`
@@ -128,7 +128,7 @@ async function organizationId(session: DenSession): Promise<string> {
 async function createProvider(admin: DenSession, orgId: string, body: Record<string, unknown>): Promise<string> {
   const result = await denFetch(admin, "/v1/llm-providers", {
     method: "POST",
-    headers: { ...auth(admin), "x-openwork-org-id": orgId },
+    headers: { ...auth(admin), "x-harness-org-id": orgId },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
@@ -143,7 +143,7 @@ async function createProvider(admin: DenSession, orgId: string, body: Record<str
 async function deleteProvider(admin: DenSession, orgId: string, providerId: string): Promise<void> {
   const result = await denFetch(admin, `/v1/llm-providers/${encodeURIComponent(providerId)}`, {
     method: "DELETE",
-    headers: { ...auth(admin), "x-openwork-org-id": orgId },
+    headers: { ...auth(admin), "x-harness-org-id": orgId },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!result.response.ok) throw new Error(`Deleting fixture provider failed: HTTP ${result.response.status}`);
@@ -151,7 +151,7 @@ async function deleteProvider(admin: DenSession, orgId: string, providerId: stri
 
 async function memberVisibleProviderIds(member: DenSession, orgId: string): Promise<string[]> {
   const result = await denFetch(member, "/v1/llm-providers", {
-    headers: { ...auth(member), "x-openwork-org-id": orgId },
+    headers: { ...auth(member), "x-harness-org-id": orgId },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!result.response.ok) {
@@ -193,12 +193,12 @@ function parseSyncStatus(payload: Record<string, unknown>): SyncStatusFacts {
 
 // The desktop local server's GET /cloud-provider-sync/status is registered
 // with "client" auth (apps/server/src/server.ts:2108), so the renderer's own
-// persisted credentials (localStorage openwork.server.port/openwork.server.token)
+// persisted credentials (localStorage harness.server.port/harness.server.token)
 // reach it with a plain Bearer fetch to 127.0.0.1.
 async function readSyncStatusPayload(surface: Parameters<typeof evalIn>[0]): Promise<Record<string, unknown>> {
   const value = await evalIn(surface, async () => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return { specProbeError: "missing local server credentials" };
     const response = await fetch("http://127.0.0.1:" + port + "/cloud-provider-sync/status", {
       headers: { Authorization: "Bearer " + token },
@@ -217,8 +217,8 @@ async function readSyncStatusPayload(surface: Parameters<typeof evalIn>[0]): Pro
 
 async function engineV2Status(surface: Parameters<typeof evalIn>[0], enabled?: boolean) {
   const value = await evalIn(surface, browserScript(async (inputEnabled) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return { specProbeError: "missing local server credentials" };
     const enabled = inputEnabled;
     const response = await fetch("http://127.0.0.1:" + port + "/experimental/engine-v2-preview" + (enabled === undefined ? "/status" : ""), {
@@ -285,7 +285,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
     place,
     mocks: { agent: mcpMock({
       agentWorkloads: [{ promptMarker, finalReply, steps: [] }],
-      agentRequiredHeader: { name: "x-private-model-setting", value: "sk-openwork-sync-contract-eval-only" },
+      agentRequiredHeader: { name: "x-private-model-setting", value: "sk-harness-sync-contract-eval-only" },
     }) },
     org: {
       name: ORGANIZATION_NAME,
@@ -309,10 +309,10 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
       options: { baseURL: `${den.mocks.agent.url}/v1` },
       env: ["SYNC_CONTRACT_PROVIDER_API_KEY"],
       models: [{ id: CUSTOM_MODEL_ID, name: "Sync Contract Custom Model", tool_call: true,
-        headers: { "x-private-model-setting": "sk-openwork-sync-contract-eval-only" },
+        headers: { "x-private-model-setting": "sk-harness-sync-contract-eval-only" },
         limit: { context: 1050000, output: 128000 }, modalities: { input: ["text", "image", "pdf"], output: ["text"] } }],
     },
-    apiKey: "sk-openwork-sync-contract-eval-only",
+    apiKey: "sk-harness-sync-contract-eval-only",
     allMembers: true,
     memberIds: [],
     teamIds: [],
@@ -325,7 +325,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
     source: "models_dev",
     providerId: "openai",
     modelIds: [CATALOG_MODEL_ID],
-    apiKey: "sk-openwork-sync-contract-eval-only",
+    apiKey: "sk-harness-sync-contract-eval-only",
     allMembers: true,
     memberIds: [],
     teamIds: [],
@@ -443,12 +443,12 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
 
   await go(desktopApp, `/workspace/${desktopApp.workspaceId}/session`);
   await selectModel(desktopApp, CATALOG_MODEL_ID, { provider: CATALOG_PROVIDER_NAME });
-  const chosenDefault = await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")));
+  const chosenDefault = await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")));
   expect(typeof chosenDefault).toBe("string");
   expect(String(chosenDefault)).toContain(CATALOG_MODEL_ID);
   await evalIn(desktopApp, () => {
     window.__modelSelectionProof = { changes: 0, loops: 0, unavailable: document.body.innerText.includes("Model no longer available") };
-    window.addEventListener("openwork.defaultModelChanged", () => window.__modelSelectionProof.changes++);
+    window.addEventListener("harness.defaultModelChanged", () => window.__modelSelectionProof.changes++);
     const original = console.error;
     console.error = (...args) => {
       if (args.some((arg) => String(arg).includes("Maximum update depth"))) window.__modelSelectionProof.loops++;
@@ -563,17 +563,17 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
     V2_MIRROR_BUDGET_MS, "custom and native Den providers to appear in the v2 catalog",
   );
   const catalogPrivacy = await evalIn(desktopApp, browserScript(async (value, providerId) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
     const paths = value;
     const results = [];
     let model;
     for (const path of paths) {
       const response = await fetch(base + path, {
-        headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") }
+        headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") }
       });
       const text = await response.text();
       if (path === paths[0] && response.ok) model = JSON.parse(text).data.find((entry: { providerID?: string }) => entry.providerID === providerId);
-      results.push({ status: response.status, leaksKey: text.includes("sk-openwork-sync-contract-eval-only"), ...(response.ok ? {} : { error: text.replaceAll("sk-openwork-sync-contract-eval-only", "[redacted]") }) });
+      results.push({ status: response.status, leaksKey: text.includes("sk-harness-sync-contract-eval-only"), ...(response.ok ? {} : { error: text.replaceAll("sk-harness-sync-contract-eval-only", "[redacted]") }) });
     }
     return { results, model };
   }, [[`/workspace/${desktopApp.workspaceId}/opencode2/api/model`, `/workspace/${desktopApp.workspaceId}/opencode2/api/model/default`, `/workspace/${desktopApp.workspaceId}/opencode2/api/provider`, `/workspace/${desktopApp.workspaceId}/opencode2/api/provider/${customRuntime.providerId}`], customRuntime.providerId]), { awaitPromise: true });
@@ -584,7 +584,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   evidence.recordAssertionEvidence("custom native OpenAI model limits, tools and modalities survive mirroring", "The fixture uses the native @ai-sdk/openai adapter; its live v2 catalog entry retained 1,050,000 context and 128,000 output limits, tool support, text/image/PDF inputs and text output.", true);
   await go(desktopApp, `/workspace/${desktopApp.workspaceId}/session`);
   await sleep(16_000); // includes the renderer's engine-routing refresh interval
-  expect(await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")))).toBe(chosenDefault);
+  expect(await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")))).toBe(chosenDefault);
   expect(await evalIn(desktopApp, () => (window.__modelSelectionProof))).toEqual({ changes: 0, loops: 0, unavailable: false });
   evidence.recordAssertionEvidence(
     "native organization model selection survives v1 to v2 without false unavailability or a React loop",
@@ -623,7 +623,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
       env: ["SYNC_CONTRACT_THIRD_PROVIDER_API_KEY"],
       models: [{ id: THIRD_MODEL_ID, name: "Sync Contract Third Model" }],
     },
-    apiKey: "sk-openwork-sync-contract-third-eval-only",
+    apiKey: "sk-harness-sync-contract-third-eval-only",
     allMembers: true,
     memberIds: [],
     teamIds: [],
@@ -654,17 +654,17 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
     `baseURL providers ${customRuntime.providerId} and ${thirdRuntime.providerId} mirrored with models ${CUSTOM_MODEL_ID} and ${THIRD_MODEL_ID}; catalog provider ${catalogRuntime.providerId} was ${catalogOutcome}; third-provider latency=${mirrorLatencyMs}ms; sidecar stayed at pid ${pid0}.`,
     hotMirrored,
   );
-  expect(await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")))).toBe(chosenDefault);
+  expect(await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")))).toBe(chosenDefault);
   expect(await evalIn(desktopApp, () => (window.__modelSelectionProof.changes))).toBe(changesBeforeSync);
   // Remove the selected assignment in the fixture organization, then use the
   // real server sync boundary. A missing model must settle into recovery.
   await deleteProvider(den.admin, orgId, catalogProviderId);
   const syncResult = await evalIn(desktopApp, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.hostToken) throw new Error("Missing local server host token");
-    const port = localStorage.getItem("openwork.server.port");
+    const port = localStorage.getItem("harness.server.port");
     const response = await fetch("http://127.0.0.1:" + port + "/cloud-provider-sync/run", {
-      method: "POST", headers: { "x-openwork-host-token": info.hostToken, "Content-Type": "application/json" }, body: "{}"
+      method: "POST", headers: { "x-harness-host-token": info.hostToken, "Content-Type": "application/json" }, body: "{}"
     });
     return response.status;
   }, { awaitPromise: true, timeoutMs: 90_000 });
@@ -676,12 +676,12 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   await waitFor(desktopApp, () => (document.body.innerText.includes("Model no longer available")), { timeoutMs: 90_000, label: "revoked model recovery" });
   const changesAfterRevocation = await evalIn(desktopApp, () => (window.__modelSelectionProof.changes));
   await sleep(5_000);
-  expect(await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")))).toBe(chosenDefault);
+  expect(await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")))).toBe(chosenDefault);
   expect(await evalIn(desktopApp, () => (window.__modelSelectionProof.changes))).toBe(changesAfterRevocation);
   expect(await evalIn(desktopApp, () => (window.__modelSelectionProof.loops))).toBe(0);
   await selectModel(desktopApp, CUSTOM_MODEL_ID, { provider: CUSTOM_PROVIDER_NAME });
   await waitFor(desktopApp, () => (!document.body.innerText.includes("Model no longer available")), { timeoutMs: 30_000, label: "explicit model recovery" });
-  const recoveredDefault = await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")));
+  const recoveredDefault = await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")));
   evidence.recordAssertionEvidence("a genuinely revoked model settles and recovers only after an explicit selection", "Revoking the selected assignment surfaced recovery while preserving its identity for five seconds with no repeated default writes or React loop; selecting an available model cleared the warning.", true);
   // Continue the existing conversation: creating a new task intentionally
   // reconciles the organization credential, which would replace this isolated
@@ -691,7 +691,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   await using rotationObservation = await observeText(desktopApp, '[data-message-role="assistant"] .prose', { ignoreExistingMessages: true });
   const rotatedMarker = `${promptMarker}-rotated`;
   const rotatedReply = `ROTATED-REPLY-${Date.now()}`;
-  const rotatedKey = "sk-openwork-sync-contract-rotated-eval-only";
+  const rotatedKey = "sk-harness-sync-contract-rotated-eval-only";
   const mockUpdate = await fetch(`${den.mocks.agent.url}/admin/agent-workloads`, {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ workloads: [{ promptMarker: rotatedMarker, finalReply: rotatedReply, steps: [] }], requiredHeader: { name: "authorization", value: `Bearer ${rotatedKey}` } }),
@@ -700,10 +700,10 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   expect(mockUpdate.ok).toBe(true);
   const rotatedAt = new Date().toISOString();
   const rotationStatus = await evalIn(desktopApp, browserScript(async (providerId, rotatedKey) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.hostToken) throw new Error("Missing local server host token");
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
-    const headers = { "x-openwork-host-token": info.hostToken, "Content-Type": "application/json" };
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
+    const headers = { "x-harness-host-token": info.hostToken, "Content-Type": "application/json" };
     const config = await (await fetch(base + "/runtime-config/providers", { headers })).json();
     const names = config.provider[providerId]?.env;
     if (!Array.isArray(names) || names.length !== 1) throw new Error("fixture provider must declare one scoped credential");
@@ -727,7 +727,7 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   await engineV2Status(desktopApp, false);
   await go(desktopApp, `/workspace/${desktopApp.workspaceId}/session`);
   await sleep(16_000);
-  expect(await evalIn(desktopApp, () => (localStorage.getItem("openwork.defaultModel")))).toBe(recoveredDefault);
+  expect(await evalIn(desktopApp, () => (localStorage.getItem("harness.defaultModel")))).toBe(recoveredDefault);
   expect(await evalIn(desktopApp, () => (window.__modelSelectionProof.loops))).toBe(0);
   evidence.recordAssertionEvidence("selected model survives cloud sync and return to v1", "The exact selected provider/model remained after another Den provider was published, the normal cloud sync completed, and routing returned to v1; no React update loop occurred.", true);
   expect(hotMirrored, `Initial v2 status: ${JSON.stringify(initialV2)}; third v2 status: ${JSON.stringify(thirdV2)}`).toBe(true);
@@ -741,19 +741,19 @@ test.skipIf(missingRequirements.length > 0)(title, { timeout: 30 * 60_000 }, asy
   // never resurrect the deleted one.
   const isTerminalAfterRestart = terminalFor([customProviderId, thirdProviderId], [catalogProviderId]);
   const restart = await evalIn(desktopApp, async () => {
-    const invoke = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+    const invoke = window.__HARNESS_ELECTRON__?.invokeDesktop;
     if (!invoke) throw new Error("Desktop runtime bridge unavailable");
-    const before = await invoke("openworkServerInfo");
+    const before = await invoke("harnessServerInfo");
     const timeOrigin = performance.timeOrigin;
     const route = location.hash;
-    const token = localStorage.getItem("openwork.den.authToken");
-    const org = localStorage.getItem("openwork.den.activeOrgId");
-    const after = await invoke("openworkServerRestart");
+    const token = localStorage.getItem("harness.den.authToken");
+    const org = localStorage.getItem("harness.den.activeOrgId");
+    const after = await invoke("harnessServerRestart");
     return {
       generationChanged: after.generation !== before.generation,
       samePort: after.port === before.port,
-      identityUnchanged: token === localStorage.getItem("openwork.den.authToken")
-        && org === localStorage.getItem("openwork.den.activeOrgId"),
+      identityUnchanged: token === localStorage.getItem("harness.den.authToken")
+        && org === localStorage.getItem("harness.den.activeOrgId"),
       timeOrigin,
       route,
     };

@@ -16,8 +16,7 @@ import { useLocation, useNavigate } from "react-router";
 import { toast } from "@/components/ui/sonner";
 import type { ProviderListResponse } from "@opencode-ai/sdk/v2/client";
 
-import { captureAnalyticsEvent, markTaskRunStart } from "@/app/lib/analytics";
-import { trackSessionActive, trackTaskStarted } from "@/app/lib/den-telemetry";
+import { markTaskRunStart } from "@/app/lib/task-run-clock";
 import { buildDiagnosticsBundleJson } from "@/app/lib/diagnostics-bundle";
 import { downloadTextAsFile } from "@/app/lib/download";
 import { canCreateWorkspaces } from "@/app/lib/workspace-creation-policy";
@@ -30,19 +29,19 @@ import { sendSessionCommand, sessionWorkHeld } from "@/app/lib/opencode-interrup
 import { useSessionManagementStore as sessionManagementStore } from "@/react-app/domains/session/sidebar/session-management-store";
 import { getSessionDescendantIds } from "@/react-app/domains/session/sidebar/utils";
 import {
-  buildOpenworkWorkspaceBaseUrl,
-  readOpenworkServerSettings,
-} from "@/app/lib/openwork-server";
+  buildHarnessWorkspaceBaseUrl,
+  readHarnessServerSettings,
+} from "@/app/lib/harness-server";
 import {
   resolveWorkspaceEndpoint,
   workspaceServerId,
   type ResolvedWorkspaceEndpoint,
 } from "@/app/lib/workspace-endpoint";
-import { buildOpenworkEnvRuntimeKey } from "@/app/lib/openwork-env-runtime";
+import { buildHarnessEnvRuntimeKey } from "@/app/lib/harness-env-runtime";
 import {
   getDesktopHomeDir,
   joinDesktopPath,
-  openworkServerInfo,
+  harnessServerInfo,
   revealDesktopItemInDir,
   pickDirectory,
   resolveWorkspaceListSelectedId,
@@ -51,7 +50,7 @@ import {
   workspaceForget,
   workspaceSetRuntimeActive,
   workspaceSetSelected,
-  type OpenworkServerInfo,
+  type HarnessServerInfo,
   type WorkspaceInfo,
   type WorkspaceList,
 } from "@/app/lib/desktop";
@@ -128,7 +127,7 @@ import { useRestrictionNotice } from "@/react-app/domains/cloud/restriction-noti
 import { ReactSessionRuntime } from "@/react-app/domains/session/sync/runtime-sync";
 import { createSessionChildIdsSelector, useSessionActivityStore } from "@/react-app/domains/session/status/session-activity-store";
 import { createWorkspaceSessionAttentionSelector, sessionAttentionLabel, sessionAttentionSidebarStatus } from "@/react-app/domains/session/status/session-attention";
-import { buildOpenworkSessionSystemContext } from "@/react-app/domains/session/sync/env-context";
+import { buildHarnessSessionSystemContext } from "@/react-app/domains/session/sync/env-context";
 import {
   applySessionRevert,
   applySessionUnrevert,
@@ -198,9 +197,9 @@ import { RenameWorkspaceModal } from "@/react-app/domains/workspace/rename-works
 import { useRemoteWorkspaceConnectionEditor } from "@/react-app/domains/workspace/use-remote-workspace-connection-editor";
 import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
 import {
-  hasOpenWorkModelsAvailable,
-  shouldShowOpenWorkModelsSyncing,
-} from "@/react-app/domains/cloud/openwork-models-promo";
+  hasHarnessModelsAvailable,
+  shouldShowHarnessModelsSyncing,
+} from "@/react-app/domains/cloud/harness-models-promo";
 import {
   diagnoseRemoteWorkspaceTaskLoadFailure,
   getRemoteWorkspaceConnectionKey,
@@ -218,7 +217,6 @@ import { useBootState } from "./boot-state";
 import {
   forgetWorkspaceMemory,
   readLastSessionFor,
-  readWorkspaceProjectDimension,
   readWorkspaceOrderIds,
   writeActiveWorkspaceId,
   writeLastSessionFor,
@@ -239,7 +237,7 @@ import {
   persistableComposerDraftText,
   useComposerStateStore,
 } from "@/react-app/domains/session/surface/composer-state-store";
-import { useControlAction, type OpenworkControlAction } from "./control/control-provider";
+import { useControlAction, type HarnessControlAction } from "./control/control-provider";
 import { useReactRenderWatchdog } from "./react-render-watchdog";
 import { useBootOverlayVisible } from "./boot-state";
 
@@ -252,8 +250,8 @@ import {
 import { denSessionUpdatedEvent, denSettingsChangedEvent } from "@/app/lib/den-session-events";
 
 import { filterProviderList } from "@/app/utils/providers";
-import { ensureDesktopLocalOpenworkConnection } from "./desktop-local-openwork";
-import { resolveOpenworkConnection } from "./openwork-connection";
+import { ensureDesktopLocalHarnessConnection } from "./desktop-local-harness";
+import { resolveHarnessConnection } from "./harness-connection";
 import { useReloadCoordinator } from "./reload-coordinator";
 import { useShellConfig } from "./shell-config";
 import { useShellShortcuts } from "./use-shell-shortcuts";
@@ -344,7 +342,7 @@ function describeTaskCreateError(error: unknown) {
     lower.includes("internal_error") ||
     lower.includes("unexpected server error")
   ) {
-    return "OpenCode is unavailable for this workspace. Retry once it restarts, or restart OpenWork if the problem continues.";
+    return "OpenCode is unavailable for this workspace. Retry once it restarts, or restart Harness if the problem continues.";
   }
   return message;
 }
@@ -366,7 +364,7 @@ function taskCreateUnavailableToastId(workspaceId: string) {
 
 function focusPromptSoon() {
   if (typeof window === "undefined") return;
-  const focus = () => window.dispatchEvent(new Event("openwork:focusPrompt"));
+  const focus = () => window.dispatchEvent(new Event("harness:focusPrompt"));
   [0, 80, 240, 600].forEach((delay) => window.setTimeout(focus, delay));
 }
 
@@ -481,12 +479,12 @@ export function SessionRoute() {
   const checkDesktopRestriction = useCheckDesktopRestriction();
   const restrictionNotice = useRestrictionNotice();
   const [activeOrganizationRole, setActiveOrganizationRole] = useState<DenOrgRole | null>(null);
-  const [openworkServerHostInfoState, setOpenworkServerHostInfoState] = useState<OpenworkServerInfo | null>(null);
-  const [openworkServerSettingsVersion, setOpenworkServerSettingsVersion] = useState(0);
+  const [harnessServerHostInfoState, setHarnessServerHostInfoState] = useState<HarnessServerInfo | null>(null);
+  const [harnessServerSettingsVersion, setHarnessServerSettingsVersion] = useState(0);
 
   const [developerMode, setDeveloperMode] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("openwork.developerMode") === "1";
+    return window.localStorage.getItem("harness.developerMode") === "1";
   });
   const {
     navigateToWorkspaceSession,
@@ -544,8 +542,8 @@ export function SessionRoute() {
     preservePendingConversationRoute: Boolean(requestedPendingId && pendingConversations[requestedPendingId]?.scope === sessionDraftScope),
     developerMode,
     workspaceRoute: appsRouteActive ? "apps" : automationsRouteActive ? "automations" : dashboardWorkspaceRoute ? "dashboard" : "session",
-    onServerSettingsChanged: () => setOpenworkServerSettingsVersion((value) => value + 1),
-    onHostInfo: setOpenworkServerHostInfoState,
+    onServerSettingsChanged: () => setHarnessServerSettingsVersion((value) => value + 1),
+    onHostInfo: setHarnessServerHostInfoState,
   });
   const routeNavigationRef = useRef({ locationKey: location.key, generation: 0 });
   if (routeNavigationRef.current.locationKey !== location.key) {
@@ -708,9 +706,9 @@ export function SessionRoute() {
   // options for whichever model is currently selected so the composer's
   // behavior pill actually shows its options (bug: was empty before).
 
-  const openworkServerSettings = useMemo(
-    () => readOpenworkServerSettings(),
-    [openworkServerSettingsVersion],
+  const harnessServerSettings = useMemo(
+    () => readHarnessServerSettings(),
+    [harnessServerSettingsVersion],
   );
 
   const activeReloadBlockingSessions = useMemo(
@@ -748,9 +746,9 @@ export function SessionRoute() {
     [selectedInteractionSessionIds, selectedWorkspaceId, sessionsByWorkspaceId],
   );
   const remoteAccessRestart = useRemoteAccessRestart({
-    isEnabled: () => openworkServerSettings.remoteAccessEnabled === true,
-    onHostInfo: setOpenworkServerHostInfoState,
-    onSettingsChanged: () => setOpenworkServerSettingsVersion((value) => value + 1),
+    isEnabled: () => harnessServerSettings.remoteAccessEnabled === true,
+    onHostInfo: setHarnessServerHostInfoState,
+    onSettingsChanged: () => setHarnessServerSettingsVersion((value) => value + 1),
   });
 
   useEffect(() => {
@@ -763,8 +761,8 @@ export function SessionRoute() {
       if (checking || document.visibilityState !== "visible") return;
       checking = true;
       try {
-        const info = await openworkServerInfo();
-        if (cancelled || !info.running || info.generation === openworkServerHostInfoState?.generation) return;
+        const info = await harnessServerInfo();
+        if (cancelled || !info.running || info.generation === harnessServerHostInfoState?.generation) return;
         await refreshRouteState({ supersede: true });
       } catch {
         // The next probe can recover a temporarily unavailable desktop bridge.
@@ -776,7 +774,7 @@ export function SessionRoute() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [openworkServerHostInfoState?.generation, refreshRouteState, selectedWorkspace?.workspaceType]);
+  }, [harnessServerHostInfoState?.generation, refreshRouteState, selectedWorkspace?.workspaceType]);
 
   const { engineReloadVersion, routeEngineInfo, reloadWorkspaceEngineFromUi } = useEngineReload({
     client,
@@ -790,12 +788,12 @@ export function SessionRoute() {
   });
 
   const environmentRuntimeKey = useMemo(
-    () => buildOpenworkEnvRuntimeKey({
+    () => buildHarnessEnvRuntimeKey({
       baseUrl: client?.baseUrl ?? null,
-      pid: openworkServerHostInfoState?.pid ?? null,
-      port: openworkServerHostInfoState?.port ?? null,
+      pid: harnessServerHostInfoState?.pid ?? null,
+      port: harnessServerHostInfoState?.port ?? null,
     }),
-    [client?.baseUrl, openworkServerHostInfoState?.pid, openworkServerHostInfoState?.port],
+    [client?.baseUrl, harnessServerHostInfoState?.pid, harnessServerHostInfoState?.port],
   );
 
   const handleApplyEnvironmentChanges = useCallback(async () => {
@@ -816,8 +814,8 @@ export function SessionRoute() {
 
   const shareWorkspaceState = useShareWorkspaceState({
     workspaces,
-    openworkServerHostInfo: openworkServerHostInfoState,
-    openworkServerSettings,
+    harnessServerHostInfo: harnessServerHostInfoState,
+    harnessServerSettings,
     engineInfo: routeEngineInfo,
     exportWorkspaceBusy: false,
     openLink: (url) => platform.openLink(url),
@@ -975,8 +973,8 @@ export function SessionRoute() {
     selectedWorkspaceEndpoint,
     selectedWorkspaceRoot,
     selectedWorkspaceId,
-    localServerHostToken: openworkServerHostInfoState?.hostToken?.trim() ?? "",
-    localServerGeneration: openworkServerHostInfoState?.generation ?? null,
+    localServerHostToken: harnessServerHostInfoState?.hostToken?.trim() ?? "",
+    localServerGeneration: harnessServerHostInfoState?.generation ?? null,
     setProviders,
     setProviderDefaults,
     setProviderConnectedIds,
@@ -1022,18 +1020,18 @@ export function SessionRoute() {
   const handleModelPickerOpen = useCallback(() => {
     void refreshCloudProviderSync("model_picker_open");
   }, [refreshCloudProviderSync]);
-  const openWorkModelsEntitled = useMemo(() => {
+  const harnessModelsEntitled = useMemo(() => {
     if (!denAuth.isSignedIn) return false;
     const fromOrg = sessionProviderAuthSnapshot.cloudOrgProviders.some(
       (provider) =>
         [provider.providerId, provider.source].some(
-          (value) => value?.trim().toLowerCase() === "openwork",
+          (value) => value?.trim().toLowerCase() === "harness",
         ),
     );
     const fromImport = Object.values(sessionProviderAuthSnapshot.importedCloudProviders ?? {}).some(
       (provider) =>
         [provider.providerId, provider.source, provider.sourceProviderId].some(
-          (value) => value?.trim().toLowerCase() === "openwork",
+          (value) => value?.trim().toLowerCase() === "harness",
         ),
     );
     return fromOrg || fromImport;
@@ -1126,13 +1124,13 @@ export function SessionRoute() {
     providerListQuery.data,
     restrictToCloudProviders,
   ]);
-  const openWorkModelsAvailable = hasOpenWorkModelsAvailable({
+  const harnessModelsAvailable = hasHarnessModelsAvailable({
     providerConnectedIds,
     providers,
   });
-  const openWorkModelsSyncing = shouldShowOpenWorkModelsSyncing({
-    entitled: openWorkModelsEntitled,
-    available: openWorkModelsAvailable,
+  const harnessModelsSyncing = shouldShowHarnessModelsSyncing({
+    entitled: harnessModelsEntitled,
+    available: harnessModelsAvailable,
     workspaceReady: Boolean(selectedWorkspaceId && opencodeClient),
     reloadPending: sessionProviderAuthSnapshot.cloudProviderServerSync?.reloadPending === true,
   });
@@ -1220,7 +1218,7 @@ export function SessionRoute() {
       loading,
       signedIn: denAuth.isSignedIn,
       cloudProviderSyncReady,
-      openWorkModelsSyncing,
+      harnessModelsSyncing,
       restrictToCloud: restrictToCloudProviders,
       checkRestriction: checkDesktopRestriction,
       cloudProviderList,
@@ -1235,7 +1233,7 @@ export function SessionRoute() {
     loading,
     modelAvailabilityGate,
     opencodeClient,
-    openWorkModelsSyncing,
+    harnessModelsSyncing,
     providerListQuery.data,
     restrictToCloudProviders,
     selectedWorkspaceId,
@@ -1361,7 +1359,7 @@ export function SessionRoute() {
     const applyProviderState = (value: ProviderListResponse) => {
       if (cancelled) return;
       // When not signed in, filter out every cloud-managed provider key so
-      // stale org imports and the hosted `openwork` catalog do not reappear.
+      // stale org imports and the hosted `harness` catalog do not reappear.
       const hasCloudAuth = !!readDenSettings().authToken?.trim();
       const all = hasCloudAuth
         ? ((value.all ?? []) as ProviderListItem[])
@@ -1382,7 +1380,7 @@ export function SessionRoute() {
       try {
         disabledProviders = await readManagedDisabledProviders({
           opencodeClient,
-          openworkClient: disabledProvidersEndpointClient,
+          harnessClient: disabledProvidersEndpointClient,
           workspaceId: disabledProvidersWorkspaceId,
           workspaceType: disabledProvidersWorkspaceType,
           directory: selectedWorkspaceRoot || undefined,
@@ -1490,7 +1488,7 @@ export function SessionRoute() {
     }
 
     // Note: do NOT include `client`, `workspaceId`, `sessionId`,
-    // `opencodeBaseUrl`, or `openworkToken` here. SessionPage forwards those
+    // `opencodeBaseUrl`, or `harnessToken` here. SessionPage forwards those
     // explicitly to SessionSurface from the per-workspace endpoint resolved
     // by `resolveWorkspaceEndpoint`. If we leak them in here, the spread of
     // `surfaceProps` in SessionPage overrides those correct values with the
@@ -1517,8 +1515,8 @@ export function SessionRoute() {
       resolveModelAvailability,
       organizationModelsEmpty,
       selectedModel: local.prefs.defaultModel ?? { providerID: "", modelID: "" },
-      openWorkModelsEntitled,
-      openWorkModelsSyncing,
+      harnessModelsEntitled,
+      harnessModelsSyncing,
       onRefreshOrganizationModels: refreshOrganizationModelAccess,
       onModelPickerOpenChange: (open: boolean) => {
         modelPicker.setCompactOpen(open);
@@ -1582,7 +1580,7 @@ export function SessionRoute() {
               const promptClient = draft.mode === "shell" || draft.command || isOpencodeV2BaseUrl(opencodeBaseUrl)
                 ? opencodeClient
                 : createClient(opencodeBaseUrl, selectedWorkspaceRoot || undefined,
-                  { token: selectedWorkspaceServerToken, mode: "openwork" }, { desktopTransport: "main" });
+                  { token: selectedWorkspaceServerToken, mode: "harness" }, { desktopTransport: "main" });
               if (unwrap(await promptClient.session.get({ sessionID: targetSessionId })).time.archived) {
                 throw new Error("This session is archived. Restore it before sending.");
               }
@@ -1601,39 +1599,7 @@ export function SessionRoute() {
                 },
                 prompt: async () => {
                   assertCurrent();
-                  captureAnalyticsEvent("task_message_sent", {
-                    mode: draft.mode ?? "prompt",
-                    is_command: Boolean(draft.command),
-                    attachment_count: draft.attachments.length,
-                    text_length: text.length,
-                    workspace_type: selectedWorkspace?.workspaceType ?? "unknown",
-                    provider_id: sendModel?.providerID ?? null,
-                    model_id: sendModel?.modelID ?? null,
-                  });
                   markTaskRunStart(targetSessionId);
-                  // Den org adoption signals (auth-gated inside; no-op when signed out).
-                  // This remains inside the post-readiness send closure so a blocked
-                  // Cloud submission cannot create a run or report that one started.
-                  const projectDimension = readWorkspaceProjectDimension(selectedWorkspaceId);
-                  const modelSelection = sessionModelSelection ? "manual" : "default";
-                  const telemetryDimensions = [
-                    ...(projectDimension ? [{
-                      type: "project",
-                      label: projectDimension.label,
-                    }] : []),
-                    ...(sendModel ? [{
-                      type: "model",
-                      value: `${sendModel.providerID}/${sendModel.modelID}`,
-                      label: `${sendModel.providerID}/${sendModel.modelID}`,
-                    }] : []),
-                    {
-                      type: "model_selection",
-                      value: modelSelection,
-                      label: modelSelection,
-                    },
-                  ];
-                  trackSessionActive(targetSessionId, telemetryDimensions);
-                  trackTaskStarted(targetSessionId, telemetryDimensions);
 
                   if (draft.mode === "shell") {
                     onPrepared?.();
@@ -1657,7 +1623,7 @@ export function SessionRoute() {
 
                   const parts = await draftToParts(draft, selectedWorkspaceRoot, targetSessionId, selectedWorkspaceEndpoint);
                   assertCurrent();
-                  const system = await buildOpenworkSessionSystemContext(client, {
+                  const system = await buildHarnessSessionSystemContext(client, {
                     workspaceId: selectedWorkspaceId,
                     cacheKey: targetSessionId,
                     runtimeKey: environmentRuntimeKey,
@@ -1824,8 +1790,8 @@ export function SessionRoute() {
     providerCatalog,
     gatewayProviderIds,
     sessionProviderAuthSnapshot.gatewayUsageProviderScope,
-    openWorkModelsEntitled,
-    openWorkModelsSyncing,
+    harnessModelsEntitled,
+    harnessModelsSyncing,
     refreshCloudProviderSync,
     refreshOrganizationModelAccess,
     resolveModelAvailability,
@@ -1872,7 +1838,7 @@ export function SessionRoute() {
         workspaceType: paneEndpoint.workspaceType,
         runtimeWorkspaceId: endpoint.workspaceId,
         opencodeBaseUrl: endpoint.opencodeBaseUrl,
-        openworkToken: endpoint.token,
+        harnessToken: endpoint.token,
         client: endpoint.client,
         environmentClient: client,
         surface: surfaceProps,
@@ -1893,7 +1859,7 @@ export function SessionRoute() {
     const workspaceOpencodeClient = createEngineClient(
       endpoint.opencodeBaseUrl,
       workspaceRoot || undefined,
-      { token: endpoint.token, mode: "openwork" },
+      { token: endpoint.token, mode: "harness" },
     );
     const scopedSurface = {
       ...surfaceProps,
@@ -1957,7 +1923,7 @@ export function SessionRoute() {
               const promptClient = draft.mode === "shell" || draft.command || isOpencodeV2BaseUrl(endpoint.opencodeBaseUrl)
                 ? workspaceOpencodeClient
                 : createClient(endpoint.opencodeBaseUrl, workspaceRoot || undefined,
-                  { token: endpoint.token, mode: "openwork" }, { desktopTransport: "main" });
+                  { token: endpoint.token, mode: "harness" }, { desktopTransport: "main" });
               if (unwrap(await promptClient.session.get({ sessionID: targetSessionId })).time.archived) {
                 throw new Error("This session is archived. Restore it before sending.");
               }
@@ -1976,29 +1942,7 @@ export function SessionRoute() {
                 },
                 prompt: async () => {
                   assertCurrent();
-                  captureAnalyticsEvent("task_message_sent", {
-                    mode: draft.mode ?? "prompt",
-                    is_command: Boolean(draft.command),
-                    attachment_count: draft.attachments.length,
-                    text_length: text.length,
-                    workspace_type: workspace.workspaceType ?? "unknown",
-                    provider_id: sendModel?.providerID ?? null,
-                    model_id: sendModel?.modelID ?? null,
-                  });
                   markTaskRunStart(targetSessionId);
-                  const projectDimension = readWorkspaceProjectDimension(workspace.id);
-                  const modelSelection = sessionModelSelection ? "manual" : "default";
-                  const telemetryDimensions = [
-                    ...(projectDimension ? [{ type: "project", label: projectDimension.label }] : []),
-                    ...(sendModel ? [{
-                      type: "model",
-                      value: `${sendModel.providerID}/${sendModel.modelID}`,
-                      label: `${sendModel.providerID}/${sendModel.modelID}`,
-                    }] : []),
-                    { type: "model_selection", value: modelSelection, label: modelSelection },
-                  ];
-                  trackSessionActive(targetSessionId, telemetryDimensions);
-                  trackTaskStarted(targetSessionId, telemetryDimensions);
                   if (draft.mode === "shell") {
                     onPrepared?.();
                     await shellInSession(workspaceOpencodeClient, targetSessionId, text, { messageID: draft.messageId });
@@ -2017,7 +1961,7 @@ export function SessionRoute() {
                   }
                   const parts = await draftToParts(draft, workspaceRoot, targetSessionId, endpoint);
                   assertCurrent();
-                  const system = await buildOpenworkSessionSystemContext(endpoint.client, {
+                  const system = await buildHarnessSessionSystemContext(endpoint.client, {
                     workspaceId: workspace.id,
                     cacheKey: targetSessionId,
                     runtimeKey: workspace.workspaceType === "remote" ? null : environmentRuntimeKey,
@@ -2114,7 +2058,7 @@ export function SessionRoute() {
       workspaceType: paneEndpoint.workspaceType,
       runtimeWorkspaceId: endpoint.workspaceId,
       opencodeBaseUrl: endpoint.opencodeBaseUrl,
-      openworkToken: endpoint.token,
+      harnessToken: endpoint.token,
       client: endpoint.client,
       environmentClient: client,
       surface: scopedSurface,
@@ -2235,8 +2179,8 @@ export function SessionRoute() {
         }));
         modelPicker.setCompactOpen(false);
       },
-      openWorkModelsEntitled,
-      openWorkModelsSyncing,
+      harnessModelsEntitled,
+      harnessModelsSyncing,
       modelVariantLabel,
       modelVariant: modelVariantValue,
       modelBehaviorOptions,
@@ -2283,8 +2227,8 @@ export function SessionRoute() {
     modelVariantLabel,
     modelVariantValue,
     opencodeClient,
-    openWorkModelsEntitled,
-    openWorkModelsSyncing,
+    harnessModelsEntitled,
+    harnessModelsSyncing,
     organizationAssignedModelOptions,
     organizationModelsEmpty,
     refreshCloudProviderSync,
@@ -2343,7 +2287,7 @@ export function SessionRoute() {
     setRenameWorkspaceBusy(true);
     try {
       if (!client) {
-        toast.error("OpenWork server is unavailable. Reconnect the server before renaming workspaces.");
+        toast.error("Harness server is unavailable. Reconnect the server before renaming workspaces.");
         return;
       }
       await client.updateWorkspaceDisplayName(renameWorkspaceId, trimmed);
@@ -2392,7 +2336,7 @@ export function SessionRoute() {
         downloadWorkspaceJson(workspaceExportFilename(workspace), payload);
         return;
       }
-      throw new Error("OpenWork server is unavailable. Reconnect the server before exporting workspace config.");
+      throw new Error("Harness server is unavailable. Reconnect the server before exporting workspace config.");
     },
     [endpointForWorkspace, workspaces],
   );
@@ -2487,10 +2431,6 @@ export function SessionRoute() {
       if (workspaceId === selectedWorkspaceId) {
         void refreshCloudProviderSync("new_chat");
       }
-      captureAnalyticsEvent("task_created", {
-        source,
-        workspace_type: workspace.workspaceType ?? "unknown",
-      });
       toast.dismiss(taskCreateUnavailableToastId(workspaceId));
       toast.dismiss();
       if (openAs === "primary") {
@@ -2645,7 +2585,7 @@ export function SessionRoute() {
     return options.find((option) => option.value === next)?.label ?? next;
   }, [local, modelBehaviorOptions, modelVariantValue, providerCatalog, selectedSessionId]);
 
-  const cycleThinkingModeControlAction = useMemo<OpenworkControlAction>(() => ({
+  const cycleThinkingModeControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.model_variant.cycle",
     label: "Cycle thinking mode",
     description: "Advance the focused conversation to its next available thinking or reasoning effort.",
@@ -2658,7 +2598,7 @@ export function SessionRoute() {
   useControlAction(cycleThinkingModeControlAction);
 
   const gatewayWorkbenchScope = useWorkbenchStore((state) => JSON.stringify([state.focusedPane, state.secondary?.workspaceId, state.secondary?.sessionId]));
-  const gatewayProviderScopeKey = JSON.stringify([selectedWorkspaceId, selectedWorkspaceRoot, opencodeBaseUrl, selectedWorkspaceEndpoint?.baseUrl, selectedWorkspaceEndpoint?.workspaceId, openworkServerHostInfoState?.generation, denSessionVersion]);
+  const gatewayProviderScopeKey = JSON.stringify([selectedWorkspaceId, selectedWorkspaceRoot, opencodeBaseUrl, selectedWorkspaceEndpoint?.baseUrl, selectedWorkspaceEndpoint?.workspaceId, harnessServerHostInfoState?.generation, denSessionVersion]);
   const favoriteModelScope = useRef({ workspaceId: selectedWorkspaceId, sessionId: selectedSessionId, providerScopeKey: gatewayProviderScopeKey });
   favoriteModelScope.current = { workspaceId: selectedWorkspaceId, sessionId: selectedSessionId, providerScopeKey: gatewayProviderScopeKey };
   const cycleFavoriteModel = useCallback(() => {
@@ -2685,7 +2625,7 @@ export function SessionRoute() {
     return option.gatewayAuthorization ? null : providerModel?.name ?? next.modelID;
   }, [local, modelPicker.options, modelVariantValue, providerCatalog, selectedSessionId]);
 
-  const cycleFavoriteModelControlAction = useMemo<OpenworkControlAction>(() => ({
+  const cycleFavoriteModelControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.favorite_model.cycle",
     label: "Cycle favorite model",
     description: "Switch the focused conversation to its next favorite model.",
@@ -2767,7 +2707,7 @@ export function SessionRoute() {
     return decision.fastOn ? "Fast on" : "Fast off";
   }, [local, modelBehaviorOptions, modelVariantValue, providerCatalog]);
 
-  const toggleFastModeControlAction = useMemo<OpenworkControlAction>(() => ({
+  const toggleFastModeControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.fast_mode.toggle",
     label: "Toggle Fast",
     description: "Turn Fast on or off for the focused conversation's model, keeping its reasoning level.",
@@ -2855,7 +2795,7 @@ export function SessionRoute() {
     selectedWorkspaceRoot,
     selectedSessionId,
     canCreateTask,
-    openworkClient: client,
+    harnessClient: client,
     opencodeClient,
     archiveDisabledReason,
     endpointForWorkspace,
@@ -2870,7 +2810,7 @@ export function SessionRoute() {
     archiveSession,
   });
 
-  const seedUnavailableModelControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedUnavailableModelControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.model_not_available.seed",
@@ -2939,7 +2879,7 @@ export function SessionRoute() {
   }, [checkDesktopRestriction, disabledProviderIds, local, modelPicker.setQuery, modelPicker.setRecentProviderIds, opencodeBaseUrl, opencodeClient, selectedSessionId, selectedWorkspaceId, selectedWorkspaceRoot]);
   useControlAction(seedUnavailableModelControlAction);
 
-  const seedActiveSessionSidebarControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedActiveSessionSidebarControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.session_sidebar.seed_active",
@@ -2958,7 +2898,7 @@ export function SessionRoute() {
   }, [selectedSessionId, selectedWorkspaceId]);
   useControlAction(seedActiveSessionSidebarControlAction);
 
-  const seedChildPermissionControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedChildPermissionControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
     return {
       id: "eval.child_permission.seed",
@@ -3026,7 +2966,7 @@ export function SessionRoute() {
   }, [rememberPendingCreatedSession, selectedSessionId, selectedWorkspaceEndpoint?.workspaceId, selectedWorkspaceId, sessionsByWorkspaceId, setSessionsByWorkspaceId]);
   useControlAction(seedChildPermissionControlAction);
 
-  const commandPaletteControlAction = useMemo<OpenworkControlAction>(() => ({
+  const commandPaletteControlAction = useMemo<HarnessControlAction>(() => ({
     id: "command_palette.open",
     label: "Open the command palette",
     description: "Open the in-app command palette so the next choice is visible.",
@@ -3036,7 +2976,7 @@ export function SessionRoute() {
   }), []);
   useControlAction(commandPaletteControlAction);
 
-  const addProviderControlAction = useMemo<OpenworkControlAction>(() => ({
+  const addProviderControlAction = useMemo<HarnessControlAction>(() => ({
     id: "settings.provider.add",
     label: "Add a model provider",
     description: "Open the provider connection modal, optionally pre-filtered to a specific provider.",
@@ -3261,7 +3201,7 @@ export function SessionRoute() {
       setCommandPaletteOpen(false);
       setDeveloperMode((current) => {
         const next = !current;
-        try { window.localStorage.setItem("openwork.developerMode", next ? "1" : "0"); } catch {}
+        try { window.localStorage.setItem("harness.developerMode", next ? "1" : "0"); } catch {}
         return next;
       });
     },
@@ -3272,9 +3212,9 @@ export function SessionRoute() {
     canReloadWorkspace: reloadCoordinator.canReloadWorkspaceEngine,
     clientConnected: canCreateTask,
     developerMode,
-    hostInfo: openworkServerHostInfoState,
-    openworkServerStatus: client ? "connected" : "disconnected",
-    openworkServerUrl: baseUrl,
+    hostInfo: harnessServerHostInfoState,
+    harnessServerStatus: client ? "connected" : "disconnected",
+    harnessServerUrl: baseUrl,
     runtimeWorkspaceId: selectedWorkspaceEndpoint?.workspaceId ?? null,
   }), [
     activeReloadBlockingSessions.length,
@@ -3282,7 +3222,7 @@ export function SessionRoute() {
     canCreateTask,
     client,
     developerMode,
-    openworkServerHostInfoState,
+    harnessServerHostInfoState,
     reloadCoordinator.canReloadWorkspaceEngine,
     selectedWorkspaceEndpoint?.workspaceId,
   ]);
@@ -3314,7 +3254,7 @@ export function SessionRoute() {
       try {
         const json = await buildCommandDiagnosticsBundle();
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        downloadTextAsFile(`openwork-diagnostics-${timestamp}.json`, json, "application/json");
+        downloadTextAsFile(`harness-diagnostics-${timestamp}.json`, json, "application/json");
         toast.success(t("session.diagnostics_exported"));
       } catch (error) {
         toast.error(t("session.diagnostics_failed"), { description: describeRouteError(error) });
@@ -3426,7 +3366,7 @@ export function SessionRoute() {
           .catch(() => null);
       }
       if (!list) {
-        throw new Error("OpenWork server is unavailable. Start or reconnect the server before creating a workspace.");
+        throw new Error("Harness server is unavailable. Start or reconnect the server before creating a workspace.");
       }
       const createdId = resolveWorkspaceListSelectedId(list) || list.workspaces[list.workspaces.length - 1]?.id || "";
       let targetWorkspaceId = createdId;
@@ -3435,21 +3375,21 @@ export function SessionRoute() {
         await workspaceSetSelected(createdId).catch(() => undefined);
         await workspaceSetRuntimeActive(createdId).catch(() => undefined);
       }
-      // First workspace on a fresh install: the OpenWork server was started
+      // First workspace on a fresh install: the Harness server was started
       // engine-less (it only spawns OpenCode at boot when a workspace already
       // exists), so sessions would hang forever. This boots the engine when
       // it isn't running, same as the old /welcome flow did.
       let sessionBaseUrl = baseUrl;
       let sessionToken = token;
       if (targetWorkspace && isDesktopRuntime()) {
-        await ensureDesktopLocalOpenworkConnection({
+        await ensureDesktopLocalHarnessConnection({
           route: "session",
           workspace: targetWorkspace,
           allWorkspaces: list.workspaces,
         }).catch(() => undefined);
         // The engine boot can restart the server with fresh tokens; re-resolve
         // so the first-session creation below doesn't use stale credentials.
-        const fresh = await resolveOpenworkConnection().catch(() => null);
+        const fresh = await resolveHarnessConnection().catch(() => null);
         if (fresh?.normalizedBaseUrl && fresh.resolvedToken) {
           sessionBaseUrl = fresh.normalizedBaseUrl;
           sessionToken = fresh.resolvedToken;
@@ -3462,7 +3402,6 @@ export function SessionRoute() {
       if (onPrepared) {
         const endpoint = targetWorkspace ? resolveWorkspaceEndpoint(targetWorkspace, { baseUrl: sessionBaseUrl, token: sessionToken }) : null;
         if (!targetWorkspaceId || !endpoint) throw new Error("Created workspace is unavailable. Reconnect and retry.");
-        captureAnalyticsEvent("workspace_created", { workspace_type: "local" });
         onPrepared({ workspaceId: targetWorkspaceId, title: workspaceName, path: targetWorkspace?.path?.trim() || folder, endpoint });
         return;
       }
@@ -3475,9 +3414,9 @@ export function SessionRoute() {
         // its supplied prompt; ordinary creation lands on the New task state.
         const session = createdOnServer && sessionBaseUrl && sessionToken && (firstTaskPrompt || firstTaskAttachments.length > 0)
           ? await createClient(
-              `${(buildOpenworkWorkspaceBaseUrl(sessionBaseUrl, targetWorkspaceId) ?? sessionBaseUrl).replace(/\/+$/, "")}/opencode`,
+              `${(buildHarnessWorkspaceBaseUrl(sessionBaseUrl, targetWorkspaceId) ?? sessionBaseUrl).replace(/\/+$/, "")}/opencode`,
               workspacePath || undefined,
-              { token: sessionToken, mode: "openwork" },
+              { token: sessionToken, mode: "harness" },
             ).session.create({ directory: workspacePath || undefined })
               .then((result) => unwrap(result))
           : null;
@@ -3488,10 +3427,8 @@ export function SessionRoute() {
             label: projectLabel,
           });
         }
-        captureAnalyticsEvent("workspace_created", { workspace_type: "local" });
         if (session?.id) {
           useSessionAgentStore.getState().setAgent(session.id, agent);
-          captureAnalyticsEvent("task_created", { source: "workspace_created", workspace_type: "local" });
           if (firstTaskPrompt || firstTaskAttachments.length) {
             // Attachment chips only survive in-memory (File objects), so the
             // persisted fallback draft drops their tokens.
@@ -3555,7 +3492,7 @@ export function SessionRoute() {
           throw new Error("Choose a workspace before retrying this message.");
         }
         const home = await getDesktopHomeDir().catch(() => "");
-        const folder = home ? await joinDesktopPath(home, "OpenWork Chat").catch(() => "") : "";
+        const folder = home ? await joinDesktopPath(home, "Harness Chat").catch(() => "") : "";
         if (!folder) throw new Error("Choose a workspace before retrying this message.");
         await handleCreateWorkspace("starter", folder, undefined, (workspace) => { prepared = workspace; });
       }
@@ -3569,7 +3506,7 @@ export function SessionRoute() {
     });
   }, [endpointForWorkspace, handleCreateWorkspace, handleOpenCreateWorkspace, navigate, newTaskAgent, publishCreatedConversation, sessionDraftScope, workspacesRef]);
 
-  const createWorkspaceControlAction = useMemo<OpenworkControlAction>(() => ({
+  const createWorkspaceControlAction = useMemo<HarnessControlAction>(() => ({
     id: "workspace.create",
     label: "Create a local workspace",
     description: "Create a workspace at the given folder path without showing the file picker dialog, optionally labeling its project for analytics.",
@@ -3594,7 +3531,7 @@ export function SessionRoute() {
   // Sessions created outside this window (server-side session.create, other
   // clients) never reach a non-selected workspace's cached list, so callers
   // that create them ask the sidebar to refetch that one workspace.
-  const reloadWorkspaceSessionsControlAction = useMemo<OpenworkControlAction>(() => ({
+  const reloadWorkspaceSessionsControlAction = useMemo<HarnessControlAction>(() => ({
     id: "workspace.reload_sessions",
     label: "Reload a workspace's sessions",
     description: "Refetch the session list of one workspace so sessions created outside this window appear in the sidebar.",
@@ -3617,21 +3554,21 @@ export function SessionRoute() {
   useControlAction(reloadWorkspaceSessionsControlAction);
 
   const handleCreateRemoteWorkspace = useCallback(async (input: {
-    openworkHostUrl?: string | null;
-    openworkToken?: string | null;
+    harnessHostUrl?: string | null;
+    harnessToken?: string | null;
     directory?: string | null;
     displayName?: string | null;
   }) => {
-    const baseUrlValue = input.openworkHostUrl?.trim() ?? "";
+    const baseUrlValue = input.harnessHostUrl?.trim() ?? "";
     if (!baseUrlValue) return false;
     setCreateWorkspaceRemoteBusy(true);
     setCreateWorkspaceRemoteError(null);
     try {
-      const remoteType: "openwork" = "openwork";
+      const remoteType: "harness" = "harness";
       const payload = {
         baseUrl: baseUrlValue,
-        openworkHostUrl: baseUrlValue,
-        openworkToken: input.openworkToken?.trim() || null,
+        harnessHostUrl: baseUrlValue,
+        harnessToken: input.harnessToken?.trim() || null,
         displayName: input.displayName?.trim() || null,
         directory: input.directory?.trim() || null,
         remoteType,
@@ -3643,7 +3580,7 @@ export function SessionRoute() {
         list = await client.createRemoteWorkspace(payload).catch(() => null);
       }
       if (!list) {
-        throw new Error("OpenWork server is unavailable. Start or reconnect the server before connecting a remote workspace.");
+        throw new Error("Harness server is unavailable. Start or reconnect the server before connecting a remote workspace.");
       }
       const createdId = resolveWorkspaceListSelectedId(list) || list.workspaces[list.workspaces.length - 1]?.id || "";
       if (createdId) {
@@ -3674,7 +3611,7 @@ export function SessionRoute() {
     <WorkspaceProvider
       client={opencodeClient}
       opencodeBaseUrl={opencodeBaseUrl}
-      openworkServerClient={selectedWorkspaceEndpoint?.client ?? null}
+      harnessServerClient={selectedWorkspaceEndpoint?.client ?? null}
       workspaceId={selectedWorkspaceEndpoint?.workspaceId ?? ""}
       selectedWorkspaceRoot={selectedWorkspaceRoot}
     >
@@ -3695,7 +3632,7 @@ export function SessionRoute() {
         sessionId={selectedSessionId}
         activeSessionIds={activeSelectedWorkspaceSessionIds}
         opencodeBaseUrl={opencodeBaseUrl}
-        openworkToken={selectedWorkspaceServerToken}
+        harnessToken={selectedWorkspaceServerToken}
         onSessionCreated={handleRuntimeSessionCreated}
         onSessionUpdated={handleRuntimeSessionUpdated}
         onSessionDeleted={handleRuntimeSessionDeleted}
@@ -3720,10 +3657,10 @@ export function SessionRoute() {
       opencodeBaseUrl={opencodeBaseUrl}
       workspaces={workspaces}
       clientConnected={canCreateTask}
-      openworkServerStatus={client ? "connected" : "disconnected"}
-      openworkServerClient={selectedWorkspaceEndpoint?.client ?? client}
+      harnessServerStatus={client ? "connected" : "disconnected"}
+      harnessServerClient={selectedWorkspaceEndpoint?.client ?? client}
       environmentClient={client}
-      openworkServerToken={selectedWorkspaceServerToken}
+      harnessServerToken={selectedWorkspaceServerToken}
       developerMode={developerMode}
       headerStatus={
         canCreateTask || (activeComposerTargetsSession && !selectedWorkspaceError && activeComposerAvailability.status === "available")
@@ -3785,7 +3722,7 @@ export function SessionRoute() {
           workspaceId={selectedWorkspaceId}
           onClose={() => {
             try {
-              window.dispatchEvent(new CustomEvent("openwork-close-right-pane"));
+              window.dispatchEvent(new CustomEvent("harness-close-right-pane"));
             } catch {
               // ignore
             }
@@ -3797,7 +3734,7 @@ export function SessionRoute() {
         <WorkspaceProvider
           client={opencodeClient}
           opencodeBaseUrl={opencodeBaseUrl}
-          openworkServerClient={dashboardEndpoint?.client ?? null}
+          harnessServerClient={dashboardEndpoint?.client ?? null}
           workspaceId={dashboardEndpoint?.workspaceId ?? ""}
           selectedWorkspaceRoot={selectedWorkspaceRoot}
         >
@@ -3809,7 +3746,7 @@ export function SessionRoute() {
         <WorkspaceProvider
           client={opencodeClient}
           opencodeBaseUrl={opencodeBaseUrl}
-          openworkServerClient={dashboardEndpoint?.client ?? null}
+          harnessServerClient={dashboardEndpoint?.client ?? null}
           workspaceId={dashboardEndpoint?.workspaceId ?? ""}
           selectedWorkspaceRoot={selectedWorkspaceRoot}
         >
@@ -3949,7 +3886,7 @@ export function SessionRoute() {
               remoteAccess:
                 isDesktopRuntime() && shareWorkspaceState.shareWorkspace?.workspaceType === "local"
                   ? {
-                      enabled: openworkServerSettings.remoteAccessEnabled === true,
+                      enabled: harnessServerSettings.remoteAccessEnabled === true,
                       busy: remoteAccessRestart.busy,
                       error: remoteAccessRestart.error,
                       status: remoteAccessRestart.status,
@@ -4012,7 +3949,7 @@ export function SessionRoute() {
         // model surfaces in the composer where the person can act on it.
         reloadBusy: reloadCoordinator.reloadBusy,
         reloadError: reloadCoordinator.reloadError,
-        openWorkConnectState: sessionMcpMaintenance,
+        harnessConnectState: sessionMcpMaintenance,
       }}
       notFoundMessage={gatedRouteNotFoundMessage}
       mainContentTakeover={
@@ -4119,14 +4056,14 @@ export function SessionRoute() {
       accessibleTargets={paletteAccessibleTargets}
       onOpenAccessibleTarget={(target) => {
         try {
-          window.dispatchEvent(new CustomEvent("openwork-open-accessible-target", { detail: target }));
+          window.dispatchEvent(new CustomEvent("harness-open-accessible-target", { detail: target }));
         } catch {
           // ignore event dispatch failures
         }
       }}
       onHideAccessibleTarget={(target) => {
         try {
-          window.dispatchEvent(new CustomEvent("openwork-hide-accessible-target", { detail: target }));
+          window.dispatchEvent(new CustomEvent("harness-hide-accessible-target", { detail: target }));
         } catch {
           // ignore event dispatch failures
         }
@@ -4198,7 +4135,7 @@ export function SessionRoute() {
         try {
           const current = await readManagedDisabledProviders({
             opencodeClient,
-            openworkClient: disabledProvidersEndpointClient,
+            harnessClient: disabledProvidersEndpointClient,
             workspaceId: disabledProvidersWorkspaceId,
             workspaceType: disabledProvidersWorkspaceType,
           });
@@ -4207,7 +4144,7 @@ export function SessionRoute() {
             : [...current, providerId];
           const result = await updateManagedDisabledProviders({
             opencodeClient,
-            openworkClient: disabledProvidersEndpointClient,
+            harnessClient: disabledProvidersEndpointClient,
             workspaceId: disabledProvidersWorkspaceId,
             workspaceType: disabledProvidersWorkspaceType,
             disabledProviders: next,
@@ -4227,8 +4164,8 @@ export function SessionRoute() {
         handleOpenSettings("/settings/general");
       }}
       onClose={() => { modelPicker.setOpen(false); modelPicker.setRecentProviderIds(new Set()); setModelPickerSessionId(null); }}
-      openWorkModelsEntitled={openWorkModelsEntitled}
-      openWorkModelsSyncing={openWorkModelsSyncing}
+      harnessModelsEntitled={harnessModelsEntitled}
+      harnessModelsSyncing={harnessModelsSyncing}
       onRefreshOrganizationModels={refreshOrganizationModelAccess}
       restrictToCloud={restrictToCloudProviders}
     />

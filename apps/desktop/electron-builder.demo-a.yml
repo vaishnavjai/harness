@@ -1,6 +1,6 @@
 extends: electron-builder.yml
-appId: com.differentai.openwork.demo.admin
-productName: OpenWork Demo A
+appId: com.vaishnavjai.harness.demo.admin
+productName: Harness Demo A
 protocols: []
 directories:
   output: dist-electron-demo-a

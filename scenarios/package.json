@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/scenarios",
+  "name": "@harness/scenarios",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,11 +7,11 @@
     "onboarding:render": "node onboarding/render.mjs"
   },
   "dependencies": {
-    "@openwork/behaviors": "workspace:*",
-    "@openwork/cdp": "workspace:*",
-    "@openwork/env": "workspace:*",
-    "@openwork/testkit": "workspace:*",
-    "@openwork/presentation": "link:../packages/presentation",
+    "@harness/behaviors": "workspace:*",
+    "@harness/cdp": "workspace:*",
+    "@harness/env": "workspace:*",
+    "@harness/testkit": "workspace:*",
+    "@harness/presentation": "link:../packages/presentation",
     "@remotion/bundler": "4.0.520",
     "@remotion/renderer": "4.0.520",
     "remotion": "4.0.520",

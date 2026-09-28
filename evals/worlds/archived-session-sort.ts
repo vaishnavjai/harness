@@ -1,7 +1,7 @@
-import { addInitScript, browserScript, navigate } from "@openwork/cdp";
-import { waitUntilInteractive } from "@openwork/behaviors";
-import { resolveEvalEngine, SkipError, type Seed } from "@openwork/env";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
+import { addInitScript, browserScript, navigate } from "@harness/cdp";
+import { waitUntilInteractive } from "@harness/behaviors";
+import { resolveEvalEngine, SkipError, type Seed } from "@harness/env";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { fileURLToPath } from "node:url";
 import { mkdir, realpath } from "node:fs/promises";
 
@@ -19,12 +19,12 @@ export async function archivedSessionSort(seed: Seed) {
   // second workspace with this test-owned runtime's host API, not a browser grant.
   const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), app.handle.name);
   const runtime = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
-  if (!runtime || runtime.openworkUrl !== app.openworkUrl || runtime.workspace !== workspacePath) {
+  if (!runtime || runtime.harnessUrl !== app.harnessUrl || runtime.workspace !== workspacePath) {
     throw new Error("Archive fixture could not identify its owned headless runtime");
   }
-  const response = await fetch(`${runtime.openworkUrl}/workspaces/local`, {
+  const response = await fetch(`${runtime.harnessUrl}/workspaces/local`, {
     method: "POST",
-    headers: { "X-OpenWork-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
+    headers: { "X-Harness-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
     body: JSON.stringify({ folderPath: `${workspacePath}/second`, name: "Second archive workspace", preset: "starter" }),
     signal: AbortSignal.timeout(30_000),
   });
@@ -34,7 +34,7 @@ export async function archivedSessionSort(seed: Seed) {
     throw new Error("Archive fixture workspace creation returned no ID");
   }
   await seed.evalIn(app, browserScript((workspaceId) => {
-    localStorage.setItem("openwork.react.activeWorkspace", workspaceId);
+    localStorage.setItem("harness.react.activeWorkspace", workspaceId);
   }, [created.activeId]));
   await navigate(app.client, `${app.webUrl}/workspace/${created.activeId}/session`);
   await waitUntilInteractive(app);
@@ -46,10 +46,10 @@ export async function archivedSessionSort(seed: Seed) {
   // Arrange and inspect native engine metadata through the real HTTP boundary.
   // The web surface keeps its loopback credentials in its isolated browser profile.
   const metadata = (target: typeof newest, archived?: number) => seed.evalIn(app, browserScript(async (workspaceId, sessionId, archived) => {
-    const base = "http://127.0.0.1:" + localStorage.getItem("openwork.server.port");
+    const base = "http://127.0.0.1:" + localStorage.getItem("harness.server.port");
     const response = await fetch(`${base}/workspace/${encodeURIComponent(workspaceId)}/opencode/session/${encodeURIComponent(sessionId)}`, {
       method: archived === null ? "GET" : "PATCH",
-      headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token"), "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token"), "Content-Type": "application/json" },
       ...(archived === null ? {} : { body: JSON.stringify({ time: { archived } }) }),
       signal: AbortSignal.timeout(15_000),
     });
@@ -94,7 +94,7 @@ export async function archivedSessionSort(seed: Seed) {
     route: () => seed.evalIn(app, () => location.pathname),
     // Persist the same preference as workspace dragging, then let a real reload consume it.
     workspaceOrder: (ids: string[]) => seed.evalIn(app, browserScript((ids) => {
-      localStorage.setItem("openwork.react.workspaceOrder", JSON.stringify(ids));
+      localStorage.setItem("harness.react.workspaceOrder", JSON.stringify(ids));
     }, [ids])),
     [Symbol.asyncDispose]: () => reversedList[Symbol.asyncDispose](),
   };

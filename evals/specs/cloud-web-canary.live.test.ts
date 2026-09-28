@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { attachedCanary, cliManaged, requirements, workerRows } from "../worlds/fixtures/cloud-web-canary/world.ts";
 
 // Operator-only attached journey. No VM, account, provider or gateway setup here.
@@ -18,9 +18,9 @@ test(cliManaged
       rejectedReadResults: 0, protocolErrors: 0, streamedReplies: 0, upstreamCalls: 0 });
     if (cliManaged) expect(await world.providerCalls()).toBe(0);
     await user.navigate(world.gatewayUrl);
-    await user.see({ role: "button", text: "Sign in to OpenWork" });
-    expect(await probe.storage("openwork.den.authToken")).toBeNull();
-    await user.click({ role: "button", text: "Sign in to OpenWork" });
+    await user.see({ role: "button", text: "Sign in to Harness" });
+    expect(await probe.storage("harness.den.authToken")).toBeNull();
+    await user.click({ role: "button", text: "Sign in to Harness" });
     // Leave no second gateway tab running heartbeats during the idle-stop frame.
     await user.navigate("about:blank");
     await world.followLoginPopup();
@@ -41,17 +41,17 @@ test(cliManaged
     // Ready workspaces intentionally hide the transient status pill.
     await user.notSee({ testId: "cloud-workspace-pill" });
     await user.notSee({ testId: "cloud-workspace-takeover" });
-    expect(await probe.storage("openwork.den.activeOrgId") === world.orgId).toBe(true);
+    expect(await probe.storage("harness.den.activeOrgId") === world.orgId).toBe(true);
     await user.screenshot();
   });
 
   // Reuse only the session established by the UI. /v1/workers reads stored state;
   // /cloud/instance and /gateway/resolve MUST NOT be polled here: they can wake it.
-  const token = await probe.storage("openwork.den.authToken");
+  const token = await probe.storage("harness.den.authToken");
   if (typeof token !== "string" || !token) throw new Error("Web handoff did not establish a session");
   const session = { ...world.den.ref, token, email: world.email, password: world.password };
   const workers = async () => {
-    const result = await probe.api(session, "/v1/workers?limit=50", { headers: { "x-openwork-org-id": world.orgId }, redirect: "error", signal: AbortSignal.timeout(10_000) });
+    const result = await probe.api(session, "/v1/workers?limit=50", { headers: { "x-harness-org-id": world.orgId }, redirect: "error", signal: AbortSignal.timeout(10_000) });
     if (result.response.status !== 200) throw new Error(`Worker list returned HTTP ${result.response.status}`);
     return workerRows(result.body);
   };

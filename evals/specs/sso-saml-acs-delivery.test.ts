@@ -1,7 +1,7 @@
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import type { DenRef, DenSession } from "@openwork/behaviors";
-import { server, test } from "@openwork/testkit";
+import { denFetch } from "@harness/behaviors";
+import type { DenRef, DenSession } from "@harness/behaviors";
+import { server, test } from "@harness/testkit";
 
 const title = "a Google-style SAML response posted to the SP-advertised ACS URL is not rejected as invalid_destination";
 
@@ -60,7 +60,7 @@ async function postToAcs(den: DenRef, acsPath: string, samlResponse: string) {
   return denFetch(den, acsPath, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ SAMLResponse: samlResponse, RelayState: "openwork-eval" }).toString(),
+    body: new URLSearchParams({ SAMLResponse: samlResponse, RelayState: "harness-eval" }).toString(),
   });
 }
 
@@ -79,7 +79,7 @@ test(title, { timeout: 300_000 }, async ({ evidence, place }) => {
   const ownerCookie = ownerSignIn.response.headers.get("set-cookie")?.split(";")[0]?.trim() ?? "";
   expect(ownerCookie).toBeTruthy();
 
-  const orgHeaders = { ...auth(owner), cookie: ownerCookie, "x-openwork-org-id": orgId };
+  const orgHeaders = { ...auth(owner), cookie: ownerCookie, "x-harness-org-id": orgId };
   const audience = den.ref.apiUrl;
   const registration = await denFetch(den.ref, "/v1/sso/saml", {
     method: "POST",

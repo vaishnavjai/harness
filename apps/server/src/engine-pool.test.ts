@@ -20,14 +20,14 @@ import { proxyOpencodeRequest, startServer } from "./server.js";
 import type { ServerConfig, WorkspaceInfo } from "./types.js";
 
 const ENV_NAMES = [
-  "OPENWORK_RUNTIME_DB",
-  "OPENWORK_ENGINE_DRAIN_POLL_MS",
-  "OPENWORK_ENGINE_DRAIN_TIMEOUT_MS",
-  "OPENWORK_ENGINE_ABORT_SETTLE_MS",
-  "OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS",
-  "OPENWORK_ENGINE_STANDBY_PREPARE_TIMEOUT_MS",
-  "OPENWORK_POOL_LOG",
-  "OPENWORK_POOL_STATE",
+  "HARNESS_RUNTIME_DB",
+  "HARNESS_ENGINE_DRAIN_POLL_MS",
+  "HARNESS_ENGINE_DRAIN_TIMEOUT_MS",
+  "HARNESS_ENGINE_ABORT_SETTLE_MS",
+  "HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS",
+  "HARNESS_ENGINE_STANDBY_PREPARE_TIMEOUT_MS",
+  "HARNESS_POOL_LOG",
+  "HARNESS_POOL_STATE",
 ];
 
 const cleanups: Array<() => void | Promise<void>> = [];
@@ -65,8 +65,8 @@ async function writeFakeEngineBin(root: string): Promise<string> {
     "import { appendFileSync, readFileSync } from 'node:fs';",
     "const portIndex = process.argv.indexOf('--port');",
     "const requestedPort = Number(process.argv[portIndex + 1] ?? 0);",
-    "const logPath = process.env.OPENWORK_POOL_LOG;",
-    "const statePath = process.env.OPENWORK_POOL_STATE;",
+    "const logPath = process.env.HARNESS_POOL_LOG;",
+    "const statePath = process.env.HARNESS_POOL_STATE;",
     "const append = (line) => { if (logPath) appendFileSync(logPath, `${line}\\n`); };",
     "const busySessions = (port, directory) => {",
     "  try {",
@@ -199,7 +199,7 @@ type Fixture = {
 };
 
 async function createFixture(options?: { bin?: "ready" | "unready" }): Promise<Fixture> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-engine-pool-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-engine-pool-"));
   cleanups.push(() => rm(root, { recursive: true, force: true }));
 
   const logPath = join(root, "engine.log");
@@ -209,13 +209,13 @@ async function createFixture(options?: { bin?: "ready" | "unready" }): Promise<F
   await writeFile(runtimeConfigPath, JSON.stringify({ generation: 1 }));
 
   for (const name of ENV_NAMES) if (!savedEnv.has(name)) savedEnv.set(name, process.env[name]);
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
-  process.env.OPENWORK_POOL_LOG = logPath;
-  process.env.OPENWORK_POOL_STATE = statePath;
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_POOL_LOG = logPath;
+  process.env.HARNESS_POOL_STATE = statePath;
   // Fast drain polling and no spawn throttle so the tests exercise the loop
   // rather than the clock.
-  process.env.OPENWORK_ENGINE_DRAIN_POLL_MS = "100";
-  process.env.OPENWORK_ENGINE_MIN_SPAWN_INTERVAL_MS = "0";
+  process.env.HARNESS_ENGINE_DRAIN_POLL_MS = "100";
+  process.env.HARNESS_ENGINE_MIN_SPAWN_INTERVAL_MS = "0";
 
   const bin = options?.bin === "unready"
     ? await writeUnreadyEngineBin(root)
@@ -251,8 +251,8 @@ async function createFixture(options?: { bin?: "ready" | "unready" }): Promise<F
     cwd: root,
     runtimeConfigPath,
     env: {
-      OPENWORK_POOL_LOG: logPath,
-      OPENWORK_POOL_STATE: statePath,
+      HARNESS_POOL_LOG: logPath,
+      HARNESS_POOL_STATE: statePath,
       OPENCODE_CONFIG: runtimeConfigPath,
     },
     reservedPorts: () => [],
@@ -748,7 +748,7 @@ describe("engine pool", () => {
   });
 
   test("a hung standby seed is bounded and leaves the live engine serving", async () => {
-    setEnv("OPENWORK_ENGINE_STANDBY_PREPARE_TIMEOUT_MS", "300");
+    setEnv("HARNESS_ENGINE_STANDBY_PREPARE_TIMEOUT_MS", "300");
     const fixture = await createFixture();
     let seeds = 0;
     fixture.hooks.prepareStandby = () => {
@@ -980,10 +980,10 @@ describe("engine pool", () => {
     const fixture = await createFixture();
     await createPool(fixture);
     const originalFetch = globalThis.fetch;
-    const originalTelemetry = globalThis.__openworkDesktopTelemetry;
+    const originalTelemetry = globalThis.__harnessUnhandledErrorObserver;
     const captured: unknown[] = [];
     const server = await startServer(fixture.config);
-    globalThis.__openworkDesktopTelemetry = {
+    globalThis.__harnessUnhandledErrorObserver = {
       captureException(error) {
         captured.push(error);
         return true;
@@ -1005,7 +1005,7 @@ describe("engine pool", () => {
       expect(captured).toEqual([]);
     } finally {
       globalThis.fetch = originalFetch;
-      globalThis.__openworkDesktopTelemetry = originalTelemetry;
+      globalThis.__harnessUnhandledErrorObserver = originalTelemetry;
       await server.stop();
     }
   });
@@ -1051,8 +1051,8 @@ describe("engine pool", () => {
   });
 
   test("aborts the remaining sessions once the drain inactivity grace period expires", async () => {
-    setEnv("OPENWORK_ENGINE_DRAIN_TIMEOUT_MS", "300");
-    setEnv("OPENWORK_ENGINE_ABORT_SETTLE_MS", "100");
+    setEnv("HARNESS_ENGINE_DRAIN_TIMEOUT_MS", "300");
+    setEnv("HARNESS_ENGINE_ABORT_SETTLE_MS", "100");
     const fixture = await createFixture();
     const { pool, primary } = await createPool(fixture);
     const oldPort = portOf(primary.url);
@@ -1073,8 +1073,8 @@ describe("engine pool", () => {
   });
 
   test("uses one global activity stream across many workspaces and never aborts an active session", async () => {
-    setEnv("OPENWORK_ENGINE_DRAIN_TIMEOUT_MS", "300");
-    setEnv("OPENWORK_ENGINE_ABORT_SETTLE_MS", "100");
+    setEnv("HARNESS_ENGINE_DRAIN_TIMEOUT_MS", "300");
+    setEnv("HARNESS_ENGINE_ABORT_SETTLE_MS", "100");
     const fixture = await createFixture();
     for (let index = 1; index < 32; index += 1) {
       fixture.config.workspaces.push({
@@ -1206,7 +1206,7 @@ describe("engine event stream bounds", () => {
   };
 
   test("a sibling that never returns headers does not stall the client event stream", async () => {
-    setEnv("OPENWORK_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS", "300");
+    setEnv("HARNESS_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS", "300");
     const fixture = await createFixture();
     const { pool, primary } = await createPool(fixture);
     const oldPort = portOf(primary.url);
@@ -1228,7 +1228,7 @@ describe("engine event stream bounds", () => {
   });
 
   test("a quiet live event stream stays open past the establishment deadline", async () => {
-    setEnv("OPENWORK_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS", "300");
+    setEnv("HARNESS_ENGINE_EVENT_ESTABLISH_TIMEOUT_MS", "300");
     const fixture = await createFixture();
     await createPool(fixture);
 
@@ -1264,7 +1264,7 @@ describe("engine event stream bounds", () => {
   });
 
   test("the drain activity watch drops a runaway frame stream and reconnects", async () => {
-    setEnv("OPENWORK_ENGINE_DRAIN_ACTIVITY_RECONNECT_MS", "100");
+    setEnv("HARNESS_ENGINE_DRAIN_ACTIVITY_RECONNECT_MS", "100");
     const fixture = await createFixture();
     const { pool, primary } = await createPool(fixture);
     const oldPort = portOf(primary.url);

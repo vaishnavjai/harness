@@ -7,9 +7,9 @@ export async function seedSyntheticPreactivatedDen(fixtureRoot: string, origin?:
   if (url.protocol !== "https:" || url.origin !== origin) {
     throw new Error("Preactivated synthetic Den requires an exact HTTPS origin");
   }
-  const path = join(fixtureRoot, "config", "openwork", "desktop-bootstrap.json");
+  const path = join(fixtureRoot, "config", "harness", "desktop-bootstrap.json");
   await writeFile(path, JSON.stringify({
     enterpriseActivation: { activatedAt: new Date().toISOString(), denBaseUrl: origin },
   }), { mode: 0o600, flag: "wx" });
-  return { OPENWORK_DESKTOP_BOOTSTRAP_PATH: path };
+  return { HARNESS_DESKTOP_BOOTSTRAP_PATH: path };
 }

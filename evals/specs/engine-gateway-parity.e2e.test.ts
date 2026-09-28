@@ -1,10 +1,10 @@
 import { expect } from "vitest";
-import { resolveEvalEngine, spec } from "@openwork/testkit";
+import { resolveEvalEngine, spec } from "@harness/testkit";
 import { engineGatewayParity, parityRecord } from "../worlds/engine-gateway-parity.ts";
 
 const test = spec.world(engineGatewayParity, {
   timeout: 600_000, resources: { surfaces: ["appWeb"], services: ["den", "mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 test(`PARITY-GATEWAY ${resolveEvalEngine()}: use an assigned model, then see and use newly published models`, async ({ world, user, probe, step, evidence }) => {

@@ -28,7 +28,7 @@ import {
   gatewayConnectCopy,
   gatewayConnectProviderKey,
   type GatewayConnectProvider,
-  OPENWORK_GATEWAY_BADGE_LABEL,
+  HARNESS_GATEWAY_BADGE_LABEL,
 } from "@/react-app/domains/connections/provider-auth/cloud-provider-config";
 import { modelEquals, resolveProviderDisplayName } from "../../../../app/utils";
 import type { ModelOption, ModelRef } from "../../../../app/types";
@@ -37,9 +37,9 @@ import { ProviderIcon } from "../../../design-system/provider-icon";
 import { useDenAuth } from "../../cloud/den-auth-provider";
 import { usePlatform } from "../../../kernel/platform";
 import {
-  OPENWORK_MODELS_PROVIDER_ID,
-  OPENWORK_MODELS_PROVIDER_NAME,
-} from "../../cloud/openwork-models-promo";
+  HARNESS_MODELS_PROVIDER_ID,
+  HARNESS_MODELS_PROVIDER_NAME,
+} from "../../cloud/harness-models-promo";
 
 export const MODEL_PICKER_DEFAULT_SUBTITLE = "Select a model for this session.";
 export const MODEL_PICKER_UNAVAILABLE_SUBTITLE = "The model you were using is no longer available, please select a different model for this session.";
@@ -66,12 +66,12 @@ export type ModelPickerModalProps = {
   onOpenSettings: () => void;
   onClose: (options?: { restorePromptFocus?: boolean }) => void;
   /** Den entitlement present. Picker no longer upsells here; callers still pass it. */
-  openWorkModelsEntitled?: boolean;
-  /** The server is waiting to reload this workspace with OpenWork Models. */
-  openWorkModelsSyncing?: boolean;
+  harnessModelsEntitled?: boolean;
+  /** The server is waiting to reload this workspace with Harness Models. */
+  harnessModelsSyncing?: boolean;
   onRefreshOrganizationModels?: () => void | Promise<void>;
   restrictToCloud?: boolean;
-  /** Runtime provider ids routed through the OpenWork inference gateway (sync status source "openwork_gateway"). */
+  /** Runtime provider ids routed through the Harness inference gateway (sync status source "harness_gateway"). */
   gatewayProviderIds?: ReadonlySet<string>;
   /** Gateway providers waiting on this member's sign-in; shown as a compact "Connect" hint. */
   gatewayConnectProviders?: GatewayConnectProvider[];
@@ -108,7 +108,7 @@ export function resolveProviderGroupBadges(
   if (group.isNew) badges.push({ label: "New", className: "bg-blue-3 text-blue-11" });
   if (group.isCloud) badges.push({ label: organizationProviderLabel, className: "bg-blue-3/50 text-blue-11/70" });
   if (group.isGateway) {
-    badges.push({ label: OPENWORK_GATEWAY_BADGE_LABEL, className: "border-dls-border text-dls-secondary" });
+    badges.push({ label: HARNESS_GATEWAY_BADGE_LABEL, className: "border-dls-border text-dls-secondary" });
   }
   if (group.hasCurrent) badges.push({ label: "Current", className: "bg-green-3 text-green-11" });
   return badges;
@@ -238,7 +238,7 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
     }
   }, [props.query, providerGroups]);
 
-  // Expand current, organization-provided, and OpenWork groups once they appear
+  // Expand current, organization-provided, and Harness groups once they appear
   // (options often load async).
   const autoExpandedRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -255,8 +255,8 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
     for (const group of providerGroups) {
       if (group.isCloud) queueExpand(group.id);
     }
-    const openwork = providerGroups.find((group) => group.id === OPENWORK_MODELS_PROVIDER_ID);
-    if (openwork) queueExpand(openwork.id);
+    const harness = providerGroups.find((group) => group.id === HARNESS_MODELS_PROVIDER_ID);
+    if (harness) queueExpand(harness.id);
     if (toExpand.length === 0) return;
     for (const id of toExpand) autoExpandedRef.current.add(id);
     setExpandedProviders((prev) => {
@@ -339,13 +339,13 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
             />
           </div>
 
-          {props.openWorkModelsSyncing ? (
+          {props.harnessModelsSyncing ? (
             <div className="mb-3 flex shrink-0 items-center overflow-hidden rounded-2xl border border-dls-border bg-dls-hover">
               <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5">
-                <ProviderIcon providerId={OPENWORK_MODELS_PROVIDER_ID} providerName={OPENWORK_MODELS_PROVIDER_NAME} size={18} className="shrink-0 text-amber-11" />
+                <ProviderIcon providerId={HARNESS_MODELS_PROVIDER_ID} providerName={HARNESS_MODELS_PROVIDER_NAME} size={18} className="shrink-0 text-amber-11" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5 text-[13px] font-medium text-dls-text">
-                    <span>{OPENWORK_MODELS_PROVIDER_NAME}</span>
+                    <span>{HARNESS_MODELS_PROVIDER_NAME}</span>
                   </div>
                   <div className="truncate text-[11px] text-dls-secondary">
                     Included on your plan — pending workspace reload.
@@ -365,8 +365,8 @@ export function ModelPickerModal(props: ModelPickerModalProps) {
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 flex-col items-start gap-1 text-[13px] font-medium text-dls-text">
                   <span className="max-w-full truncate" title={provider.name}>{provider.name}</span>
-                  <Badge variant="outline" title={OPENWORK_GATEWAY_BADGE_LABEL} className="h-auto min-w-0 max-w-full rounded-md px-1.5 py-0.5 text-[10px] text-dls-secondary">
-                    <span className="truncate">{OPENWORK_GATEWAY_BADGE_LABEL}</span>
+                  <Badge variant="outline" title={HARNESS_GATEWAY_BADGE_LABEL} className="h-auto min-w-0 max-w-full rounded-md px-1.5 py-0.5 text-[10px] text-dls-secondary">
+                    <span className="truncate">{HARNESS_GATEWAY_BADGE_LABEL}</span>
                   </Badge>
                 </div>
                 <div className="truncate text-[11px] text-dls-secondary" title={gatewayConnectCopy(provider.name)}>{gatewayConnectCopy(provider.name)}</div>

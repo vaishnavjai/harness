@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 import { reviewWorld } from "../worlds/evidence-review.ts";
 
 // Change-specific proof for the PR proof pipeline: it drives the production

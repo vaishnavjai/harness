@@ -13,7 +13,7 @@ async function writeSkill(dir: string, name: string) {
 }
 
 beforeEach(async () => {
-  workspace = await mkdtemp(join(tmpdir(), "openwork-skills-"));
+  workspace = await mkdtemp(join(tmpdir(), "harness-skills-"));
   await mkdir(join(workspace, ".git"), { recursive: true });
 });
 
@@ -77,7 +77,7 @@ describe("listSkills", () => {
       expect(invalid ? renderSkillContentForResponse(invalid, invalidContent) : "").toContain("ERROR: This skill has invalid YAML frontmatter");
       expect(invalid ? renderSkillContentForResponse(invalid, invalidContent) : "").toContain(invalidContent);
       expect(warnings).toHaveLength(1);
-      expect(warnings[0]?.[0]).toBe("[openwork:skills] Found invalid skill frontmatter");
+      expect(warnings[0]?.[0]).toBe("[harness:skills] Found invalid skill frontmatter");
     } finally {
       console.warn = originalWarn;
     }

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { needs, test } from "@openwork/testkit";
+import { needs, test } from "@harness/testkit";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 test("finite archive and permission IPC preserve scoped requests, cancellation, no retries and external trust boundaries", async ({ evidence }) => {

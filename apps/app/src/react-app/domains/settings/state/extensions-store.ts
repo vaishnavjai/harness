@@ -31,18 +31,18 @@ import {
   readOpencodeConfig,
   revealDesktopItemInDir,
   uninstallSkill as uninstallSkillCommand,
-  workspaceOpenworkRead,
-  workspaceOpenworkWrite,
+  workspaceHarnessRead,
+  workspaceHarnessWrite,
   writeLocalSkill,
   writeOpencodeConfig,
   type OpencodeConfigFile,
 } from "../../../../app/lib/desktop";
 import type {
-  OpenworkClaudePluginPreview,
-  OpenworkServerCapabilities,
-  OpenworkServerClient,
-  OpenworkServerStatus,
-} from "../../../../app/lib/openwork-server";
+  HarnessClaudePluginPreview,
+  HarnessServerCapabilities,
+  HarnessServerClient,
+  HarnessServerStatus,
+} from "../../../../app/lib/harness-server";
 import {
   DenApiError,
   createDenClient,
@@ -65,7 +65,7 @@ import {
   type PendingCloudPluginChange,
 } from "../../../../app/cloud/desktop-cloud-sync";
 import { notifyEvent } from "../../../shell/notifications";
-import type { OpenworkServerStore } from "../../connections/openwork-server-store";
+import type { HarnessServerStore } from "../../connections/harness-server-store";
 import { clearCloudInventoryCache } from "../../connections/cloud-inventory-cache";
 import {
   denLibraryPluginCreateRequest,
@@ -358,11 +358,11 @@ export function createExtensionsStore(options: {
   selectedWorkspaceId: () => string;
   selectedWorkspaceRoot: () => string;
   workspaceType: () => "local" | "remote";
-  openworkServer: OpenworkServerStore;
-  openworkServerConnection?: () => {
-    openworkServerClient: OpenworkServerClient | null;
-    openworkServerStatus: OpenworkServerStatus;
-    openworkServerCapabilities: OpenworkServerCapabilities | null;
+  harnessServer: HarnessServerStore;
+  harnessServerConnection?: () => {
+    harnessServerClient: HarnessServerClient | null;
+    harnessServerStatus: HarnessServerStatus;
+    harnessServerCapabilities: HarnessServerCapabilities | null;
   };
   runtimeWorkspaceId: () => string | null;
   ensureRuntimeWorkspaceId?: () => Promise<string | null | undefined>;
@@ -376,7 +376,7 @@ export function createExtensionsStore(options: {
 
   let disposed = false;
   let started = false;
-  let stopOpenworkSubscription: (() => void) | null = null;
+  let stopHarnessSubscription: (() => void) | null = null;
   let stopDenSessionListener: (() => void) | null = null;
   let lastWorkspaceContextKey = "";
   let snapshot: ExtensionsStoreSnapshot;
@@ -429,33 +429,33 @@ export function createExtensionsStore(options: {
     return `${workspaceType}:${workspaceId}:${root}:${runtimeWorkspaceId}`;
   };
 
-  const getOpenworkServerSnapshot = () => {
-    const snapshot = options.openworkServer.getSnapshot();
-    const connection = options.openworkServerConnection?.();
-    if (!connection?.openworkServerClient) return snapshot;
+  const getHarnessServerSnapshot = () => {
+    const snapshot = options.harnessServer.getSnapshot();
+    const connection = options.harnessServerConnection?.();
+    if (!connection?.harnessServerClient) return snapshot;
     return {
       ...snapshot,
-      openworkServerClient: connection.openworkServerClient,
-      openworkServerStatus: connection.openworkServerStatus,
-      openworkServerCapabilities: connection.openworkServerCapabilities,
+      harnessServerClient: connection.harnessServerClient,
+      harnessServerStatus: connection.harnessServerStatus,
+      harnessServerCapabilities: connection.harnessServerCapabilities,
     };
   };
 
   const resolveWorkspaceServerTarget = async () => {
-    const openworkSnapshot = getOpenworkServerSnapshot();
-    const openworkClient = openworkSnapshot.openworkServerClient;
-    let openworkWorkspaceId = options.runtimeWorkspaceId()?.trim() || null;
-    if (!openworkWorkspaceId && openworkSnapshot.openworkServerStatus === "connected" && openworkClient) {
-      openworkWorkspaceId = (await options.ensureRuntimeWorkspaceId?.())?.trim() || null;
+    const harnessSnapshot = getHarnessServerSnapshot();
+    const harnessClient = harnessSnapshot.harnessServerClient;
+    let harnessWorkspaceId = options.runtimeWorkspaceId()?.trim() || null;
+    if (!harnessWorkspaceId && harnessSnapshot.harnessServerStatus === "connected" && harnessClient) {
+      harnessWorkspaceId = (await options.ensureRuntimeWorkspaceId?.())?.trim() || null;
     }
-    const hasOpenworkTarget =
-      openworkSnapshot.openworkServerStatus === "connected" &&
-      Boolean(openworkClient && openworkWorkspaceId);
+    const hasHarnessTarget =
+      harnessSnapshot.harnessServerStatus === "connected" &&
+      Boolean(harnessClient && harnessWorkspaceId);
     return {
-      openworkSnapshot,
-      openworkClient,
-      openworkWorkspaceId,
-      hasOpenworkTarget,
+      harnessSnapshot,
+      harnessClient,
+      harnessWorkspaceId,
+      hasHarnessTarget,
     };
   };
 
@@ -500,56 +500,56 @@ export function createExtensionsStore(options: {
 
   const formatSkillPath = (location: string) => location.replace(/[/\\]SKILL\.md$/i, "");
 
-  const readWorkspaceOpenworkConfigRecord = async (): Promise<Record<string, unknown>> => {
+  const readWorkspaceHarnessConfigRecord = async (): Promise<Record<string, unknown>> => {
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.config?.read !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.config?.read !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      const config = await openworkClient.getConfig(openworkWorkspaceId);
-      return config.openwork ?? {};
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      const config = await harnessClient.getConfig(harnessWorkspaceId);
+      return config.harness ?? {};
     }
 
-    if (hasOpenworkTarget) {
+    if (hasHarnessTarget) {
       return {};
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
-      return await workspaceOpenworkRead({ workspacePath: root }) as unknown as Record<string, unknown>;
+      return await workspaceHarnessRead({ workspacePath: root }) as unknown as Record<string, unknown>;
     }
 
     return {};
   };
 
-  const writeWorkspaceOpenworkConfigRecord = async (config: Record<string, unknown>) => {
+  const writeWorkspaceHarnessConfigRecord = async (config: Record<string, unknown>) => {
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.config?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.config?.write !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      await openworkClient.patchConfig(openworkWorkspaceId, { openwork: config });
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      await harnessClient.patchConfig(harnessWorkspaceId, { harness: config });
       return true;
     }
 
-    if (hasOpenworkTarget) {
+    if (hasHarnessTarget) {
       return false;
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
-      const result = (await workspaceOpenworkWrite({
+      const result = (await workspaceHarnessWrite({
         workspacePath: root,
         config: config as never,
       })) as { ok: boolean; stderr?: string; stdout?: string };
       if (!result.ok) {
-        throw new Error(result.stderr || result.stdout || "Failed to write .opencode/openwork.json");
+        throw new Error(result.stderr || result.stdout || "Failed to write .opencode/harness.json");
       }
       return true;
     }
@@ -560,17 +560,17 @@ export function createExtensionsStore(options: {
   const refreshPendingCloudPluginChanges = async (installedPlugins?: Record<string, CloudImportedPlugin>) => {
     try {
       const target = await resolveWorkspaceServerTarget();
-      if (!target.openworkClient || !target.openworkWorkspaceId) {
+      if (!target.harnessClient || !target.harnessWorkspaceId) {
         setStateField("pendingCloudPluginChanges", {});
         return;
       }
       const syncResult = await refreshDesktopCloudSync({
-        openworkClient: target.openworkClient,
-        workspaceId: target.openworkWorkspaceId,
+        harnessClient: target.harnessClient,
+        workspaceId: target.harnessWorkspaceId,
       }).catch(() => null);
       const changes = syncResult
         ? syncResult.changes
-        : readPendingCloudSyncChanges(await target.openworkClient.getDesktopCloudSync(target.openworkWorkspaceId));
+        : readPendingCloudSyncChanges(await target.harnessClient.getDesktopCloudSync(target.harnessWorkspaceId));
       const pending = derivePendingCloudPluginChanges({
         changes,
         installedPlugins: installedPlugins ?? snapshot.importedCloudPlugins,
@@ -612,14 +612,14 @@ export function createExtensionsStore(options: {
   const refreshImportedCloudPlugins = async () => {
     try {
       const target = await resolveWorkspaceServerTarget();
-      if (target.openworkClient && target.openworkWorkspaceId) {
-        const result = await target.openworkClient.listCloudPlugins(target.openworkWorkspaceId);
+      if (target.harnessClient && target.harnessWorkspaceId) {
+        const result = await target.harnessClient.listCloudPlugins(target.harnessWorkspaceId);
         setStateField("importedCloudMarketplaces", result.marketplaces);
         setStateField("importedCloudPlugins", result.plugins);
         void refreshPendingCloudPluginChanges(result.plugins);
         return result.plugins;
       }
-      const config = await readWorkspaceOpenworkConfigRecord();
+      const config = await readWorkspaceHarnessConfigRecord();
       const cloudImports = readWorkspaceCloudImports(config);
       setStateField("importedCloudMarketplaces", cloudImports.marketplaces);
       setStateField("importedCloudPlugins", cloudImports.plugins);
@@ -633,32 +633,32 @@ export function createExtensionsStore(options: {
   };
 
   const persistImportedCloudMarketplaces = async (nextMarketplaces: Record<string, CloudImportedMarketplace>) => {
-    const config = await readWorkspaceOpenworkConfigRecord();
+    const config = await readWorkspaceHarnessConfigRecord();
     const cloudImports = readWorkspaceCloudImports(config);
     const nextCloudImports = {
       ...cloudImports,
       marketplaces: nextMarketplaces,
     };
     const nextConfig = withWorkspaceCloudImports(config, nextCloudImports);
-    const persisted = await writeWorkspaceOpenworkConfigRecord(nextConfig);
+    const persisted = await writeWorkspaceHarnessConfigRecord(nextConfig);
     if (!persisted) {
-      throw new Error("OpenWork server unavailable. Connect to manage imported cloud marketplaces.");
+      throw new Error("Harness server unavailable. Connect to manage imported cloud marketplaces.");
     }
     setStateField("importedCloudMarketplaces", nextMarketplaces);
     void refreshPendingCloudPluginChanges();
   };
 
   const persistImportedCloudPlugins = async (nextPlugins: Record<string, CloudImportedPlugin>) => {
-    const config = await readWorkspaceOpenworkConfigRecord();
+    const config = await readWorkspaceHarnessConfigRecord();
     const cloudImports = readWorkspaceCloudImports(config);
     const nextCloudImports = {
       ...cloudImports,
       plugins: nextPlugins,
     };
     const nextConfig = withWorkspaceCloudImports(config, nextCloudImports);
-    const persisted = await writeWorkspaceOpenworkConfigRecord(nextConfig);
+    const persisted = await writeWorkspaceHarnessConfigRecord(nextConfig);
     if (!persisted) {
-      throw new Error("OpenWork server unavailable. Connect to manage imported cloud plugins.");
+      throw new Error("Harness server unavailable. Connect to manage imported cloud plugins.");
     }
     setStateField("importedCloudPlugins", nextPlugins);
     void refreshPendingCloudPluginChanges(nextPlugins);
@@ -684,23 +684,23 @@ export function createExtensionsStore(options: {
     const isRemoteWorkspace = options.workspaceType() === "remote";
     const isLocalWorkspace = options.workspaceType() === "local";
     const root = options.selectedWorkspaceRoot().trim();
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.skills?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.skills?.write !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      await openworkClient.deleteSkill(openworkWorkspaceId, name);
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      await harnessClient.deleteSkill(harnessWorkspaceId, name);
       return;
     }
 
-    if (hasOpenworkTarget) {
-      throw new Error("OpenWork server cannot remove skills for this workspace.");
+    if (hasHarnessTarget) {
+      throw new Error("Harness server cannot remove skills for this workspace.");
     }
 
     if (isRemoteWorkspace) {
-      throw new Error("OpenWork server unavailable. Connect to remove skills.");
+      throw new Error("Harness server unavailable. Connect to remove skills.");
     }
 
     if (!isDesktopRuntime()) {
@@ -883,7 +883,7 @@ export function createExtensionsStore(options: {
     const version = object.latestVersion;
     const payload = version?.normalizedPayloadJson ?? parseJsonRecord(version?.rawSourceText ?? null);
     if (!payload) return null;
-    if (payload.openworkManaged === "den_external_mcp") {
+    if (payload.harnessManaged === "den_external_mcp") {
       const id = readNonEmptyString(payload.externalMcpConnectionId);
       if (id) return id;
     }
@@ -893,7 +893,7 @@ export function createExtensionsStore(options: {
     ].filter((entry): entry is Record<string, unknown> => Boolean(entry));
     for (const container of containers) {
       for (const config of Object.values(container)) {
-        if (!isRecord(config) || config.openworkManaged !== "den_external_mcp") continue;
+        if (!isRecord(config) || config.harnessManaged !== "den_external_mcp") continue;
         const id = readNonEmptyString(config.externalMcpConnectionId);
         if (id) return id;
       }
@@ -902,35 +902,35 @@ export function createExtensionsStore(options: {
   };
 
   const upsertPluginMcpConfig = async (name: string, config: Record<string, unknown>) => {
-    const openworkSnapshot = getOpenworkServerSnapshot();
-    const openworkClient = openworkSnapshot.openworkServerClient;
-    const openworkWorkspaceId = options.runtimeWorkspaceId();
+    const harnessSnapshot = getHarnessServerSnapshot();
+    const harnessClient = harnessSnapshot.harnessServerClient;
+    const harnessWorkspaceId = options.runtimeWorkspaceId();
     if (
-      openworkSnapshot.openworkServerStatus === "connected" &&
-      openworkClient &&
-      openworkWorkspaceId &&
-      openworkSnapshot.openworkServerCapabilities?.mcp?.write
+      harnessSnapshot.harnessServerStatus === "connected" &&
+      harnessClient &&
+      harnessWorkspaceId &&
+      harnessSnapshot.harnessServerCapabilities?.mcp?.write
     ) {
-      await openworkClient.addMcp(openworkWorkspaceId, { name, config });
+      await harnessClient.addMcp(harnessWorkspaceId, { name, config });
       return;
     }
-    throw new Error("OpenWork server unavailable. Connect to import MCP servers into this workspace.");
+    throw new Error("Harness server unavailable. Connect to import MCP servers into this workspace.");
   };
 
   const deletePluginMcpConfig = async (name: string) => {
-    const openworkSnapshot = getOpenworkServerSnapshot();
-    const openworkClient = openworkSnapshot.openworkServerClient;
-    const openworkWorkspaceId = options.runtimeWorkspaceId();
+    const harnessSnapshot = getHarnessServerSnapshot();
+    const harnessClient = harnessSnapshot.harnessServerClient;
+    const harnessWorkspaceId = options.runtimeWorkspaceId();
     if (
-      openworkSnapshot.openworkServerStatus === "connected" &&
-      openworkClient &&
-      openworkWorkspaceId &&
-      openworkSnapshot.openworkServerCapabilities?.mcp?.write
+      harnessSnapshot.harnessServerStatus === "connected" &&
+      harnessClient &&
+      harnessWorkspaceId &&
+      harnessSnapshot.harnessServerCapabilities?.mcp?.write
     ) {
-      await openworkClient.removeMcp(openworkWorkspaceId, name);
+      await harnessClient.removeMcp(harnessWorkspaceId, name);
       return;
     }
-    throw new Error("OpenWork server unavailable. Connect to remove imported MCP servers from this workspace.");
+    throw new Error("Harness server unavailable. Connect to remove imported MCP servers from this workspace.");
   };
 
   const pluginReloadReason = (objectType: string): ReloadReason => {
@@ -949,33 +949,33 @@ export function createExtensionsStore(options: {
   };
 
   const writePluginWorkspaceFile = async (path: string, content: string) => {
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
     if (
-      hasOpenworkTarget &&
-      openworkClient &&
-      openworkWorkspaceId &&
-      openworkSnapshot.openworkServerCapabilities?.config?.write !== false &&
-      typeof openworkClient.writeWorkspaceFile === "function"
+      hasHarnessTarget &&
+      harnessClient &&
+      harnessWorkspaceId &&
+      harnessSnapshot.harnessServerCapabilities?.config?.write !== false &&
+      typeof harnessClient.writeWorkspaceFile === "function"
     ) {
-      await openworkClient.writeWorkspaceFile(openworkWorkspaceId, { path, content, force: true });
+      await harnessClient.writeWorkspaceFile(harnessWorkspaceId, { path, content, force: true });
       return;
     }
-    throw new Error("OpenWork server unavailable. Connect to import plugin files into this workspace.");
+    throw new Error("Harness server unavailable. Connect to import plugin files into this workspace.");
   };
 
   const deletePluginWorkspaceFiles = async (files: Array<{ path: string; recursive?: boolean }>) => {
     if (files.length === 0) return;
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
     if (
-      hasOpenworkTarget &&
-      openworkClient &&
-      openworkWorkspaceId &&
-      openworkSnapshot.openworkServerCapabilities?.config?.write !== false &&
-      typeof openworkClient.deleteWorkspaceFiles === "function"
+      hasHarnessTarget &&
+      harnessClient &&
+      harnessWorkspaceId &&
+      harnessSnapshot.harnessServerCapabilities?.config?.write !== false &&
+      typeof harnessClient.deleteWorkspaceFiles === "function"
     ) {
-      const results = await openworkClient.deleteWorkspaceFiles(openworkWorkspaceId, files);
+      const results = await harnessClient.deleteWorkspaceFiles(harnessWorkspaceId, files);
       const failed = results.filter((result) => !result.ok && result.code !== "file_not_found");
       if (failed.length > 0) {
         throw new Error(
@@ -984,7 +984,7 @@ export function createExtensionsStore(options: {
       }
       return;
     }
-    throw new Error("OpenWork server unavailable. Connect to remove imported plugin files from this workspace.");
+    throw new Error("Harness server unavailable. Connect to remove imported plugin files from this workspace.");
   };
 
   const applyCloudOrgPluginImport = async (
@@ -1257,13 +1257,13 @@ export function createExtensionsStore(options: {
       const settings = readDenSettings();
       const token = settings.authToken?.trim() ?? "";
       const orgId = settings.activeOrgId?.trim() ?? "";
-      if (!token || !orgId) throw new Error("Sign in to OpenWork Cloud and choose an organization first.");
+      if (!token || !orgId) throw new Error("Sign in to Harness Cloud and choose an organization first.");
       const client = createDenClient({ baseUrl: settings.baseUrl, token });
       const resolved = await client.getOrgPluginResolved(orgId, plugin);
       const target = await resolveWorkspaceServerTarget();
-      if (target.openworkClient && target.openworkWorkspaceId) {
+      if (target.harnessClient && target.harnessWorkspaceId) {
         const marketplace = marketplaceId ? findCloudMarketplace(marketplaceId) : null;
-        const result = await target.openworkClient.installCloudPlugin(target.openworkWorkspaceId, {
+        const result = await target.harnessClient.installCloudPlugin(target.harnessWorkspaceId, {
           marketplaceId,
           marketplace,
           resolved,
@@ -1296,12 +1296,12 @@ export function createExtensionsStore(options: {
     }
   }
 
-  async function previewClaudePlugin(url: string): Promise<OpenworkClaudePluginPreview> {
+  async function previewClaudePlugin(url: string): Promise<HarnessClaudePluginPreview> {
     const target = await resolveWorkspaceServerTarget();
-    if (!target.openworkClient || !target.openworkWorkspaceId) {
-      throw new Error("OpenWork server unavailable. Connect to install plugins from GitHub.");
+    if (!target.harnessClient || !target.harnessWorkspaceId) {
+      throw new Error("Harness server unavailable. Connect to install plugins from GitHub.");
     }
-    const result = await target.openworkClient.previewClaudePlugin(target.openworkWorkspaceId, { url });
+    const result = await target.harnessClient.previewClaudePlugin(target.harnessWorkspaceId, { url });
     return result.preview;
   }
 
@@ -1311,10 +1311,10 @@ export function createExtensionsStore(options: {
     options.setError(null);
     try {
       const target = await resolveWorkspaceServerTarget();
-      if (!target.openworkClient || !target.openworkWorkspaceId) {
-        throw new Error("OpenWork server unavailable. Connect to install plugins from GitHub.");
+      if (!target.harnessClient || !target.harnessWorkspaceId) {
+        throw new Error("Harness server unavailable. Connect to install plugins from GitHub.");
       }
-      const result = await target.openworkClient.installClaudePlugin(target.openworkWorkspaceId, { url });
+      const result = await target.harnessClient.installClaudePlugin(target.harnessWorkspaceId, { url });
       await refreshSkills({ force: true });
       await refreshImportedCloudPlugins();
       return {
@@ -1338,8 +1338,8 @@ export function createExtensionsStore(options: {
 
     try {
       const target = await resolveWorkspaceServerTarget();
-      if (target.openworkClient && target.openworkWorkspaceId) {
-        const result = await target.openworkClient.removeCloudPlugin(target.openworkWorkspaceId, pluginId);
+      if (target.harnessClient && target.harnessWorkspaceId) {
+        const result = await target.harnessClient.removeCloudPlugin(target.harnessWorkspaceId, pluginId);
         await refreshSkills({ force: true });
         await refreshCloudOrgMarketplaces({ force: true });
         void refreshPendingCloudPluginChanges();
@@ -1417,13 +1417,13 @@ export function createExtensionsStore(options: {
   async function refreshSkills(optionsOverride?: { force?: boolean }) {
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.skills?.read !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.skills?.read !== false;
 
-    if (!root && !hasOpenworkTarget) {
+    if (!root && !hasHarnessTarget) {
       mutateState((current) => ({
         ...current,
         skills: [],
@@ -1432,8 +1432,8 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      const skillCacheKey = root || openworkWorkspaceId;
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      const skillCacheKey = root || harnessWorkspaceId;
       if (skillCacheKey !== skillsRoot) skillsLoaded = false;
       if (!optionsOverride?.force && skillsLoaded) return;
       if (refreshSkillsInFlight) return;
@@ -1442,7 +1442,7 @@ export function createExtensionsStore(options: {
       refreshSkillsAborted = false;
       try {
         setStateField("skillsStatus", null);
-        const response = await openworkClient.listSkills(openworkWorkspaceId, { includeGlobal: isLocalWorkspace });
+        const response = await harnessClient.listSkills(harnessWorkspaceId, { includeGlobal: isLocalWorkspace });
         if (refreshSkillsAborted) return;
         const next: SkillCard[] = Array.isArray(response.items)
           ? response.items.map((entry) => ({
@@ -1473,11 +1473,11 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (hasOpenworkTarget) {
+    if (hasHarnessTarget) {
       mutateState((current) => ({
         ...current,
         skills: [],
-        skillsStatus: "OpenWork server cannot read skills for this workspace.",
+        skillsStatus: "Harness server cannot read skills for this workspace.",
       }));
       return;
     }
@@ -1527,7 +1527,7 @@ export function createExtensionsStore(options: {
       mutateState((current) => ({
         ...current,
         skills: [],
-        skillsStatus: "OpenWork server unavailable. Connect to load skills.",
+        skillsStatus: "Harness server unavailable. Connect to load skills.",
       }));
       return;
     }
@@ -1582,11 +1582,11 @@ export function createExtensionsStore(options: {
   async function refreshPlugins(scopeOverride?: PluginScope) {
     const isRemoteWorkspace = options.workspaceType() === "remote";
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.plugins?.read !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.plugins?.read !== false;
 
     if (refreshPluginsInFlight) return;
     refreshPluginsInFlight = true;
@@ -1607,17 +1607,17 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (scope === "project" && canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (scope === "project" && canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       mutateState((current) => ({
         ...current,
         pluginConfig: null,
-        pluginConfigPath: `opencode.json (${isRemoteWorkspace ? "remote" : "openwork"} server)`,
+        pluginConfigPath: `opencode.json (${isRemoteWorkspace ? "remote" : "harness"} server)`,
       }));
 
       try {
         mutateState((current) => ({ ...current, pluginStatus: null, sidebarPluginStatus: null }));
         if (refreshPluginsAborted) return;
-        const result = await openworkClient.listPlugins(openworkWorkspaceId, { includeGlobal: false });
+        const result = await harnessClient.listPlugins(harnessWorkspaceId, { includeGlobal: false });
         if (refreshPluginsAborted) return;
         const projectItems = result.items.filter((item) => item.scope === "project");
         const list = toProjectPluginListEntries(projectItems);
@@ -1644,12 +1644,12 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (scope === "project" && hasOpenworkTarget) {
+    if (scope === "project" && hasHarnessTarget) {
       mutateState((current) => ({
         ...current,
-        pluginStatus: "OpenWork server cannot read plugins for this workspace.",
+        pluginStatus: "Harness server cannot read plugins for this workspace.",
         pluginList: [],
-        sidebarPluginStatus: "OpenWork server cannot read plugins for this workspace.",
+        sidebarPluginStatus: "Harness server cannot read plugins for this workspace.",
         sidebarPluginList: [],
       }));
       refreshPluginsInFlight = false;
@@ -1668,12 +1668,12 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (!isLocalWorkspace && !canUseOpenworkServer) {
+    if (!isLocalWorkspace && !canUseHarnessServer) {
       mutateState((current) => ({
         ...current,
-        pluginStatus: "OpenWork server unavailable. Connect to manage plugins.",
+        pluginStatus: "Harness server unavailable. Connect to manage plugins.",
         pluginList: [],
-        sidebarPluginStatus: "Connect an OpenWork server to load plugins.",
+        sidebarPluginStatus: "Connect a Harness server to load plugins.",
         sidebarPluginList: [],
       }));
       refreshPluginsInFlight = false;
@@ -1762,11 +1762,11 @@ export function createExtensionsStore(options: {
     const triggerName = stripPluginVersion(pluginName);
 
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.plugins?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.plugins?.write !== false;
 
     if (!pluginName) {
       if (isManualInput) setStateField("pluginStatus", t("skills.enter_plugin_name"));
@@ -1778,10 +1778,10 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (snapshot.pluginScope === "project" && canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (snapshot.pluginScope === "project" && canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       try {
         setStateField("pluginStatus", null);
-        await openworkClient.addPlugin(openworkWorkspaceId, pluginName);
+        await harnessClient.addPlugin(harnessWorkspaceId, pluginName);
         options.markReloadRequired?.("plugins", { type: "plugin", name: triggerName, action: "added" });
         if (isManualInput) setStateField("pluginInput", "");
         await refreshPlugins("project");
@@ -1791,8 +1791,8 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (snapshot.pluginScope === "project" && hasOpenworkTarget) {
-      setStateField("pluginStatus", "OpenWork server cannot write plugins for this workspace.");
+    if (snapshot.pluginScope === "project" && hasHarnessTarget) {
+      setStateField("pluginStatus", "Harness server cannot write plugins for this workspace.");
       return;
     }
 
@@ -1802,7 +1802,7 @@ export function createExtensionsStore(options: {
     }
 
     if (!isLocalWorkspace) {
-      setStateField("pluginStatus", "OpenWork server unavailable. Connect to manage plugins.");
+      setStateField("pluginStatus", "Harness server unavailable. Connect to manage plugins.");
       return;
     }
 
@@ -1859,21 +1859,21 @@ export function createExtensionsStore(options: {
     }
 
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.plugins?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.plugins?.write !== false;
 
     if (snapshot.pluginScope !== "project" && !isLocalWorkspace) {
       setStateField("pluginStatus", "Global plugins are only available for local workers.");
       return;
     }
 
-    if (snapshot.pluginScope === "project" && canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (snapshot.pluginScope === "project" && canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       try {
         setStateField("pluginStatus", null);
-        await openworkClient.removePlugin(openworkWorkspaceId, name);
+        await harnessClient.removePlugin(harnessWorkspaceId, name);
         options.markReloadRequired?.("plugins", { type: "plugin", name: triggerName, action: "removed" });
         await refreshPlugins("project");
       } catch (error) {
@@ -1882,8 +1882,8 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (snapshot.pluginScope === "project" && hasOpenworkTarget) {
-      setStateField("pluginStatus", "OpenWork server cannot write plugins for this workspace.");
+    if (snapshot.pluginScope === "project" && hasHarnessTarget) {
+      setStateField("pluginStatus", "Harness server cannot write plugins for this workspace.");
       return;
     }
 
@@ -1893,7 +1893,7 @@ export function createExtensionsStore(options: {
     }
 
     if (!isLocalWorkspace) {
-      setStateField("pluginStatus", "OpenWork server unavailable. Connect to manage plugins.");
+      setStateField("pluginStatus", "Harness server unavailable. Connect to manage plugins.");
       return;
     }
 
@@ -1976,18 +1976,18 @@ export function createExtensionsStore(options: {
     if (extensionMutationDenied()) return { ok: false, message: desktopRestrictionNotice("allowManageExtensions") };
     const isRemoteWorkspace = options.workspaceType() === "remote";
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.skills?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.skills?.write !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       options.setBusy(true);
       options.setError(null);
       setStateField("skillsStatus", t("skills.installing_skill_creator"));
       try {
-        await openworkClient.upsertSkill(openworkWorkspaceId, { name: "skill-creator", content: skillCreatorTemplate });
+        await harnessClient.upsertSkill(harnessWorkspaceId, { name: "skill-creator", content: skillCreatorTemplate });
         const message = t("skills.skill_creator_installed");
         setStateField("skillsStatus", message);
         options.markReloadRequired?.("skills", { type: "skill", name: "skill-creator", action: "added" });
@@ -2004,14 +2004,14 @@ export function createExtensionsStore(options: {
       }
     }
 
-    if (hasOpenworkTarget) {
-      const message = "OpenWork server cannot write skills for this workspace.";
+    if (hasHarnessTarget) {
+      const message = "Harness server cannot write skills for this workspace.";
       setStateField("skillsStatus", message);
       return { ok: false, message };
     }
 
     if (isRemoteWorkspace) {
-      const message = "OpenWork server unavailable. Connect to install skills.";
+      const message = "Harness server unavailable. Connect to install skills.";
       setStateField("skillsStatus", message);
       return { ok: false, message };
     }
@@ -2129,16 +2129,16 @@ export function createExtensionsStore(options: {
     const root = options.selectedWorkspaceRoot().trim();
     const isRemoteWorkspace = options.workspaceType() === "remote";
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.skills?.read !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.skills?.read !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       try {
         setStateField("skillsStatus", null);
-        const result = await openworkClient.getSkill(openworkWorkspaceId, trimmed, { includeGlobal: isLocalWorkspace });
+        const result = await harnessClient.getSkill(harnessWorkspaceId, trimmed, { includeGlobal: isLocalWorkspace });
         return { name: result.item.name, path: result.item.path, content: result.content };
       } catch (error) {
         setStateField("skillsStatus", error instanceof Error ? error.message : t("skills.failed_to_load"));
@@ -2146,8 +2146,8 @@ export function createExtensionsStore(options: {
       }
     }
 
-    if (hasOpenworkTarget) {
-      setStateField("skillsStatus", "OpenWork server cannot read skills for this workspace.");
+    if (hasHarnessTarget) {
+      setStateField("skillsStatus", "Harness server cannot read skills for this workspace.");
       return null;
     }
 
@@ -2157,7 +2157,7 @@ export function createExtensionsStore(options: {
     }
 
     if (isRemoteWorkspace) {
-      setStateField("skillsStatus", "OpenWork server unavailable. Connect to view skills.");
+      setStateField("skillsStatus", "Harness server unavailable. Connect to view skills.");
       return null;
     }
     if (!isDesktopRuntime()) {
@@ -2186,18 +2186,18 @@ export function createExtensionsStore(options: {
     const root = options.selectedWorkspaceRoot().trim();
     const isRemoteWorkspace = options.workspaceType() === "remote";
     const isLocalWorkspace = options.workspaceType() === "local";
-    const { openworkSnapshot, openworkClient, openworkWorkspaceId, hasOpenworkTarget } =
+    const { harnessSnapshot, harnessClient, harnessWorkspaceId, hasHarnessTarget } =
       await resolveWorkspaceServerTarget();
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.skills?.write !== false;
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.skills?.write !== false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
       options.setBusy(true);
       options.setError(null);
       setStateField("skillsStatus", null);
       try {
-        await openworkClient.upsertSkill(openworkWorkspaceId, {
+        await harnessClient.upsertSkill(harnessWorkspaceId, {
           name: trimmed,
           content: input.content,
           description: input.description,
@@ -2214,8 +2214,8 @@ export function createExtensionsStore(options: {
       return;
     }
 
-    if (hasOpenworkTarget) {
-      setStateField("skillsStatus", "OpenWork server cannot write skills for this workspace.");
+    if (hasHarnessTarget) {
+      setStateField("skillsStatus", "Harness server cannot write skills for this workspace.");
       return;
     }
 
@@ -2225,7 +2225,7 @@ export function createExtensionsStore(options: {
     }
 
     if (isRemoteWorkspace) {
-      setStateField("skillsStatus", "OpenWork server unavailable. Connect to edit skills.");
+      setStateField("skillsStatus", "Harness server unavailable. Connect to edit skills.");
       return;
     }
     if (!isDesktopRuntime()) {
@@ -2341,11 +2341,11 @@ export function createExtensionsStore(options: {
         cloudOrgMarketplacesLoaded = false;
         touch();
       };
-      window.addEventListener("openwork-den-session-updated", onDenSessionUpdated);
-      stopDenSessionListener = () => window.removeEventListener("openwork-den-session-updated", onDenSessionUpdated);
+      window.addEventListener("harness-den-session-updated", onDenSessionUpdated);
+      stopDenSessionListener = () => window.removeEventListener("harness-den-session-updated", onDenSessionUpdated);
     }
 
-    stopOpenworkSubscription = options.openworkServer.subscribe(() => {
+    stopHarnessSubscription = options.harnessServer.subscribe(() => {
       syncFromOptions();
     });
 
@@ -2357,8 +2357,8 @@ export function createExtensionsStore(options: {
     disposed = true;
     started = false;
     abortRefreshes();
-    stopOpenworkSubscription?.();
-    stopOpenworkSubscription = null;
+    stopHarnessSubscription?.();
+    stopHarnessSubscription = null;
     stopDenSessionListener?.();
     stopDenSessionListener = null;
     listeners.clear();

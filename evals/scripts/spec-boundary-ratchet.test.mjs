@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { classifySpec, compareBaseline, violations } from "./spec-boundary-ratchet.mjs";
 
-const clean = classifySpec('import { spec } from "@openwork/testkit"; spec.world("demo", () => {});');
+const clean = classifySpec('import { spec } from "@harness/testkit"; spec.world("demo", () => {});');
 
 test("classifySpec detects product-source imports and URL reads", () => {
   assert.equal(classifySpec('import thing from "../../apps/app/src/thing"; app();').importsProductSource, true);
@@ -31,10 +31,10 @@ test("classifySpec recognizes only boundary calls", () => {
 });
 
 test("classifySpec recognizes world imports as boundaries", () => {
-  for (const specifier of ["../../worlds/example.ts", "../worlds/example.ts", "@openwork/world"]) {
+  for (const specifier of ["../../worlds/example.ts", "../worlds/example.ts", "@harness/world"]) {
     assert.equal(classifySpec(`import "${specifier}";`).crossesBoundary, true);
   }
-  assert.equal(classifySpec('import "@openwork/world-extra";').crossesBoundary, false);
+  assert.equal(classifySpec('import "@harness/world-extra";').crossesBoundary, false);
 });
 
 test("violations returns human-readable reasons", () => {

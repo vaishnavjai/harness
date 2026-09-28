@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/testkit",
+  "name": "@harness/testkit",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,13 +12,13 @@
     "./stack": "./src/stack.ts"
   },
   "dependencies": {
-    "@openwork/behaviors": "workspace:*",
-    "@openwork/cdp": "workspace:*",
-    "@openwork/env": "workspace:*",
-    "@openwork/test-evidence": "workspace:*",
-    "@openwork/test-artifacts": "workspace:*",
-    "@openwork/hosts": "workspace:*",
-    "@openwork/labs": "workspace:*",
+    "@harness/behaviors": "workspace:*",
+    "@harness/cdp": "workspace:*",
+    "@harness/env": "workspace:*",
+    "@harness/test-evidence": "workspace:*",
+    "@harness/test-artifacts": "workspace:*",
+    "@harness/hosts": "workspace:*",
+    "@harness/labs": "workspace:*",
     "mysql2": "^3.11.3",
     "vitest": "^4.1.11"
   }

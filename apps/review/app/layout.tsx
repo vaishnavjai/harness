@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import "./style.css";
 
 export const metadata = {
-  title: "OpenWork Review",
+  title: "Harness Review",
   robots: { index: false, follow: false },
 };
 
@@ -12,7 +12,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <body>
         <header className="masthead">
           <a href="/">
-            openwork<span>/ review</span>
+            harness<span>/ review</span>
           </a>
         </header>
         {children}

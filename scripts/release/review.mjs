@@ -47,7 +47,7 @@ const addWarning = (message) => warnings.push(message);
 for (const [name, version] of [
   ["app", versions.app],
   ["desktop", versions.desktop],
-  ["openwork-server", versions.server],
+  ["harness-server", versions.server],
 ]) {
   addCheck(
     `${name} package.json holds the dev placeholder`,

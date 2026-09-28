@@ -1,4 +1,4 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
 import {
   control,
@@ -7,8 +7,8 @@ import {
   selectModel,
   waitFor,
   writeComposerText,
-} from "@openwork/behaviors";
-import { screenshot, validate } from "@openwork/test-evidence";
+} from "@harness/behaviors";
+import { screenshot, validate } from "@harness/test-evidence";
 import {
   app,
   eventually,
@@ -18,21 +18,21 @@ import {
   needs,
   server,
   test,
-} from "@openwork/testkit";
-import type { App } from "@openwork/testkit";
+} from "@harness/testkit";
+import type { App } from "@harness/testkit";
 
 const providerId = "todo-progress-mock";
 const modelId = "todo-progress-model";
 const modelName = "Todo progress model";
-const e2eTestsEnabled = process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-const daytonaEnabled = process.env.OPENWORK_EVAL_DAYTONA === "1";
-const configuredDen = Boolean(process.env.OPENWORK_EVAL_DEN_API_URL?.trim());
+const e2eTestsEnabled = process.env.HARNESS_EVAL_E2E_TESTS === "1";
+const daytonaEnabled = process.env.HARNESS_EVAL_DAYTONA === "1";
+const configuredDen = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
 const localServicesRequired = !daytonaEnabled && !configuredDen;
 const mysqlOpen = await localMysqlIsRunning();
 const redisOpen = await localRedisIsRunning();
 const runnable = e2eTestsEnabled && (!localServicesRequired || (mysqlOpen && redisOpen));
 const skipSuffix = !e2eTestsEnabled
-  ? " skipped — needs: set OPENWORK_EVAL_E2E_TESTS=1"
+  ? " skipped — needs: set HARNESS_EVAL_E2E_TESTS=1"
   : localServicesRequired && !mysqlOpen
     ? " skipped — needs MySQL on 127.0.0.1:3306"
     : localServicesRequired && !redisOpen
@@ -94,7 +94,7 @@ function parseSessionFacts(value: unknown): SessionFacts {
 
 async function configureWorkspace(appSurface: App, workspaceId: string, baseUrl: string): Promise<void> {
   const result = await evalIn(appSurface, browserScript(async (workspaceId, providerId, modelName, value, modelId, inputModelName, inputWorkspaceId, inputProviderId, inputModelId, inputValue) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return "local_server_unavailable";
     const root = String(info.baseUrl).replace(/\/+$/, "");
     const headers = {
@@ -128,23 +128,23 @@ async function configureWorkspace(appSurface: App, workspaceId: string, baseUrl:
       signal: AbortSignal.timeout(60000),
     });
     if (!reloaded.ok) return "reload:" + reloaded.status + ":" + (await reloaded.text()).slice(0, 300);
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch { preferences = {}; }
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: inputProviderId, modelID: inputModelId },
       modelVariant: null,
       providerStepCompleted: true,
     }));
-    localStorage.setItem("openwork.defaultModel", inputValue);
+    localStorage.setItem("harness.defaultModel", inputValue);
     return "ok";
   }, [workspaceId, providerId, modelName, `${baseUrl}/v1`, modelId, modelName, workspaceId, providerId, modelId, `${providerId}/${modelId}`]), { awaitPromise: true, timeoutMs: 120_000 });
   expect(result).toBe("ok");
 
   await evalIn(appSurface, () => { location.reload(); return true; });
-  await waitFor(appSurface, () => (Boolean(window.__openworkControl)), {
+  await waitFor(appSurface, () => (Boolean(window.__harnessControl)), {
     timeoutMs: 60_000,
     label: "desktop restored after mock provider configuration",
   });
@@ -168,7 +168,7 @@ async function createSession(appSurface: App): Promise<string> {
 
 async function approvePendingPermission(appSurface: App, workspaceId: string, sessionId: string): Promise<number> {
   const value = await evalIn(appSurface, browserScript(async (workspaceId, inputSessionId) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return [];
     const root = String(info.baseUrl).replace(/\/+$/, "")
       + "/workspace/" + encodeURIComponent(workspaceId) + "/opencode";
@@ -209,7 +209,7 @@ async function readSessionFacts(
 ): Promise<SessionFacts> {
   const value = await evalIn(appSurface, browserScript(async (workspaceId, inputSessionId, inputCommand, completionMarker, inputSessionId2, inputSessionId3) => {
     const empty = { sessionId: "", runningBash: false, todoCount: 0, finalReplyVisible: false, idle: false };
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return empty;
     const root = String(info.baseUrl).replace(/\/+$/, "") + "/workspace/" + encodeURIComponent(workspaceId)
       + "/opencode/session";
@@ -292,7 +292,7 @@ test.skipIf(!runnable)(
   `the todo progress panel stays above the composer for the whole run${skipSuffix}`,
   { timeout: 10 * 60_000 },
   async ({ evidence, place }) => {
-    needs({ optIn: ["OPENWORK_EVAL_E2E_TESTS"] });
+    needs({ optIn: ["HARNESS_EVAL_E2E_TESTS"] });
     const runId = `${Date.now().toString(36)}-${process.pid}`;
     const promptMarker = `TODO-PROGRESS-${runId}`;
     const completionMarker = `DONE-${promptMarker}`;
@@ -327,7 +327,7 @@ test.skipIf(!runnable)(
     await using desktopApp = await app({ den, as: "member", place });
 
     const workspace = await createAndSelectWorkspace(desktopApp, {
-      path: `/tmp/openwork-todo-progress-${runId}`,
+      path: `/tmp/harness-todo-progress-${runId}`,
     });
     await configureWorkspace(desktopApp, workspace.workspaceId, den.mocks.agent.url);
     const chat = await createSession(desktopApp);

@@ -42,8 +42,8 @@ function createExec(handler: (call: ExecCall) => KubeExecResult): { exec: KubeEx
 function imagePlan(mode: "published" | "local"): KubeImagePlan {
   return {
     mode,
-    denApiRepository: mode === "local" ? "openwork-den-api" : "ghcr.io/different-ai/openwork-den-api",
-    denWebRepository: mode === "local" ? "openwork-den-web" : "ghcr.io/different-ai/openwork-den-web",
+    denApiRepository: mode === "local" ? "harness-den-api" : "ghcr.io/vaishnavjai/harness-den-api",
+    denWebRepository: mode === "local" ? "harness-den-web" : "ghcr.io/vaishnavjai/harness-den-web",
     tag: mode === "local" ? "kube-lab" : "latest",
     pullPolicy: "IfNotPresent",
     reason: "test",
@@ -55,11 +55,11 @@ function manifestFor(architecture: string): unknown {
 }
 
 function withCleanImageEnv<T>(fn: () => Promise<T>): Promise<T> {
-  const previous = process.env.OPENWORK_EVAL_KUBE_IMAGES;
-  delete process.env.OPENWORK_EVAL_KUBE_IMAGES;
+  const previous = process.env.HARNESS_EVAL_KUBE_IMAGES;
+  delete process.env.HARNESS_EVAL_KUBE_IMAGES;
   return fn().finally(() => {
-    if (previous === undefined) delete process.env.OPENWORK_EVAL_KUBE_IMAGES;
-    else process.env.OPENWORK_EVAL_KUBE_IMAGES = previous;
+    if (previous === undefined) delete process.env.HARNESS_EVAL_KUBE_IMAGES;
+    else process.env.HARNESS_EVAL_KUBE_IMAGES = previous;
   });
 }
 
@@ -82,34 +82,34 @@ test("helm upgrade argv includes release, chart, profile, context, and local ima
   assert.deepEqual(args.slice(0, 7), [
     "upgrade",
     "--install",
-    "openwork-ee",
-    "packaging/helm/openwork-ee",
+    "harness-ee",
+    "packaging/helm/harness-ee",
     "-f",
     "evals/fixtures/kube/values/multi-org.yaml",
     "--set",
   ]);
   assert(args.includes("image.tag=kube-lab"));
   assert(args.includes("image.pullPolicy=IfNotPresent"));
-  assert(args.includes("denApi.image.repository=openwork-den-api"));
-  assert(args.includes("denWeb.image.repository=openwork-den-web"));
+  assert(args.includes("denApi.image.repository=harness-den-api"));
+  assert(args.includes("denWeb.image.repository=harness-den-web"));
   assert(args.includes("--kube-context"));
-  assert(args.includes("kind-openwork-kube-lab"));
+  assert(args.includes("kind-harness-kube-lab"));
 });
 
 test("kubectl rollout and port-forward argv use the kind context", () => {
-  assert.deepEqual(rolloutStatusArgs("openwork-ee-den-api", "300s"), [
+  assert.deepEqual(rolloutStatusArgs("harness-ee-den-api", "300s"), [
     "--context",
-    "kind-openwork-kube-lab",
+    "kind-harness-kube-lab",
     "rollout",
     "status",
-    "deployment/openwork-ee-den-api",
+    "deployment/harness-ee-den-api",
     "--timeout=300s",
   ]);
-  assert.deepEqual(portForwardArgs("openwork-ee-den-web", 3005, 3005), [
+  assert.deepEqual(portForwardArgs("harness-ee-den-web", 3005, 3005), [
     "--context",
-    "kind-openwork-kube-lab",
+    "kind-harness-kube-lab",
     "port-forward",
-    "service/openwork-ee-den-web",
+    "service/harness-ee-den-web",
     "3005:3005",
   ]);
 });
@@ -153,7 +153,7 @@ test("explicit published image mode fails when manifests do not support this pla
 });
 
 test("endpoint handles return credentials and stop only their recorded port-forwards", async () => {
-  const stateDir = await mkdtemp(join(tmpdir(), "openwork-kind-endpoints-test-"));
+  const stateDir = await mkdtemp(join(tmpdir(), "harness-kind-endpoints-test-"));
   const spawned: { command: string; args: string[]; pid: number }[] = [];
   const killed: number[] = [];
   const pids = [987_651, 987_652];
@@ -184,10 +184,10 @@ test("endpoint handles return credentials and stop only their recorded port-forw
     return new Response("ok", { status: 200 });
   };
   const envBefore = {
-    apiUrl: process.env.OPENWORK_EVAL_DEN_API_URL,
-    webUrl: process.env.OPENWORK_EVAL_DEN_WEB_URL,
-    token: process.env.OPENWORK_EVAL_DEN_TOKEN,
-    multiOrg: process.env.OPENWORK_EVAL_DEN_MULTI_ORG,
+    apiUrl: process.env.HARNESS_EVAL_DEN_API_URL,
+    webUrl: process.env.HARNESS_EVAL_DEN_WEB_URL,
+    token: process.env.HARNESS_EVAL_DEN_TOKEN,
+    multiOrg: process.env.HARNESS_EVAL_DEN_MULTI_ORG,
   };
   globalThis.fetch = fakeFetch;
   try {
@@ -219,10 +219,10 @@ test("endpoint handles return credentials and stop only their recorded port-forw
     await assert.rejects(() => readFile(join(stateDir, "api-port-forward.pid"), "utf8"), /ENOENT/);
     await assert.rejects(() => readFile(join(stateDir, "web-port-forward.pid"), "utf8"), /ENOENT/);
     assert.deepEqual({
-      apiUrl: process.env.OPENWORK_EVAL_DEN_API_URL,
-      webUrl: process.env.OPENWORK_EVAL_DEN_WEB_URL,
-      token: process.env.OPENWORK_EVAL_DEN_TOKEN,
-      multiOrg: process.env.OPENWORK_EVAL_DEN_MULTI_ORG,
+      apiUrl: process.env.HARNESS_EVAL_DEN_API_URL,
+      webUrl: process.env.HARNESS_EVAL_DEN_WEB_URL,
+      token: process.env.HARNESS_EVAL_DEN_TOKEN,
+      multiOrg: process.env.HARNESS_EVAL_DEN_MULTI_ORG,
     }, envBefore);
   } finally {
     globalThis.fetch = previousFetch;
@@ -231,7 +231,7 @@ test("endpoint handles return credentials and stop only their recorded port-forw
 });
 
 test("endpoint acquisition failure stops both newly started port-forwards", async () => {
-  const stateDir = await mkdtemp(join(tmpdir(), "openwork-kind-endpoints-failure-test-"));
+  const stateDir = await mkdtemp(join(tmpdir(), "harness-kind-endpoints-failure-test-"));
   const killed: number[] = [];
   const pids = [987_661, 987_662];
   let spawned = 0;
@@ -289,7 +289,7 @@ test("ensureKindDenReady fails fast when the shared kind cluster is absent", asy
 test("ensureKindDenReady verifies both Den rollouts before reading shared state", async () => {
   const { exec, calls } = createExec((call) => {
     const text = `${call.command} ${call.args.join(" ")}`;
-    if (text === "kind get clusters") return success("openwork-kube-lab\n");
+    if (text === "kind get clusters") return success("harness-kube-lab\n");
     if (text.includes("SHOW TABLES LIKE")) {
       return success("organization\ndesktop_connect_grant\nscim_group\ngroup_mapping_mode\n");
     }
@@ -300,8 +300,8 @@ test("ensureKindDenReady verifies both Den rollouts before reading shared state"
   await ensureKindDenReady({ exec });
 
   const commands = calls.map((call) => `${call.command} ${call.args.join(" ")}`);
-  const apiRollout = commands.findIndex((command) => command.includes("rollout status deployment/openwork-ee-den-api"));
-  const webRollout = commands.findIndex((command) => command.includes("rollout status deployment/openwork-ee-den-web"));
+  const apiRollout = commands.findIndex((command) => command.includes("rollout status deployment/harness-ee-den-api"));
+  const webRollout = commands.findIndex((command) => command.includes("rollout status deployment/harness-ee-den-web"));
   const schemaQuery = commands.findIndex((command) => command.includes("SHOW TABLES LIKE"));
   assert(apiRollout >= 0);
   assert(webRollout > apiRollout);
@@ -309,7 +309,7 @@ test("ensureKindDenReady verifies both Den rollouts before reading shared state"
 });
 
 test("kubeStackDown stops port-forwards before uninstalling the release", async () => {
-  const stateDir = await mkdtemp(join(tmpdir(), "openwork-kube-stack-test-"));
+  const stateDir = await mkdtemp(join(tmpdir(), "harness-kube-stack-test-"));
   const order: string[] = [];
   const { exec } = createExec((call) => {
     order.push(`${call.command}:${call.args[0] ?? ""}`);
@@ -342,8 +342,8 @@ test("rollout failure surfaces pod status and recent logs", async () => {
   const { exec } = createExec((call) => {
     const text = `${call.command} ${call.args.join(" ")}`;
     if (text.includes("helm upgrade")) return success("release upgraded");
-    if (text.includes("rollout status deployment/openwork-ee-den-api")) return { stdout: "", stderr: "rollout failed", code: 1 };
-    if (text.includes("get pods")) return success("pod/openwork-ee-den-api pending");
+    if (text.includes("rollout status deployment/harness-ee-den-api")) return { stdout: "", stderr: "rollout failed", code: 1 };
+    if (text.includes("get pods")) return success("pod/harness-ee-den-api pending");
     if (text.includes("describe pods")) return success("Events: image pull backoff");
     if (text.includes("logs")) return success("pod log line: config missing");
     return success();

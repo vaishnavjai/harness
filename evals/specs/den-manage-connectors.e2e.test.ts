@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { denManageAsAdmin } from "../worlds/den-library-manage.ts";
 import { isRecord, records } from "../worlds/library.ts";
 

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { eventually, needs, test } from "@openwork/testkit";
+import { eventually, needs, test } from "@harness/testkit";
 import { gmailAttachmentFixtures, gmailDraftAttachments, gmailReplyFixtures } from "../worlds/gmail-draft-attachments.ts";
 
 // New journey: native MCP preflight must reach the managed engine's real after-hook,
@@ -17,7 +17,7 @@ test("Gmail attachments cross the real MCP, engine hook, host and Den boundaries
       within: 90_000, intervalMs: 250, label: "real engine consumes the tool result and finishes",
       until: (messages) => world.objects(messages).some((part) => part.type === "text" && part.text === "Draft attachment check complete."),
     });
-    expect(world.objects(messages).filter((part) => part.type === "tool").map((part) => part.tool)).toEqual(["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"]);
+    expect(world.objects(messages).filter((part) => part.type === "tool").map((part) => part.tool)).toEqual(["harness-cloud_search_capabilities", "harness-cloud_execute_capability"]);
     return messages;
   }
   const initialProviderCalls = await world.providerRequests();
@@ -136,7 +136,7 @@ test("Gmail attachments cross the real MCP, engine hook, host and Den boundaries
     draftUrl: `${mailboxUrl}#drafts?compose=${reply.messageId}`,
     threadId: plain.returnedThreadId, threadUrl: `${mailboxUrl}#all/${plain.returnedThreadId}`, quotedHistoryIncluded: true,
   };
-  const toolResults = world.objects(replyMessages).filter((entry) => entry.type === "tool" && entry.tool === "openwork-cloud_execute_capability");
+  const toolResults = world.objects(replyMessages).filter((entry) => entry.type === "tool" && entry.tool === "harness-cloud_execute_capability");
   expect(world.objects(toolResults)).toEqual(expect.arrayContaining([expect.objectContaining(replyReceipt)]));
   expect(world.objects(world.model.inputs())).toEqual(expect.arrayContaining([expect.objectContaining(replyReceipt)]));
   expect(await world.providerRequests()).toEqual([...negativeCalls,
@@ -186,7 +186,7 @@ test("Gmail attachments cross the real MCP, engine hook, host and Den boundaries
   }
   expect(modelVisible).not.toContain("fixture-widget,17");
   expect(modelVisible).not.toContain("Content-Transfer-Encoding:");
-  expect(world.model.emitted().every((call) => ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"].includes(call.tool))).toBe(true);
+  expect(world.model.emitted().every((call) => ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"].includes(call.tool))).toBe(true);
   expect((await world.providerRequests()).filter((entry) => /\/(messages|drafts)\/send$/.test(String(entry.path)))).toEqual([]);
   evidence.recordAssertionEvidence("File bytes stay outside model context and no send is attempted", "All actual model inputs were checked for both attachment base64 alphabets, CSV contents and MIME payloads. The model only requested search and execute. The complete provider request witness contains no messages/send or drafts/send attempt.", true);
 });

@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { denFetch } from "@openwork/behaviors";
-import type { Seed } from "@openwork/env";
-import { close, isRecord, listen } from "./openwork-server-cli.ts";
+import { denFetch } from "@harness/behaviors";
+import type { Seed } from "@harness/env";
+import { close, isRecord, listen } from "./harness-server-cli.ts";
 
 export const consentCases = [
   { id: "write", scope: "mcp:read mcp:write offline_access", accept: true },

@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises";
 
 // Only frontend source changes can reach this path. All service code, schema,
 // dependency inputs and controller files are part of the running-template key.
-const root = "/opt/openwork-preview";
+const root = "/opt/harness-preview";
 const services = JSON.parse(await readFile(`${root}/services.json`, "utf8"));
 const seen = new Set();
 async function warm(path) {
@@ -31,13 +31,13 @@ if (services.den) {
     const { signInDesktopAs } = await import("/workspace/evals/packages/behaviors/src/index.ts");
     const surface = await attachSurface({ name: "preview-refresh", kind: "electron", hostKind: "local", cdpUrl: "http://127.0.0.1:9825" }, { timeoutMs: 30_000 });
     const nonce = randomUUID();
-    const init = await addInitScript(surface.client, browserScript((value) => { globalThis.__openworkPreviewReload = value; }, [nonce]));
+    const init = await addInitScript(surface.client, browserScript((value) => { globalThis.__harnessPreviewReload = value; }, [nonce]));
     try {
       await surface.client.send("Page.reload", { ignoreCache: true });
       let loaded = false;
       const deadline = Date.now() + 60_000;
       while (Date.now() < deadline) {
-        loaded = await evaluate(surface.client, browserScript((value) => globalThis.__openworkPreviewReload === value && Boolean(window.__openworkControl?.listActions?.().length), [nonce])).catch(() => false);
+        loaded = await evaluate(surface.client, browserScript((value) => globalThis.__harnessPreviewReload === value && Boolean(window.__harnessControl?.listActions?.().length), [nonce])).catch(() => false);
         if (loaded) break;
         await delay(250);
       }

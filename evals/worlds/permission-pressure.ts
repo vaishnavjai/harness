@@ -1,5 +1,5 @@
-import { browserScript, evaluate } from "@openwork/cdp";
-import { resolveEvalEngine, type Place, type Seed } from "@openwork/env";
+import { browserScript, evaluate } from "@harness/cdp";
+import { resolveEvalEngine, type Place, type Seed } from "@harness/env";
 import { mkdir, realpath, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
@@ -7,8 +7,8 @@ import { configureProvider } from "./chat.ts";
 import { installSsePressure } from "./session-archive-pressure.ts";
 
 export function permissionPressureMode(): "baseline" | "fixed" {
-  const mode = process.env.OPENWORK_PERMISSION_PRESSURE_MODE ?? "fixed";
-  if (mode !== "baseline" && mode !== "fixed") throw new Error("OPENWORK_PERMISSION_PRESSURE_MODE must be baseline or fixed");
+  const mode = process.env.HARNESS_PERMISSION_PRESSURE_MODE ?? "fixed";
+  if (mode !== "baseline" && mode !== "fixed") throw new Error("HARNESS_PERMISSION_PRESSURE_MODE must be baseline or fixed");
   return mode;
 }
 
@@ -32,9 +32,9 @@ type MainRequest = { path: string; method: string; body: string; reply: string; 
 
 export async function permissionPressure(seed: Seed, context: { place: Place }) {
   if (context.place.kind !== "local" || resolveEvalEngine() !== "v1"
-    || process.env.OPENWORK_EVAL_ELECTRON_BINARY || process.env.OPENWORK_EVAL_SURFACES_DIR
-    || process.env.OPENWORK_DEV_SHARED_STATE !== "0") {
-    throw new Error("Permission pressure requires --local --engine v1 --surface electron, OPENWORK_DEV_SHARED_STATE=0 and no binary/surfaces override");
+    || process.env.HARNESS_EVAL_ELECTRON_BINARY || process.env.HARNESS_EVAL_SURFACES_DIR
+    || process.env.HARNESS_DEV_SHARED_STATE !== "0") {
+    throw new Error("Permission pressure requires --local --engine v1 --surface electron, HARNESS_DEV_SHARED_STATE=0 and no binary/surfaces override");
   }
   await using resources = new AsyncDisposableStack();
   const root = seed.tmpPath("permission-pressure");
@@ -77,7 +77,7 @@ export async function permissionPressure(seed: Seed, context: { place: Place }) 
   const modelId = "permission-pressure-model";
   const preload = fileURLToPath(new URL("../fixtures/permission-main-fetch.cjs", import.meta.url));
   const app = await seed.desktop({ name: "permission-pressure", model: `${providerId}/${modelId}`,
-    env: { OPENWORK_DEV_SHARED_STATE: "0", NODE_OPTIONS: `--require ${JSON.stringify(preload)}` },
+    env: { HARNESS_DEV_SHARED_STATE: "0", NODE_OPTIONS: `--require ${JSON.stringify(preload)}` },
   });
   const workspace = await seed.workspace(app, workspacePath, { create: true });
   await configureProvider(seed, app, workspace.workspaceId, providerId, modelId, {
@@ -88,7 +88,7 @@ export async function permissionPressure(seed: Seed, context: { place: Place }) 
     } },
   });
   const server = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Isolated fixture server unavailable");
     return { baseUrl: info.baseUrl, token: info.ownerToken ?? info.clientToken };
   }, { awaitPromise: true, timeoutMs: 5_000 });
@@ -99,7 +99,7 @@ export async function permissionPressure(seed: Seed, context: { place: Place }) 
   const mount = `/workspace/${encodeURIComponent(workspace.workspaceId)}/opencode`;
   const mainControl = async (configure: boolean): Promise<MainRequest[]> => {
     const value = await evaluate(app.client, browserScript(async (origin, mount, configure) => {
-      const result = await window.__OPENWORK_ELECTRON__.invokeDesktop("__fetch", "http://127.0.0.1/__openwork_permission_test_control", {
+      const result = await window.__HARNESS_ELECTRON__.invokeDesktop("__fetch", "http://127.0.0.1/__harness_permission_test_control", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(configure ? { action: "configure", origin, mount } : { action: "state" }),
       });

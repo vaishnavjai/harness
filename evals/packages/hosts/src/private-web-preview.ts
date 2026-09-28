@@ -69,7 +69,7 @@ export async function verifyPrivateWebPreview(
     redirect: "error", headers: { "X-Daytona-Skip-Preview-Warning": "true" }, signal: AbortSignal.timeout(30_000),
   });
   try {
-    for (const path of ["/", "/@vite/client", "/src/main.tsx", "/api/openwork/health"]) {
+    for (const path of ["/", "/@vite/client", "/src/main.tsx", "/api/harness/health"]) {
       const denied = await get(preview.unsignedOrigin, path);
       if (![401, 403].includes(denied.status)) throw new Error("Unsigned access was not denied.");
     }
@@ -82,7 +82,7 @@ export async function verifyPrivateWebPreview(
     const socketUrl = (origin: string) => `${origin.replace(/^https:/, "wss:")}/?token=${token}`;
     if (await opens(socketUrl(preview.unsignedOrigin))) throw new Error("Unsigned WebSocket access was not denied.");
     if (!await opens(socketUrl(preview.browserOrigin))) throw new Error("Signed WebSocket unavailable.");
-    const health = await get(preview.browserOrigin, "/api/openwork/health");
+    const health = await get(preview.browserOrigin, "/api/harness/health");
     if (!health.ok || !health.headers.get("content-type")?.includes("application/json")) throw new Error("Same-origin backend unavailable.");
   } catch {
     throw new Error("Security prerequisite: private app-web preview must protect HTTP, assets, and WebSockets and serve the same-origin backend. No browser URL published.");

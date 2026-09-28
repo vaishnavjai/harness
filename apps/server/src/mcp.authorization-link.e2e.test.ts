@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { buildOpenworkRuntimeConfigObjectFromSnapshot } from "./openwork-runtime-config.js";
+import { buildHarnessRuntimeConfigObjectFromSnapshot } from "./harness-runtime-config.js";
 
 const repoRoot = resolve(import.meta.dir, "../../..");
 const sidecarDir = join(repoRoot, "apps/desktop/resources/sidecars");
@@ -33,7 +33,7 @@ function hasExactHttpUrl(value: unknown, expectedUrl: string): boolean {
 }
 
 function findEngine(): string | null {
-  const explicit = process.env.OPENWORK_TEST_OPENCODE_PATH;
+  const explicit = process.env.HARNESS_TEST_OPENCODE_PATH;
   if (explicit && existsSync(explicit)) return explicit;
   const arch = process.arch === "arm64" ? "aarch64" : "x86_64";
   const name = process.platform === "darwin"
@@ -163,13 +163,13 @@ describeMaybe("authorization-required MCP tool error pass-through", () => {
       },
     });
 
-    const runtime = buildOpenworkRuntimeConfigObjectFromSnapshot({});
+    const runtime = buildHarnessRuntimeConfigObjectFromSnapshot({});
     const configPath = join(workspace, "opencode.json");
     writeFileSync(configPath, JSON.stringify({
       $schema: "https://opencode.ai/config.json",
       formatter: false,
       lsp: false,
-      default_agent: "openwork",
+      default_agent: "harness",
       agent: runtime.agent,
       model: "test/test-model",
       provider: {
@@ -264,7 +264,7 @@ describeMaybe("authorization-required MCP tool error pass-through", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        agent: "openwork",
+        agent: "harness",
         model: { providerID: "test", modelID: "test-model" },
         parts: [{ type: "text", text: "Use Salesforce to find the account." }],
       }),

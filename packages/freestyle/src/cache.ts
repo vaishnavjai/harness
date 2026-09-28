@@ -49,9 +49,9 @@ export function dependencyFingerprint(entries: SourceEntry[]): string {
 /** Public metadata only: never check out or execute PR code on the credentialed host. */
 export async function sourceTree(sha: string, request: typeof fetch = fetch): Promise<SourceEntry[]> {
   if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error("A full pushed commit SHA is required.");
-  const response = await request(`https://api.github.com/repos/different-ai/openwork/git/trees/${sha}?recursive=1`, {
+  const response = await request(`https://api.github.com/repos/vaishnavjai/harness/git/trees/${sha}?recursive=1`, {
     headers: { accept: "application/vnd.github+json",
-      ...(process.env.OPENWORK_PREVIEW_GITHUB_TOKEN ? { authorization: `Bearer ${process.env.OPENWORK_PREVIEW_GITHUB_TOKEN}` } : {}),
+      ...(process.env.HARNESS_PREVIEW_GITHUB_TOKEN ? { authorization: `Bearer ${process.env.HARNESS_PREVIEW_GITHUB_TOKEN}` } : {}),
     }, redirect: "error", signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`Could not read public dependency inputs (HTTP ${response.status})`);
@@ -71,7 +71,7 @@ export async function sourceTree(sha: string, request: typeof fetch = fetch): Pr
   await Promise.all(Array.from({ length: Math.min(8, manifests.length) }, async () => {
     while (next < manifests.length) {
       const entry = manifests[next++];
-      const response = await request(`https://raw.githubusercontent.com/different-ai/openwork/${sha}/${entry.path}`, {
+      const response = await request(`https://raw.githubusercontent.com/vaishnavjai/harness/${sha}/${entry.path}`, {
         redirect: "error", signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error(`Could not read package inputs (HTTP ${response.status})`);
@@ -107,8 +107,8 @@ export async function ensureLayer(input: {
     try {
       created = await api.vms.create({
         slug: builderSlug, snapshotId: parent, ttlSeconds: 1800,
-        displayName: `OpenWork ${input.stage} builder`,
-        metadata: { ...input.metadata, kind: "openwork-cache-builder-v1", cacheKey: digest(input.slug) },
+        displayName: `Harness ${input.stage} builder`,
+        metadata: { ...input.metadata, kind: "harness-cache-builder-v1", cacheKey: digest(input.slug) },
         firewall: { rules: [{ action: "allow", source: {}, destination: { public: true } }] },
       });
     } catch (error) {
@@ -126,7 +126,7 @@ export async function ensureLayer(input: {
         input.observe({ stage: input.stage, durationMs: Math.round(performance.now() - start), cacheHit: true });
         return completed;
       }
-      if (owner.metadata.kind !== "openwork-cache-builder-v1" || owner.metadata.cacheKey !== digest(input.slug)) throw error;
+      if (owner.metadata.kind !== "harness-cache-builder-v1" || owner.metadata.cacheKey !== digest(input.slug)) throw error;
       await delay(2_000);
       continue;
     }
@@ -138,7 +138,7 @@ export async function ensureLayer(input: {
       // The provider otherwise materializes gigabytes of unused cached file pages.
       await execChecked(created.vm, "sync && echo 3 > /proc/sys/vm/drop_caches");
       const snapshotStart = performance.now();
-      const result = await created.vm.snapshot({ slug: input.slug, displayName: `OpenWork ${input.stage}`,
+      const result = await created.vm.snapshot({ slug: input.slug, displayName: `Harness ${input.stage}`,
         autoDeleteSeconds: input.autoDeleteSeconds ?? 7 * 86400, ttlSeconds: input.ttlSeconds ?? 30 * 86400 });
       input.observe({ stage: `${input.stage}-snapshot`, durationMs: Math.round(performance.now() - snapshotStart) });
       input.observe({ stage: input.stage, durationMs: Math.round(performance.now() - start), cacheHit: false });
@@ -165,8 +165,8 @@ export function compiledFingerprint(entries: SourceEntry[], world: PreviewWorld 
 /** An interrupted response must not start a second build in the resumed guest. */
 export async function startBuildUnit(vm: Vm, stage: string, diagnostic?: (stage: string, log: string) => Promise<void>): Promise<void> {
   if (!/^[a-z-]+$/.test(stage)) throw new Error("Invalid build stage");
-  const root = `/opt/openwork-preview/${stage}`;
-  const command = `if test -f ${root}.ready || test -f ${root}.failed || systemctl is-active --quiet openwork-${stage}.service; then exit 0; fi; systemd-run --collect --unit=openwork-${stage} /bin/bash ${root}.sh`;
+  const root = `/opt/harness-preview/${stage}`;
+  const command = `if test -f ${root}.ready || test -f ${root}.failed || systemctl is-active --quiet harness-${stage}.service; then exit 0; fi; systemd-run --collect --unit=harness-${stage} /bin/bash ${root}.sh`;
   for (let attempt = 0; attempt < 3; attempt++) {
     const result = await vm.exec({ command, timeoutMs: 30_000, linuxUser: "root" });
     if (result.statusCode === 0) return;

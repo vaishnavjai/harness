@@ -32,7 +32,7 @@ function fakeGh(releaseList, latestTag) {
   const gh = (args) => {
     calls.push(args);
     if (args.includes("--paginate")) return JSON.stringify([releaseList]);
-    if (args.join(" ") === "api repos/different-ai/openwork/releases/latest") {
+    if (args.join(" ") === "api repos/vaishnavjai/harness/releases/latest") {
       return JSON.stringify(releaseList.find((item) => item.tag_name === latestTag));
     }
     return "";

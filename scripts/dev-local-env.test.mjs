@@ -62,7 +62,7 @@ for (const scenario of cases) {
     const pnpm = (process.env.PATH ?? "").split(delimiter)
       .map((directory) => resolve(directory, "pnpm")).find(existsSync);
     assert.ok(pnpm, "pnpm must be installed on PATH to run the Turbo fixture");
-    const root = await mkdtemp(join(tmpdir(), "openwork-turbo-env-"));
+    const root = await mkdtemp(join(tmpdir(), "harness-turbo-env-"));
     try {
       const bin = join(root, "bin");
       await mkdir(bin);
@@ -71,7 +71,7 @@ for (const scenario of cases) {
       await copyFile(new URL("../turbo.json", import.meta.url), join(root, "turbo.json"));
       const turboArgs = [
         turbo, "run", "dev:local", "--env-mode=strict", "--no-daemon",
-        ...packages.map((name) => `--filter=@openwork-ee/${name}`),
+        ...packages.map((name) => `--filter=@harness-ee/${name}`),
       ];
       await writeFile(join(root, "package.json"), JSON.stringify({
         name: "synthetic-dev-web-local", private: true, packageManager: "pnpm@11.4.0",
@@ -102,7 +102,7 @@ for (const scenario of cases) {
         const directory = join(root, "packages", name);
         await mkdir(directory, { recursive: true });
         await writeFile(join(directory, "package.json"), JSON.stringify({
-          name: `@openwork-ee/${name}`, private: true,
+          name: `@harness-ee/${name}`, private: true,
           scripts: { "dev:local": "node ../../probe.cjs" },
         }));
       }

@@ -1,6 +1,6 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { beforeEach, describe, expect } from "vitest";
-import { spec, readSidebarOverflow, type Surface } from "@openwork/testkit";
+import { spec, readSidebarOverflow, type Surface } from "@harness/testkit";
 import { sidebarExpansion, sidebarOverflow } from "../worlds/session-shell.ts";
 import { nativeDrag } from "../helpers/native-drag.ts";
 
@@ -120,8 +120,8 @@ test("the sidebar title fade follows only the edges with hidden text", async ({ 
     const platformClasses = await seed.evalIn(world.app, () => (document.documentElement.className));
     if (typeof platformClasses !== "string") throw new Error("Desktop platform classes were not readable.");
     await seed.evalIn(world.app, () => {
-      document.documentElement.classList.remove('openwork-platform-linux', 'openwork-platform-windows');
-      document.documentElement.classList.add('openwork-electron', 'openwork-platform-mac');
+      document.documentElement.classList.remove('harness-platform-linux', 'harness-platform-windows');
+      document.documentElement.classList.add('harness-electron', 'harness-platform-mac');
     });
     // TODO(primitive): probe.geometry should compare a pane and its visible titlebar trigger.
     const geometry = () => probe.eval(() => {
@@ -135,7 +135,7 @@ test("the sidebar title fade follows only the edges with hidden text", async ({ 
       const headerBox = header.getBoundingClientRect();
       const triggerBox = trigger.getBoundingClientRect();
       return {
-        isMac: document.documentElement.classList.contains('openwork-platform-mac'),
+        isMac: document.documentElement.classList.contains('harness-platform-mac'),
         state: sidebar.getAttribute('data-state'),
         top: box.top,
         left: box.left,
@@ -401,7 +401,7 @@ for (const mode of expansionModes) {
           until: value => value.drags.length > 0
             && value.current.rows.findIndex(row => row.id === sourceId) < value.current.rows.findIndex(row => row.id === targetId),
         });
-        expect(dragged.drags).toEqual([{ sessionId: last.sessionId, types: ["application/x-openwork-session-id"] }]);
+        expect(dragged.drags).toEqual([{ sessionId: last.sessionId, types: ["application/x-harness-session-id"] }]);
         const expected = [...idsBefore];
         expected.splice(expected.indexOf(sourceId), 1);
         expected.splice(expected.indexOf(targetId), 0, sourceId);
@@ -409,7 +409,7 @@ for (const mode of expansionModes) {
         expect(dragged.current.hash).toBe(initial.current.hash);
       }
       expect((await world.observation.read()).current.selected).toEqual(initial.current.selected);
-      const management = await probe.storage("openwork.react.sessionManagement");
+      const management = await probe.storage("harness.react.sessionManagement");
       if (mode === "group") expect(management).toMatchObject({ state: { groupsByWorkspace: {
         [world.workspace.workspaceId]: { groups: [{ id: "grp_neighbor" }, { id: "grp_expansion" }] },
       } } });

@@ -1,9 +1,9 @@
 # GCP Deployment Agent Prompt Template
 
-Copy this prompt into your agent and replace every `{{PLACEHOLDER}}` before running it. The agent is expected to operate from a local OpenWork repository checkout and use CLI/API tools for infrastructure. Any browser-only step should be handed back to the operator.
+Copy this prompt into your agent and replace every `{{PLACEHOLDER}}` before running it. The agent is expected to operate from a local Harness repository checkout and use CLI/API tools for infrastructure. Any browser-only step should be handed back to the operator.
 
 ```text
-You are deploying OpenWork EE to Google Cloud from this repository checkout:
+You are deploying Harness EE to Google Cloud from this repository checkout:
 
 {{REPOSITORY_PATH}}
 
@@ -13,10 +13,10 @@ Read and obey `AGENTS.md`. Use the current repository documentation as the sourc
 - `packages/docs/self-host/deploy-to-your-cloud/google-cloud.mdx`
 - `packages/docs/self-host/deploy-to-your-cloud/first-administrator.mdx`
 - `docs/gcp-gke-helm.md`
-- `packaging/helm/openwork-ee/README.md`
-- `packaging/helm/openwork-ee/examples/values.gcp-ingress.yaml`
+- `packaging/helm/harness-ee/README.md`
+- `packaging/helm/harness-ee/examples/values.gcp-ingress.yaml`
 
-Goal: provision and deploy a production-like OpenWork EE install on GCP using the latest published Helm chart that contains the documented first-administrator setup flow. Leave the deployment running unless I ask for cleanup.
+Goal: provision and deploy a production-like Harness EE install on GCP using the latest published Helm chart that contains the documented first-administrator setup flow. Leave the deployment running unless I ask for cleanup.
 
 Customer inputs:
 
@@ -28,18 +28,18 @@ Customer inputs:
 - Organization name: `{{ORGANIZATION_NAME}}`
 - Initial owner email: `{{INITIAL_OWNER_EMAIL}}`
 - Platform/bootstrap admin email, if separate: `{{PLATFORM_ADMIN_EMAIL_OR_SAME_AS_OWNER}}`
-- OpenWork version: `{{OPENWORK_VERSION_OR_LATEST_RELEASE}}` where `latest` means check GitHub releases and the published Helm chart before deploying.
+- Harness version: `{{HARNESS_VERSION_OR_LATEST_RELEASE}}` where `latest` means check GitHub releases and the published Helm chart before deploying.
 - Administrator setup code: `{{OPERATOR_PROVIDES_CODE_OR_AGENT_GENERATES_ONE}}`. If the agent generates the code, give it to me through an agreed secure channel and never print it in task logs.
 
 Agent-created resource names and defaults (change if required):
 
-- GKE cluster name: Kubernetes cluster to create, default `openwork-ee`.
-- Kubernetes namespace: Kubernetes namespace for OpenWork workloads, default `openwork-ee`.
-- Helm release name: Helm's install/upgrade release name, default `openwork-ee`.
-- Cloud SQL instance name: GCP Cloud SQL resource to create, default `openwork-ee-mysql`.
-- Cloud SQL database name: MySQL database to create inside Cloud SQL, default `openwork_den`.
-- Cloud SQL user: MySQL user to create for OpenWork, default `openwork`.
-- Reserved global address name: GCP resource name for the static global IPv4 address used by the HTTPS load balancer, default `openwork-ee-ip`. This is not the IP address; the agent creates the address and reports the allocated IP.
+- GKE cluster name: Kubernetes cluster to create, default `harness-ee`.
+- Kubernetes namespace: Kubernetes namespace for Harness workloads, default `harness-ee`.
+- Helm release name: Helm's install/upgrade release name, default `harness-ee`.
+- Cloud SQL instance name: GCP Cloud SQL resource to create, default `harness-ee-mysql`.
+- Cloud SQL database name: MySQL database to create inside Cloud SQL, default `harness_den`.
+- Cloud SQL user: MySQL user to create for Harness, default `harness`.
+- Reserved global address name: GCP resource name for the static global IPv4 address used by the HTTPS load balancer, default `harness-ee-ip`. This is not the IP address; the agent creates the address and reports the allocated IP.
 
 Operating rules:
 

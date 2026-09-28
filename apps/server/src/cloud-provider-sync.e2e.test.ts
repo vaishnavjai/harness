@@ -6,9 +6,9 @@ import { join } from "node:path";
 
 import { EnvService } from "./env-file.js";
 import { CloudProviderSync } from "./cloud-provider-sync.js";
-import { openworkRuntimeConfigFilePath } from "./openwork-runtime-config.js";
+import { harnessRuntimeConfigFilePath } from "./harness-runtime-config.js";
 import { clearEnginePoolForConfig, setEnginePoolForConfig, type EnginePool, type RolloverOutcome } from "./engine-pool.js";
-import { readOpenworkWorkspaceConfig, writeOpenworkWorkspaceConfig } from "./openwork-workspace-config-store.js";
+import { readHarnessWorkspaceConfig, writeHarnessWorkspaceConfig } from "./harness-workspace-config-store.js";
 import {
   readGlobalRuntimeOpencodeConfig,
   readRuntimeOpencodeConfig,
@@ -25,10 +25,10 @@ const reloadedInPlace = async (): Promise<RolloverOutcome> => ({ action: "reload
 const hostToken = "owt_cloud_provider_host";
 const roots: string[] = [];
 const stops: Array<() => void | Promise<void>> = [];
-const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
-const previousEnvStore = process.env.OPENWORK_ENV_STORE;
-const previousInterval = process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS;
-const previousReloadRetry = process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
+const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
+const previousEnvStore = process.env.HARNESS_ENV_STORE;
+const previousInterval = process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS;
+const previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
 
 type FakeModel = {
   id: string;
@@ -62,7 +62,7 @@ function clientHeaders() {
 }
 
 function hostHeaders() {
-  return { "x-openwork-host-token": hostToken, "content-type": "application/json" };
+  return { "x-harness-host-token": hostToken, "content-type": "application/json" };
 }
 
 async function responseRecord(response: Response, label: string): Promise<Record<string, unknown>> {
@@ -70,11 +70,11 @@ async function responseRecord(response: Response, label: string): Promise<Record
 }
 
 async function createRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-cloud-provider-sync-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-cloud-provider-sync-"));
   roots.push(root);
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
-  process.env.OPENWORK_ENV_STORE = join(root, "env.json");
-  process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS = "3600000";
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_ENV_STORE = join(root, "env.json");
+  process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS = "3600000";
   return root;
 }
 
@@ -174,14 +174,14 @@ afterEach(async () => {
     const root = roots.pop();
     if (root) await rm(root, { recursive: true, force: true });
   }
-  if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
-  if (previousEnvStore === undefined) delete process.env.OPENWORK_ENV_STORE;
-  else process.env.OPENWORK_ENV_STORE = previousEnvStore;
-  if (previousInterval === undefined) delete process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS;
-  else process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS = previousInterval;
-  if (previousReloadRetry === undefined) delete process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-  else process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = previousReloadRetry;
+  if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
+  if (previousEnvStore === undefined) delete process.env.HARNESS_ENV_STORE;
+  else process.env.HARNESS_ENV_STORE = previousEnvStore;
+  if (previousInterval === undefined) delete process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS;
+  else process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS = previousInterval;
+  if (previousReloadRetry === undefined) delete process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+  else process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = previousReloadRetry;
 });
 
 describe("cloud provider sync gateway", () => {
@@ -189,7 +189,7 @@ describe("cloud provider sync gateway", () => {
     test(`forged provider import baselines never confer cleanup ownership during ${mode}`, async () => {
       const root = await createRoot();
       const config = serverConfig(root, "https://engine.example.test");
-      const forgedIds = ["lpr_00000000000000000000000001", "ipr_00000000000000000000000002", "openwork"];
+      const forgedIds = ["lpr_00000000000000000000000001", "ipr_00000000000000000000000002", "harness"];
       // Personal auth already exists in the engine, not in the server env store.
       // Even a full-length lpr ID must not migrate without its scoped binding.
       const personal = { id: "openai", npm: "@ai-sdk/openai", env: ["PERSONAL_MISSING_API_KEY"] };
@@ -200,9 +200,9 @@ describe("cloud provider sync gateway", () => {
         providers: Object.fromEntries(forgedIds.map((id) => [id, { cloudProviderId: id }])),
         marketplaces: { mkp_keep: { name: "Keep" } },
       } };
-      await writeOpenworkWorkspaceConfig(config, "ws_1", () => baseline);
-      expect(await readOpenworkWorkspaceConfig(config, "ws_1")).toEqual(baseline);
-      const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+      await writeHarnessWorkspaceConfig(config, "ws_1", () => baseline);
+      expect(await readHarnessWorkspaceConfig(config, "ws_1")).toEqual(baseline);
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
       await env.upsertMany([{ key: "LPR_00001_API_KEY", value: "orphan-fixture-key" }]);
       const envBefore = await env.list();
       const provider = buildProvider([{ id: "model-a", name: "Model A", config: {} }]);
@@ -215,7 +215,7 @@ describe("cloud provider sync gateway", () => {
         const url = new URL(String(input));
         // Observe the ledger before apply/sweep can clear retired IDs, including
         // the restore-before-fetch write on a failed sync.
-        ownershipSnapshots.push((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds);
+        ownershipSnapshots.push((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds);
         if (url.hostname === "den.example.test") {
           if (mode === "offline sync") throw new Error("fixture offline");
           if (url.pathname === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -233,14 +233,14 @@ describe("cloud provider sync gateway", () => {
       if (mode !== "cold cleanup") {
         await sync.setSession({ baseUrl: "https://den.example.test", token: "fixture-session", orgId: "org_fixture" });
         expect((await sync.run("baseline-regression")).status).toBe(mode === "sync" ? "applied" : "failed");
-        expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds)
+        expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds)
           .toEqual(mode === "sync" ? [provider.id] : []);
         for (const id of forgedIds) {
           expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))[id]).toEqual(personal);
           expect(runtimeProviderMap(await readRuntimeOpencodeConfig(config, "ws_1"))[id]).toEqual(personal);
         }
         // A collaborator can write another baseline after sync removes it.
-        await writeOpenworkWorkspaceConfig(config, "ws_1", () => baseline);
+        await writeHarnessWorkspaceConfig(config, "ws_1", () => baseline);
       }
       await sync.clearSession();
       for (const id of forgedIds) {
@@ -252,11 +252,11 @@ describe("cloud provider sync gateway", () => {
       }
       if (mode !== "cold cleanup") expect(ownershipSnapshots.length).toBeGreaterThan(0);
       expect(await env.list()).toEqual(envBefore);
-      expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"))
+      expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
         .toEqual({ providerIds: [], envHashes: {} });
-      expect(await readOpenworkWorkspaceConfig(config, "__managed_provider_auth__:workspace:ws_1\u0000endpoint:https://engine.example.test"))
+      expect(await readHarnessWorkspaceConfig(config, "__managed_provider_auth__:workspace:ws_1\u0000endpoint:https://engine.example.test"))
         .toEqual({ providerIds: [] });
-      expect((await readOpenworkWorkspaceConfig(config, "ws_1")).cloudImports)
+      expect((await readHarnessWorkspaceConfig(config, "ws_1")).cloudImports)
         .toEqual({ providers: {}, marketplaces: baseline.cloudImports.marketplaces });
     });
   }
@@ -265,7 +265,7 @@ describe("cloud provider sync gateway", () => {
     test(`cold cleanup retires ${ownership} providers and removes only proven Cloud credentials`, async () => {
       const root = await createRoot();
       const config = serverConfig(root, "https://engine.example.test");
-      const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
       const id = "lpr_00000000000000000000000003";
       const envName = "LPR_00003_OPENAI_API_KEY";
       const provider = {
@@ -293,7 +293,7 @@ describe("cloud provider sync gateway", () => {
         stops.push(() => sync.stop());
         await sync.setSession({ baseUrl: "https://den.example.test", token: "fixture-session", orgId: "org_fixture" });
         expect((await sync.run("genuine-ownership")).status).toBe("applied");
-        const ledger = await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__");
+        const ledger = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
         expect(ledger.providerIds).toEqual([id]);
         expect(Object.keys(expectRecord(ledger.envHashes, "owned env hashes"))).toEqual([envName]);
         expect(engineRequests).toContain(`PUT /auth/${id}`);
@@ -303,15 +303,15 @@ describe("cloud provider sync gateway", () => {
         await writeGlobalRuntimeOpencodeConfig(config, () => ({
           provider: { [id]: { id: "openai", npm: "@ai-sdk/openai", env: [envName] } },
         }));
-        expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).toEqual({});
+        expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).toEqual({});
       }
       const globalProviders = runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config));
       await writeRuntimeOpencodeConfig(config, "ws_1", () => ({ provider: { [id]: globalProviders[id] } }));
-      expect(await readOpenworkWorkspaceConfig(config, "ws_1")).toEqual({});
+      expect(await readHarnessWorkspaceConfig(config, "ws_1")).toEqual({});
       offline = true;
       engineRequests.length = 0;
       const envBefore = await env.list();
-      const coldEnv = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+      const coldEnv = new EnvService({ path: process.env.HARNESS_ENV_STORE });
       // New config and sync objects discard both in-memory ownership caches.
       const cold = new CloudProviderSync({ config: serverConfig(root, "https://engine.example.test"), env: coldEnv,
         fetchImpl, reloadEngine: reloadedInPlace });
@@ -321,7 +321,7 @@ describe("cloud provider sync gateway", () => {
       expect(runtimeProviderMap(await readRuntimeOpencodeConfig(config, "ws_1"))[id]).toBeUndefined();
       expect(await coldEnv.list()).toEqual(ownership === "persisted sync" ? [] : envBefore);
       expect(engineRequests).toEqual([`DELETE /auth/${id}`]);
-      expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"))
+      expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
         .toEqual({ providerIds: [], envHashes: {} });
     });
   }
@@ -340,7 +340,7 @@ describe("cloud provider sync gateway", () => {
     stops.push(() => engine.stop(true));
     const den = Bun.serve({ port: 0, fetch(request) {
       const path = new URL(request.url).pathname;
-      const org = request.headers.get("x-openwork-legacy-org-id");
+      const org = request.headers.get("x-harness-legacy-org-id");
       if (path === "/v1/me/desktop-config") return org === "org_b"
         ? Response.json({ error: "denied" }, { status: 401 }) : Response.json({});
       if (org === "org_b") return Response.json({ error: "not_found" }, { status: 404 });
@@ -358,9 +358,9 @@ describe("cloud provider sync gateway", () => {
     });
     expect((await put("/den-session", "org_a")).status).toBe(204);
     await waitForLastRun(base, "applied");
-    const readEnv = () => new EnvService({ path: process.env.OPENWORK_ENV_STORE }).list();
+    const readEnv = () => new EnvService({ path: process.env.HARNESS_ENV_STORE }).list();
     const envBefore = await readEnv();
-    const configBefore = await readFile(openworkRuntimeConfigFilePath(config), "utf8");
+    const configBefore = await readFile(harnessRuntimeConfigFilePath(config), "utf8");
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeDefined();
     expect(envBefore.some((entry) => entry.key === "TEST_PROVIDER_API_KEY")).toBe(true);
     busy = true;
@@ -375,7 +375,7 @@ describe("cloud provider sync gateway", () => {
     expect((await put("/den-session", "org_a")).status).toBe(204);
     expect(await runSync(base, "resumed")).toEqual({ status: "noop" });
     expect(await readEnv()).toEqual(envBefore);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).toBe(configBefore);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).toBe(configBefore);
     expect(engineRequests.filter((request) => !request.startsWith("GET "))).toEqual([]);
 
     expect((await put("/den-session/identity", "org_b")).status).toBe(204);
@@ -416,7 +416,7 @@ describe("cloud provider sync gateway", () => {
         }
         return Response.json(true);
       }, { preconnect: globalThis.fetch.preconnect });
-      const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
       const sync = new CloudProviderSync({ config, env, fetchImpl, engineBusy: async () => true,
         reloadEngine: async () => { reloads += 1; return reloadedInPlace(); }, intervalMs: 3_600_000 });
       stops.push(() => sync.stop());
@@ -424,13 +424,13 @@ describe("cloud provider sync gateway", () => {
       try {
         await sync.setSession(session);
         await Promise.race([reached.promise, Bun.sleep(1_000).then(() => { throw new Error("Apply did not reach auth delivery"); })]);
-        expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash).toBeUndefined();
+        expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash).toBeUndefined();
         const pendingB = sync.setSession({ ...session, orgId: "org_b" });
         const suspended = sync.suspend();
         holdAuth = false;
         release.resolve();
         await Promise.all([pendingB, suspended]);
-        expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash)
+        expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash)
           .toBe(createHash("sha256").update(`${session.baseUrl}\u0000${session.orgId}\u0000${session.token}`).digest("hex"));
         await sync.suspend();
         expect(reloads).toBe(0);
@@ -438,7 +438,7 @@ describe("cloud provider sync gateway", () => {
         const before = await env.list();
         await sync.setSession({ ...session, orgId: resumeOrg });
         expect((await sync.run("resumed")).status).toBe("applied");
-        expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash)
+        expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash)
           .toBe(createHash("sha256").update(`${session.baseUrl}\u0000${resumeOrg}\u0000${session.token}`).digest("hex"));
         if (resumeOrg === "org_a") expect(await env.list()).toEqual(before);
         else expect((await env.list()).map(({ key, value }) => ({ key, value })))
@@ -453,8 +453,8 @@ describe("cloud provider sync gateway", () => {
 
   test("early identity cancels a previous provider fetch and stays dormant across timer ticks", async () => {
     const root = await createRoot();
-    process.env.OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS = "20";
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "20";
+    process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS = "20";
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "20";
     const reached = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     const provider = buildProvider([{ id: "model-a", name: "Model A", config: {} }]);
@@ -463,7 +463,7 @@ describe("cloud provider sync gateway", () => {
       port: 0,
       async fetch(request) {
         const path = new URL(request.url).pathname;
-        const org = request.headers.get("x-openwork-legacy-org-id");
+        const org = request.headers.get("x-harness-legacy-org-id");
         denRequests.push(`${org} ${path}`);
         if (path === "/v1/me/desktop-config") return Response.json({ allowCustomProviders: false });
         if (path === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -505,7 +505,7 @@ describe("cloud provider sync gateway", () => {
       expect(denRequests.filter((path) => path.includes("llm-providers"))).toEqual(["org_old /v1/llm-providers"]);
       expect(engineRequests).toEqual(baseline);
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))).toEqual({});
-      expect(await new EnvService({ path: process.env.OPENWORK_ENV_STORE }).list()).toEqual([]);
+      expect(await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).toEqual([]);
       expect((await responseRecord(await fetch(`${base}/cloud-provider-sync/status`, { headers: clientHeaders() }), "status")))
         .toMatchObject({ hasSession: false, providers: [], lastRun: null });
       expect((await put("/den-session", "org_new")).status).toBe(204);
@@ -515,7 +515,7 @@ describe("cloud provider sync gateway", () => {
         .toMatchObject({ status: expect.stringMatching(/^(applied|noop)$/) });
       expect(await runSync(base, "after-ready")).toEqual({ status: "noop" });
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeDefined();
-      expect((await new EnvService({ path: process.env.OPENWORK_ENV_STORE }).list())
+      expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list())
         .map(({ key, value }) => ({ key, value })))
         .toEqual([{ key: "TEST_PROVIDER_API_KEY", value: provider.apiKey }]);
       expect(engineRequests).toContain("PUT /auth/lpr_test");
@@ -554,7 +554,7 @@ describe("cloud provider sync gateway", () => {
           if (url.pathname === "/v1/me/desktop-config") return Response.json({});
           return Response.json({ error: "not_found" }, { status: 404 });
         }
-        listOrgIds.push(request.headers.get("x-openwork-legacy-org-id") ?? "");
+        listOrgIds.push(request.headers.get("x-harness-legacy-org-id") ?? "");
         const listIndex = listOrgIds.length;
         listRequestsInFlight += 1;
         maxListRequestsInFlight = Math.max(maxListRequestsInFlight, listRequestsInFlight);
@@ -643,7 +643,7 @@ describe("cloud provider sync gateway", () => {
     ) => {
       const url = new URL(String(input));
       if (url.hostname === "den.example.test") {
-        const orgId = new Headers(init?.headers).get("x-openwork-legacy-org-id");
+        const orgId = new Headers(init?.headers).get("x-harness-legacy-org-id");
         if (orgId === "org_b") return Response.json({ error: "not_found" }, { status: 404 });
         if (url.pathname === "/v1/llm-providers") return Response.json({ llmProviders: [provider] });
         if (url.pathname === `/v1/llm-providers/${provider.id}/connect`) {
@@ -655,7 +655,7 @@ describe("cloud provider sync gateway", () => {
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const sync = new CloudProviderSync({
       config,
       env,
@@ -731,7 +731,7 @@ describe("cloud provider sync gateway", () => {
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const sync = new CloudProviderSync({
       config,
       env,
@@ -770,7 +770,7 @@ describe("cloud provider sync gateway", () => {
   });
 
   test("defers a reload while a generation drains and retries it once", async () => {
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "50";
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "50";
     const root = await createRoot();
     const provider = buildProvider([{ id: "model-a", name: "Model A", config: {} }]);
     const config = serverConfig(root, "https://engine.example.test");
@@ -787,7 +787,7 @@ describe("cloud provider sync gateway", () => {
     }, { preconnect: globalThis.fetch.preconnect });
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.OPENWORK_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
       fetchImpl,
       engineBusy: async () => draining,
       reloadEngine: async () => { reloads += 1; return reloadedInPlace(); },
@@ -818,7 +818,7 @@ describe("cloud provider sync gateway", () => {
     provider.apiKey = "sk-rotated-before-identity";
     expect((await sync.run("rotation")).status).toBe("applied");
     expect(sync.status().reloadPending).toBe(true);
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const before = await env.list();
     await sync.suspend();
     draining = false;
@@ -864,7 +864,7 @@ describe("cloud provider sync gateway", () => {
     stops.push(() => den.stop(true));
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.OPENWORK_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
       reloadEngine: async () => {
         reloads += 1;
         return reloadedInPlace();
@@ -910,7 +910,7 @@ describe("cloud provider sync gateway", () => {
       models: { model: { id: "model", name: "Model" } },
     } } }));
     const sync = new CloudProviderSync({
-      config, env: new EnvService({ path: process.env.OPENWORK_ENV_STORE }), reloadEngine: reloadedInPlace,
+      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE }), reloadEngine: reloadedInPlace,
       fetchImpl: Object.assign(async (input: URL | RequestInfo) => {
         const { pathname } = new URL(String(input));
         if (pathname === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -924,8 +924,8 @@ describe("cloud provider sync gateway", () => {
     expect(sync.status().providers[0]?.modelConfigVersion).toBe(3);
     const written = runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test;
     const model = expectRecord(expectRecord(written.models, "serialized models").model, "serialized model");
-    expect(model.variants).toEqual({ __openwork_catalog_fast_v1: {
-      disabled: true, openworkNativeFast: 1, reasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
+    expect(model.variants).toEqual({ __harness_catalog_fast_v1: {
+      disabled: true, harnessNativeFast: 1, reasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
     } });
     expect(JSON.stringify(written)).not.toContain('"experimental"');
     expect((await sync.run()).status).toBe("noop");
@@ -942,7 +942,7 @@ describe("cloud provider sync gateway", () => {
     } }]);
     provider.providerConfig.npm = "@ai-sdk/anthropic";
     const sync = new CloudProviderSync({
-      config, env: new EnvService({ path: process.env.OPENWORK_ENV_STORE }), reloadEngine: reloadedInPlace,
+      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE }), reloadEngine: reloadedInPlace,
       fetchImpl: Object.assign(async (input: URL | RequestInfo) => {
         const { pathname } = new URL(String(input));
         if (pathname === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -985,7 +985,7 @@ describe("cloud provider sync gateway", () => {
     stops.push(() => den.stop(true));
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.OPENWORK_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
       reloadEngine: reloadedInPlace,
       intervalMs: 3_600_000,
     });
@@ -1029,7 +1029,7 @@ describe("cloud provider sync gateway", () => {
       id: "ipr_ready",
       providerId: "anthropic",
       name: "Team Anthropic",
-      source: "openwork_gateway",
+      source: "harness_gateway",
       credentialMode: "org",
       credentialStatus: "ready",
       status: "active",
@@ -1044,7 +1044,7 @@ describe("cloud provider sync gateway", () => {
         options: { baseURL: gatewayBaseUrl },
       },
       models: [{
-        id: modelId, name: "Claude Sonnet", config: { id: modelId, name: "Claude Sonnet", headers: { "x-openwork-gateway-request-model": modelId } },
+        id: modelId, name: "Claude Sonnet", config: { id: modelId, name: "Claude Sonnet", headers: { "x-harness-gateway-request-model": modelId } },
         upstreamModelId: "claude-sonnet",
         modelGroupId: `gmg_${groupSuffix}`, modelGroupName: "Team models",
         credentialSetId: `gcs_${setSuffix}`, credentialSetName: "Organization key",
@@ -1085,8 +1085,8 @@ describe("cloud provider sync gateway", () => {
       expect(init?.method ?? "GET").toBe("GET");
       expect(init?.body).toBeUndefined();
       expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${activeSession.token}`);
-      expect(new Headers(init?.headers).get("x-openwork-legacy-org-id")).toBe(activeSession.orgId);
-      expect(new Headers(init?.headers).get("x-openwork-org-id")).toBe(activeSession.orgId);
+      expect(new Headers(init?.headers).get("x-harness-legacy-org-id")).toBe(activeSession.orgId);
+      expect(new Headers(init?.headers).get("x-harness-org-id")).toBe(activeSession.orgId);
       if (gatewayBeforeFetch !== undefined) {
         expect((await env.list()).some((entry) => entry.key === "IPR_READY_ANTHROPIC_API_KEY")).toBe(gatewayBeforeFetch);
       }
@@ -1112,7 +1112,7 @@ describe("cloud provider sync gateway", () => {
       }
       throw new Error(`Unexpected Den request: ${path}`);
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const newSync = () => {
       const sync = new CloudProviderSync({
         config: serverConfig(root, "https://engine.example.test"),
@@ -1149,7 +1149,7 @@ describe("cloud provider sync gateway", () => {
     expect(status.providers[0]).toMatchObject({
       sourceProviderId: "anthropic",
       name: "Team Anthropic",
-      source: "openwork_gateway",
+      source: "harness_gateway",
       modelIds: [modelId],
     });
     expect(status.providers[1]?.source).toBe("custom");
@@ -1175,7 +1175,7 @@ describe("cloud provider sync gateway", () => {
     expect(gatewayRuntime.name).toBe("Team Anthropic");
     expect(gatewayRuntime.npm).toBe("@ai-sdk/anthropic");
     expect(gatewayRuntime.api).toBe(gatewayBaseUrl);
-    expect(gatewayRuntime.models).toEqual({ [modelId]: { id: modelId, name: "Claude Sonnet", headers: { "x-openwork-gateway-request-model": modelId } } });
+    expect(gatewayRuntime.models).toEqual({ [modelId]: { id: modelId, name: "Claude Sonnet", headers: { "x-harness-gateway-request-model": modelId } } });
     expect(expectRecord(gatewayRuntime.options, "gateway options").baseURL).toBe(gatewayBaseUrl);
     expect(JSON.stringify(gatewayRuntime)).not.toContain(gatewayKey);
     const storedEnv = await env.list();
@@ -1190,9 +1190,9 @@ describe("cloud provider sync gateway", () => {
     expect(JSON.stringify(sync.status())).not.toContain("unassigned-upstream");
     const readState = async () => ({
       runtime: await readGlobalRuntimeOpencodeConfig(config),
-      runtimeFile: await readFile(openworkRuntimeConfigFilePath(config), "utf8"),
+      runtimeFile: await readFile(harnessRuntimeConfigFilePath(config), "utf8"),
       env: await env.list(),
-      ownership: await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"),
+      ownership: await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"),
       engineRequests: [...engineRequests],
       reloads,
     });
@@ -1281,8 +1281,8 @@ describe("cloud provider sync gateway", () => {
     expect(sync.status().skippedProviders).toEqual([]);
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))).toEqual({ lpr_test: runtimeProviders.lpr_test });
     expect(await env.list()).toEqual(storedEnv.filter((entry) => entry.key !== "IPR_READY_ANTHROPIC_API_KEY"));
-    expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds).toEqual(["lpr_test"]);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).not.toContain('"ipr_ready"');
+    expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).providerIds).toEqual(["lpr_test"]);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).not.toContain('"ipr_ready"');
     expect(engineRequests.slice(revokeOffset)).toEqual(["DELETE /auth/ipr_ready"]);
     expect(await sync.run("gateway-empty-unchanged")).toEqual({ status: "noop" });
     inferenceListResponse = undefined;
@@ -1301,7 +1301,7 @@ describe("cloud provider sync gateway", () => {
     await env.upsertMany([{ key: legacyEnvName, value: additionalLegacyProvider.apiKey }]);
     expect((await sync.run("seed-mixed-legacy-gateway")).status).toBe("applied");
     sync.stop();
-    await writeOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__", (current) => ({
+    await writeHarnessWorkspaceConfig(config, "__cloud_provider_ownership__", (current) => ({
       providerIds: current.providerIds,
       envHashes: Object.fromEntries(Object.entries(expectRecord(current.envHashes, "owned env hashes"))
         .filter(([key]) => key !== legacyEnvName)),
@@ -1324,9 +1324,9 @@ describe("cloud provider sync gateway", () => {
       providerStateChanged: false, envUpserts: 0, envDeletes: 0, cleanupRuntimeChanged: false, fileChanged: false,
     });
     expect(await readGlobalRuntimeOpencodeConfig(config)).toEqual(beforeUpgrade.runtime);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).toBe(beforeUpgrade.runtimeFile);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).toBe(beforeUpgrade.runtimeFile);
     expect(await env.list()).toEqual(beforeUpgrade.env);
-    expect((await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash).toBe(contextHash);
+    expect((await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__")).materializationContextHash).toBe(contextHash);
     additionalLegacyProvider = undefined;
     expect((await sync.run("retire-mixed-legacy-fixture")).status).toBe("applied");
 
@@ -1340,7 +1340,7 @@ describe("cloud provider sync gateway", () => {
       for (const code of [404, 405, 501]) {
         sync.stop();
         if (!cold.provenance) {
-          await writeOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__", (current) => ({
+          await writeHarnessWorkspaceConfig(config, "__cloud_provider_ownership__", (current) => ({
             providerIds: current.providerIds, envHashes: current.envHashes,
           }));
         }
@@ -1366,8 +1366,8 @@ describe("cloud provider sync gateway", () => {
           const providerIds = cold.session.orgId === session.orgId ? ["lpr_test"] : [];
           expect(Object.keys(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)))).toEqual(providerIds);
           expect((await env.list()).map((entry) => entry.key)).toEqual(providerIds.length > 0 ? ["TEST_PROVIDER_API_KEY"] : []);
-          expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).not.toContain('"ipr_ready"');
-          const ownership = await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__");
+          expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).not.toContain('"ipr_ready"');
+          const ownership = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
           expect(ownership.providerIds).toEqual(providerIds);
           if (providerIds.length === 0) expect(ownership).toEqual({ providerIds: [], envHashes: {} });
           else expect(ownership.materializationContextHash)
@@ -1417,7 +1417,7 @@ describe("cloud provider sync gateway", () => {
       }
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))).toEqual({});
       expect(await env.list()).toEqual([]);
-      expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"))
+      expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
         .toEqual({ providerIds: [], envHashes: {} });
       expect(engineRequests.slice(before.engineRequests.length).sort()).toEqual(["DELETE /auth/ipr_ready", "DELETE /auth/lpr_test"]);
       expect(reloads).toBe(before.reloads + 1);
@@ -1467,7 +1467,7 @@ describe("cloud provider sync gateway", () => {
       const body = typeof init?.body === "string" ? init.body : null;
       if (url.hostname === "den.example.test") {
         denTraffic.push({ url: url.toString(), body });
-        const allowed = granted && new Headers(init?.headers).get("x-openwork-org-id") === session.orgId;
+        const allowed = granted && new Headers(init?.headers).get("x-harness-org-id") === session.orgId;
         if (url.pathname === "/v1/llm-providers") return Response.json({ llmProviders: allowed ? [provider] : [] });
         if (allowed && url.pathname === `/v1/llm-providers/${provider.id}/connect`) {
           return Response.json({ llmProvider: provider });
@@ -1486,7 +1486,7 @@ describe("cloud provider sync gateway", () => {
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
     const config = serverConfig(root, "https://engine.example.test");
-    let env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    let env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const newSync = () => {
       const sync = new CloudProviderSync({
         config: serverConfig(root, "https://engine.example.test"),
@@ -1513,7 +1513,7 @@ describe("cloud provider sync gateway", () => {
       expect(JSON.stringify(denTraffic)).not.toContain(localSecret);
       expect(engineAuth.get(provider.id)).toBe(localSecret);
       expect((await env.list()).find((entry) => entry.key === credentialKey)?.value).toBe(localSecret);
-      const ownership = await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__");
+      const ownership = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
       expect(ownership.providerIds).toEqual([provider.id]);
       expect(ownership.envHashes).toEqual(envHashes);
       expect(JSON.stringify(ownership)).not.toContain(localSecret);
@@ -1522,7 +1522,7 @@ describe("cloud provider sync gateway", () => {
       expect(sync.status().providers).toEqual([]);
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))[provider.id]).toBeUndefined();
       expect(runtimeProviderMap(await readRuntimeOpencodeConfig(config, "ws_1"))[provider.id]).toBeUndefined();
-      expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8")).not.toContain(provider.id);
+      expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8")).not.toContain(provider.id);
       expect(engineAuth.has(provider.id)).toBe(false);
       expect((await env.list()).find((entry) => entry.key === credentialKey)?.value).toBe(localSecret);
     };
@@ -1545,10 +1545,10 @@ describe("cloud provider sync gateway", () => {
     await env.upsertMany([{ key: credentialKey, value: localSecret }]);
     await writeGlobalRuntimeOpencodeConfig(config, () => ({ provider: { [provider.id]: legacyProvider } }));
     await writeRuntimeOpencodeConfig(config, "ws_1", () => ({ provider: { [provider.id]: legacyProvider } }));
-    expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"))
+    expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
       .toEqual({ providerIds: [], envHashes: {} });
     sync.stop();
-    env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("legacy-local-key-upgrade")).status).toBe("applied");
@@ -1557,7 +1557,7 @@ describe("cloud provider sync gateway", () => {
     await expectConnected();
 
     sync.stop();
-    env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("restart-with-local-key")).status).toBe("applied");
@@ -1596,7 +1596,7 @@ describe("cloud provider sync gateway", () => {
 
     provider.apiKey = "sk-cloud-supplied-fixture";
     expect((await sync.run("cloud-key-supplied")).status).toBe("applied");
-    const cloudOwnership = await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__");
+    const cloudOwnership = await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__");
     const cloudHashes = expectRecord(cloudOwnership.envHashes, "Cloud credential hashes");
     expect(Object.keys(cloudHashes)).toEqual([credentialKey]);
     expect(engineAuth.get(provider.id)).toBe(provider.apiKey);
@@ -1613,7 +1613,7 @@ describe("cloud provider sync gateway", () => {
     await env.upsertMany([{ key: credentialKey, value: localSecret }]);
     provider.apiKey = "";
     sync.stop();
-    env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("restart-with-locally-replaced-cloud-key")).status).toBe("applied");
@@ -1655,7 +1655,7 @@ describe("cloud provider sync gateway", () => {
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
     const config = serverConfig(root, "https://engine.example.test");
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const envValues = async () => new Map((await env.list()).map((entry) => [entry.key, entry.value]));
     const session = { baseUrl: "https://den.example.test", token: "den-token", orgId: "org-env-upgrade" };
     const newSync = () => {
@@ -1691,7 +1691,7 @@ describe("cloud provider sync gateway", () => {
 
   test("materializes Den providers globally, reconciles changes, and sweeps the session", async () => {
     const root = await createRoot();
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "20";
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "20";
     const engineRequests: string[] = [];
     const engine = Bun.serve({
       port: 0,
@@ -1726,7 +1726,7 @@ describe("cloud provider sync gateway", () => {
         denRequests.push({
           path: url.pathname,
           authorization: request.headers.get("authorization"),
-          orgId: request.headers.get("x-openwork-legacy-org-id"),
+          orgId: request.headers.get("x-harness-legacy-org-id"),
         });
         // This fixture isolates provider-catalog outages; policy verification
         // remains available when the provider service fails.
@@ -1750,7 +1750,7 @@ describe("cloud provider sync gateway", () => {
         local_provider: { id: "local", name: "Local" },
       },
     }));
-    await writeOpenworkWorkspaceConfig(config, "ws_1", () => ({
+    await writeHarnessWorkspaceConfig(config, "ws_1", () => ({
       cloudImports: {
         providers: { lpr_stale: { cloudProviderId: "lpr_stale" } },
         marketplaces: { mkp_keep: { name: "Keep" } },
@@ -1759,7 +1759,7 @@ describe("cloud provider sync gateway", () => {
     // Simulate an upgrade/restart after an older process persisted the cloud
     // credential. The next sync sees the same value, performs no upsert, and
     // must still reclaim ownership so logout removes it.
-    await new EnvService({ path: process.env.OPENWORK_ENV_STORE }).upsertMany([
+    await new EnvService({ path: process.env.HARNESS_ENV_STORE }).upsertMany([
       { key: "TEST_PROVIDER_API_KEY", value: "sk-test-provider" },
     ]);
 
@@ -1781,7 +1781,7 @@ describe("cloud provider sync gateway", () => {
     const deliverIdentity = (body = identity, headers: Record<string, string> = hostHeaders()) => fetch(`${base}/den-session/identity`, {
       method: "PUT", headers, body: JSON.stringify(body),
     });
-    for (const headers of [{}, clientHeaders(), { ...hostHeaders(), "x-openwork-host-token": "wrong" }]) {
+    for (const headers of [{}, clientHeaders(), { ...hostHeaders(), "x-harness-host-token": "wrong" }]) {
       expect((await deliverIdentity(identity, headers)).status).toBe(401);
     }
     for (const body of [{ ...identity, baseUrl: "file:///tmp/den" }, { ...identity, token: "" }]) {
@@ -1795,10 +1795,10 @@ describe("cloud provider sync gateway", () => {
     expect((await deliverIdentity()).status).toBe(204);
     expect(await runSync(base, "policy-is-optional")).toEqual({ status: "no_session" });
     policyFailure = false;
-    const env = new EnvService({ path: process.env.OPENWORK_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
     const envBefore = await env.list();
     const providersBefore = runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config));
-    const fileBefore = await readFile(openworkRuntimeConfigFilePath(config), "utf8").catch(() => null);
+    const fileBefore = await readFile(harnessRuntimeConfigFilePath(config), "utf8").catch(() => null);
     const engineBefore = [...engineRequests];
     expect((await deliverIdentity()).status).toBe(204);
     await Bun.sleep(80);
@@ -1807,7 +1807,7 @@ describe("cloud provider sync gateway", () => {
     expect((await readGlobalRuntimeOpencodeConfig(config)).managedPolicy).toBeUndefined();
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))).toEqual(providersBefore);
     expect(await env.list()).toEqual(envBefore);
-    expect(await readFile(openworkRuntimeConfigFilePath(config), "utf8").catch(() => null)).toBe(fileBefore);
+    expect(await readFile(harnessRuntimeConfigFilePath(config), "utf8").catch(() => null)).toBe(fileBefore);
     expect(engineRequests).toEqual(engineBefore);
 
     const sessionResponse = await fetch(`${base}/den-session`, {
@@ -1859,7 +1859,7 @@ describe("cloud provider sync gateway", () => {
     const globalModels = expectRecord(globalProvider.models, "global runtime provider models");
     expect(Object.keys(globalModels).sort()).toEqual(["model-a", "model-z"]);
     expect(expectRecord(globalModels["model-z"], "model-z runtime config").reasoning).toBe(true);
-    expect((await new EnvService({ path: process.env.OPENWORK_ENV_STORE }).list()).find(
+    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).find(
       (entry) => entry.key === "TEST_PROVIDER_API_KEY",
     )?.value).toBe("sk-test-provider");
 
@@ -1867,8 +1867,8 @@ describe("cloud provider sync gateway", () => {
     // A matching import baseline alone does not prove server ownership.
     expect(workspaceProviders.lpr_stale).toEqual({ id: "stale", name: "Stale", env: ["STALE_KEY"] });
     expect(workspaceProviders.local_provider).toBeDefined();
-    const openwork = await readOpenworkWorkspaceConfig(config, "ws_1");
-    const cloudImports = expectRecord(openwork.cloudImports, "workspace cloud imports");
+    const harness = await readHarnessWorkspaceConfig(config, "ws_1");
+    const cloudImports = expectRecord(harness.cloudImports, "workspace cloud imports");
     expect(cloudImports.providers).toEqual({});
     expect(cloudImports.marketplaces).toEqual({ mkp_keep: { name: "Keep" } });
 
@@ -1888,7 +1888,7 @@ describe("cloud provider sync gateway", () => {
     denProviders = [];
     expect(await runSync(base, "provider-removed")).toEqual({ status: "applied" });
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeUndefined();
-    expect(await readOpenworkWorkspaceConfig(config, "__cloud_provider_ownership__"))
+    expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
       .toEqual({ providerIds: [], envHashes: {} });
     const removedStatusResponse = await fetch(`${base}/cloud-provider-sync/status`, { headers: clientHeaders() });
     expect((await responseRecord(removedStatusResponse, "removed status")).providers).toEqual([]);
@@ -1898,7 +1898,7 @@ describe("cloud provider sync gateway", () => {
     const deleteResponse = await fetch(`${base}/den-session`, { method: "DELETE", headers: hostHeaders() });
     expect(deleteResponse.status).toBe(204);
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeUndefined();
-    expect((await new EnvService({ path: process.env.OPENWORK_ENV_STORE }).list()).find(
+    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).find(
       (entry) => entry.key === "TEST_PROVIDER_API_KEY",
     )).toBeUndefined();
     const clearedStatusResponse = await fetch(`${base}/cloud-provider-sync/status`, { headers: clientHeaders() });

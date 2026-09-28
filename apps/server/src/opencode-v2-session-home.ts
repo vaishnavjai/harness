@@ -32,7 +32,7 @@ export function nativeSessionDirectory(value: unknown): string | null {
     ? session.location.directory : null;
 }
 
-/** OpenWork owns the conversation's home; native location remains the execution
+/** Harness owns the conversation's home; native location remains the execution
  * directory. Only engine history can establish an older session's original home.
  * Never adopt a caller-supplied workspace or a mutable metadata label as proof. */
 export function createV2SessionHomes(config: ServerConfig, read: (path: string) => Promise<unknown>) {
@@ -80,7 +80,7 @@ export function createV2SessionHomes(config: ServerConfig, read: (path: string) 
       return remember(session.id, parent);
     }
     // Backfill sessions created before this index existed, including moves made
-    // while OpenWork was closed. Read oldest first; the first move records origin.
+    // while Harness was closed. Read oldest first; the first move records origin.
     let cursor: string | undefined;
     const seen = new Set<string>();
     while (true) {
@@ -109,7 +109,7 @@ export function createV2SessionHomes(config: ServerConfig, read: (path: string) 
     const session = nativeSession(value);
     const directory = nativeSessionDirectory(value);
     if (!session || !home || !directory || home === await canonical(directory)) return value;
-    const info = { ...session, openworkHomeDirectory: home };
+    const info = { ...session, harnessHomeDirectory: home };
     return isRecord(value) && isRecord(value.info) ? { ...value, info } : info;
   };
   return { canonical, stored, remember, created, resolve, project };

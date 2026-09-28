@@ -4,7 +4,7 @@ import { act, useLayoutEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { notifyManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { GeneratedArtifactViewRevision, SavedAppDetail } from "@openwork/types/workflows";
+import type { GeneratedArtifactViewRevision, SavedAppDetail } from "@harness/types/workflows";
 
 import type { DashboardTileActions } from "../src/react-app/domains/dashboard/dashboard-tile-shell";
 import type { DenGrantedDashboard } from "../src/app/lib/den";
@@ -25,7 +25,7 @@ let settings = { baseUrl: "fixture", apiBaseUrl: "fixture-api", authToken: "fixt
 let authStatus: DenAuthStatus = "signed_in";
 let memberId: string | null = "member";
 let organizationRole = "admin";
-const workspace = { workspaceId: "workspace", openworkServerClient: {} };
+const workspace = { workspaceId: "workspace", harnessServerClient: {} };
 const client = {
   listOrgs: mock(async () => ({ orgs: [{ id: settings.activeOrgId, role: organizationRole }] })),
   listSavedApps: mock(async (_orgId: string) => ({ enabled: true, sharingEnabled: false, items: [detail] })),
@@ -320,7 +320,7 @@ test("artifact without a conversation launcher leaves the warning read-only", as
 
 test.each(["dashboard", "artifact"])("%s launches live saved apps through the MCP tile without a stored payload", async (surface) => {
   detail.view = { ...detail.view, dataMode: "live", revisions: [{
-    id: "revision_saved", artifactViewId: detail.view.id, resourceUri: "ui://openwork/artifacts/fixture",
+    id: "revision_saved", artifactViewId: detail.view.id, resourceUri: "ui://harness/artifacts/fixture",
     buildStatus: "ready", sourceDigest: "source", resourceDigest: "resource", outputSchemaDigest: "schema",
     csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, diagnostics: [],
     compilerName: "fixture", compilerVersion: "1", reactVersion: "19", compiledHtmlBytes: 13, retiredAt: null,
@@ -338,7 +338,7 @@ test("draft connection errors replace payloads and reconnect refetches the exact
   workingDetail();
   detail = { ...detail, html: "stale preview", runError: { connectionCard: {
     schemaVersion: "1", connectionId: "emc_fixture", connectionName: "Calendar", state: "needs_connection",
-    actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "openwork_your_connections" },
+    actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "harness_your_connections" },
   } } };
   await act(async () => root.render(<QueryClientProvider client={cache}><MemoryRouter>
     <AppArtifact appId={detail.view.id} revisionId="avr_draft" />
@@ -410,7 +410,7 @@ test("yesterday's successful live payload cannot be loaded after midnight", () =
   const today = liveGeneratedAppEntry(detail.view, revision, "UTC", midnight);
   const cacheScope = liveGeneratedAppCacheScope(scope);
   writeDashboardTileCache(cacheScope, yesterday.id, {
-    cachedAt: midnight - 1, workspaceId: "workspace", app: { serverName: "openwork-cloud", toolName: yesterday.toolName,
+    cachedAt: midnight - 1, workspaceId: "workspace", app: { serverName: "harness-cloud", toolName: yesterday.toolName,
       resourceUri: revision.resourceUri, html: "Yesterday", prefersBorder: false, csp: revision.csp },
     result: { content: [{ type: "text", text: "Yesterday's private results" }] },
   });
@@ -717,7 +717,7 @@ test.each(["workspace", "revision"])("snapshot preview geometry cannot cross a %
   if (identity === "workspace") workspace.workspaceId = "other-workspace";
   else {
     if (!detail.revision) throw new Error("Missing snapshot revision");
-    detail.revision = { ...detail.revision, id: "revision_next", resourceUri: "ui://openwork/artifacts/next" };
+    detail.revision = { ...detail.revision, id: "revision_next", resourceUri: "ui://harness/artifacts/next" };
     detail.view = { ...detail.view, activeRevisionId: detail.revision.id, revisions: [detail.revision] };
   }
   await render("dashboard");
@@ -760,7 +760,7 @@ test("successful snapshot removal deletes geometry only after placement settles 
 function workingDetail() {
   detail.html = "<p>Report</p>";
   detail.revision = {
-    id: "revision_saved", artifactViewId: detail.view.id, resourceUri: "ui://openwork/artifacts/fixture",
+    id: "revision_saved", artifactViewId: detail.view.id, resourceUri: "ui://harness/artifacts/fixture",
     buildStatus: "ready", sourceDigest: "source", resourceDigest: "resource", outputSchemaDigest: "schema",
     csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, diagnostics: [],
     compilerName: "fixture", compilerVersion: "1", reactVersion: "19", compiledHtmlBytes: 13, retiredAt: null,

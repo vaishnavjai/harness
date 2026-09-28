@@ -3,18 +3,18 @@ import { bootAcmeWeb, acmeWebOutputs } from "/workspace/worlds/acme-web.ts";
 import { probeAcmeGateway } from "/workspace/worlds/lib/acme-gateway-probe.ts";
 
 import { templateOrigins } from "./origins.mjs";
-process.env.OPENWORK_WORLD_PLACE = "local";
-process.env.OPENWORK_EVAL_DEN_API_PREPARED = "1";
+process.env.HARNESS_WORLD_PLACE = "local";
+process.env.HARNESS_EVAL_DEN_API_PREPARED = "1";
 process.env.pnpm_config_verify_deps_before_run = "false";
 // Vite's Go compiler services otherwise retain gigabytes after prebundling.
 process.env.GOMEMLIMIT = "512MiB";
-process.env.OPENWORK_EVAL_MYSQL_URL = "mysql://root:password@127.0.0.1:3306";
+process.env.HARNESS_EVAL_MYSQL_URL = "mysql://root:password@127.0.0.1:3306";
 process.env.DATABASE_REDIS_URL = "redis://127.0.0.1:6379";
 const stack = new AsyncDisposableStack();
 let phase = Date.now();
 async function mark(stage) {
   const now = Date.now();
-  await appendFile("/opt/openwork-preview/runtime-stages.jsonl", JSON.stringify({ stage, durationMs: now - phase }) + "\n");
+  await appendFile("/opt/harness-preview/runtime-stages.jsonl", JSON.stringify({ stage, durationMs: now - phase }) + "\n");
   phase = now;
 }
 async function warmFrontend(web, den) {
@@ -26,7 +26,7 @@ async function warmFrontend(web, den) {
     await response.text();
   }
   // Warm Vite's transitive module graph, not just its HTML entry point.
-  await appendFile("/opt/openwork-preview/runtime-stages.jsonl", JSON.stringify({ stage: "den-pages", durationMs: Date.now() - start }) + "\n");
+  await appendFile("/opt/harness-preview/runtime-stages.jsonl", JSON.stringify({ stage: "den-pages", durationMs: Date.now() - start }) + "\n");
   start = Date.now();
   const seen = new Set();
   async function warmModule(path) {
@@ -39,7 +39,7 @@ async function warmFrontend(web, den) {
     for (const dependency of imports) await warmModule(dependency);
   }
   await warmModule("/");
-  await appendFile("/opt/openwork-preview/runtime-stages.jsonl", JSON.stringify({ stage: "app-modules", durationMs: Date.now() - start }) + "\n");
+  await appendFile("/opt/harness-preview/runtime-stages.jsonl", JSON.stringify({ stage: "app-modules", durationMs: Date.now() - start }) + "\n");
   return seen.size;
 }
 async function prepareDesktop(stack, world, outputs) {
@@ -55,13 +55,13 @@ async function prepareDesktop(stack, world, outputs) {
     // a slower first boot still snapshots and finishes starting in the clone.
     const running = await Promise.race([desktop.ready, new Promise((resolve) => setTimeout(resolve, 180_000, false))]);
     outputs.desktopStatus = running
-      ? { value: "ready", group: "Desktop", note: "Real OpenWork desktop app, resumed running from the snapshot; signed in as the demo owner when available" }
-      : { value: "starting", group: "Desktop", note: "Real OpenWork desktop app; still loading when the viewer opens" };
+      ? { value: "ready", group: "Desktop", note: "Real Harness desktop app, resumed running from the snapshot; signed in as the demo owner when available" }
+      : { value: "starting", group: "Desktop", note: "Real Harness desktop app; still loading when the viewer opens" };
   } catch (error) {
     console.error("Desktop preview unavailable:", error);
-    outputs.desktopStatus = { value: "unavailable", group: "Desktop", note: "The web preview is unaffected; see /opt/openwork-preview/desktop logs" };
+    outputs.desktopStatus = { value: "unavailable", group: "Desktop", note: "The web preview is unaffected; see /opt/harness-preview/desktop logs" };
   }
-  await appendFile("/opt/openwork-preview/runtime-stages.jsonl", JSON.stringify({ stage: "desktop", durationMs: Date.now() - desktopStart }) + "\n");
+  await appendFile("/opt/harness-preview/runtime-stages.jsonl", JSON.stringify({ stage: "desktop", durationMs: Date.now() - desktopStart }) + "\n");
   return desktop;
 }
 for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, async () => { await stack.disposeAsync(); process.exit(0); });
@@ -77,13 +77,13 @@ try {
   ]);
   outputs.orgId = { value: world.model.orgId, group: "Org" };
   outputs.verifiedReply = { value: proof.reply, group: "Verification" };
-  const services = { app: web.manifest.webUrl, den: den.ref.webUrl, api: den.ref.apiUrl, engine: web.manifest.openworkUrl, gateway: gatewayUrl, ...(desktop ? { desktop: desktop.url, desktopDen: desktop.denUrl } : {}) };
-  await writeFile("/opt/openwork-preview/services.json", JSON.stringify(services), { mode: 0o600 });
-  await writeFile("/opt/openwork-preview/outputs.json", JSON.stringify(outputs), { mode: 0o600 });
-  await writeFile("/opt/openwork-preview/ready-world", JSON.stringify({ warmedAt: new Date().toISOString(), pid: process.pid, modules }));
+  const services = { app: web.manifest.webUrl, den: den.ref.webUrl, api: den.ref.apiUrl, engine: web.manifest.harnessUrl, gateway: gatewayUrl, ...(desktop ? { desktop: desktop.url, desktopDen: desktop.denUrl } : {}) };
+  await writeFile("/opt/harness-preview/services.json", JSON.stringify(services), { mode: 0o600 });
+  await writeFile("/opt/harness-preview/outputs.json", JSON.stringify(outputs), { mode: 0o600 });
+  await writeFile("/opt/harness-preview/ready-world", JSON.stringify({ warmedAt: new Date().toISOString(), pid: process.pid, modules }));
 } catch (error) {
   console.error(error);
-  await writeFile("/opt/openwork-preview/failed-world", "failed");
+  await writeFile("/opt/harness-preview/failed-world", "failed");
   await stack.disposeAsync();
   process.exit(1);
 }

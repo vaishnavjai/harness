@@ -1,20 +1,20 @@
 import { mcpAppResolutionRetryDelayMs } from "@/app/lib/mcp-app-resolution"
 import type {
-  OpenworkMcpAppLaunchReference,
-  OpenworkMcpAppResource,
-  OpenworkServerClient,
-} from "@/app/lib/openwork-server"
+  HarnessMcpAppLaunchReference,
+  HarnessMcpAppResource,
+  HarnessServerClient,
+} from "@/app/lib/harness-server"
 
 type McpAppResolutionEndpoint = {
-  client: Pick<OpenworkServerClient, "resolveMcpApp" | "releaseMcpApp">
+  client: Pick<HarnessServerClient, "resolveMcpApp" | "releaseMcpApp">
   workspaceId: string
 }
 
 type ResolveDashboardMcpAppOptions<TEndpoint extends McpAppResolutionEndpoint> = {
   endpoints: TEndpoint[]
   projectedToolName: string
-  expected: Pick<OpenworkMcpAppResource, "serverName" | "toolName" | "resourceUri">
-  launch?: OpenworkMcpAppLaunchReference
+  expected: Pick<HarnessMcpAppResource, "serverName" | "toolName" | "resourceUri">
+  launch?: HarnessMcpAppLaunchReference
   isActive?: (endpoint: TEndpoint) => boolean
   wait?: (delayMs: number) => Promise<void>
 }
@@ -27,7 +27,7 @@ export async function resolveDashboardMcpApp<TEndpoint extends McpAppResolutionE
   launch,
   isActive = () => true,
   wait = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)),
-}: ResolveDashboardMcpAppOptions<TEndpoint>): Promise<{ endpoint: TEndpoint; app: OpenworkMcpAppResource } | null> {
+}: ResolveDashboardMcpAppOptions<TEndpoint>): Promise<{ endpoint: TEndpoint; app: HarnessMcpAppResource } | null> {
   let attemptIndex = 0
   let pending = endpoints
   while (true) {

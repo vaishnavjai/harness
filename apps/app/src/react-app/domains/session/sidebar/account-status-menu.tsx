@@ -30,9 +30,9 @@ import { usePlatform } from "../../../kernel/platform";
 import { isDenSessionRestoring, useDenAuth } from "../../cloud/den-auth-provider";
 import { useDesktopRestriction } from "../../cloud/desktop-config-provider";
 import { GatewayUsageMenuItem } from "../../cloud/gateway-usage-panel";
-import { useControlAction, type OpenworkControlAction } from "../../../shell/control/control-provider";
+import { useControlAction, type HarnessControlAction } from "../../../shell/control/control-provider";
 import { useShellConfig } from "../../../shell/shell-config";
-import type { OpenworkServerStatus } from "../../../../app/lib/openwork-server";
+import type { HarnessServerStatus } from "../../../../app/lib/harness-server";
 import {
   buildDenAuthUrl,
   clearDenSession,
@@ -44,21 +44,21 @@ import { markDesktopSignInInitiated } from "../../../../app/lib/den-sign-in-inte
 import { exchangeHandoffAndSignIn } from "../../../../app/lib/den-handoff";
 import { parseManualAuthInput } from "../../../../app/lib/manual-auth-input";
 import {
-  openWorkConnectAttentionTitle,
-  resolveOpenWorkConnectStatus,
-  type OpenWorkConnectStatus,
-} from "../../connections/openwork-connect-status";
+  harnessConnectAttentionTitle,
+  resolveHarnessConnectStatus,
+  type HarnessConnectStatus,
+} from "../../connections/harness-connect-status";
 import type { SessionCloudMcpMaintenanceState } from "../../connections/use-session-mcp-maintenance";
 import {
-  getOpenWorkModelsActionUrl,
-  hasOpenWorkModelsProvider,
-  hideOpenWorkModelsPromo,
-  isOpenWorkModelsPromoHidden,
-  openWorkModelsPromoChangedEvent,
-  useOpenWorkModelsPromoEligibility,
-} from "../../cloud/openwork-models-promo";
+  getHarnessModelsActionUrl,
+  hasHarnessModelsProvider,
+  hideHarnessModelsPromo,
+  isHarnessModelsPromoHidden,
+  harnessModelsPromoChangedEvent,
+  useHarnessModelsPromoEligibility,
+} from "../../cloud/harness-models-promo";
 
-const DOCS_URL = "https://openworklabs.com/docs";
+const DOCS_URL = "https://github.com/vaishnavjai/harness/tree/dev/packages/docs";
 const BOOT_STARTED_AT = Date.now();
 const INITIALIZING_MS = 15_000;
 
@@ -91,7 +91,7 @@ type RuntimeStatus = {
 
 type RuntimeStatusInput = {
   clientConnected: boolean;
-  openworkServerStatus: OpenworkServerStatus;
+  harnessServerStatus: HarnessServerStatus;
   initializing: boolean;
   reloadBusy?: boolean;
   reloadError?: string | null;
@@ -111,7 +111,7 @@ export function resolveRuntimeStatus(input: RuntimeStatusInput): RuntimeStatus {
   // This row renders app-scoped facts only. Per-session loading (messages
   // still fetching, a model verdict still pending) stays in the pane and the
   // composer — one session's state must not paint the whole app as booting.
-  if (input.openworkServerStatus === "disconnected" && input.initializing) {
+  if (input.harnessServerStatus === "disconnected" && input.initializing) {
     return {
       variant: "loading",
       label: t("session.preparing_workspace"),
@@ -121,7 +121,7 @@ export function resolveRuntimeStatus(input: RuntimeStatusInput): RuntimeStatus {
   if (input.clientConnected) {
     return { variant: "connected", label: t("status.ready_for_tasks"), detail: null };
   }
-  if (input.openworkServerStatus === "limited") {
+  if (input.harnessServerStatus === "limited") {
     return { variant: "partial", label: t("status.limited_mode"), detail: t("status.limited_hint") };
   }
   return {
@@ -131,7 +131,7 @@ export function resolveRuntimeStatus(input: RuntimeStatusInput): RuntimeStatus {
   };
 }
 
-function connectDotVariant(status: OpenWorkConnectStatus): StatusDotVariant {
+function connectDotVariant(status: HarnessConnectStatus): StatusDotVariant {
   if (status.state === "ready") return "connected";
   if (status.state === "checking") return "loading";
   return "disconnected";
@@ -139,18 +139,18 @@ function connectDotVariant(status: OpenWorkConnectStatus): StatusDotVariant {
 
 /**
  * Non-developer mode shows one status row: the runtime status, unless
- * OpenWork Connect needs attention (or is the only signal available).
+ * Harness Connect needs attention (or is the only signal available).
  * Developer mode keeps the two separate rows.
  */
 export function resolveCollapsedStatus(
   runtime: RuntimeStatus | null,
-  connect: OpenWorkConnectStatus | null,
+  connect: HarnessConnectStatus | null,
 ): RuntimeStatus | null {
   if (runtime && runtime.variant !== "connected") return runtime;
   if (connect && connect.state === "needs_attention") {
     return {
       variant: "disconnected",
-      label: `OpenWork Connect: ${connect.label}`,
+      label: `Harness Connect: ${connect.label}`,
       detail: connect.description,
     };
   }
@@ -158,7 +158,7 @@ export function resolveCollapsedStatus(
   if (connect) {
     return {
       variant: connectDotVariant(connect),
-      label: `OpenWork Connect: ${connect.label}`,
+      label: `Harness Connect: ${connect.label}`,
       detail: connect.description,
     };
   }
@@ -173,23 +173,23 @@ function accountInitials(name: string | null, email: string) {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function useOpenWorkModelsPromoVisible(hasOpenWorkModels: boolean) {
+function useHarnessModelsPromoVisible(hasHarnessModels: boolean) {
   const { config } = useShellConfig();
-  const eligible = useOpenWorkModelsPromoEligibility();
-  const [hidden, setHidden] = useState(isOpenWorkModelsPromoHidden);
+  const eligible = useHarnessModelsPromoEligibility();
+  const [hidden, setHidden] = useState(isHarnessModelsPromoHidden);
 
   useEffect(() => {
-    const sync = () => setHidden(isOpenWorkModelsPromoHidden());
-    window.addEventListener(openWorkModelsPromoChangedEvent, sync);
-    return () => window.removeEventListener(openWorkModelsPromoChangedEvent, sync);
+    const sync = () => setHidden(isHarnessModelsPromoHidden());
+    window.addEventListener(harnessModelsPromoChangedEvent, sync);
+    return () => window.removeEventListener(harnessModelsPromoChangedEvent, sync);
   }, []);
 
-  return eligible && config.cloudSignin && !hasOpenWorkModels && !hidden;
+  return eligible && config.cloudSignin && !hasHarnessModels && !hidden;
 }
 
 export type AccountStatusMenuProps = {
   clientConnected: boolean;
-  openworkServerStatus: OpenworkServerStatus;
+  harnessServerStatus: HarnessServerStatus;
   developerMode: boolean;
   /** Hidden until a workspace is selected, matching the old status bar. */
   showConnectionStatus: boolean;
@@ -197,7 +197,7 @@ export type AccountStatusMenuProps = {
   mcpConnectedCount: number;
   reloadBusy?: boolean;
   reloadError?: string | null;
-  openWorkConnectState?: SessionCloudMcpMaintenanceState;
+  harnessConnectState?: SessionCloudMcpMaintenanceState;
   showSettingsButton?: boolean;
   onOpenAccountSettings?: () => void;
   onSendFeedback?: () => void;
@@ -221,11 +221,11 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
     () => Date.now() - BOOT_STARTED_AT < INITIALIZING_MS,
   );
 
-  const hasOpenWorkModels = useMemo(
-    () => hasOpenWorkModelsProvider(props.providerConnectedIds),
+  const hasHarnessModels = useMemo(
+    () => hasHarnessModelsProvider(props.providerConnectedIds),
     [props.providerConnectedIds],
   );
-  const promoVisible = useOpenWorkModelsPromoVisible(hasOpenWorkModels);
+  const promoVisible = useHarnessModelsPromoVisible(hasHarnessModels);
 
   useEffect(() => {
     if (!initializing) return;
@@ -243,9 +243,9 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
   // no new response field is required. Missing values retain the hook’s default.
   const controlSettingsBlocked = useDesktopRestriction("allowControlSettings");
 
-  const docsControlAction = useMemo<OpenworkControlAction>(() => ({
+  const docsControlAction = useMemo<HarnessControlAction>(() => ({
     id: "status.docs.open",
-    label: "Open OpenWork docs",
+    label: "Open Harness docs",
     description: "Open the documentation from the account menu.",
     sideEffect: "external",
     targetRef: triggerRef,
@@ -253,10 +253,10 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
   }), [openDocs]);
   useControlAction(docsControlAction);
 
-  const feedbackControlAction = useMemo<OpenworkControlAction>(() => ({
+  const feedbackControlAction = useMemo<HarnessControlAction>(() => ({
     id: "status.feedback.open",
     label: "Send feedback",
-    description: "Open the OpenWork feedback surface from the account menu.",
+    description: "Open the Harness feedback surface from the account menu.",
     sideEffect: "external",
     disabled: !props.onSendFeedback,
     targetRef: triggerRef,
@@ -264,7 +264,7 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
   }), [props.onSendFeedback]);
   useControlAction(feedbackControlAction);
 
-  const settingsControlAction = useMemo<OpenworkControlAction>(() => ({
+  const settingsControlAction = useMemo<HarnessControlAction>(() => ({
     id: "status.settings.open",
     label: "Open settings from the account menu",
     description: "Use the account menu in the sidebar footer.",
@@ -287,26 +287,26 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
   });
   const accountLabel = signedIn
     ? user.name?.trim() || user.email
-    : restoringSession ? "OpenWork Cloud" : "Sign in";
+    : restoringSession ? "Harness Cloud" : "Sign in";
   // The sidebar row shows the name only; the email stays inside the account
   // menu so it is not permanently on screen (matches Claude Code and Codex).
   const accountDetail = signedIn
-    ? "OpenWork Cloud"
-    : restoringSession ? "Restoring your session" : "Sync with OpenWork Cloud";
+    ? "Harness Cloud"
+    : restoringSession ? "Restoring your session" : "Sync with Harness Cloud";
 
   const runtimeStatus = props.showConnectionStatus
     ? resolveRuntimeStatus({
       clientConnected: props.clientConnected,
-      openworkServerStatus: props.openworkServerStatus,
+      harnessServerStatus: props.harnessServerStatus,
       initializing,
       reloadBusy: props.reloadBusy,
       reloadError: props.reloadError,
     })
     : null;
-  const connectStatus = resolveOpenWorkConnectStatus(
+  const connectStatus = resolveHarnessConnectStatus(
     denAuth.isSignedIn
       || (denAuth.status === "checking" && Boolean(readDenSettings().authToken?.trim())),
-    props.openWorkConnectState,
+    props.harnessConnectState,
   );
   const connectNeedsAttention = connectStatus?.state === "needs_attention";
   const collapsedStatus = resolveCollapsedStatus(runtimeStatus, connectStatus);
@@ -370,9 +370,9 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
             className="flex min-w-0 flex-1 items-center gap-2 rounded-lg ps-1.5 pe-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent max-lg:min-h-11"
             aria-label={signedIn ? `${accountLabel} — account and status` : "Account and status"}
             title={connectNeedsAttention
-              ? openWorkConnectAttentionTitle(connectStatus.description)
+              ? harnessConnectAttentionTitle(connectStatus.description)
               : connectStatus
-                ? `${runtimeStatus ? `${runtimeStatus.label} · ` : ""}OpenWork Connect: ${connectStatus.label}`
+                ? `${runtimeStatus ? `${runtimeStatus.label} · ` : ""}Harness Connect: ${connectStatus.label}`
                 : runtimeStatus?.label}
           >
               {signedIn ? (
@@ -432,13 +432,13 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
                   </div>
                 ) : null}
                 {connectStatus ? (
-                  <div data-testid="openwork-connect-status" className="flex items-start gap-2">
+                  <div data-testid="harness-connect-status" className="flex items-start gap-2">
                     <span className="mt-1">
                       <StatusDot variant={connectDotVariant(connectStatus)} />
                     </span>
                     <div className="min-w-0">
                       <div className="text-[11.5px] font-medium text-foreground">
-                        {`OpenWork Connect: ${connectStatus.label}`}
+                        {`Harness Connect: ${connectStatus.label}`}
                       </div>
                       <div className="text-[10.5px] leading-tight text-muted-foreground">
                         {connectStatus.description}
@@ -482,17 +482,17 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
         {promoVisible ? (
           <DropdownMenuItem
             onClick={() => {
-              hideOpenWorkModelsPromo();
+              hideHarnessModelsPromo();
               if (!denAuth.isSignedIn) {
                 navigate("/settings/cloud-account");
                 markDesktopSignInInitiated();
               }
-              platform.openLink(getOpenWorkModelsActionUrl(denAuth.isSignedIn));
+              platform.openLink(getHarnessModelsActionUrl(denAuth.isSignedIn));
             }}
           >
             <Sparkles className="size-3.5 text-blue-11" />
             <span className="flex min-w-0 flex-col">
-              <span>OpenWork Models</span>
+              <span>Harness Models</span>
               <span className="text-[10.5px] text-muted-foreground">hosted frontier models</span>
             </span>
           </DropdownMenuItem>
@@ -536,7 +536,7 @@ export function AccountStatusMenu(props: AccountStatusMenuProps) {
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <UserRound className="size-3.5" />
-                <span className="truncate">Sign in to OpenWork Cloud</span>
+                <span className="truncate">Sign in to Harness Cloud</span>
               </span>
               <ArrowUpRight className="size-3.5" />
             </Button>

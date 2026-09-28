@@ -36,7 +36,7 @@ refactors, renames, dependency bumps, test or tooling tweaks. One bullet
 each, so the reviewer is not surprised by them. `none` if nothing.
 
 ## Release note
-One sentence for people who use OpenWork, or `none`.
+One sentence for people who use Harness, or `none`.
 
 ## Evidence
 The spec that proves it, and in one line what its before → after shows.

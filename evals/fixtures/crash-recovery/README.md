@@ -12,12 +12,12 @@ prebuilt historical artifact is required.
 Run just this spec locally with Node 24+ and a Chrome/Chromium installation:
 
 ```sh
-OPENWORK_EVAL_E2E_TESTS=1 pnpm --dir evals exec vitest run --config fixtures/crash-recovery/vitest.config.ts specs/crash-recovery.e2e.test.ts
+HARNESS_EVAL_E2E_TESTS=1 pnpm --dir evals exec vitest run --config fixtures/crash-recovery/vitest.config.ts specs/crash-recovery.e2e.test.ts
 ```
 
-For Daytona, add `OPENWORK_EVAL_DAYTONA=1`. The normal testkit placement owns
+For Daytona, add `HARNESS_EVAL_DAYTONA=1`. The normal testkit placement owns
 provisioning and disposal; to reuse an already owned runner, also set
-`OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX` to its ID/name. Every test still owns and
+`HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX` to its ID/name. Every test still owns and
 disposes a fresh Chrome profile through `spec.world` and `chrome`. This fixture
 does not need Den, Electron or a staged HTTP server. The dedicated config avoids
 unrelated full-stack setup while preserving the E2E opt-in and capability APIs.
@@ -25,7 +25,7 @@ unrelated full-stack setup while preserving the E2E opt-in and capability APIs.
 By default each test process snapshots current app source into its own
 `evals/results/crash-recovery/source-*` directory and builds the three variants
 once. To compare an earlier Git revision without changing product files, set
-`OPENWORK_RECOVERY_SOURCE_REF=<sha>`; `git archive` exports only `apps/app/src`
+`HARNESS_RECOVERY_SOURCE_REF=<sha>`; `git archive` exports only `apps/app/src`
 into that owned directory. Build manifests record source hashes, actual imported
 modules, version/release identifiers and output hashes. The version assertions
 come from those build identifiers, not a fixed commit or release string.

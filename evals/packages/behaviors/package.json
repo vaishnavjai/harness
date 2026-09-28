@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/behaviors",
+  "name": "@harness/behaviors",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -31,9 +31,9 @@
     }
   },
   "dependencies": {
-    "@openwork/cdp": "workspace:*",
-    "@openwork/labs": "workspace:*",
-    "@openwork/matchers": "workspace:*",
-    "@openwork/timeline": "workspace:*"
+    "@harness/cdp": "workspace:*",
+    "@harness/labs": "workspace:*",
+    "@harness/matchers": "workspace:*",
+    "@harness/timeline": "workspace:*"
   }
 }

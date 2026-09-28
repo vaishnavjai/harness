@@ -59,7 +59,7 @@ async function context(target: HTMLElement) {
 
 test("file URL chevrons open an inventory-independent menu, copy the decoded path and dispatch reveal", async () => {
   const view = await render();
-  const chevron = view.element("[data-openwork-link-chevron]");
+  const chevron = view.element("[data-harness-link-chevron]");
   expect(view.element("a").getAttribute("href")).toBe("#");
   chevron.focus();
   await act(async () => chevron.click());
@@ -79,7 +79,7 @@ test("relative paths use the owning workspace and web context menus remain nativ
   expect(view.host.textContent).toContain("Open with default app");
   await act(async () => view.button("Copy path").click());
   expect(await navigator.clipboard.readText()).toBe("/secondary/reports/Report.pdf");
-  const web = view.element('a[data-openwork-link-href^="https:"]');
+  const web = view.element('a[data-harness-link-href^="https:"]');
   expect((await context(web)).defaultPrevented).toBe(false);
   expect(web.getAttribute("href")).toBe("https://example.com/docs?q=one#section");
   await act(async () => web.click());
@@ -115,8 +115,8 @@ test("copy errors keep the menu available for retry", async () => {
 
 test("opening with a chosen application hands the desktop the workspace root for on-disk containment", async () => {
   const calls: unknown[][] = [];
-  const bridge = window.__OPENWORK_ELECTRON__;
-  window.__OPENWORK_ELECTRON__ = {
+  const bridge = window.__HARNESS_ELECTRON__;
+  window.__HARNESS_ELECTRON__ = {
     invokeDesktop: async (command: string, ...args: unknown[]) => {
       calls.push([command, ...args]);
       if (command === "__getApplicationsForFile") return [{ name: "Preview", appPath: "/Applications/Preview.app", icon: null }];
@@ -133,6 +133,6 @@ test("opening with a chosen application hands the desktop the workspace root for
     expect(calls).toContainEqual(["__getApplicationsForFile", "/secondary/reports/Report.pdf"]);
     expect(calls).toContainEqual(["__openWithApp", "/secondary/reports/Report.pdf", "/Applications/Preview.app", "/secondary"]);
   } finally {
-    window.__OPENWORK_ELECTRON__ = bridge;
+    window.__HARNESS_ELECTRON__ = bridge;
   }
 });

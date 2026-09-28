@@ -1,8 +1,8 @@
-import { attachSurface } from "@openwork/cdp";
+import { attachSurface } from "@harness/cdp";
 import { resolveHost } from "./resolve.ts";
 import { defaultDaytonaExec } from "./daytona.ts";
 import { execInSandbox } from "./provision.ts";
-import type { AttachedSurface, SurfaceHandle } from "@openwork/cdp";
+import type { AttachedSurface, SurfaceHandle } from "@harness/cdp";
 import type { Host } from "./types.ts";
 
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -65,7 +65,7 @@ export async function chrome(opts: BrowserOptions = {}): Promise<AttachedSurface
   surface.stop = stop;
   surface[Symbol.asyncDispose] = async (): Promise<void> => {
     await stop().catch((error: unknown) => {
-      console.warn(`[openwork/evals] Browser ${name} cleanup failed: ${messageText(error)}`);
+      console.warn(`[harness/evals] Browser ${name} cleanup failed: ${messageText(error)}`);
     });
   };
   return surface;
@@ -92,7 +92,7 @@ export async function captureExternalBrowserUrls(handle: SurfaceHandle): Promise
 opener = shutil.which("xdg-open")
 if not opener:
     raise RuntimeError("xdg-open is missing")
-root = pathlib.Path(tempfile.mkdtemp(prefix="openwork-browser-witness-"))
+root = pathlib.Path(tempfile.mkdtemp(prefix="harness-browser-witness-"))
 log = root / "urls.log"
 log.write_text("")
 backup = str(root / "xdg-open.original")

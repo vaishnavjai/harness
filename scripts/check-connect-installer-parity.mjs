@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const landingConfig = await readFile(
-  new URL("../ee/apps/landing/components/openwork-connect-installer-config.ts", import.meta.url),
+  new URL("../ee/apps/landing/components/harness-connect-installer-config.ts", import.meta.url),
   "utf8",
 );
 const docsInstaller = await readFile(
-  new URL("../packages/docs/snippets/openwork-connect-installer.jsx", import.meta.url),
+  new URL("../packages/docs/snippets/harness-connect-installer.jsx", import.meta.url),
   "utf8",
 );
 const cloudDocs = await readFile(
@@ -21,7 +21,7 @@ function sourceHasLiteral(sourceText, literal) {
 const serverUrlMatch = landingConfig.match(/export const MCP_SERVER_URL = "([^"]+)";/);
 assert.ok(serverUrlMatch, "Landing installer is missing MCP_SERVER_URL");
 const serverUrl = serverUrlMatch[1];
-assert.equal(serverUrl, "https://api.openworklabs.com/mcp/agent", "OpenWork Connect must use the public /mcp/agent endpoint");
+assert.equal(serverUrl, "https://api.harness.invalid/mcp/agent", "Harness Connect must use the public /mcp/agent endpoint");
 
 const clientsMatch = landingConfig.match(/export const CONNECT_CLIENTS[^=]*= \[([^\]]+)\];/);
 assert.ok(clientsMatch, "Landing installer is missing CONNECT_CLIENTS");
@@ -86,8 +86,8 @@ assert.ok(docsInstaller.includes(serverUrl), "Docs installer is using a differen
 // One-click install links must add exactly the public endpoint, in each
 // client's documented format, in both the installer and the client guide.
 const installLinks = [
-  ["cursor.mdx", `cursor://anysphere.cursor-deeplink/mcp/install?name=openwork&config=${Buffer.from(JSON.stringify({ url: serverUrl })).toString("base64")}`],
-  ["vs-code.mdx", `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "openwork", type: "http", url: serverUrl }))}`],
+  ["cursor.mdx", `cursor://anysphere.cursor-deeplink/mcp/install?name=harness&config=${Buffer.from(JSON.stringify({ url: serverUrl })).toString("base64")}`],
+  ["vs-code.mdx", `vscode:mcp/install?${encodeURIComponent(JSON.stringify({ name: "harness", type: "http", url: serverUrl }))}`],
 ];
 for (const [guide, link] of installLinks) {
   const guideText = await readFile(new URL(`../packages/docs/model-context-protocol/${guide}`, import.meta.url), "utf8");
@@ -112,11 +112,11 @@ for (const name of sharedValueNames) {
 }
 
 const exactCommands = [
-  { docsInstallerNeedle: "opencode mcp auth openwork", cloudDocsNeedle: "opencode mcp auth openwork" },
-  { docsInstallerNeedle: "opencode mcp logout openwork\nopencode mcp auth openwork", cloudDocsNeedle: "opencode mcp logout openwork\nopencode mcp auth openwork" },
-  { docsInstallerNeedle: "codex mcp add openwork --url ${MCP_SERVER_URL}", cloudDocsNeedle: `codex mcp add openwork --url ${serverUrl}` },
-  { docsInstallerNeedle: "codex mcp login openwork", cloudDocsNeedle: "codex mcp login openwork" },
-  { docsInstallerNeedle: "codex mcp logout openwork\ncodex mcp login openwork", cloudDocsNeedle: "codex mcp logout openwork\ncodex mcp login openwork" },
+  { docsInstallerNeedle: "opencode mcp auth harness", cloudDocsNeedle: "opencode mcp auth harness" },
+  { docsInstallerNeedle: "opencode mcp logout harness\nopencode mcp auth harness", cloudDocsNeedle: "opencode mcp logout harness\nopencode mcp auth harness" },
+  { docsInstallerNeedle: "codex mcp add harness --url ${MCP_SERVER_URL}", cloudDocsNeedle: `codex mcp add harness --url ${serverUrl}` },
+  { docsInstallerNeedle: "codex mcp login harness", cloudDocsNeedle: "codex mcp login harness" },
+  { docsInstallerNeedle: "codex mcp logout harness\ncodex mcp login harness", cloudDocsNeedle: "codex mcp logout harness\ncodex mcp login harness" },
 ];
 
 for (const command of exactCommands) {
@@ -126,10 +126,10 @@ for (const command of exactCommands) {
 
 assert.ok(cloudDocs.includes(serverUrl), "Cloud MCP docs are missing the public endpoint");
 assert.ok(
-  cloudDocs.includes("`app.openworklabs.com/api/den` is an internal same-origin desktop proxy"),
-  "Cloud MCP docs must describe app.openworklabs.com/api/den as an internal same-origin desktop proxy",
+  cloudDocs.includes("`app.harness.invalid/api/den` is an internal same-origin desktop proxy"),
+  "Cloud MCP docs must describe app.harness.invalid/api/den as an internal same-origin desktop proxy",
 );
-assert.ok(sourceHasLiteral(cloudDocs, "https://app.openworklabs.com/api/auth"), "Cloud MCP docs are missing the auth server origin");
+assert.ok(sourceHasLiteral(cloudDocs, "https://app.harness.invalid/api/auth"), "Cloud MCP docs are missing the auth server origin");
 assert.ok(cloudDocs.includes("RFC9728"), "Cloud MCP docs are missing RFC9728 discovery guidance");
 assert.ok(cloudDocs.includes("PKCE") && cloudDocs.includes("S256"), "Cloud MCP docs are missing PKCE S256 guidance");
 assert.ok(cloudDocs.includes("OAuth authorize and token requests must include exactly one"), "Cloud MCP docs are missing exact resource guidance");
@@ -139,8 +139,8 @@ assert.ok(cloudDocs.includes("invalid_grant"), "Cloud MCP docs are missing inval
 assert.ok(cloudDocs.includes("Retry-After"), "Cloud MCP docs are missing 429 Retry-After guidance");
 assert.ok(cloudDocs.includes("X-Request-Id") && cloudDocs.includes("referenceId") && cloudDocs.includes("reference_id"), "Cloud MCP docs are missing support reference guidance");
 assert.ok(cloudDocs.includes("search_capabilities") && cloudDocs.includes("execute_capability"), "Cloud MCP docs are missing /mcp/agent tool guidance");
-assert.ok(!cloudDocs.includes("openwork-ui-mcp"), "Cloud MCP docs must not reference the local UI MCP package");
+assert.ok(!cloudDocs.includes("harness-ui-mcp"), "Cloud MCP docs must not reference the local UI MCP package");
 assert.ok(!cloudDocs.includes("opaque bearer tokens") && !cloudDocs.includes("Access tokens are opaque"), "Cloud MCP docs must not claim opaque public access tokens");
 assert.ok(!cloudDocs.includes("JWKS"), "Cloud MCP docs must not expose JWKS implementation details");
 
-console.log("OpenWork Connect landing and docs installers are in parity.");
+console.log("Harness Connect landing and docs installers are in parity.");

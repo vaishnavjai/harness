@@ -33,7 +33,7 @@ function context(overrides: Partial<ModelAvailabilityContext> = {}): ModelAvaila
     loading: false,
     signedIn: false,
     cloudProviderSyncReady: false,
-    openWorkModelsSyncing: false,
+    harnessModelsSyncing: false,
     restrictToCloud: false,
     checkRestriction: () => false,
     cloudProviderList: null,
@@ -127,12 +127,12 @@ describe("computeModelAvailability", () => {
     ).toEqual({ status: "unavailable", reason: "model_missing" });
   });
 
-  test("cloud sync while OpenWork Models is reconciling stays pending", () => {
-    const cloudModel = { providerID: "openwork", modelID: "gpt-5.5" };
+  test("cloud sync while Harness Models is reconciling stays pending", () => {
+    const cloudModel = { providerID: "harness", modelID: "gpt-5.5" };
     expect(
       computeModelAvailability(
         cloudModel,
-        context({ signedIn: true, cloudProviderSyncReady: true, openWorkModelsSyncing: true }),
+        context({ signedIn: true, cloudProviderSyncReady: true, harnessModelsSyncing: true }),
       ),
     ).toEqual({ status: "pending" });
   });

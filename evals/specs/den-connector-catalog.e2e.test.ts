@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { eventually, spec } from "@openwork/testkit";
+import { eventually, spec } from "@harness/testkit";
 import { connectorCatalogManagement, isRecord, records } from "../worlds/library.ts";
 
 const test = spec.world(connectorCatalogManagement, { timeout: 600_000 });

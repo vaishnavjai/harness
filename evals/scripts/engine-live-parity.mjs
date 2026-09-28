@@ -11,7 +11,7 @@ const args = process.argv.slice(2);
 if (args.some(arg => !/^--iterations=\d+$/.test(arg))) throw new Error("Usage: pnpm evals:parity:live [--iterations=3]");
 const iterations = Number(args[0]?.split("=")[1] ?? 3);
 if (!Number.isInteger(iterations) || iterations < 1 || iterations > 20) throw new Error("Iterations must be between 1 and 20");
-if (process.env.OPENWORK_LIVE_INSTALLED_GATEWAY !== "1") throw new Error("Set OPENWORK_LIVE_INSTALLED_GATEWAY=1 to use an existing configured Gateway credential at its original destination. No synthetic fallback is allowed.");
+if (process.env.HARNESS_LIVE_INSTALLED_GATEWAY !== "1") throw new Error("Set HARNESS_LIVE_INSTALLED_GATEWAY=1 to use an existing configured Gateway credential at its original destination. No synthetic fallback is allowed.");
 const binaries = await prepareParityBinaries(root);
 const out = join(root, "evals/results/engine-live-parity", new Date().toISOString().replaceAll(/[:.]/g, "-"));
 const evidenceRoot = join(root, "evals/results/test-runs");
@@ -29,7 +29,7 @@ for (let iteration = 0; iteration < iterations; iteration++) {
     console.log(`\n${label}: ${iteration ? "fresh native launch" : "real-model native user journeys"}`);
     const cli = process.env.npm_execpath;
     const child = spawn(cli ? process.execPath : "pnpm", cli ? [cli, ...cliArgs] : cliArgs, {
-      cwd: root, env: { ...process.env, ...binaries, pnpm_config_verify_deps_before_run: "false", OPENWORK_EVAL_ENGINE: engine, OPENWORK_EVAL_E2E_TESTS: "1" }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: root, env: { ...process.env, ...binaries, pnpm_config_verify_deps_before_run: "false", HARNESS_EVAL_ENGINE: engine, HARNESS_EVAL_E2E_TESTS: "1" }, stdio: ["ignore", "pipe", "pipe"],
     });
     let log = "";
     for (const stream of [child.stdout, child.stderr]) stream.on("data", chunk => { log += chunk; process.stdout.write(chunk); });
@@ -57,7 +57,7 @@ for (let iteration = 0; iteration < iterations; iteration++) {
   }
 }
 const lines = ["# Real-model native app parity", "", "", "",
-  "Pinned v1 and v2 engines; fresh native Electron app profiles. Real inference through an existing Gateway credential entered in the app's masked provider form. V1 also tests the existing free starter service. V2's blank-installation check covers workspace creation and the composer, with paid first-send inference covered by LIVE-ORG. OpenWork's own free models must be tested before v2 GA. Den capability discovery and execution are real. Only the external report service is a controlled witness. No model responses are scripted.", "",
+  "Pinned v1 and v2 engines; fresh native Electron app profiles. Real inference through an existing Gateway credential entered in the app's masked provider form. V1 also tests the existing free starter service. V2's blank-installation check covers workspace creation and the composer, with paid first-send inference covered by LIVE-ORG. Harness's own free models must be tested before v2 GA. Den capability discovery and execution are real. Only the external report service is a controlled witness. No model responses are scripted.", "",
   "| User journey | Result | Evidence |", "| --- | --- | --- |"];
 for (const result of results.filter(result => result.iteration === 1)) for (const item of result.evidence) lines.push(`| ${item.name} | ${item.outcome} | [Steps and screenshots](${item.path}) |`);
 lines.push("", "## Native development app launch", "", "Milliseconds from starting the desktop fixture to native bridge ready / editable composer with a selectable model. Includes development build and harness overhead, uses shared caches and a blank app profile. This is not a packaged cold-start benchmark and does not imply inference succeeds.", "", "| Metric | v1 median (min–max), n | v2 median (min–max), n |", "| --- | --- | --- |");

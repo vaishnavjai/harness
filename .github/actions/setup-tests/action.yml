@@ -1,4 +1,4 @@
-name: Setup OpenWork tests
+name: Setup Harness tests
 description: Install the pinned runtimes, engine, and both workspaces
 runs:
   using: composite

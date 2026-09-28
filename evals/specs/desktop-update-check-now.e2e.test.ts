@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { desktopUpdateCheckNowWorld } from "../worlds/desktop-update-check-now.ts";
 
 const test = spec.world(desktopUpdateCheckNowWorld, {
@@ -59,13 +59,13 @@ for (const replaceStaged of [false, true]) {
     expect(ready).toMatchObject({ stagedVersion: staged, downloads: [staged], installs: [], automaticChecksEnabled: true, automaticDownloadsEnabled: true, capsuleText: "Restart to update", updateInSidebar: false });
 
     await user.click("Restart to update");
-    await user.see({ text: "Restart OpenWork?" });
+    await user.see({ text: "Restart Harness?" });
     await user.see({ text: /Eligible running tasks resume gradually after restart/ });
     const panel = (await world.snapshot()).panelText;
     expect(panel).toContain("Keep working");
     expect(panel).toContain("Restart & update");
     await user.click("Keep working");
-    await user.notSee({ text: "Restart OpenWork?" });
+    await user.notSee({ text: "Restart Harness?" });
     await world.advanceFeed();
     await world.triggerAutomaticChecks();
     const quietUntil = Date.now() + 750;
@@ -140,10 +140,10 @@ for (const replaceStaged of [false, true]) {
       return Date.now() >= candidateQuietUntil;
     }, { within: 5_000, label: "automatic checks cannot download the discovered candidate", until: Boolean });
     await user.click("Restart to update");
-    await user.see({ text: "Restart OpenWork?" });
+    await user.see({ text: "Restart Harness?" });
     expect((await world.snapshot()).panelText).toBe(panel);
     await user.click("Keep working");
-    await user.notSee({ text: "Restart OpenWork?" });
+    await user.notSee({ text: "Restart Harness?" });
     expect((await world.snapshot()).installs).toEqual([]);
     evidence.recordAssertionEvidence(
       "Manual discovery preserves A, offers explicit B, and leaves the titlebar panel and background checks unchanged",
@@ -184,11 +184,11 @@ for (const replaceStaged of [false, true]) {
       expect(await world.snapshot()).toMatchObject({ checks: discovered.checks, downloads: [staged, newer], stagedVersion: newer, installs: [] });
       return Date.now() >= replacementQuietUntil;
     }, { within: 5_000, label: "automatic checks also leave ready B alone", until: Boolean });
-    await world.openWorkspace();
+    await world.harnessspace();
     await user.see({ text: "Restart to update" });
     expect(await world.snapshot()).toMatchObject({ checks: discovered.checks, downloads: [staged, newer], stagedVersion: newer, installs: [], capsuleText: "Restart to update", updateInSidebar: false });
     await user.click("Restart to update");
-    await user.see({ text: "Restart OpenWork?" });
+    await user.see({ text: "Restart Harness?" });
     expect((await world.snapshot()).panelText).toBe(panel);
     expect((await world.snapshot()).installs).toEqual([]);
     await user.click("Restart & update");

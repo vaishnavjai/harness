@@ -1,10 +1,10 @@
 import { expect } from "vitest";
-import { resolveEvalEngine, spec } from "@openwork/testkit";
+import { resolveEvalEngine, spec } from "@harness/testkit";
 import { engineConnectorsParity } from "../worlds/engine-connectors-parity.ts";
 
 const test = spec.world(engineConnectorsParity, {
   timeout: 420_000, resources: { surfaces: ["appWeb"], services: ["den", "mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 test(`PARITY-CONNECTORS ${resolveEvalEngine()}: search assigned capabilities, execute a connector and show its result`, async ({ world, user, probe, step, evidence }) => {

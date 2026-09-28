@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { browserScript } from "@openwork/cdp";
-import { spec } from "@openwork/testkit";
+import { browserScript } from "@harness/cdp";
+import { spec } from "@harness/testkit";
 import { parentChildHeldToolWorld, parentChildPermissionWorld } from "../worlds/first-run.ts";
 
 // A delegated child's pending permission lives on the child's activity

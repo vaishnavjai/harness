@@ -19,44 +19,44 @@ describe("agent diagnostics effective engine inspection", () => {
   test("reduces valid engine config and agent responses to the bounded allowlist", () => {
     const snapshot = validateEffectiveEngineSnapshot({
       config: {
-        default_agent: "openwork",
-        plugin: [["file:///plugins/openwork-extensions-preview.ts", { secret: "not-copied" }]],
+        default_agent: "harness",
+        plugin: [["file:///plugins/harness-extensions-preview.ts", { secret: "not-copied" }]],
         mcp: {
-          "openwork-cloud": {
+          "harness-cloud": {
             type: "remote",
-            url: "https://api.openworklabs.com/mcp/agent",
+            url: "https://api.harness.invalid/mcp/agent",
             headers: { Authorization: "Bearer NOT_REPORTED" },
           },
         },
       },
       agents: [{
-        name: "openwork",
+        name: "harness",
         mode: "primary",
-        prompt: "search_capabilities execute_capability ## OpenWork Artifacts",
+        prompt: "search_capabilities execute_capability ## Harness Artifacts",
         hidden: false,
-        permission: [{ permission: "openwork-cloud_*", pattern: "*", action: "allow" }],
+        permission: [{ permission: "harness-cloud_*", pattern: "*", action: "allow" }],
         options: { secret: "not-copied" },
       }],
     });
 
     expect(snapshot).toMatchObject({
-      defaultAgent: "openwork",
-      pluginSpecs: ["file:///plugins/openwork-extensions-preview.ts"],
-      agents: [{ name: "openwork", mode: "primary", hidden: false }],
-      mcps: [{ name: "openwork-cloud" }],
+      defaultAgent: "harness",
+      pluginSpecs: ["file:///plugins/harness-extensions-preview.ts"],
+      agents: [{ name: "harness", mode: "primary", hidden: false }],
+      mcps: [{ name: "harness-cloud" }],
     });
     expect(snapshot).not.toHaveProperty("agents.0.options");
   });
 
   test("mirrors OpenCode's last-match whole-resource tool visibility rule", () => {
     const rules = [
-      { permission: "openwork-cloud_*", pattern: "*", action: "allow" as const },
-      { permission: "openwork-cloud_search_*", pattern: "tenant-a", action: "deny" as const },
-      { permission: "openwork-cloud_execute_capability", pattern: "*", action: "deny" as const },
+      { permission: "harness-cloud_*", pattern: "*", action: "allow" as const },
+      { permission: "harness-cloud_search_*", pattern: "tenant-a", action: "deny" as const },
+      { permission: "harness-cloud_execute_capability", pattern: "*", action: "deny" as const },
     ];
 
-    expect(effectiveToolDecision(rules, "openwork-cloud_search_capabilities")).toBe("allow");
-    expect(effectiveToolDecision(rules, "openwork-cloud_execute_capability")).toBe("deny");
+    expect(effectiveToolDecision(rules, "harness-cloud_search_capabilities")).toBe("allow");
+    expect(effectiveToolDecision(rules, "harness-cloud_execute_capability")).toBe("deny");
   });
 
   test("bounds engine bodies and rejects redirects without following them", async () => {

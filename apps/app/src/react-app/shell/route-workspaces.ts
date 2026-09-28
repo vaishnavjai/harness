@@ -8,7 +8,7 @@ import type { Session } from "@opencode-ai/sdk/v2/client";
 import { createClient, unwrap } from "@/app/lib/opencode";
 import { createClientV2, isOpencodeV2BaseUrl } from "@/app/lib/opencode-v2-adapter";
 import { deleteNativeSession } from "@/app/lib/opencode-session-native";
-import { OpenworkServerError, type OpenworkWorkspaceInfo } from "@/app/lib/openwork-server";
+import { HarnessServerError, type HarnessWorkspaceInfo } from "@/app/lib/harness-server";
 import type { ResolvedWorkspaceEndpoint } from "@/app/lib/workspace-endpoint";
 import type { WorkspaceInfo } from "@/app/lib/desktop-types";
 import type { WorkspaceSessionGroup } from "@/app/types";
@@ -19,7 +19,7 @@ import {
 } from "@/app/utils";
 import { t } from "@/i18n";
 
-export type RouteWorkspace = OpenworkWorkspaceInfo & {
+export type RouteWorkspace = HarnessWorkspaceInfo & {
   displayNameResolved: string;
 };
 
@@ -46,7 +46,7 @@ export type RouteSessionListTransport = (input: {
 
 const nativeRouteSessionList: RouteSessionListTransport = async ({ endpoint, limit }) => {
   const client = createClient(endpoint.opencodeBaseUrl, undefined, {
-    mode: "openwork",
+    mode: "harness",
     token: endpoint.token,
   });
   return client.session.list({ limit });
@@ -61,7 +61,7 @@ export const v2RouteSessionList: RouteSessionListTransport = async ({ endpoint, 
 async function routeSessionEndpoint(endpoint: ResolvedWorkspaceEndpoint): Promise<ResolvedWorkspaceEndpoint> {
   const status = await endpoint.client.getEngineV2PreviewStatus().catch((error: unknown) => {
     // Servers predating the preview endpoint still use v1.
-    if (error instanceof OpenworkServerError && error.status === 404) return null;
+    if (error instanceof HarnessServerError && error.status === 404) return null;
     throw error;
   });
   return status?.enabled && status.chatRouting
@@ -82,7 +82,7 @@ export async function createRouteSessionOnEngine(
   const native = await routeSessionEndpoint(endpoint);
   const client = isOpencodeV2BaseUrl(native.opencodeBaseUrl)
     ? createClientV2(native.opencodeBaseUrl, directory, { token: native.token })
-    : createClient(native.opencodeBaseUrl, directory, { token: native.token, mode: "openwork" });
+    : createClient(native.opencodeBaseUrl, directory, { token: native.token, mode: "harness" });
   return { session: unwrap(await client.session.create({ directory })), endpoint: native };
 }
 
@@ -146,19 +146,19 @@ export function mapDesktopWorkspace(workspace: WorkspaceInfo): RouteWorkspace {
   };
 }
 
-export function workspaceLabel(workspace: OpenworkWorkspaceInfo) {
+export function workspaceLabel(workspace: HarnessWorkspaceInfo) {
   return (
     workspace.displayName?.trim() ||
-    workspace.openworkWorkspaceName?.trim() ||
+    workspace.harnessWorkspaceName?.trim() ||
     workspace.name?.trim() ||
     workspace.path?.trim() ||
     t("session.workspace_fallback")
   );
 }
 
-export function workspaceExportFilename(workspace: OpenworkWorkspaceInfo) {
+export function workspaceExportFilename(workspace: HarnessWorkspaceInfo) {
   const slug = workspaceLabel(workspace).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${slug || "workspace"}-openwork-export.json`;
+  return `${slug || "workspace"}-harness-export.json`;
 }
 
 export function downloadWorkspaceJson(filename: string, payload: unknown) {
@@ -305,7 +305,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isOpenworkWorkspaceArray(value: unknown): value is OpenworkWorkspaceInfo[] {
+function isHarnessWorkspaceArray(value: unknown): value is HarnessWorkspaceInfo[] {
   return Array.isArray(value);
 }
 
@@ -327,7 +327,7 @@ export function resolveRouteWorkspaceListState(input: {
   previousWorkspaces: RouteWorkspace[];
   orderIds: string[];
 }): RouteWorkspaceListState {
-  const serverItems = isRecord(input.list) && isOpenworkWorkspaceArray(input.list.items) ? input.list.items : null;
+  const serverItems = isRecord(input.list) && isHarnessWorkspaceArray(input.list.items) ? input.list.items : null;
   const workspaces = serverItems
     ? mergeRouteWorkspaces(serverItems, input.desktopWorkspaces)
     : input.previousWorkspaces.length > 0
@@ -390,7 +390,7 @@ export function describeWorkspaceCreateError(error: unknown) {
     lower.includes("os error 60") ||
     lower.includes("etimedout")
   ) {
-    return `${message}\n\nOpenWork could not read the workspace config before the filesystem timed out. This often happens when the folder is still syncing from iCloud Drive or another remote folder. Wait for the folder to finish downloading, move the workspace to a local folder, or try again.`;
+    return `${message}\n\nHarness could not read the workspace config before the filesystem timed out. This often happens when the folder is still syncing from iCloud Drive or another remote folder. Wait for the folder to finish downloading, move the workspace to a local folder, or try again.`;
   }
   return message;
 }
@@ -399,7 +399,7 @@ export function mergeRouteWorkspaces(
   serverWorkspaces: unknown,
   desktopWorkspaces: RouteWorkspace[],
 ): RouteWorkspace[] {
-  const serverWorkspaceList = isOpenworkWorkspaceArray(serverWorkspaces) ? serverWorkspaces : [];
+  const serverWorkspaceList = isHarnessWorkspaceArray(serverWorkspaces) ? serverWorkspaces : [];
   const desktopById = new Map(desktopWorkspaces.map((workspace) => [workspace.id, workspace]));
   const desktopByPath = new Map(
     desktopWorkspaces.flatMap((workspace) => {
@@ -409,7 +409,7 @@ export function mergeRouteWorkspaces(
   );
 
   // If a server workspace's id matches a desktop workspace marked as remote,
-  // skip the server's view entirely. The local OpenWork server may have stale
+  // skip the server's view entirely. The local Harness server may have stale
   // registrations from earlier (buggy) activate calls that show up here as
   // `workspaceType: "local"`, which would otherwise clobber the desktop's
   // remote routing fields and send workspace-scoped requests back to the

@@ -22,13 +22,13 @@ export async function reconcileDraftHost(value: unknown) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
   const paths = resolveHeadlessWorldRuntimePaths(root, name);
   const runtime = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
-  if (!runtime || runtime.openworkUrl !== input.openworkUrl || runtime.workspace !== input.workspaceRoot) {
+  if (!runtime || runtime.harnessUrl !== input.harnessUrl || runtime.workspace !== input.workspaceRoot) {
     throw new Error("Draft fixture could not identify its owned headless runtime");
   }
   const token = text(input.token);
   const appHostToken = text(input.appHostToken);
-  const hostHeaders = { "X-OpenWork-Host-Token": runtime.hostToken, "Content-Type": "application/json" };
-  const issuedResponse = await fetch(`${runtime.openworkUrl}/tokens`, {
+  const hostHeaders = { "X-Harness-Host-Token": runtime.hostToken, "Content-Type": "application/json" };
+  const issuedResponse = await fetch(`${runtime.harnessUrl}/tokens`, {
     method: "POST", headers: hostHeaders,
     body: JSON.stringify({ scope: "owner", label: "Synthetic draft setup" }),
     signal: AbortSignal.timeout(15_000),
@@ -38,7 +38,7 @@ export async function reconcileDraftHost(value: unknown) {
   const ownerToken = text(issued.token);
   const ownerId = text(issued.id);
   try {
-    const response = await fetch(`${runtime.openworkUrl}/workspace/${encodeURIComponent(text(input.workspaceId))}/mcp/openwork-cloud/reconcile`, {
+    const response = await fetch(`${runtime.harnessUrl}/workspace/${encodeURIComponent(text(input.workspaceId))}/mcp/harness-cloud/reconcile`, {
       method: "POST",
       headers: { Authorization: `Bearer ${ownerToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -71,7 +71,7 @@ export async function reconcileDraftHost(value: unknown) {
       jsonBody: Object.keys(body).length > 0,
     };
   } finally {
-    const revoked = await fetch(`${runtime.openworkUrl}/tokens/${encodeURIComponent(ownerId)}`, {
+    const revoked = await fetch(`${runtime.harnessUrl}/tokens/${encodeURIComponent(ownerId)}`, {
       method: "DELETE", headers: hostHeaders, signal: AbortSignal.timeout(15_000),
     });
     if (!revoked.ok) throw new Error(`Draft owner credential revocation failed: ${revoked.status}`);

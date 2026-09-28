@@ -32,7 +32,7 @@ describe("formatElapsedSeconds", () => {
     try {
       const persisted = runningPart("persisted-start", {
         opencode: { partId: "part-persisted" },
-        openwork: { toolStartedAt: 1_000 },
+        harness: { toolStartedAt: 1_000 },
       });
       expect(getToolCallStartedAt(persisted)).toBe(1_000);
       trackToolCallDuration(persisted);

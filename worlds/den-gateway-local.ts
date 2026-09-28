@@ -19,10 +19,10 @@ export function lifetimeMinutes(argv: readonly string[]): number {
 
 export function localEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   if (resolvePlace(source).kind !== "local") throw new Error("den-gateway-local requires --place local.");
-  if (Object.keys(source).some((key) => /^(OPENWORK_EVAL_DEN_(API_URL|WEB_URL|RUNTIME_PREPARED)|OPENWORK_EVAL_DAYTONA.*)$/.test(key) && source[key]?.trim())) {
+  if (Object.keys(source).some((key) => /^(HARNESS_EVAL_DEN_(API_URL|WEB_URL|RUNTIME_PREPARED)|HARNESS_EVAL_DAYTONA.*)$/.test(key) && source[key]?.trim())) {
     throw new Error("Remove Den reuse, prepared-runtime and Daytona overrides; this world owns a fresh local Den.");
   }
-  const mysql = source.OPENWORK_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL;
+  const mysql = source.HARNESS_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL;
   const redis = source.DATABASE_REDIS_URL?.trim() || "redis://127.0.0.1:6379";
   for (const [value, protocol] of [[mysql, "mysql:"], [redis, "redis:"]]) {
     const url = new URL(value);
@@ -32,14 +32,14 @@ export function localEnvironment(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   }
   const retained = new Set(["PATH", "HOME", "USER", "LOGNAME", "SHELL", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TERM", "PNPM_HOME"]);
   return {
-    ...Object.fromEntries(Object.entries(source).filter(([key]) => retained.has(key) || key.startsWith("OPENWORK_WORLD_"))),
-    OPENWORK_WORLD_PLACE: "local",
-    OPENWORK_EVAL_MYSQL_URL: mysql,
+    ...Object.fromEntries(Object.entries(source).filter(([key]) => retained.has(key) || key.startsWith("HARNESS_WORLD_"))),
+    HARNESS_WORLD_PLACE: "local",
+    HARNESS_EVAL_MYSQL_URL: mysql,
     DATABASE_REDIS_URL: redis,
-    OPENWORK_DEN_DB_ENV_PATH: "/dev/null",
+    HARNESS_DEN_DB_ENV_PATH: "/dev/null",
     NODE_ENV: "development",
     TZ: "UTC",
-    OPENWORK_DEV_MODE: "1",
+    HARNESS_DEV_MODE: "1",
     DEN_DEMO_SEED_FETCH_GITHUB: "0",
     RESEND_API_KEY: "",
     SMTP_HOST: "",

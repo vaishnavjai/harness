@@ -1,5 +1,5 @@
 import { mcpAppResolutionRetryDelayMs } from "./mcp-app-resolution"
-import { OpenworkServerError, type OpenworkMcpAppLaunchReference, type OpenworkMcpAppResource } from "./openwork-server"
+import { HarnessServerError, type HarnessMcpAppLaunchReference, type HarnessMcpAppResource } from "./harness-server"
 import type { McpAppOrigin } from "../../components/chat/mcp-app-origin"
 
 // Canonical JSON also keeps equivalent React inputs from restarting discovery.
@@ -30,9 +30,9 @@ export function createMcpAppDiscoveryScheduler(now = Date.now) {
   return function schedule(
     origin: McpAppOrigin,
     toolName: string,
-    launch: OpenworkMcpAppLaunchReference | null,
+    launch: HarnessMcpAppLaunchReference | null,
     manual: boolean,
-    receive: (app: OpenworkMcpAppResource | null) => void,
+    receive: (app: HarnessMcpAppResource | null) => void,
     fail: (error: unknown) => void,
   ): () => void {
     let scopes = clients.get(origin.client)
@@ -85,7 +85,7 @@ export function createMcpAppDiscoveryScheduler(now = Date.now) {
           finish?.()
         }, error => {
           if (cancelled) { finish?.(); return }
-          const auth = error instanceof OpenworkServerError && ["mcp_auth_required", "mcp_access_denied"].includes(error.code)
+          const auth = error instanceof HarnessServerError && ["mcp_auth_required", "mcp_access_denied"].includes(error.code)
           const delay = auth ? null : mcpAppResolutionRetryDelayMs(error, index)
           if (delay === null) { negative({ error }); return }
           timer = window.setTimeout(() => { timer = undefined; attempt(index + 1) }, delay)

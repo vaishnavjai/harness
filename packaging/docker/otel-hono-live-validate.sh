@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"
-project_default="openwork-otel-hono-live-$$"
+project_default="harness-otel-hono-live-$$"
 project="${OTEL_HONO_PROJECT:-$project_default}"
 den_compose_file="${OTEL_HONO_DEN_COMPOSE_FILE:-$repo_root/packaging/docker/docker-compose.den-dev.yml}"
 otel_compose_file="${OTEL_HONO_LGTM_COMPOSE_FILE:-$repo_root/packaging/docker/docker-compose.otel-lgtm.yml}"
@@ -47,10 +47,10 @@ export OTEL_LGTM_GRAFANA_PORT="${OTEL_LGTM_GRAFANA_PORT:-$((port_base + 4))}"
 export OTEL_LGTM_OTLP_GRPC_PORT="${OTEL_LGTM_OTLP_GRPC_PORT:-$((port_base + 5))}"
 export OTEL_LGTM_OTLP_HTTP_PORT="${OTEL_LGTM_OTLP_HTTP_PORT:-$((port_base + 6))}"
 
-# The compose default OPENWORK_DEV_MODE=1 re-execs den-api with
-# --conditions=development, which resolves @openwork-ee/den-db to TypeScript
+# The compose default HARNESS_DEV_MODE=1 re-execs den-api with
+# --conditions=development, which resolves @harness-ee/den-db to TypeScript
 # sources the image cannot load. Validate the built dist instead.
-export OPENWORK_DEV_MODE="${OPENWORK_DEV_MODE:-0}"
+export HARNESS_DEV_MODE="${HARNESS_DEV_MODE:-0}"
 export DEN_OBSERVABILITY_BACKEND="${DEN_OBSERVABILITY_BACKEND:-otel}"
 export NEXT_PUBLIC_DEN_OBSERVABILITY_BACKEND="${NEXT_PUBLIC_DEN_OBSERVABILITY_BACKEND:-otel}"
 export OTEL_EXPORTER_OTLP_ENDPOINT="${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-lgtm:4318}"

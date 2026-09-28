@@ -7,12 +7,12 @@ Automation's lifetime:
 
 - Desktop creation produces a `desktop` Automation and continues to use the
   authenticated desktop runner introduced by the existing Automations work.
-- OpenWork Web and Cloud Chat creation produce a `cloud` Automation. Den
-  schedules the occurrence, wakes the owner's existing OpenWork Cloud container
-  when it is stopped, and runs a native OpenWork thread headlessly inside that
+- Harness Web and Cloud Chat creation produce a `cloud` Automation. Den
+  schedules the occurrence, wakes the owner's existing Harness Cloud container
+  when it is stopped, and runs a native Harness thread headlessly inside that
   container.
 
-Desktop and OpenWork Web share one Automations surface in the app: the same
+Desktop and Harness Web share one Automations surface in the app: the same
 list, editor, detail, run history, receipts, and in-chat proposal card. The
 runtime only decides the placement of what that surface creates, and the free
 Zen starter model stays a published-Desktop exception. The desktop runner
@@ -21,10 +21,10 @@ bridge never registers from a browser runtime.
 Den's dashboard "My Automations" page is a monitor, not an authoring surface.
 It groups Den-scheduled work by attention (running, needs attention,
 scheduled, paused), shows receipts and Workflow results, and links each
-Automation to the surface that manages it: OpenWork Web for Cloud placement,
+Automation to the surface that manages it: Harness Web for Cloud placement,
 the desktop app for Desktop placement. Cancelling an in-flight run is its only
 operational control. A Workflow's "Automate" action deep-links into the
-OpenWork Web editor with the exact Workflow version pinned.
+Harness Web editor with the exact Workflow version pinned.
 
 Both surfaces read the same Den Automation and run history. Placement is shown
 on list cards and receipts, but it is not an editable setting. Moving execution
@@ -51,7 +51,7 @@ Runtime readiness polling retains its pre-existing 120-second cap and terminal,
 non-retryable outcome; signed-preview routing does not add another queued attempt.
 
 Before prompt admission, Den probes and repairs the worker's persisted
-`openwork-cloud` MCP registration for the selected model. A missing Connect
+`harness-cloud` MCP registration for the selected model. A missing Connect
 configuration or model projection becomes durable needs-attention rather than
 a headless run that silently lacks the user's connected services.
 
@@ -73,7 +73,7 @@ admission, terminal errors, cancellation observation, dual worker credentials,
 Cloud wake/idle lifecycle behavior, runtime-specific agent guidance, and
 cross-surface execution labels. The testkit acceptance tape verifies that the
 Den monitor lists Den-scheduled Automations without any create, edit, state,
-run-now, or archive control and routes management to OpenWork Web or Desktop.
+run-now, or archive control and routes management to Harness Web or Desktop.
 Source-contract tests pin the shared app surface: one deployment gate for both
 runtimes, runtime-derived placement on create, and the desktop-only runner.
 

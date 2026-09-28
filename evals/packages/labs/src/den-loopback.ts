@@ -1,4 +1,4 @@
-import { defaultDaytonaExec, execInSandbox } from "@openwork/hosts";
+import { defaultDaytonaExec, execInSandbox } from "@harness/hosts";
 
 /** Send controlled proxy headers directly to Den, without the public preview proxy rewriting them. */
 export async function requestDenLoopback(sandbox: string, path: string, init: RequestInit): Promise<Response> {

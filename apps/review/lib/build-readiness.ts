@@ -52,7 +52,7 @@ export const STEP_LABELS: Record<string, string> = {
 };
 const SECTIONS: { label: string; layers: number[] }[] = [
   { label: "Dependencies", layers: [0, 1] },
-  { label: "Build OpenWork", layers: [2] },
+  { label: "Build Harness", layers: [2] },
   { label: "Start services", layers: [3] },
   { label: "Apply this commit", layers: [4] },
 ];

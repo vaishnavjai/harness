@@ -1,8 +1,8 @@
-import { browserScript } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
+import { browserScript } from "@harness/cdp";
+import type { Seed } from "@harness/env";
 import { archiveSessions } from "./session-shell.ts";
 
-/** Real provider-sync payload shape the app dispatches on `openwork-new-providers-available`. */
+/** Real provider-sync payload shape the app dispatches on `harness-new-providers-available`. */
 export interface SyncedProvider {
   id: string;
   name: string;
@@ -20,7 +20,7 @@ export async function notificationCenter(seed: Seed) {
     ...world,
     /** Fire the same window event the provider sync dispatches after sign-in or a config change. */
     providerSync: (providers: SyncedProvider[]) => seed.evalIn(world.app, browserScript((providers) => {
-      window.dispatchEvent(new CustomEvent("openwork-new-providers-available", {
+      window.dispatchEvent(new CustomEvent("harness-new-providers-available", {
         detail: { providers, newProviderCount: providers.length, newModelCount: 0, source: "cloud_sync" },
       }));
       return providers.length;

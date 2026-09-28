@@ -38,7 +38,7 @@ export function WebStartupScreen({ message }: { message: string }) {
   }, []);
   return (
     <main className="flex min-h-dvh items-center justify-center bg-background px-6 py-16 text-foreground" data-testid="web-startup-screen">
-      <WorkspaceStartupStatus message={slow ? "OpenWork is taking longer than usual to start" : message}>
+      <WorkspaceStartupStatus message={slow ? "Harness is taking longer than usual to start" : message}>
         {slow ? <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Reload</Button> : null}
       </WorkspaceStartupStatus>
     </main>

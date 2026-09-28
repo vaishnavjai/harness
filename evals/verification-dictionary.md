@@ -8,7 +8,7 @@ selectors, JavaScript, expected values, or observation readers.
 The implementation contracts are [core](./packages/testkit/src/verification.ts),
 [gateway adapter](./packages/testkit/src/verification-jev.ts), and
 [benchmark CLI](./scripts/verification-benchmark.ts). Both functions and the adapter
-are exported by the normal `@openwork/testkit` barrel. Importing them does not opt
+are exported by the normal `@harness/testkit` barrel. Importing them does not opt
 into a live service; constructing and invoking the live evaluator does.
 
 ## Compile, then check
@@ -106,7 +106,7 @@ contenteditable composer. The named reader's actual field is `draftText` (see
 import {
   compileVerification, runVerification, createJevVerificationEvaluator,
   type VerificationDictionary,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 
 const dictionary: VerificationDictionary = {
   id: "draft-review", version: "1", checks: [
@@ -139,7 +139,7 @@ async function compileDraftPlan() {
 // Call compileDraftPlan once; retain its plan for subsequent replay calls.
 async function replayDraft(
   plan: Awaited<ReturnType<typeof compileDraftPlan>>,
-  { user, probe, step }: Pick<import("@openwork/testkit").SpecBodyContext<unknown>,
+  { user, probe, step }: Pick<import("@harness/testkit").SpecBodyContext<unknown>,
     "user" | "probe" | "step">,
 ) {
   return runVerification({ plan, dictionary,

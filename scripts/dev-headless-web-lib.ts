@@ -1,10 +1,10 @@
-/** Compatibility exports; the implementation is owned by @openwork/world. */
+/** Compatibility exports; the implementation is owned by @harness/world. */
 export {
   buildDetachedRespawnArgs,
   buildHeadlessCorsOrigins,
   buildHeadlessRuntimeManifest,
   buildHeadlessServerLaunch,
-  buildOpenworkServerArgs,
+  buildHarnessServerArgs,
   isHeadlessStackCommand,
   mergeHeadlessServerConfig,
   normalizeDenTarget,

@@ -18,6 +18,6 @@
   window.addEventListener('error', event => witness.errors.push(event.message));
   window.addEventListener('unhandledrejection', event => witness.rejections.push(typeof event.reason?.message === 'string' ? event.reason.message : 'non-string rejection'));
   window.addEventListener('click', event => witness.trustedClicks.push(event.isTrusted), true);
-  localStorage.setItem('openwork.preferences', JSON.stringify({ analyticsEnabled: query.get('analytics') !== 'off' }));
-  if (query.get('electron') === 'yes') window.__OPENWORK_ELECTRON__ = {};
+  localStorage.setItem('harness.preferences', JSON.stringify({ analyticsEnabled: query.get('analytics') !== 'off' }));
+  if (query.get('electron') === 'yes') window.__HARNESS_ELECTRON__ = {};
 })();

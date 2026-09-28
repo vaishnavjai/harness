@@ -3,14 +3,14 @@ import type { Message, Part, Session, SessionStatus, Todo } from "@opencode-ai/s
 import { closeSessionBrowserTabs } from "./desktop";
 import { createClient, unwrap, type FieldsResult } from "./opencode";
 import { createClientV2, isOpencodeV2BaseUrl } from "./opencode-v2-adapter";
-import type { OpenworkSessionHistory, OpenworkSessionSnapshot } from "./openwork-server";
+import type { HarnessSessionHistory, HarnessSessionSnapshot } from "./harness-server";
 import type { ResolvedWorkspaceEndpoint } from "./workspace-endpoint";
 
 type NativeSessionEndpoint = Pick<ResolvedWorkspaceEndpoint, "opencodeBaseUrl" | "token"> & { desktopTransport?: "main" };
 type RequestOptions = { signal?: AbortSignal };
 type MessageReadOptions = RequestOptions & { limit?: number; before?: string };
 type HistoryReadOptions = MessageReadOptions & { messageIds?: readonly string[] };
-type MessageReadResult = FieldsResult<Array<{ info: Message; parts: Part[] }>> & Pick<OpenworkSessionHistory, "pagination">;
+type MessageReadResult = FieldsResult<Array<{ info: Message; parts: Part[] }>> & Pick<HarnessSessionHistory, "pagination">;
 
 export type NativeSessionSnapshotTarget = {
   owner: string;
@@ -64,7 +64,7 @@ function createNativeOperations(endpoint: NativeSessionEndpoint): NativeSessionO
   const v2 = isOpencodeV2BaseUrl(endpoint.opencodeBaseUrl)
     ? createClientV2(endpoint.opencodeBaseUrl, undefined, { token: endpoint.token })
     : undefined;
-  const client = v2 ?? createClient(endpoint.opencodeBaseUrl, undefined, { mode: "openwork", token: endpoint.token },
+  const client = v2 ?? createClient(endpoint.opencodeBaseUrl, undefined, { mode: "harness", token: endpoint.token },
     endpoint.desktopTransport ? { desktopTransport: endpoint.desktopTransport } : undefined);
   return {
     get: (sessionId, options) => client.session.get({ sessionID: sessionId }, options),
@@ -152,13 +152,13 @@ async function readNativeSessionHistory(
   operations: NativeSessionOperations,
   sessionId: string,
   options?: HistoryReadOptions,
-): Promise<OpenworkSessionHistory> {
+): Promise<HarnessSessionHistory> {
   options?.signal?.throwIfAborted();
   if (options?.messageIds === undefined) validateMessageRead(options);
   const controller = new AbortController();
   const signal = options?.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   const readOptions = { ...options, signal };
-  let pagination: OpenworkSessionHistory["pagination"];
+  let pagination: HarnessSessionHistory["pagination"];
   const readSession = async () => {
     const result = await operations.get(sessionId, readOptions);
     signal.throwIfAborted();
@@ -211,7 +211,7 @@ export async function composeNativeSessionHistory(
   sessionId: string,
   options?: HistoryReadOptions,
   dependencies?: NativeSessionDependencies,
-): Promise<OpenworkSessionHistory> {
+): Promise<HarnessSessionHistory> {
   return readNativeSessionHistory(sessionOperations(endpoint, dependencies), sessionId, options);
 }
 
@@ -220,7 +220,7 @@ export async function composeNativeSessionSnapshot(
   sessionId: string,
   options?: HistoryReadOptions,
   dependencies?: NativeSessionDependencies,
-): Promise<OpenworkSessionSnapshot> {
+): Promise<HarnessSessionSnapshot> {
   const operations = sessionOperations(endpoint, dependencies);
   const [history, todoResult, statusResult] = await Promise.all([
     readNativeSessionHistory(operations, sessionId, options),

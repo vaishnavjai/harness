@@ -1,14 +1,14 @@
-import { browserScript, locate } from "@openwork/cdp";
+import { browserScript, locate } from "@harness/cdp";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { rm } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { app as startApp, faultProxy as startFaultProxy, resolveEvalEngine } from "@openwork/env";
-import type { Den, MockHandle, Seed } from "@openwork/env";
-import { denFetch, evalIn as rawEvalIn } from "@openwork/behaviors";
-import type { DenFetchResult, DenSession } from "@openwork/behaviors";
-import { allocateFreePort } from "@openwork/cdp";
-import { startMockMcp, type MockAgentWorkload } from "@openwork/labs";
-import { electronProfilePaths } from "@openwork/hosts";
+import { app as startApp, faultProxy as startFaultProxy, resolveEvalEngine } from "@harness/env";
+import type { Den, MockHandle, Seed } from "@harness/env";
+import { denFetch, evalIn as rawEvalIn } from "@harness/behaviors";
+import type { DenFetchResult, DenSession } from "@harness/behaviors";
+import { allocateFreePort } from "@harness/cdp";
+import { startMockMcp, type MockAgentWorkload } from "@harness/labs";
+import { electronProfilePaths } from "@harness/hosts";
 import { configureProvider } from "./chat.ts";
 import { browserScriptValue, runBrowserHost } from "../packages/env/src/browser-task.ts";
 
@@ -50,7 +50,7 @@ async function activeOrganizationId(seed: Seed, session: DenSession): Promise<st
 async function mintMcpSession(seed: Seed, den: Den, organizationId: string): Promise<DenSession> {
   const result = await seed.api(den.admin, "/v1/mcp/token", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   });
   const token = stringField(result.body, "token");
@@ -162,9 +162,9 @@ export function mcpCallBody(id: number, name: string, args: Record<string, unkno
 }
 
 export const connectStateExpression = () => {
-  const port = localStorage.getItem("openwork.server.port") ?? "";
+  const port = localStorage.getItem("harness.server.port") ?? "";
   const baseUrl = port ? "http://127.0.0.1:" + port : "";
-  const token = localStorage.getItem("openwork.server.token") ?? "";
+  const token = localStorage.getItem("harness.server.token") ?? "";
   if (!baseUrl || !token) return { ok: false, status: null, connectEnabled: null };
   const request = new XMLHttpRequest();
   request.open("GET", baseUrl + "/experimental/connect/state", false);
@@ -175,9 +175,9 @@ export const connectStateExpression = () => {
 };
 
 export const runtimeGenerationExpression = async () => {
-  const invokeDesktop = window.__OPENWORK_ELECTRON__?.invokeDesktop;
+  const invokeDesktop = window.__HARNESS_ELECTRON__?.invokeDesktop;
   if (!invokeDesktop) return { running: false, baseUrl: "", generation: null };
-  const info = await invokeDesktop("openworkServerInfo");
+  const info = await invokeDesktop("harnessServerInfo");
   return {
     running: info?.running === true,
     baseUrl: String(info?.baseUrl ?? ""),
@@ -186,23 +186,23 @@ export const runtimeGenerationExpression = async () => {
 };
 
 export const cloudHealthExpression = (workspaceId: string) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return { error: "missing local server credentials" };
     const request = new XMLHttpRequest();
-    request.open("GET", "http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId) + "/mcp/openwork-cloud/health?probe=1", false);
+    request.open("GET", "http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId) + "/mcp/harness-cloud/health?probe=1", false);
     request.setRequestHeader("Authorization", "Bearer " + token);
     request.send();
     return JSON.parse(request.responseText || "{}");
   };
 
-export async function connectPolicyRuntimeRestart(seed: Seed, { place }: { place: import("@openwork/env").Place }) {
+export async function connectPolicyRuntimeRestart(seed: Seed, { place }: { place: import("@harness/env").Place }) {
   const stamp = Date.now();
   const den = await seed.den({
     org: {
       name: "Connect Policy Convergence",
-      admin: { email: `connect-policy-admin-${stamp}@openwork.test`, name: "Connect Policy Admin" },
-      members: { fresh: { email: `connect-policy-member-${stamp}@openwork.test`, name: "Fresh Profile Member" } },
+      admin: { email: `connect-policy-admin-${stamp}@harness.test`, name: "Connect Policy Admin" },
+      members: { fresh: { email: `connect-policy-member-${stamp}@harness.test`, name: "Fresh Profile Member" } },
     },
   });
   const app = await startApp({ den, as: "fresh", place, localServerDelayMs: 5_000 });
@@ -215,9 +215,9 @@ export async function clearConnectStateFiles(app: Awaited<ReturnType<typeof star
   if (!app.handle.profileDir) throw new Error("The local desktop profile directory is unavailable.");
   const paths = electronProfilePaths(app.handle.profileDir);
   const candidates = [
-    `${paths.userDataDir}/openwork-dev-data/xdg/config/openwork/connect-state.json`,
-    `${paths.configHome}/openwork/connect-state.json`,
-    `${paths.homeDir}/.config/openwork/connect-state.json`,
+    `${paths.userDataDir}/harness-dev-data/xdg/config/harness/connect-state.json`,
+    `${paths.configHome}/harness/connect-state.json`,
+    `${paths.homeDir}/.config/harness/connect-state.json`,
   ];
   await Promise.all(candidates.map((path) => rm(path, { force: true })));
 }
@@ -227,8 +227,8 @@ export async function connectStateProvenance(seed: Seed) {
   const den = await seed.den({
     org: {
       name: "Connect State Provenance",
-      admin: { email: `connect-state-admin-${stamp}@openwork.test`, name: "Connect State Admin" },
-      members: { fresh: { email: `connect-state-member-${stamp}@openwork.test`, name: "Fresh Profile Member" } },
+      admin: { email: `connect-state-admin-${stamp}@harness.test`, name: "Connect State Admin" },
+      members: { fresh: { email: `connect-state-member-${stamp}@harness.test`, name: "Fresh Profile Member" } },
     },
   });
   const app = await seed.desktop({ den, signIn: false });
@@ -264,7 +264,7 @@ export async function preseededConnect(seed: Seed) {
   const organizationId = await activeOrganizationId(seed, den.admin);
   const createdSkill = await seed.api(den.admin, "/v1/plugins", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({
       name: skillName,
       orgWide: true,
@@ -282,10 +282,10 @@ export async function preseededConnect(seed: Seed) {
   });
   const provider = await seed.api(den.admin, "/v1/llm-providers", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({
       name: providerName, source: "custom", allMembers: true, memberIds: [], teamIds: [],
-      apiKey: "sk-openwork-connect-eval-only",
+      apiKey: "sk-harness-connect-eval-only",
       customConfig: { id: "connect-discovery", name: providerName, npm: "@ai-sdk/openai-compatible",
         options: { baseURL: `${den.mocks.connector.url}/v1` }, env: ["CONNECT_EVAL_API_KEY"],
         models: [{ id: modelId, name: modelId, tool_call: true, limit: { context: 128000, output: 8192 } }],
@@ -331,10 +331,10 @@ export async function connectorBranding(seed: Seed) {
   const steps = (name: string) => engine === "v2" ? [{
     tool: "execute",
     arguments: { code: `
-      const found = await tools["openwork-cloud"].search_capabilities(${JSON.stringify(search(name))});
+      const found = await tools["harness-cloud"].search_capabilities(${JSON.stringify(search(name))});
       const result = typeof found === "string" ? JSON.parse(found) : found;
       const catalog = result.matches ? result : JSON.parse(result.content[0].text);
-      return await tools["openwork-cloud"].execute_capability({ name: catalog.matches[0].name, body: ${JSON.stringify(toolArguments)} });
+      return await tools["harness-cloud"].execute_capability({ name: catalog.matches[0].name, body: ${JSON.stringify(toolArguments)} });
     ` },
   }] : [
     { tool: "search_capabilities", arguments: search(name) },
@@ -425,7 +425,7 @@ export async function connectorCatalogManagement(seed: Seed) {
 export async function desktopWithExternalOpenCapture(seed: Seed, den: Den, identity: string, model?: string) {
   const app = await seed.desktop({
     den, as: identity, model,
-    env: { OPENWORK_DEV_MODE: "1", OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS: "1" },
+    env: { HARNESS_DEV_MODE: "1", HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS: "1" },
   });
   const profileDir = app.handle.profileDir;
   if (!profileDir) throw new Error("The fixture desktop did not expose its profile directory.");
@@ -434,7 +434,7 @@ export async function desktopWithExternalOpenCapture(seed: Seed, den: Den, ident
       const text = await runBrowserHost(app, `
         const { readFile } = await import("node:fs/promises");
         const { join } = await import("node:path");
-        const path = join(${browserScriptValue(profileDir)}, "electron-userdata", "openwork-eval-external-opens.jsonl");
+        const path = join(${browserScriptValue(profileDir)}, "electron-userdata", "harness-eval-external-opens.jsonl");
         try { return await readFile(path, "utf8"); }
         catch (error) { if (error.code === "ENOENT") return ""; throw error; }
       `);
@@ -493,7 +493,7 @@ export async function libraryPaperFlow(seed: Seed) {
     },
   });
   const organizationId = await activeOrganizationId(seed, den.admin);
-  const headers = { "x-openwork-org-id": organizationId };
+  const headers = { "x-harness-org-id": organizationId };
   const org = await seed.api(den.admin, "/v1/org", { headers });
   const members = isRecord(org.body) ? records(org.body.members) : [];
   const supportIds = paperFlowSupport.map((name) => {
@@ -702,7 +702,7 @@ export async function libraryConfigReadBudget(seed: Seed) {
       if (typeof target === "string" && (target.includes("/cloud-provider-sync/status") || target.includes("/opencode/config?") || target.endsWith("/mcp") || target.endsWith("/den-session"))) window.__libraryLifecycleReads += 1;
       return originalFetch.apply(this, args);
     };
-    const bridge = window.__OPENWORK_ELECTRON__;
+    const bridge = window.__HARNESS_ELECTRON__;
     if (bridge?.invokeDesktop) {
       const originalInvoke = bridge.invokeDesktop.bind(bridge);
       bridge.invokeDesktop = function (command, ...rest) {
@@ -750,7 +750,7 @@ export async function librarySignedInStability(seed: Seed) {
       window.__libraryStability.requests.push(String(target));
       return originalFetch.apply(this, args);
     };
-    window.addEventListener("openwork-den-settings-changed", () => { window.__libraryStability.denEvents += 1; });
+    window.addEventListener("harness-den-settings-changed", () => { window.__libraryStability.denEvents += 1; });
     location.hash = "#/workspace/" + workspaceId + "/settings/general";
     return true;
   }, [workspace.workspaceId]));
@@ -838,7 +838,7 @@ export async function largeSkill(seed: Seed) {
   const unique = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
   const den = await seed.den({ org: { name: `SearchText Overflow ${unique}` } });
   const organizationId = await activeOrganizationId(seed, den.admin);
-  const headers = { "x-openwork-org-id": organizationId };
+  const headers = { "x-harness-org-id": organizationId };
   const skillName = `grand-skill-multioctets-${unique}`;
   const skillV1 = buildSkillMarkdown(skillName, "Orchestrateur V1", 120_000);
   const created = await seed.api(den.admin, "/v1/config-objects", {
@@ -900,7 +900,7 @@ async function capabilityWorld(seed: Seed, extraToolCount: number) {
 
 export const capabilitySearchScale = (seed: Seed) => capabilityWorld(seed, 400);
 
-export async function capabilitySearchLatency(seed: Seed, { place }: { place: import("@openwork/env").Place }) {
+export async function capabilitySearchLatency(seed: Seed, { place }: { place: import("@harness/env").Place }) {
   const healthy = await capabilityWorld(seed, 0);
   const flakyPort = await allocateFreePort();
   const loopback = `http://127.0.0.1:${flakyPort}`;
@@ -969,16 +969,16 @@ export async function pluginEditorWithConnector(seed: Seed) {
 }
 
 export async function libraryView(seed: Seed) {
-  const password = process.env.OPENWORK_EVAL_DEMO_PASSWORD?.trim() || "OpenWorkDemo123!";
-  const caseyEmail = process.env.OPENWORK_EVAL_CREATOR_EMAIL?.trim() || "casey.spec@acme.test";
-  const novaEmail = process.env.OPENWORK_EVAL_MEMBER_EMAIL?.trim() || "nova.spec@acme.test";
+  const password = process.env.HARNESS_EVAL_DEMO_PASSWORD?.trim() || "HarnessDemo123!";
+  const caseyEmail = process.env.HARNESS_EVAL_CREATOR_EMAIL?.trim() || "casey.spec@acme.test";
+  const novaEmail = process.env.HARNESS_EVAL_MEMBER_EMAIL?.trim() || "nova.spec@acme.test";
   const den = await seed.den({
     reuseMembers: {
       casey: { email: caseyEmail, password, name: "Casey Spec" },
       nova: { email: novaEmail, password, name: "Nova Spec" },
     },
     mocks: {
-      connector: seed.mock({ publicUrl: process.env.OPENWORK_EVAL_LIBRARY_MOCK_PUBLIC_URL?.trim() || undefined }),
+      connector: seed.mock({ publicUrl: process.env.HARNESS_EVAL_LIBRARY_MOCK_PUBLIC_URL?.trim() || undefined }),
     },
   });
   const organizationId = await activeOrganizationId(seed, den.admin);
@@ -995,7 +995,7 @@ export async function libraryView(seed: Seed) {
   const rawSourceText = `---\nname: ${skillName}\ndescription: Proves the member library view.\n---\n\nReturn the library proof phrase.`;
   const createdPlugin = await seed.api(den.members.casey, "/v1/plugins", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({
       name: pluginName,
       sourceRepositoryUrl: "https://github.com/anthropics/knowledge-work-plugins",
@@ -1004,7 +1004,7 @@ export async function libraryView(seed: Seed) {
   });
   const pluginId = stringField(isRecord(createdPlugin.body) ? createdPlugin.body.item : null, "id");
   if (!pluginId) throw new Error("Could not create the Library view plugin.");
-  const org = await seed.api(den.admin, "/v1/org", { headers: { "x-openwork-org-id": organizationId } });
+  const org = await seed.api(den.admin, "/v1/org", { headers: { "x-harness-org-id": organizationId } });
   const novaMember = isRecord(org.body)
     ? records(org.body.members).find((member) => isRecord(member.user) && member.user.email === novaEmail)
     : undefined;
@@ -1013,20 +1013,20 @@ export async function libraryView(seed: Seed) {
   const teamName = `Spec Library Provenance Team ${stamp}`;
   const createdTeam = await seed.api(den.admin, "/v1/teams", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({ name: teamName }),
   });
   const teamId = stringField(isRecord(createdTeam.body) ? createdTeam.body.team : null, "id");
   if (!teamId) throw new Error("Could not create the Library provenance team.");
   await seed.api(den.admin, `/v1/teams/${encodeURIComponent(teamId)}`, {
     method: "PATCH",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({ memberIds: [novaMemberId] }),
   });
   for (const body of [{ orgMembershipId: novaMemberId, role: "viewer" }, { teamId, role: "viewer" }]) {
     await seed.api(den.members.casey, `/v1/plugins/${encodeURIComponent(pluginId)}/access`, {
       method: "POST",
-      headers: { "x-openwork-org-id": organizationId },
+      headers: { "x-harness-org-id": organizationId },
       body: JSON.stringify(body),
     });
   }
@@ -1049,7 +1049,7 @@ export async function libraryView(seed: Seed) {
   }, async () => {
     const headers = {
       authorization: `Bearer ${den.members.casey.token}`,
-      "x-openwork-org-id": organizationId,
+      "x-harness-org-id": organizationId,
     };
     await denFetch(den.members.casey, `/v1/plugins/${encodeURIComponent(pluginId)}/archive`, { method: "POST", headers }).catch(() => undefined);
     await denFetch(den.admin, `/v1/teams/${encodeURIComponent(teamId)}`, { method: "DELETE", headers: { ...headers, authorization: `Bearer ${den.admin.token}` } }).catch(() => undefined);
@@ -1068,7 +1068,7 @@ async function listen(server: Server): Promise<string> {
 }
 
 async function configureWorkspaceModel(seed: Seed, input: {
-  app: import("@openwork/cdp").Surface;
+  app: import("@harness/cdp").Surface;
   workspaceId: string;
   providerId: string;
   modelId: string;
@@ -1080,8 +1080,8 @@ async function configureWorkspaceModel(seed: Seed, input: {
 }): Promise<void> {
   // TODO(primitive): seed.workspaceRuntimeConfig
   const result = await rawEvalIn(input.app, browserScript(async (inputWorkspaceId, providerId, value, modelId, inputValue, inputValue2, inputProviderId, inputModelId, inputValue3) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     if (!port || !token) return "missing local server credentials";
     const request = async (path: string, init?: RequestInit) => {
       const response = await fetch("http://127.0.0.1:" + port + path, {
@@ -1110,7 +1110,7 @@ async function configureWorkspaceModel(seed: Seed, input: {
     const reloaded = await request("/workspace/" + encodeURIComponent(workspaceId) + "/engine/reload", { method: "POST" });
     if (reloaded !== "ok" && !reloaded.includes("opencode_reload_timeout") && !reloaded.includes("opencode_engine_unreachable")) return reloaded;
     if (inputValue2) {
-      const reconcile = await request("/workspace/" + encodeURIComponent(workspaceId) + "/mcp/openwork-cloud/reconcile", {
+      const reconcile = await request("/workspace/" + encodeURIComponent(workspaceId) + "/mcp/harness-cloud/reconcile", {
         method: "POST", body: JSON.stringify(inputValue2),
       });
       if (reconcile !== "ok") return reconcile;
@@ -1133,18 +1133,18 @@ async function configureWorkspaceModel(seed: Seed, input: {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
     if (!healthy) return "Engine did not report healthy";
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch {}
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: inputProviderId, modelID: inputModelId },
       modelVariant: null,
       providerStepCompleted: true,
     }));
-    localStorage.setItem("openwork.defaultModel", inputValue3);
-    localStorage.removeItem("openwork.sessionModels." + workspaceId);
+    localStorage.setItem("harness.defaultModel", inputValue3);
+    localStorage.removeItem("harness.sessionModels." + workspaceId);
     return "ok";
   }, [input.workspaceId, input.providerId, `${input.fixtureUrl}/v1`, input.modelId, input.directMcp ? {
           [input.directMcp.name]: { type: "remote", url: input.directMcp.url, enabled: true, oauth: false },
@@ -1159,12 +1159,12 @@ async function configureWorkspaceModel(seed: Seed, input: {
   if (result !== "ok") throw new Error(`Configuring the fixture model failed: ${String(result)}`);
 }
 
-async function reloadConfiguredApp(app: import("@openwork/cdp").Surface): Promise<void> {
+async function reloadConfiguredApp(app: import("@harness/cdp").Surface): Promise<void> {
   // TODO(primitive): seed.reloadConfiguredDesktop
   await rawEvalIn(app, () => { location.reload(); return true; }).catch(() => undefined);
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
-    if (await rawEvalIn(app, () => (Boolean(window.__openworkControl))).catch(() => false) === true) return;
+    if (await rawEvalIn(app, () => (Boolean(window.__harnessControl))).catch(() => false) === true) return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error("The configured desktop control did not return after reload.");
@@ -1245,7 +1245,7 @@ export async function connectionActionMcpApp(seed: Seed) {
   });
   const tokenResult = await seed.api(den.admin, "/v1/mcp/token", {
     method: "POST",
-    headers: { "x-openwork-org-id": organizationId },
+    headers: { "x-harness-org-id": organizationId },
     body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   });
   const mcpToken = stringField(tokenResult.body, "token");
@@ -1254,8 +1254,8 @@ export async function connectionActionMcpApp(seed: Seed) {
   const app = await seed.desktop({ den, as: "admin", name: "connection-action-mcp-app" });
   const workspace = await seed.workspace(app, seed.tmpPath("connection-action-mcp-app"));
   const questionPolicyWritten = await seed.evalIn(app, browserScript(async (workspaceId) => {
-    const port = localStorage.getItem("openwork.server.port");
-    const token = localStorage.getItem("openwork.server.token");
+    const port = localStorage.getItem("harness.server.port");
+    const token = localStorage.getItem("harness.server.token");
     const response = await fetch("http://127.0.0.1:" + port + "/workspace/" + encodeURIComponent(workspaceId) + "/files/content", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
@@ -1283,12 +1283,12 @@ export async function connectionActionMcpApp(seed: Seed) {
   }
   if (!session) throw lastError instanceof Error ? lastError : new Error(String(lastError));
   const connectionAppHeading = async () => (await locate(app, {
-    mcpApp: { resourceUri: "ui://openwork/connection-action/v2/view.html" }, role: "heading",
+    mcpApp: { resourceUri: "ui://harness/connection-action/v2/view.html" }, role: "heading",
   })).text;
   return { app, den, connection, organizationId, workspace, session, connectionAppHeading, mcpSession: { ...den.admin, token: mcpToken }, appHostSession: { ...den.admin, token: appHostToken } };
 }
 
-export const inlineResourceUri = "ui://openwork/artifacts/arv_eval_card/views/avr_eval_card/index.html";
+export const inlineResourceUri = "ui://harness/artifacts/arv_eval_card/views/avr_eval_card/index.html";
 export const inlineReply = "The interactive artifact card is ready.";
 
 export async function mcpAppInlineHost(seed: Seed) {
@@ -1409,7 +1409,7 @@ export async function remoteMcpApps(seed: Seed) {
   const state = { gatewayCapabilityName: "" };
   const builder = await import("../../ee/apps/den-api/src/generated-artifact-view-builder.js");
   const built = await builder.buildGeneratedArtifactViewInWorker({
-    reactSource: `export default function ProjectAtlas(props) { const app = props.data || { name: "Project Atlas", status: "Connected through OpenWork Connect" }; return <main><h1>{app.name}</h1><p>{app.status}</p></main> }`,
+    reactSource: `export default function ProjectAtlas(props) { const app = props.data || { name: "Project Atlas", status: "Connected through Harness Connect" }; return <main><h1>{app.name}</h1><p>{app.status}</p></main> }`,
     cssSource: "body{margin:0;padding:18px;color:#172033;background:#f5f7fb;font-family:system-ui,sans-serif}main{padding:22px;border:1px solid #dbe4f0;border-radius:16px;background:white}",
     outputSchema: { type: "object", additionalProperties: true },
     title: "Project Atlas",
@@ -1423,7 +1423,7 @@ export async function remoteMcpApps(seed: Seed) {
       result: {
         protocolVersion: "2025-06-18",
         capabilities: { tools: { listChanged: false }, resources: { listChanged: false }, extensions: { "io.modelcontextprotocol/ui": { mimeTypes: ["text/html;profile=mcp-app"] } } },
-        serverInfo: { name: "project-atlas-connect-fixture", title: "Project Atlas Connect", version: "1.0.0", description: "A standard MCP App fixture served through OpenWork Connect." },
+        serverInfo: { name: "project-atlas-connect-fixture", title: "Project Atlas Connect", version: "1.0.0", description: "A standard MCP App fixture served through Harness Connect." },
       },
     };
     if (message.method === "tools/list") return {
@@ -1470,8 +1470,8 @@ export async function remoteMcpApps(seed: Seed) {
           content: [{ type: "text", text: "Project Atlas opened." }],
           structuredContent: {
             schemaVersion: "1",
-            artifact: { title: "Project Atlas", description: "A standard MCP App served through OpenWork Connect." },
-            data: { name: "Project Atlas", status: "Connected through OpenWork Connect" },
+            artifact: { title: "Project Atlas", description: "A standard MCP App served through Harness Connect." },
+            data: { name: "Project Atlas", status: "Connected through Harness Connect" },
           },
           _meta: { source: "project-atlas-standard-mcp" },
         },
@@ -1533,7 +1533,7 @@ export async function remoteMcpApps(seed: Seed) {
     })().catch((error: unknown) => sendJson(response, 500, { error: String(error) }));
   });
   const fixtureUrl = await listen(fixture);
-  const profileDir = `/tmp/openwork-remote-mcp-apps-profile-${Date.now()}`;
+  const profileDir = `/tmp/harness-remote-mcp-apps-profile-${Date.now()}`;
   try {
     const den = await seed.den({ org: { name: `Remote MCP Apps ${Date.now()}`, admin: { name: "Avery" } } });
     const organizationId = await activeOrganizationId(seed, den.admin);
@@ -1546,7 +1546,7 @@ export async function remoteMcpApps(seed: Seed) {
     });
     const tokenResult = await seed.api(den.admin, "/v1/mcp/token", {
       method: "POST",
-      headers: { "x-openwork-org-id": organizationId },
+      headers: { "x-harness-org-id": organizationId },
       body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
     });
     const mcpToken = stringField(tokenResult.body, "token");

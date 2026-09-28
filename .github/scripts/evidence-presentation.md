@@ -1,7 +1,7 @@
 # Native PR evidence
 
 The trusted `Evidence review` workflow presents `PR change proof` through a
-commit-bound **Evidence preview** check, a standalone **OpenWork Evidence** status,
+commit-bound **Evidence preview** check, a standalone **Harness Evidence** status,
 a single updating preview comment, and an **Evidence / PR N** deployment.
 GitHub's deployment URL opens the immutable report, where reviewers can launch
 independent sandboxes. No new GitHub App or additional secret is required.

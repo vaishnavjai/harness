@@ -6,10 +6,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 
 import {
-  OpenworkControlProvider,
+  HarnessControlProvider,
   useControlAction,
-  type OpenworkControlAPI,
-  type OpenworkControlAction,
+  type HarnessControlAPI,
+  type HarnessControlAction,
 } from "../src/react-app/shell/control/control-provider";
 
 /**
@@ -32,7 +32,7 @@ import {
 type Surface = { sessionId: string; drafts: string[]; sent: string[] };
 
 function ComposerSurface({ surface, controlTarget }: { surface: Surface; controlTarget: boolean }) {
-  const setText = useMemo<OpenworkControlAction>(() => ({
+  const setText = useMemo<HarnessControlAction>(() => ({
     id: "composer.set_text",
     label: "Type into the composer",
     effects: { data: "none", ui: "focus", external: false },
@@ -43,7 +43,7 @@ function ComposerSurface({ surface, controlTarget }: { surface: Surface; control
       return { draftLength: text.length };
     },
   }), [surface]);
-  const send = useMemo<OpenworkControlAction>(() => ({
+  const send = useMemo<HarnessControlAction>(() => ({
     id: "composer.send",
     label: "Send the composer prompt",
     sideEffect: "mutation",
@@ -60,10 +60,10 @@ function ComposerSurface({ surface, controlTarget }: { surface: Surface; control
 function Workbench({ a, b, focused }: { a: Surface; b: Surface; focused: "a" | "b" }) {
   return (
     <MemoryRouter>
-      <OpenworkControlProvider>
+      <HarnessControlProvider>
         <ComposerSurface surface={a} controlTarget={focused === "a"} />
         <ComposerSurface surface={b} controlTarget={focused === "b"} />
-      </OpenworkControlProvider>
+      </HarnessControlProvider>
     </MemoryRouter>
   );
 }
@@ -89,8 +89,8 @@ afterAll(async () => {
   if (ownedDom) await GlobalRegistrator.unregister();
 });
 
-function api(): OpenworkControlAPI {
-  const current = window.__openworkControl;
+function api(): HarnessControlAPI {
+  const current = window.__harnessControl;
   if (!current) throw new Error("control API not mounted");
   return current;
 }

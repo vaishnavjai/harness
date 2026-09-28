@@ -1,5 +1,5 @@
-import { captureBrowserFilm, evaluateOnSurface } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
+import { captureBrowserFilm, evaluateOnSurface } from "@harness/cdp";
+import type { Seed } from "@harness/env";
 
 export async function sidebarChrome(seed: Seed) {
   const den = await seed.den({
@@ -11,13 +11,13 @@ export async function sidebarChrome(seed: Seed) {
   // Arrange a background event through the same ingress as provider sync. No
   // credentials or live provider requests are needed to exercise the bell.
   const mac = await seed.evalIn(app, () => {
-    window.dispatchEvent(new CustomEvent("openwork-new-providers-available", {
+    window.dispatchEvent(new CustomEvent("harness-new-providers-available", {
       detail: { providers: [{ id: "sidebar-provider", name: "Example provider", providerId: "sidebar-provider" }], newProviderCount: 1, newModelCount: 0, source: "cloud_sync" },
     }));
     return /Mac/i.test(navigator.platform);
   });
-  const film = process.env.OPENWORK_EVAL_FILM_DIR
-    ? await captureBrowserFilm(app, process.env.OPENWORK_EVAL_FILM_DIR)
+  const film = process.env.HARNESS_EVAL_FILM_DIR
+    ? await captureBrowserFilm(app, process.env.HARNESS_EVAL_FILM_DIR)
     : null;
   return {
     app, session, modifier: mac ? "Meta" : "Control", mac,

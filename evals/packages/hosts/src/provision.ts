@@ -20,15 +20,15 @@ const READINESS_POLL_INTERVAL_MS = 5_000;
 const HTTPS_URL = /https:\/\/[^\s"'<>)]+/;
 const DEN_WEB_PORT = 3005;
 const DEN_API_PORT = 8788;
-const SANDBOX_SOURCE_RECEIPT_PATH = "/workspace/.openwork-daytona/source-receipt.json";
-const SANDBOX_PREPARED_FINGERPRINT_PATH = "/workspace/.openwork-daytona/source-prepared.sha256";
-const RELEASE_REPOSITORY = "different-ai/openwork";
+const SANDBOX_SOURCE_RECEIPT_PATH = "/workspace/.harness-daytona/source-receipt.json";
+const SANDBOX_PREPARED_FINGERPRINT_PATH = "/workspace/.harness-daytona/source-prepared.sha256";
+const RELEASE_REPOSITORY = "vaishnavjai/harness";
 const MAX_DESKTOP_RELEASE_ARCHIVE_BYTES = 1024 * 1024 * 1024;
 
 const RELEASE_ARTIFACTS: Record<DesktopReleaseDistribution, { prefix: string; binary: string }> = {
-  public: { prefix: "openwork", binary: "openwork" },
-  cloud: { prefix: "openwork-cloud", binary: "openwork-cloud" },
-  enterprise: { prefix: "openwork-enterprise", binary: "openwork-enterprise" },
+  public: { prefix: "harness", binary: "harness" },
+  cloud: { prefix: "harness-cloud", binary: "harness-cloud" },
+  enterprise: { prefix: "harness-enterprise", binary: "harness-enterprise" },
 };
 
 export const DESKTOP_RELEASE_ARCHIVE_INSTALLER = `
@@ -97,7 +97,7 @@ if len(candidates) != 1:
     raise RuntimeError("Archive must contain exactly one " + binary_name + " executable; found " + str(len(candidates)))
 binary = candidates[0].resolve()
 binary.chmod(binary.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-print("OPENWORK_RELEASE_BINARY=" + str(binary))
+print("HARNESS_RELEASE_BINARY=" + str(binary))
 `.trim();
 
 export interface ProvisionExecOptions {
@@ -300,7 +300,7 @@ function desktopReleaseArtifact(release: DesktopRelease, platform: "linux" | "wi
     assetName: platform === "windows"
       ? `${artifact.prefix}-win-x64-${release.version}.exe`
       : `${artifact.prefix}-linux-x64-${release.version}.tar.gz`,
-    binaryName: platform === "windows" ? "OpenWork.exe" : artifact.binary,
+    binaryName: platform === "windows" ? "Harness.exe" : artifact.binary,
   };
 }
 
@@ -312,7 +312,7 @@ export async function resolvePublishedDesktopRelease(
   const { assetName, binaryName } = desktopReleaseArtifact(release, platform);
   const tag = `v${release.version}`;
   const response = await fetchImpl(`https://api.github.com/repos/${RELEASE_REPOSITORY}/releases/tags/${tag}`, {
-    headers: { accept: "application/vnd.github+json", "user-agent": "openwork-release-preview" },
+    headers: { accept: "application/vnd.github+json", "user-agent": "harness-release-preview" },
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) {
@@ -412,11 +412,11 @@ export function desktopSandboxName(name: string): string {
   // flags as polynomial ReDoS. This form cannot backtrack and also collapses
   // internal runs, so "a_-_b" yields "a-b" instead of "a---b".
   const safeName = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join("-") || "surface";
-  return `openwork-connector-${safeName}-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
+  return `harness-connector-${safeName}-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
 }
 
 export function serverSandboxName(): string {
-  return `openwork-server-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
+  return `harness-server-${sandboxTimestamp()}-${process.pid}-${randomBytes(4).toString("hex")}`;
 }
 
 async function waitForExecReady(exec: DaytonaExec, sandbox: string, timeoutMs = DESKTOP_READY_TIMEOUT_MS): Promise<void> {
@@ -488,7 +488,7 @@ async function sandboxHeadAfterCleanGate(exec: DaytonaExec, sandbox: string, con
   const result = await execInSandbox(
     exec,
     sandbox,
-    "set -e; cd /workspace; dirty=\"$(git status --porcelain=v1 --untracked-files=all -- . \":(exclude).openwork-daytona\" \":(exclude).openwork-daytona/**\")\"; if [ -n \"$dirty\" ]; then echo \"Refusing source preparation because /workspace is dirty:\" >&2; echo \"$dirty\" >&2; exit 42; fi; git rev-parse --verify HEAD",
+    "set -e; cd /workspace; dirty=\"$(git status --porcelain=v1 --untracked-files=all -- . \":(exclude).harness-daytona\" \":(exclude).harness-daytona/**\")\"; if [ -n \"$dirty\" ]; then echo \"Refusing source preparation because /workspace is dirty:\" >&2; echo \"$dirty\" >&2; exit 42; fi; git rev-parse --verify HEAD",
     { timeoutMs: 30_000, context },
   );
   return parseFullGitSha(result.stdout, context);
@@ -562,13 +562,13 @@ export async function prepareSandboxRepo(options: PrepareSandboxRepoOptions): Pr
     await timedStep(log, "source dependency install gate", () => execInSandbox(
       exec,
       options.sandbox,
-      "set -e; cd /workspace; pnpm install --frozen-lockfile --store-dir /workspace/.openwork-daytona/pnpm-store",
+      "set -e; cd /workspace; pnpm install --frozen-lockfile --store-dir /workspace/.harness-daytona/pnpm-store",
       { timeoutMs: INSTALL_TIMEOUT_MS, context: `source dependency install gate for ${options.sandbox}` },
     ));
     await execInSandbox(
       exec,
       options.sandbox,
-      `mkdir -p /workspace/.openwork-daytona; printf %s ${preparedFingerprint} > ${SANDBOX_PREPARED_FINGERPRINT_PATH}`,
+      `mkdir -p /workspace/.harness-daytona; printf %s ${preparedFingerprint} > ${SANDBOX_PREPARED_FINGERPRINT_PATH}`,
       { timeoutMs: 30_000, context: `source prepared fingerprint write for ${options.sandbox}` },
     );
   }
@@ -594,7 +594,7 @@ export async function prepareSandboxRepo(options: PrepareSandboxRepoOptions): Pr
   await execInSandbox(
     exec,
     options.sandbox,
-    `mkdir -p /workspace/.openwork-daytona; printf %s ${encodedReceipt} | base64 -d > ${SANDBOX_SOURCE_RECEIPT_PATH}`,
+    `mkdir -p /workspace/.harness-daytona; printf %s ${encodedReceipt} | base64 -d > ${SANDBOX_SOURCE_RECEIPT_PATH}`,
     { timeoutMs: 30_000, context: `source receipt write for ${options.sandbox}` },
   );
   log(`==> source verified ${actualSha}`);
@@ -633,7 +633,7 @@ function safeInstallRoot(value: string): string {
 /** Complete fail-closed download, verification, and extraction command. */
 export function publishedDesktopReleaseInstallCommand(
   release: PublishedDesktopRelease,
-  requestedInstallRoot = `/workspace/.openwork-daytona/releases/${release.distribution}-${release.version}`,
+  requestedInstallRoot = `/workspace/.harness-daytona/releases/${release.distribution}-${release.version}`,
 ): PublishedDesktopReleaseInstallCommand {
   const installRoot = safeInstallRoot(requestedInstallRoot);
   const archivePath = `${installRoot}/${release.assetName}`;
@@ -667,8 +667,8 @@ async function installPublishedDesktopRelease(
     timeoutMs: INSTALL_TIMEOUT_MS,
     context: `published desktop release install for ${sandbox}`,
   });
-  const binaryLine = installed.stdout.split(/\r?\n/).find((line) => line.startsWith("OPENWORK_RELEASE_BINARY="));
-  const binaryPath = binaryLine?.slice("OPENWORK_RELEASE_BINARY=".length).trim();
+  const binaryLine = installed.stdout.split(/\r?\n/).find((line) => line.startsWith("HARNESS_RELEASE_BINARY="));
+  const binaryPath = binaryLine?.slice("HARNESS_RELEASE_BINARY=".length).trim();
   if (!binaryPath || !binaryPath.startsWith(`${install.appRoot}/`)) {
     throw new Error(`Published desktop release installer did not return a binary below ${install.appRoot}. Output tail: ${outputTail(installed)}`);
   }
@@ -716,7 +716,7 @@ async function provisionSandbox(
       if (reused) {
         await exec(["sandbox", "start", reused], { timeoutMs: 60_000 });
       } else {
-        const snapshot = options.snapshot ?? "openwork-eval-vnc";
+        const snapshot = options.snapshot ?? "harness-eval-vnc";
         const listed = await checkedExec(exec, ["snapshot", "list", "-f", "json"], "snapshot gate", { timeoutMs: 60_000 });
         const id = snapshotId(listed.stdout, snapshot);
         if (!id) {
@@ -731,7 +731,7 @@ async function provisionSandbox(
             "create",
             "--name", sandbox,
             "--snapshot", id,
-            ...(options.secrets === true ? ["--volume", "openwork-eval-secrets:/daytona-secrets"] : []),
+            ...(options.secrets === true ? ["--volume", "harness-eval-secrets:/daytona-secrets"] : []),
             "--auto-stop", requestedAutoStop,
             ...(options.private === true ? [] : ["--public"]),
             "--target", "us",
@@ -756,7 +756,7 @@ async function provisionSandbox(
           exec,
           sandbox,
           surface === "desktop"
-            ? "rm -rf /workspace/.openwork-daytona/profiles /tmp/openwork-* 2>/dev/null; df -P /workspace | tail -1"
+            ? "rm -rf /workspace/.harness-daytona/profiles /tmp/harness-* 2>/dev/null; df -P /workspace | tail -1"
             : "df -P /workspace | tail -1",
           { timeoutMs: 60_000, context: `cleanup and disk gate for ${sandbox}` },
         );
@@ -770,7 +770,7 @@ async function provisionSandbox(
         const sizes = await execInSandbox(
           exec,
           sandbox,
-          "du -sh /workspace/node_modules /workspace/.openwork-daytona/pnpm-store 2>&1 || true",
+          "du -sh /workspace/node_modules /workspace/.harness-daytona/pnpm-store 2>&1 || true",
           { timeoutMs: 60_000, context: `disk usage detail for ${sandbox}` },
         );
         throw new Error(`Cleanup and disk gate failed for ${sandbox}: workspace is ${useField} used. df: ${dfLine}\n${outputTail(sizes)}`);
@@ -838,14 +838,14 @@ echo detached`;
 
     await timedStep(log, "first boot gate", async () => {
     // A sandbox's first Electron boot pays sidecar prepare, the
-    // openwork-server tsc build, and the engine cold start. Paid INSIDE a
+    // harness-server tsc build, and the engine cold start. Paid INSIDE a
     // spec, that bill starved the tool-call phase past its window while every
     // UI assertion still passed. Boot once into a throwaway profile, wait for
     // CDP, tear it down — after this the room behaves like a warm machine.
     const detachScript = `python3 - <<PYEOF
 import subprocess
 log = open("/tmp/warmup-electron.log", "ab", buffering=0)
-subprocess.Popen(["bash", "-lc", "cd /workspace && env OPENWORK_ELECTRON_USERDATA=/tmp/warmup-profile OPENWORK_ELECTRON_REMOTE_DEBUG_PORT=9825 bash .devcontainer/start-daytona-electron.sh"], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
+subprocess.Popen(["bash", "-lc", "cd /workspace && env HARNESS_ELECTRON_USERDATA=/tmp/warmup-profile HARNESS_ELECTRON_REMOTE_DEBUG_PORT=9825 bash .devcontainer/start-daytona-electron.sh"], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
 PYEOF
 echo detached`;
     await execInSandbox(exec, sandbox, detachScript, { timeoutMs: 30_000, context: `first boot detach for ${sandbox}` });
@@ -989,9 +989,9 @@ export function denProvisionScriptArgs(ref: string, name: string, requestedAutoS
 
 function runDenProvisionScript(ref: string, repoRoot: string, bootstrapAdminEmail: string | undefined, extraEnv: Record<string, string> | undefined, log: (line: string) => void, urlsFile: string, requestedAutoStopMinutes?: number): Promise<LocalProcessResult> {
   return new Promise((resolve, reject) => {
-    const env: NodeJS.ProcessEnv = { ...process.env, OPENWORK_DEN_URLS_FILE: urlsFile };
+    const env: NodeJS.ProcessEnv = { ...process.env, HARNESS_DEN_URLS_FILE: urlsFile };
     if (bootstrapAdminEmail) env.DEN_BOOTSTRAP_ADMIN_EMAILS = bootstrapAdminEmail;
-    if (extraEnv && Object.keys(extraEnv).length > 0) env.OPENWORK_DEN_EXTRA_ENV_B64 = encodeDenExtraEnv(extraEnv);
+    if (extraEnv && Object.keys(extraEnv).length > 0) env.HARNESS_DEN_EXTRA_ENV_B64 = encodeDenExtraEnv(extraEnv);
     const child = spawn("bash", denProvisionScriptArgs(ref, serverSandboxName(), requestedAutoStopMinutes), {
       cwd: repoRoot,
       env,
@@ -1095,8 +1095,8 @@ async function previewUrl(exec: DaytonaExec, sandbox: string, port: number): Pro
 }
 
 async function proveDenSeed(apiUrl: string, webUrl: string, sandbox: string, reused: boolean): Promise<void> {
-  const email = process.env.OPENWORK_EVAL_DEMO_EMAIL?.trim() || "alex@acme.test";
-  const password = process.env.OPENWORK_EVAL_DEMO_PASSWORD ?? "OpenWorkDemo123!";
+  const email = process.env.HARNESS_EVAL_DEMO_EMAIL?.trim() || "alex@acme.test";
+  const password = process.env.HARNESS_EVAL_DEMO_PASSWORD ?? "HarnessDemo123!";
   const url = `${apiUrl.replace(/\/+$/, "")}/api/auth/sign-in/email`;
   // A freshly-booted stack was observed answering public sign-in with bare
   // 403s for its first ~minute, then recovering on its own — so the window is
@@ -1164,7 +1164,7 @@ export async function provisionDenSandbox(options: DenSandboxOptions & Provision
     // different hostname, while the sandbox's baked DEN_*_PUBLIC_URL is the
     // Den's OAuth issuer and MCP resource identity. RFC 9728 validating MCP
     // clients (opencode) refuse a Den reached through a mismatched host.
-    const urlsDir = await mkdtemp(path.join(os.tmpdir(), "openwork-den-urls-"));
+    const urlsDir = await mkdtemp(path.join(os.tmpdir(), "harness-den-urls-"));
     const urlsFile = path.join(urlsDir, "den-urls.env");
     try {
       const result = await timedStep(log, "Den provisioning script", () => runDenProvisionScript(
@@ -1221,7 +1221,7 @@ export async function startMockOnSandbox(options: MockOnSandboxOptions & Provisi
   const sourceFingerprint = options.sourceFingerprint ?? "workspace-checkout";
   const scriptPath = options.scriptSource === undefined
     ? "/workspace/scripts/mock-oauth-mcp-server.mjs"
-    : `/tmp/openwork-mock-oauth-mcp-${sourceFingerprint.slice(0, 16)}.mjs`;
+    : `/tmp/harness-mock-oauth-mcp-${sourceFingerprint.slice(0, 16)}.mjs`;
 
   await timedStep(log, "mock process cleanup", async () => {
     await execInSandbox(
@@ -1330,8 +1330,8 @@ export async function startScriptOnSandbox(options: ScriptOnSandboxOptions & Pro
   if (!Number.isInteger(options.port) || options.port < 1024 || options.port > 65535) throw new Error("Sandbox script port must be an integer between 1024 and 65535.");
   if (options.healthPath !== undefined && !/^\/[A-Za-z0-9._~\/-]*$/.test(options.healthPath)) throw new Error("Sandbox script healthPath must be a plain absolute path.");
   const sourceFingerprint = createHash("sha256").update(options.scriptSource).digest("hex");
-  const scriptPath = `/tmp/openwork-${options.label}-${sourceFingerprint.slice(0, 16)}.mjs`;
-  const logPath = `/tmp/openwork-${options.label}.log`;
+  const scriptPath = `/tmp/harness-${options.label}-${sourceFingerprint.slice(0, 16)}.mjs`;
+  const logPath = `/tmp/harness-${options.label}.log`;
   const loopbackUrl = `http://127.0.0.1:${options.port}`;
   const context = (step: string) => `${options.label} ${step} for ${options.sandbox}`;
   // Values reach the detached process through Python, base64 encoded, so the
@@ -1418,7 +1418,7 @@ export async function startFaultProxyOnSandbox(options: FaultProxyOnSandboxOptio
     await execInSandbox(
       exec,
       options.sandbox,
-      "pkill -f openwork-fault-proxy || true",
+      "pkill -f harness-fault-proxy || true",
       { timeoutMs: 30_000, context: `fault proxy process cleanup for ${options.sandbox}` },
     ).catch(() => undefined);
   });
@@ -1428,7 +1428,7 @@ export async function startFaultProxyOnSandbox(options: FaultProxyOnSandboxOptio
     await execInSandbox(
       exec,
       options.sandbox,
-      `printf %s ${encoded} | base64 -d > /tmp/openwork-fault-proxy.mjs`,
+      `printf %s ${encoded} | base64 -d > /tmp/harness-fault-proxy.mjs`,
       { timeoutMs: 30_000, context: `fault proxy script upload for ${options.sandbox}` },
     );
   });
@@ -1436,8 +1436,8 @@ export async function startFaultProxyOnSandbox(options: FaultProxyOnSandboxOptio
   await timedStep(log, "fault proxy process detach", async () => {
     const detachScript = `python3 - <<PYEOF
 import subprocess
-log = open("/tmp/openwork-fault-proxy.log", "ab", buffering=0)
-subprocess.Popen(["bash", "-lc", "env PORT=${port} UPSTREAM=http://127.0.0.1:${upstreamPort} ISSUER=${url} CONTROL_TOKEN=${token} node /tmp/openwork-fault-proxy.mjs"], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
+log = open("/tmp/harness-fault-proxy.log", "ab", buffering=0)
+subprocess.Popen(["bash", "-lc", "env PORT=${port} UPSTREAM=http://127.0.0.1:${upstreamPort} ISSUER=${url} CONTROL_TOKEN=${token} node /tmp/harness-fault-proxy.mjs"], stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
 PYEOF
 echo detached`;
     await execInSandbox(exec, options.sandbox, detachScript, { timeoutMs: 30_000, context: `fault proxy process detach for ${options.sandbox}` });
@@ -1450,7 +1450,7 @@ echo detached`;
       let body: unknown = null;
       let responseOk = false;
       try {
-        const response = await fetchImpl(`${url}/__openwork_faults/health`, { signal: AbortSignal.timeout(5_000) });
+        const response = await fetchImpl(`${url}/__harness_faults/health`, { signal: AbortSignal.timeout(5_000) });
         body = await response.json();
         responseOk = response.ok;
         if (!response.ok) last = `HTTP ${response.status}`;
@@ -1467,7 +1467,7 @@ echo detached`;
     const proxyLog = await execInSandbox(
       exec,
       options.sandbox,
-      "tail -80 /tmp/openwork-fault-proxy.log 2>&1 || true",
+      "tail -80 /tmp/harness-fault-proxy.log 2>&1 || true",
       { timeoutMs: 30_000, context: `fault proxy health log for ${options.sandbox}` },
     );
     throw new Error(`Fault proxy health gate failed at ${url}. Last: ${last}. Log tail:\n${outputTail(proxyLog)}`);
@@ -1480,7 +1480,7 @@ echo detached`;
       await execInSandbox(
         exec,
         options.sandbox,
-        "pkill -f openwork-fault-proxy.mjs || true",
+        "pkill -f harness-fault-proxy.mjs || true",
         { timeoutMs: 30_000, context: `fault proxy stop for ${options.sandbox}` },
       ).catch(() => undefined);
     },
@@ -1546,14 +1546,14 @@ export function renderConnectorE2eTestEnv(facts: ConnectorE2eTestEnv): string {
   return [
     `${ENV_HEADER_PREFIX} — generated ${new Date().toISOString()}${ENV_REF_MARKER}${facts.ref}`,
     `${ENV_CREATED_PREFIX}${facts.created.join(",")}`,
-    "OPENWORK_EVAL_E2E_TESTS=1",
-    "OPENWORK_EVAL_CONNECTOR_E2E_TEST=1",
-    `OPENWORK_EVAL_DEN_API_URL=${shellQuote(facts.denApiUrl)}`,
-    `OPENWORK_EVAL_DEN_WEB_URL=${shellQuote(facts.denWebUrl)}`,
-    `OPENWORK_EVAL_DAYTONA_SANDBOX_A=${shellQuote(facts.sandboxA)}`,
-    `OPENWORK_EVAL_DAYTONA_SANDBOX_B=${shellQuote(facts.sandboxB)}`,
-    `OPENWORK_EVAL_CONNECTOR_MOCK_PUBLIC_URL=${shellQuote(facts.mockUrl)}`,
-    "OPENWORK_EVAL_MODEL=big-pickle",
+    "HARNESS_EVAL_E2E_TESTS=1",
+    "HARNESS_EVAL_CONNECTOR_E2E_TEST=1",
+    `HARNESS_EVAL_DEN_API_URL=${shellQuote(facts.denApiUrl)}`,
+    `HARNESS_EVAL_DEN_WEB_URL=${shellQuote(facts.denWebUrl)}`,
+    `HARNESS_EVAL_DAYTONA_SANDBOX_A=${shellQuote(facts.sandboxA)}`,
+    `HARNESS_EVAL_DAYTONA_SANDBOX_B=${shellQuote(facts.sandboxB)}`,
+    `HARNESS_EVAL_CONNECTOR_MOCK_PUBLIC_URL=${shellQuote(facts.mockUrl)}`,
+    "HARNESS_EVAL_MODEL=big-pickle",
     "",
   ].join("\n");
 }
@@ -1571,9 +1571,9 @@ export function parseConnectorE2eTestEnv(content: string): ConnectorE2eTestEnv {
     return value;
   }
 
-  required("OPENWORK_EVAL_E2E_TESTS");
-  required("OPENWORK_EVAL_CONNECTOR_E2E_TEST");
-  required("OPENWORK_EVAL_MODEL");
+  required("HARNESS_EVAL_E2E_TESTS");
+  required("HARNESS_EVAL_CONNECTOR_E2E_TEST");
+  required("HARNESS_EVAL_MODEL");
   // Header comments are read by line scan, not regex: `.*` before a literal
   // backtracks polynomially on adversarial input (CodeQL js/polynomial-redos).
   const header = commentLine(content, ENV_HEADER_PREFIX);
@@ -1585,11 +1585,11 @@ export function parseConnectorE2eTestEnv(content: string): ConnectorE2eTestEnv {
   if (createdText === null) throw new Error("Missing provision-created in connector spec env header.");
 
   return {
-    denApiUrl: required("OPENWORK_EVAL_DEN_API_URL"),
-    denWebUrl: required("OPENWORK_EVAL_DEN_WEB_URL"),
-    sandboxA: required("OPENWORK_EVAL_DAYTONA_SANDBOX_A"),
-    sandboxB: required("OPENWORK_EVAL_DAYTONA_SANDBOX_B"),
-    mockUrl: required("OPENWORK_EVAL_CONNECTOR_MOCK_PUBLIC_URL"),
+    denApiUrl: required("HARNESS_EVAL_DEN_API_URL"),
+    denWebUrl: required("HARNESS_EVAL_DEN_WEB_URL"),
+    sandboxA: required("HARNESS_EVAL_DAYTONA_SANDBOX_A"),
+    sandboxB: required("HARNESS_EVAL_DAYTONA_SANDBOX_B"),
+    mockUrl: required("HARNESS_EVAL_CONNECTOR_MOCK_PUBLIC_URL"),
     ref,
     created: createdText.split(",").map((id) => id.trim()).filter(Boolean),
   };

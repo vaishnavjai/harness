@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { isRecord, records } from "../worlds/library.ts";
 import { denManagePluginsAsAdmin } from "../worlds/den-library-manage.ts";
 

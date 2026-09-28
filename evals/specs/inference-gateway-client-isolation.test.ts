@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { eventually, needs, test } from "@openwork/testkit";
-import { engineBinary, isRecord, readBody, stopChild } from "../worlds/openwork-server-cli.ts";
+import { eventually, needs, test } from "@harness/testkit";
+import { engineBinary, isRecord, readBody, stopChild } from "../worlds/harness-server-cli.ts";
 
 const repo = fileURLToPath(new URL("../..", import.meta.url));
-const hostHeaders = { "x-openwork-host-token": "test-host-token", "content-type": "application/json" };
+const hostHeaders = { "x-harness-host-token": "test-host-token", "content-type": "application/json" };
 const clientHeaders = { authorization: "Bearer test-client-token", "content-type": "application/json" };
 const oldId = "lpr_01kx4t3amgendr682dmp6120jv";
 const oldEnv = "LPR_120JV_GOOGLE_GENERATIVE_AI_API_KEY";
@@ -48,7 +48,7 @@ async function fixture(gatewayIds = ["ipr_first", "ipr_second"], managedBinary?:
     const prefix = shortGatewayNames ? `IPR_${id.slice(-5).toUpperCase()}` : id.toUpperCase().replace(/[^A-Z0-9]/g, "_");
     const envName = `${prefix}_GOOGLE_GENERATIVE_AI_API_KEY`;
     return {
-      id, name: `Vertex ${id}`, providerId: "google-vertex", source: "openwork_gateway",
+      id, name: `Vertex ${id}`, providerId: "google-vertex", source: "harness_gateway",
       credentialMode: "org", credentialStatus: "ready", status: "active", updatedAt: "2026-09-07T00:00:00Z", authUrl: null,
       authorizationRequests: [], modelIds: ["fixture-model"],
       providerConfig: { npm: managedBinary ? "@ai-sdk/anthropic" : "@ai-sdk/google", env: [envName], options: { baseURL: managedBinary ? `${base}/gateway/${id}` : `https://gateway.example.test/api/v1/providers/${id}` } },
@@ -101,7 +101,7 @@ async function fixture(gatewayIds = ["ipr_first", "ipr_second"], managedBinary?:
       response.end("{}");
       return;
     }
-    requests.push({ path, authorization: request.headers.authorization, org: request.headers["x-openwork-org-id"]?.toString(), legacyOrg: request.headers["x-openwork-legacy-org-id"]?.toString(), cookie: request.headers.cookie, accept: request.headers.accept });
+    requests.push({ path, authorization: request.headers.authorization, org: request.headers["x-harness-org-id"]?.toString(), legacyOrg: request.headers["x-harness-legacy-org-id"]?.toString(), cookie: request.headers.cookie, accept: request.headers.accept });
     response.setHeader("content-type", "application/json");
     if (request.headers.authorization !== "Bearer desktop-fixture-session") {
       response.statusCode = 401; response.end('{}'); return;
@@ -126,7 +126,7 @@ async function fixture(gatewayIds = ["ipr_first", "ipr_second"], managedBinary?:
     if (path === `/api/den/v1/llm-providers/${oldId}/connect`) { response.end(JSON.stringify({ llmProvider: legacy() })); return; }
     if (path === "/api/den/v1/inference-providers?scope=usable") {
       response.statusCode = gatewayListStatus;
-      const scoped = request.headers["x-openwork-org-id"] === gatewayOrganizationId && request.headers["x-openwork-legacy-org-id"] === gatewayOrganizationId;
+      const scoped = request.headers["x-harness-org-id"] === gatewayOrganizationId && request.headers["x-harness-legacy-org-id"] === gatewayOrganizationId;
       response.end(JSON.stringify({ inferenceProviders: gatewayEnabled && scoped ? gatewayIds.map(gateway) : [] })); return;
     }
     const match = /^\/api\/den\/v1\/inference-providers\/(ipr_[a-z0-9]+)\/connect$/.exec(path);
@@ -153,18 +153,18 @@ async function fixture(gatewayIds = ["ipr_first", "ipr_second"], managedBinary?:
     child = spawn("pnpm", ["exec", "bun", "--conditions=development", "src/cli.ts", "--config", configPath], {
       cwd: join(repo, "apps/server"),
       env: {
-        PATH: process.env.PATH, HOME: root, OPENWORK_DATA_DIR: root,
-        OPENWORK_RUNTIME_DB: join(root, "runtime.sqlite"), OPENWORK_ENV_STORE: join(root, "env.json"),
-        OPENWORK_TOKEN_STORE: join(root, "tokens.json"), OPENWORK_MANAGE_OPENCODE: managedBinary ? "1" : "0",
-        ...(managedBinary ? { OPENWORK_OPENCODE_BIN: managedBinary, OPENCODE_MODELS_URL: `${base}/catalog` } : {}),
-        OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000", OPENWORK_LOG_REQUESTS: "false",
+        PATH: process.env.PATH, HOME: root, HARNESS_DATA_DIR: root,
+        HARNESS_RUNTIME_DB: join(root, "runtime.sqlite"), HARNESS_ENV_STORE: join(root, "env.json"),
+        HARNESS_TOKEN_STORE: join(root, "tokens.json"), HARNESS_MANAGE_OPENCODE: managedBinary ? "1" : "0",
+        ...(managedBinary ? { HARNESS_OPENCODE_BIN: managedBinary, OPENCODE_MODELS_URL: `${base}/catalog` } : {}),
+        HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000", HARNESS_LOG_REQUESTS: "false",
       }, stdio: ["ignore", "pipe", "pipe"],
     });
     child.stdout?.on("data", (data: Buffer) => { logs += data.toString(); });
     child.stderr?.on("data", (data: Buffer) => { logs += data.toString(); });
     await eventually(async () => {
       if (child?.exitCode !== null) throw new Error(`Server exited: ${logs}`);
-      const url = /OpenWork server listening on (http:\/\/127\.0\.0\.1:\d+)/.exec(logs)?.[1];
+      const url = /Harness server listening on (http:\/\/127\.0\.0\.1:\d+)/.exec(logs)?.[1];
       if (!url) return false;
       serverUrl = url;
       return (await fetch(`${url}/health`)).ok;
@@ -291,7 +291,7 @@ test("cold migration and logout remove only proven cloud credentials while two g
   }
   const synced = record(await (await f.request("/cloud-provider-sync/status", "GET", undefined, clientHeaders)).json());
   expect(synced.providers).toEqual(["ipr_first", "ipr_second"].map((id) => expect.objectContaining({
-    cloudProviderId: id, providerId: id, source: "openwork_gateway", modelIds: [gatewayModelId],
+    cloudProviderId: id, providerId: id, source: "harness_gateway", modelIds: [gatewayModelId],
   })));
   await f.restart();
   expect((await f.request("/den-session", "DELETE")).status).toBe(204);
@@ -341,7 +341,7 @@ test("gateway rows with the same last five ID characters retain independent full
   expect(record(providers[first])).toMatchObject({ name: `Vertex ${first}`, env: [firstEnv] });
   expect(record(providers[second])).toMatchObject({ name: `Vertex ${second}`, env: [secondEnv] });
   const status = record(await (await f.request("/cloud-provider-sync/status", "GET", undefined, clientHeaders)).json());
-  expect(status.providers).toEqual(expect.arrayContaining([first, second].map((id) => expect.objectContaining({ cloudProviderId: id, providerId: id, name: `Vertex ${id}`, source: "openwork_gateway" }))));
+  expect(status.providers).toEqual(expect.arrayContaining([first, second].map((id) => expect.objectContaining({ cloudProviderId: id, providerId: id, name: `Vertex ${id}`, source: "harness_gateway" }))));
   expect(record(await (await f.request(`/env/${firstEnv}`)).json()).item).toMatchObject({ value: key });
   expect(record(await (await f.request(`/env/${secondEnv}`)).json()).item).toMatchObject({ value: key });
   expect(f.engineAuth.get(first)).toBe(key);
@@ -435,7 +435,7 @@ test("real managed engine initializes and uses a granted gateway under restricte
   expect(record(models[gatewayModelId])).toMatchObject({ id: gatewayModelId, name: "Fixture model", api: { id: gatewayModelId } });
   const synced = record(await (await f.request("/cloud-provider-sync/status", "GET", undefined, clientHeaders)).json());
   expect(synced.providers).toEqual([expect.objectContaining({
-    cloudProviderId: "ipr_first", providerId: "ipr_first", source: "openwork_gateway", modelIds: [gatewayModelId],
+    cloudProviderId: "ipr_first", providerId: "ipr_first", source: "harness_gateway", modelIds: [gatewayModelId],
   })]);
   const initialized = record(await (await engine("/config")).json());
   expect(initialized.enabled_providers).toEqual(["ipr_first"]);

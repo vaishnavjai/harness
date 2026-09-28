@@ -1,6 +1,6 @@
 if (process.versions.electron && process.type === "browser") {
   const original = globalThis.fetch.bind(globalThis);
-  const controlUrl = "http://127.0.0.1/__openwork_archive_test_control";
+  const controlUrl = "http://127.0.0.1/__harness_archive_test_control";
   const modes = new Set(["none", "false", "error", "timeout", "unconfirmed", "hold", "retry", "permission", "question", "prompt_error", "hold_prompt", "accepted_command", "accepted_prompt", "hold_archive", "hold_messages"]);
   const state = { mode: "none", sessionId: "", workspaceId: "", requests: [] };
   const releases = new Set();

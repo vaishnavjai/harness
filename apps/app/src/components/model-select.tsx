@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { FAST_DEFAULT_VARIANT } from "@openwork/types/cloud-model-fast";
+import { FAST_DEFAULT_VARIANT } from "@harness/types/cloud-model-fast";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Settings2, Star } from "lucide-react";
 
 import type { ModelBehaviorOption, ModelOption, ModelRef } from "@/app/types";
@@ -23,9 +23,9 @@ import { useWorkspace } from "@/react-app/shell/workspace-provider";
 import { useCheckDesktopRestriction } from "@/react-app/domains/cloud/desktop-config-provider";
 import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
 import {
-  OPENWORK_MODELS_PROVIDER_ID,
-  OPENWORK_MODELS_PROVIDER_NAME,
-} from "@/react-app/domains/cloud/openwork-models-promo";
+  HARNESS_MODELS_PROVIDER_ID,
+  HARNESS_MODELS_PROVIDER_NAME,
+} from "@/react-app/domains/cloud/harness-models-promo";
 import { getConnectedProviderItems, useProviderListQuery } from "@/react-app/infra/provider-list-query";
 import { filterEntitledModelOptions } from "@/react-app/domains/connections/provider-auth/provider-policy";
 import {
@@ -218,10 +218,10 @@ interface ModelSelectProps {
   disabled?: boolean;
   /** When set, "All models" opens the full picker scoped to this session. */
   sessionId?: string;
-  /** Den/import includes OpenWork Models. Kept for callers; picker no longer upsells here. */
-  openWorkModelsEntitled?: boolean;
-  /** The server is waiting to reload this workspace with OpenWork Models. */
-  openWorkModelsSyncing?: boolean;
+  /** Den/import includes Harness Models. Kept for callers; picker no longer upsells here. */
+  harnessModelsEntitled?: boolean;
+  /** The server is waiting to reload this workspace with Harness Models. */
+  harnessModelsSyncing?: boolean;
   /** Member-scoped models available before a workspace OpenCode client exists. */
   fallbackOptions?: readonly ModelOption[];
   behaviorValue?: string | null;
@@ -238,7 +238,7 @@ export function ModelSelect({
   onChange,
   disabled = false,
   sessionId,
-  openWorkModelsSyncing = false,
+  harnessModelsSyncing = false,
   fallbackOptions = [],
   behaviorValue = null,
   behaviorLabel,
@@ -641,11 +641,11 @@ export function ModelSelect({
               <CommandHeader className="p-1.5 pb-1">
                 <CommandInput ref={searchInputRef} autoFocus={false} placeholder="Search models..." className="h-9 text-base sm:text-base md:text-base lg:text-sm" />
               </CommandHeader>
-              {openWorkModelsSyncing ? (
+              {harnessModelsSyncing ? (
                 <div className="mx-1 mb-1 flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1.5">
-                  <ProviderIcon providerId={OPENWORK_MODELS_PROVIDER_ID} providerName={OPENWORK_MODELS_PROVIDER_NAME} className="size-3.5 shrink-0 text-amber-11" size={14} />
+                  <ProviderIcon providerId={HARNESS_MODELS_PROVIDER_ID} providerName={HARNESS_MODELS_PROVIDER_NAME} className="size-3.5 shrink-0 text-amber-11" size={14} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-medium text-foreground">{OPENWORK_MODELS_PROVIDER_NAME}</span>
+                    <span className="block truncate text-xs font-medium text-foreground">{HARNESS_MODELS_PROVIDER_NAME}</span>
                     <span className="block truncate text-[11px] text-muted-foreground">Included — pending workspace reload…</span>
                   </span>
                 </div>

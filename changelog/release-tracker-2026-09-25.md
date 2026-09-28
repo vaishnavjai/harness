@@ -50,7 +50,7 @@ Enterprise and cloud desktops require organization sign-in again and honour allo
 | #5331 | admins | Included | Anthropic effort choice preserved through AI Gateway |
 | #5319 | desktop users | Included | Switch OpenCode engines from the command palette and optionally migrate history |
 | #5293 | MCP clients | Included | MCP clients can connect with a Client ID Metadata Document |
-| #5326 | MCP clients | Included | Failed app sign-ins to OpenWork Connect explain what went wrong |
+| #5326 | MCP clients | Included | Failed app sign-ins to Harness Connect explain what went wrong |
 | #5324 | internal | Omitted | Hosted billing record fix with no visible change |
 | #5330 | website visitors | Included | SOC 2 Type II status shown on the website |
 | #5318 | internal | Omitted | Pull request evidence viewer |
@@ -58,14 +58,14 @@ Enterprise and cloud desktops require organization sign-in again and honour allo
 | #5315 | admins | Included | API-key, custom OAuth, Google Workspace and Microsoft 365 connectors in the new setup flow |
 | #5257 | desktop users | Included | OpenCode v2 preview keeps tasks through provider and skill updates, folded into the engine bullet |
 | #5313 | self-hosters | Omitted | npm package change; the npm package was not republished for this release |
-| #5286 | desktop users | Included | A second OpenWork profile no longer stops the first one's engine |
+| #5286 | desktop users | Included | A second Harness profile no longer stops the first one's engine |
 | #5308 | internal | Omitted | Previous release notes |
 | #5312 | internal | Omitted | Reviewer preview reliability |
 | #5310 | internal | Omitted | npm packaging; the npm package was not republished for this release |
 | #5309 | internal | Omitted | Release verification step |
 
 #### Behavior changes and removals
-- OpenWork Enterprise and OpenWork Cloud desktops hold people at sign-in until they sign in to their organization again. Releases v0.18.49 through v0.18.52 let them work without signing in.
+- Harness Enterprise and Harness Cloud desktops hold people at sign-in until they sign in to their organization again. Releases v0.18.49 through v0.18.52 let them work without signing in.
 - Allowed desktop versions set in organization settings apply to desktop updates again: a version removed from the list is not installed. Other desktop policies remain unenforced on the desktop while they are redesigned.
 - Editing a message while a reply is running replaces the running message instead of queueing the edit.
 - Settings › Updates no longer shows inline release notes.

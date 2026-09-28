@@ -127,7 +127,7 @@ describe("den bootstrap and retained session origin coherence", () => {
       value: {
         localStorage: storage,
         dispatchEvent: () => true,
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           ...(options.preloadBootstrap !== undefined
             ? { meta: { desktopBootstrap: options.preloadBootstrap } }
             : {}),
@@ -188,10 +188,10 @@ describe("den bootstrap and retained session origin coherence", () => {
   }
 
   function seedRetainedSession(storage: Storage, sessionOrigin: string | null) {
-    storage.setItem("openwork.den.authToken", RETAINED_TOKEN);
-    storage.setItem("openwork.den.activeOrgId", RETAINED_ORG_ID);
-    storage.setItem("openwork.den.activeOrgSlug", "self-hosted");
-    storage.setItem("openwork.den.activeOrgName", "Self Hosted");
+    storage.setItem("harness.den.authToken", RETAINED_TOKEN);
+    storage.setItem("harness.den.activeOrgId", RETAINED_ORG_ID);
+    storage.setItem("harness.den.activeOrgSlug", "self-hosted");
+    storage.setItem("harness.den.activeOrgName", "Self Hosted");
     if (sessionOrigin) {
       storage.setItem(STORAGE_SESSION_ORIGIN, sessionOrigin);
     }
@@ -266,8 +266,8 @@ describe("den bootstrap and retained session origin coherence", () => {
     expect(den.credentialed()).toEqual([]);
 
     // The retained session survives quarantine instead of being destroyed.
-    expect(storage.getItem("openwork.den.authToken")).toBe(RETAINED_TOKEN);
-    expect(storage.getItem("openwork.den.activeOrgId")).toBe(RETAINED_ORG_ID);
+    expect(storage.getItem("harness.den.authToken")).toBe(RETAINED_TOKEN);
+    expect(storage.getItem("harness.den.activeOrgId")).toBe(RETAINED_ORG_ID);
   });
 
   test("a legacy untagged session is also quarantined while the bootstrap is unresolved", async () => {
@@ -298,9 +298,9 @@ describe("den bootstrap and retained session origin coherence", () => {
     writeDenSettings({ ...gated, authToken: null, activeOrgId: null, activeOrgSlug: null, activeOrgName: null });
 
     expect(shellWrites).toEqual([]);
-    expect(storage.getItem("openwork.den.baseUrl")).toBeNull();
-    expect(storage.getItem("openwork.den.authToken")).toBe(RETAINED_TOKEN);
-    expect(storage.getItem("openwork.den.activeOrgId")).toBe(RETAINED_ORG_ID);
+    expect(storage.getItem("harness.den.baseUrl")).toBeNull();
+    expect(storage.getItem("harness.den.authToken")).toBe(RETAINED_TOKEN);
+    expect(storage.getItem("harness.den.activeOrgId")).toBe(RETAINED_ORG_ID);
     expect(storage.getItem(STORAGE_SESSION_ORIGIN)).toBe(den.origin);
   });
 
@@ -387,7 +387,7 @@ describe("den bootstrap and retained session origin coherence", () => {
     expect(credentialedFetches()).toEqual([]);
 
     // Quarantined, not destroyed: the session revives if its own origin returns.
-    expect(storage.getItem("openwork.den.authToken")).toBe(RETAINED_TOKEN);
+    expect(storage.getItem("harness.den.authToken")).toBe(RETAINED_TOKEN);
     expect(storage.getItem(STORAGE_SESSION_ORIGIN)).toBe(originalDen.origin);
   });
 
@@ -415,18 +415,18 @@ describe("den bootstrap and retained session origin coherence", () => {
   test("an explicitly configured hosted session keeps working", async () => {
     const storage = installWindow({
       shell: {
-        reads: [{ kind: "config", config: { baseUrl: "https://app.openworklabs.com", requireSignin: false, fromFile: true } }],
+        reads: [{ kind: "config", config: { baseUrl: "https://app.harness.invalid", requireSignin: false, fromFile: true } }],
       },
     });
-    storage.setItem("openwork.den.authToken", "hosted-token-1");
-    storage.setItem("openwork.den.activeOrgId", "org_hosted_1");
-    storage.setItem(STORAGE_SESSION_ORIGIN, "https://app.openworklabs.com");
+    storage.setItem("harness.den.authToken", "hosted-token-1");
+    storage.setItem("harness.den.activeOrgId", "org_hosted_1");
+    storage.setItem(STORAGE_SESSION_ORIGIN, "https://app.harness.invalid");
 
     await initializeDenBootstrapConfig();
 
     expect(getDenBootstrapResolution()).toBe("resolved");
     const settings = readDenSettings();
-    expect(settings.baseUrl).toBe("https://app.openworklabs.com");
+    expect(settings.baseUrl).toBe("https://app.harness.invalid");
     expect(settings.authToken).toBe("hosted-token-1");
     expect(settings.activeOrgId).toBe("org_hosted_1");
   });
@@ -473,7 +473,7 @@ describe("den bootstrap and retained session origin coherence", () => {
 
     clearDenSession();
 
-    expect(storage.getItem("openwork.den.authToken")).toBeNull();
+    expect(storage.getItem("harness.den.authToken")).toBeNull();
     expect(storage.getItem(STORAGE_SESSION_ORIGIN)).toBeNull();
   });
 

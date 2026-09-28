@@ -29,7 +29,7 @@ export async function prepareParityBinaries(root, overrides = process.env) {
   const key = `${platform}-${process.arch}${process.arch === "x64" ? "-baseline" : ""}${musl ? "-musl" : ""}`;
   const resolved = {};
   for (const engine of ["v1", "v2"]) {
-    const variable = engine === "v1" ? "OPENWORK_OPENCODE_BIN" : "OPENWORK_OPENCODE2_BIN";
+    const variable = engine === "v1" ? "HARNESS_OPENCODE_BIN" : "HARNESS_OPENCODE2_BIN";
     const version = (engine === "v1" ? pins.opencodeVersion : pins.opencodeV2Version).replace(/^v/, "");
     const name = `${engine === "v1" ? "opencode" : "opencode2"}${platform === "windows" ? ".exe" : ""}`;
     const directory = join(root, "evals/results/engine-parity/binaries", engine, version, key);

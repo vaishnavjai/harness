@@ -5,7 +5,7 @@ export type SessionMetadataRuntime = {
   workspaceId: string;
   runtimeWorkspaceId: string;
   opencodeBaseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
 };
 
 export type SessionMetadataCallbacks = {

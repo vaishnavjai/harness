@@ -12,7 +12,7 @@ import {
 test("renders probe branding and accessible human labels in every state", () => {
   const base = {
     type: "dynamic-tool",
-    toolName: "openwork-cloud_execute_capability",
+    toolName: "harness-cloud_execute_capability",
     toolCallId: "probe-ui",
     input: { name: "mcp:emc_probe:*" },
   } satisfies Partial<DynamicToolUIPart>;
@@ -44,7 +44,7 @@ test("renders probe branding and accessible human labels in every state", () => 
 
 test("valid probe payload names do not brand unknown connections", () => {
   const part: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "unknown-probe",
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "unknown-probe",
     state: "output-available", input: { name: "mcp:emc_unknown:*" },
     output: { connectionStatus: {
       schemaVersion: "1", connectionId: "emc_unknown", connectionName: "Notion",
@@ -71,11 +71,11 @@ test("valid probe payload names do not brand unknown connections", () => {
 
 test("unfinished code mode calls do not resume animating after interruption", () => {
   const part: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability_script", toolCallId: "script",
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability_script", toolCallId: "script",
     state: "input-available", input: {},
   };
   const call: DynamicToolUIPart = {
-    type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "nested",
+    type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "nested",
     state: "input-available", input: { name: "mcp:emc_probe:*" },
   };
   for (const lifecycle of [null, "interrupted"] satisfies Array<null | "interrupted">) {
@@ -119,7 +119,7 @@ test("code-mode failures remain neutral and do not hide the failed call", () => 
 test("renders a connector logo beside a human-readable completed tool call", () => {
   const part: DynamicToolUIPart = {
     type: "dynamic-tool",
-    toolName: "openwork-cloud_execute_capability",
+    toolName: "harness-cloud_execute_capability",
     toolCallId: "call-google-calendar",
     state: "output-available",
     input: { name: "getCapabilitiesGoogleWorkspaceCalendarEvents", body: {} },

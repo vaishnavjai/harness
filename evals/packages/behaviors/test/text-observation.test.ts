@@ -13,7 +13,7 @@ test("streaming proof rejects blank, shrinking, substituted, duplicate, and inco
 });
 
 import { runInNewContext } from "node:vm";
-import type { Surface } from "@openwork/cdp";
+import type { Surface } from "@harness/cdp";
 import { observeText } from "../src/text-observation.ts";
 
 test("the browser observer retains an empty frame between visible text frames", async () => {

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { renderCrashWorld } from "../worlds/first-run.ts";
 
 const test = spec.world(renderCrashWorld);
@@ -8,9 +8,9 @@ const test = spec.world(renderCrashWorld);
 // query string carries a grant: the recovery screen and the copied report must
 // keep the path but never the query value.
 const SECRET = "eval-secret-grant-4242";
-const THROWN = `Local context is missing (eval render throw) after https://app.openworklabs.com/signin?code=${SECRET}`;
-const MESSAGE = "Local context is missing (eval render throw) after https://app.openworklabs.com/signin";
-const heading = { text: /OpenWork hit an unexpected error/ };
+const THROWN = `Local context is missing (eval render throw) after https://app.harness.invalid/signin?code=${SECRET}`;
+const MESSAGE = "Local context is missing (eval render throw) after https://app.harness.invalid/signin";
+const heading = { text: /Harness hit an unexpected error/ };
 
 test("a render throw shows a recovery screen with the error instead of a blank window", async ({ world, user, agent, probe, step }) => {
   await step("the app is healthy and shows no recovery screen", async () => {
@@ -36,7 +36,7 @@ test("a render throw shows a recovery screen with the error instead of a blank w
     await user.see({ text: MESSAGE });
     // The URL keeps its path for diagnosis; the grant in its query never shows
     // anywhere on the page, message or stack.
-    expect(await probe.has("https://app.openworklabs.com/signin")).toBe(true);
+    expect(await probe.has("https://app.harness.invalid/signin")).toBe(true);
     expect(await probe.has(SECRET)).toBe(false);
     // The stack names the throwing component, so the failure is reportable.
     await user.see({ text: /at BrandThemeControlActions/ });
@@ -54,10 +54,10 @@ test("a render throw shows a recovery screen with the error instead of a blank w
       until: (value) => typeof value === "string" && value.includes(MESSAGE),
     });
     const [header, message, stack] = clipboard.split("\n\n");
-    expect(header).toMatch(/^OpenWork \S+ \(desktop, (public|enterprise)\)$/);
+    expect(header).toMatch(/^Harness \S+ \(desktop, (public|enterprise)\)$/);
     expect(message).toBe(MESSAGE);
     expect(stack).toMatch(/at BrandThemeControlActions/);
-    expect(clipboard).toContain("https://app.openworklabs.com/signin");
+    expect(clipboard).toContain("https://app.harness.invalid/signin");
     expect(clipboard).not.toContain(SECRET);
   });
 
@@ -67,7 +67,7 @@ test("a render throw shows a recovery screen with the error instead of a blank w
     await probe.eventually(() => probe.text(), {
       within: 120_000,
       label: "app content after reload",
-      until: (text) => text.trim().length > 40 && !/OpenWork hit an unexpected error/.test(text),
+      until: (text) => text.trim().length > 40 && !/Harness hit an unexpected error/.test(text),
     });
     await user.see("composer", { editable: true, timeoutMs: 120_000 });
     expect(await probe.hash()).toBe(route);

@@ -1,6 +1,6 @@
-// Release smoke for an installed openwork-server npm package:
-//   node npm-web-smoke.mjs <path-to-installed>/bin/openwork-server.mjs <expected-version>
-// Runs `--version`, then `openwork-server web` against a fresh home directory
+// Release smoke for an installed harness-server npm package:
+//   node npm-web-smoke.mjs <path-to-installed>/bin/harness-server.mjs <expected-version>
+// Runs `--version`, then `harness-server web` against a fresh home directory
 // (so the OpenCode engine is downloaded as on a user's first run) and checks
 // the web UI, an authenticated API call, the engine proxy, the bundled
 // engine plugins and session creation. Exits non-zero on the first failure.
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const [launcher, expectedVersion] = process.argv.slice(2);
 if (!launcher || !expectedVersion) {
-  console.error("usage: node npm-web-smoke.mjs <bin/openwork-server.mjs> <expected-version>");
+  console.error("usage: node npm-web-smoke.mjs <bin/harness-server.mjs> <expected-version>");
   process.exit(2);
 }
 
@@ -54,8 +54,8 @@ function stopTree(child) {
   }
 }
 
-const home = await mkdtemp(join(tmpdir(), "openwork-npm-home-"));
-const workspace = await mkdtemp(join(tmpdir(), "openwork-npm-ws-"));
+const home = await mkdtemp(join(tmpdir(), "harness-npm-home-"));
+const workspace = await mkdtemp(join(tmpdir(), "harness-npm-ws-"));
 const env = {
   ...process.env,
   HOME: home,
@@ -63,7 +63,7 @@ const env = {
   XDG_DATA_HOME: join(home, ".local", "share"),
   XDG_CONFIG_HOME: join(home, ".config"),
   XDG_CACHE_HOME: join(home, ".cache"),
-  OPENWORK_PACKAGE_ROOT: "",
+  HARNESS_PACKAGE_ROOT: "",
 };
 
 const version = spawnSync(process.execPath, [launcher, "--version"], { encoding: "utf8", env });
@@ -90,9 +90,9 @@ for (const stream of [child.stdout, child.stderr]) {
 
 try {
   const deadline = Date.now() + READY_TIMEOUT_MS;
-  while (!/OpenWork web UI: /.test(output)) {
-    if (child.exitCode !== null) fail(`openwork-server web exited ${child.exitCode} before it was ready`);
-    if (Date.now() > deadline) fail("openwork-server web was not ready within 5 minutes");
+  while (!/Harness web UI: /.test(output)) {
+    if (child.exitCode !== null) fail(`harness-server web exited ${child.exitCode} before it was ready`);
+    if (Date.now() > deadline) fail("harness-server web was not ready within 5 minutes");
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   if (!/Installed OpenCode \S+ to /.test(output)) fail("the OpenCode engine was not downloaded on first run");
@@ -104,7 +104,7 @@ try {
   log("/health ok");
 
   const page = await request(`${base}/`);
-  if (page.status !== 200 || !page.text.includes("<title>OpenWork</title>")) fail(`/ returned ${page.status}`);
+  if (page.status !== 200 || !page.text.includes("<title>Harness</title>")) fail(`/ returned ${page.status}`);
   log("web UI served");
 
   const tokensPath = /Tokens: (.+)/.exec(output)?.[1]?.trim();

@@ -1,7 +1,7 @@
-import { browserScript } from "@openwork/testkit";
-import { resolveEvalEngine } from "@openwork/env";
+import { browserScript } from "@harness/testkit";
+import { resolveEvalEngine } from "@harness/env";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { attachmentUpload } from "../worlds/chat.ts";
 
 const attachmentName = "big-photo.png";
@@ -127,7 +127,7 @@ test(`sending an image in ${entryPoint} immediately moves it into the thread whi
   expect(await probe.eventually(() => probe.eval(() => {
     const rows = document.querySelectorAll('[data-message-role="user"]');
     const image = rows[0]?.querySelector<HTMLImageElement>("img");
-    return globalThis.__attachmentUploadingSeen === true && window.__openworkSubmissionFault?.attempts === 1
+    return globalThis.__attachmentUploadingSeen === true && window.__harnessSubmissionFault?.attempts === 1
       && rows.length === 1 && Boolean(image?.complete && image.naturalWidth > 0)
       && !document.querySelector("[data-attachment-id]")
       && document.querySelector('[contenteditable="true"]')?.textContent === "";

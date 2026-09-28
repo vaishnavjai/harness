@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { denLibraryManage, denLibraryWithSamsSlack } from "../worlds/den-library-manage.ts";
 
 // Members add things to My Library for themselves and share them with the

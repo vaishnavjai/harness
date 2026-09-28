@@ -1,10 +1,10 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import { modelPicker, modelPickerEffortWeb } from "../worlds/chat.ts";
 
 const test = spec.world(modelPicker);
 
-test("the composer model pickers keep their controls without the OpenWork Models subscribe promo", async ({ user, probe, step }) => {
+test("the composer model pickers keep their controls without the Harness Models subscribe promo", async ({ user, probe, step }) => {
   const draft = "Keep this draft while editing model settings.";
   await user.type("composer", draft);
   const initial = await probe.composer();
@@ -32,7 +32,7 @@ test("the composer model pickers keep their controls without the OpenWork Models
     await user.see({ text: "Select a model for this session." });
     await user.see({ placeholder: "Search providers and models..." });
     await user.see({ role: "button", label: "Done" });
-    await user.notSee({ role: "button", label: "Hide OpenWork Models" });
+    await user.notSee({ role: "button", label: "Hide Harness Models" });
     await user.notSee({ text: "Subscribe to use hosted frontier models in this workspace." });
     await user.notSee({ text: "Sign in to unlock hosted frontier models for your team." });
     await user.notSee({ role: "button", label: "Subscribe" });

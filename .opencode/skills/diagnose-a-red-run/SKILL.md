@@ -17,9 +17,9 @@ Never call a failure pre-existing from memory or from a modified checkout.
 
 ```bash
 git fetch origin dev
-git worktree add /tmp/openwork-dev-control --detach origin/dev
+git worktree add /tmp/harness-dev-control --detach origin/dev
 # In that clean worktree, prepare the same prerequisites and run the exact command.
-git worktree remove /tmp/openwork-dev-control
+git worktree remove /tmp/harness-dev-control
 ```
 
 - Keep tool versions, environment, services, flags, and secrets equivalent.

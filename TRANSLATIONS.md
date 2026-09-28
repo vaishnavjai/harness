@@ -1,6 +1,6 @@
-# Help Translate OpenWork
+# Help Translate Harness
 
-We are actively looking for contributors to translate OpenWork to your own native language.
+We are actively looking for contributors to translate Harness to your own native language.
 
 ## README translations
 

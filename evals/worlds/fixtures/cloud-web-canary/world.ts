@@ -2,13 +2,13 @@ import { setTimeout as delay } from "node:timers/promises";
 import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
-import { callFunctionOnSurface, connect, debuggerUrlFor, listTargets } from "@openwork/cdp";
-import { chrome, localHost } from "@openwork/hosts";
-import type { Place, Seed, TestNeeds } from "@openwork/env";
+import { callFunctionOnSurface, connect, debuggerUrlFor, listTargets } from "@harness/cdp";
+import { chrome, localHost } from "@harness/hosts";
+import type { Place, Seed, TestNeeds } from "@harness/env";
 
 export const cliManaged = process.env.CANARY_MODE === "cli-managed";
 export const requirements: TestNeeds = {
-  optIn: ["OPENWORK_EVAL_LIVE"],
+  optIn: ["HARNESS_EVAL_LIVE"],
   env: ["CANARY_CONSENT", "CANARY_DEN_API_URL", "CANARY_DEN_WEB_URL", "CANARY_GATEWAY_URL",
     "CANARY_EMAIL", "CANARY_PASSWORD", "CANARY_ORG_ID", "CANARY_USER_ID",
     "CANARY_MODEL_URL", "CANARY_MODEL_KEY", "CANARY_MARKER",
@@ -50,7 +50,7 @@ export async function attachedCanary(seed: Seed, { place }: { place: Place }) {
   const modelKey = required("CANARY_MODEL_KEY");
   const marker = required("CANARY_MARKER");
   const filename = process.env.CANARY_FILE_NAME ?? "web-canary-note.txt";
-  const workspace = process.env.CANARY_WORKSPACE_PATH ?? "/tmp/openwork-workspace";
+  const workspace = process.env.CANARY_WORKSPACE_PATH ?? "/tmp/harness-workspace";
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(marker) || !/^[A-Za-z0-9_-]+\.txt$/.test(filename)) throw new Error("Use a synthetic marker and plain .txt filename");
 
   const cliEnv = Object.fromEntries(["PATH", "HOME", "TMPDIR"].flatMap(key => process.env[key] ? [[key, process.env[key]]] : []));

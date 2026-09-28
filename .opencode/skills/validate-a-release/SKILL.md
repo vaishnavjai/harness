@@ -19,11 +19,11 @@ the first release that ships these specs, the tag's own checkout
 ```bash
 export V=0.18.45 B=0.18.42
 export R=/tmp/ow-release-$V; mkdir -p $R && cd $R
-gh release download v$V -R different-ai/openwork -p "openwork-enterprise-mac-arm64-$V.zip" -p "openwork-cloud-mac-arm64-$V.zip" -p '*.yml' --clobber
-gh release download v$B -R different-ai/openwork -p "openwork-enterprise-mac-arm64-$B.zip" --clobber
+gh release download v$V -R vaishnavjai/harness -p "harness-enterprise-mac-arm64-$V.zip" -p "harness-cloud-mac-arm64-$V.zip" -p '*.yml' --clobber
+gh release download v$B -R vaishnavjai/harness -p "harness-enterprise-mac-arm64-$B.zip" --clobber
 for s in enterprise:$V cloud:$V enterprise:$B; do f=${s%%:*}; v=${s##*:}; rm -rf $f-$v; mkdir $f-$v
-  ditto -x -k openwork-$f-mac-arm64-$v.zip $f-$v && xattr -dr com.apple.quarantine $f-$v; done
-export ENT="$R/enterprise-$V/OpenWork Enterprise.app" CLOUD="$R/cloud-$V/OpenWork Cloud.app" BASE="$R/enterprise-$B/OpenWork Enterprise.app"
+  ditto -x -k harness-$f-mac-arm64-$v.zip $f-$v && xattr -dr com.apple.quarantine $f-$v; done
+export ENT="$R/enterprise-$V/Harness Enterprise.app" CLOUD="$R/cloud-$V/Harness Cloud.app" BASE="$R/enterprise-$B/Harness Enterprise.app"
 ```
 
 ## 2. Signing and notarization
@@ -38,9 +38,9 @@ Expect `accepted`, `source=Notarized Developer ID`, `origin=Developer ID Applica
 
 ```bash
 grep -H '^version:' enterprise*.yml cloud*.yml            # every line must be: version: $V
-gh release view v$V -R different-ai/openwork --json assets --jq '.assets[].name' > assets.txt
+gh release view v$V -R vaishnavjai/harness --json assets --jq '.assets[].name' > assets.txt
 grep -h 'url: ' enterprise*.yml cloud*.yml | awk '{print $NF}' | sort -u | while read u; do grep -qx "$u" assets.txt && echo "ok $u" || echo "MISSING $u"; done
-for f in enterprise cloud; do zip=openwork-$f-mac-arm64-$V.zip
+for f in enterprise cloud; do zip=harness-$f-mac-arm64-$V.zip
   want=$(awk -v z="$zip" '$0 ~ "url: "z {f=1} f && /sha512:/ {print $2; exit}' $f-mac.yml)
   have=$(openssl dgst -sha512 -binary $zip | base64); [ "$want" = "$have" ] && echo "$zip sha512 OK" || echo "$zip sha512 MISMATCH"; done
 ```
@@ -55,18 +55,18 @@ so never launch an extracted bundle directly: `clone` gives each journey a
 throwaway APFS copy, and journey 3+4 clones internally.
 
 ```bash
-export OPENWORK_EVAL_ELECTRON_RESOURCES_PREPARED=1 OPENWORK_EVAL_ENGINE=v1 OPENWORK_EVAL_SURFACES_DIR=/tmp/ow-profiles-$V
+export HARNESS_EVAL_ELECTRON_RESOURCES_PREPARED=1 HARNESS_EVAL_ENGINE=v1 HARNESS_EVAL_SURFACES_DIR=/tmp/ow-profiles-$V
 clone() { rm -rf "$R/clone"; mkdir "$R/clone"; cp -Rc "$1" "$R/clone/"; }
 ```
 
 | # | Journey | Command |
 |---|---------|---------|
-| 1 | Fresh enterprise install shows the activation gate, 0 render crashes | `clone "$ENT"; OPENWORK_EVAL_ELECTRON_BINARY="$R/clone/OpenWork Enterprise.app/Contents/MacOS/OpenWork Enterprise" pnpm evals:e2e packaged-first-launch --local` |
-| 2 | Fresh cloud install shows the welcome page, 0 render crashes | `clone "$CLOUD"; OPENWORK_EVAL_ELECTRON_BINARY="$R/clone/OpenWork Cloud.app/Contents/MacOS/OpenWork Cloud" pnpm evals:e2e packaged-first-launch --local` |
-| 3+4 | Activated enterprise install boots to `/signin`; a `$B` signed-in profile opens in `$V` and again after restart | `OPENWORK_EVAL_ELECTRON_BINARY="$ENT/Contents/MacOS/OpenWork Enterprise" OPENWORK_EVAL_RELEASED_BASELINE_BINARY="$BASE/Contents/MacOS/OpenWork Enterprise" OPENWORK_EVAL_RELEASED_VERSION=$V pnpm evals:e2e released-enterprise-activated --local` |
+| 1 | Fresh enterprise install shows the activation gate, 0 render crashes | `clone "$ENT"; HARNESS_EVAL_ELECTRON_BINARY="$R/clone/Harness Enterprise.app/Contents/MacOS/Harness Enterprise" pnpm evals:e2e packaged-first-launch --local` |
+| 2 | Fresh cloud install shows the welcome page, 0 render crashes | `clone "$CLOUD"; HARNESS_EVAL_ELECTRON_BINARY="$R/clone/Harness Cloud.app/Contents/MacOS/Harness Cloud" pnpm evals:e2e packaged-first-launch --local` |
+| 3+4 | Activated enterprise install boots to `/signin`; a `$B` signed-in profile opens in `$V` and again after restart | `HARNESS_EVAL_ELECTRON_BINARY="$ENT/Contents/MacOS/Harness Enterprise" HARNESS_EVAL_RELEASED_BASELINE_BINARY="$BASE/Contents/MacOS/Harness Enterprise" HARNESS_EVAL_RELEASED_VERSION=$V pnpm evals:e2e released-enterprise-activated --local` |
 
 Each command must end with `"verdict":"passed"` and `"skipped":0`. Journey 3+4
-without `OPENWORK_EVAL_RELEASED_BASELINE_BINARY` skips the update test and the
+without `HARNESS_EVAL_RELEASED_BASELINE_BINARY` skips the update test and the
 verdict is `incomplete`, never passed. Before each journey confirm the
 extracted bundle is still the release:
 `/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$ENT/Contents/Info.plist"` must print `$V` (re-extract if not).
@@ -76,14 +76,14 @@ the release ships with, not just the local one):
 
 ```bash
 bash .devcontainer/test-server-on-daytona.sh v$V --seed --name release-$V-den --auto-stop 90   # prints DEN_WEB_URL / DEN_API_URL
-OPENWORK_EVAL_DEN_WEB_URL=<DEN_WEB_URL> <same variables as journey 3+4> pnpm evals:e2e released-enterprise-activated --den <DEN_API_URL>
+HARNESS_EVAL_DEN_WEB_URL=<DEN_WEB_URL> <same variables as journey 3+4> pnpm evals:e2e released-enterprise-activated --den <DEN_API_URL>
 daytona delete release-$V-den
 ```
 
 Journeys 1 and 2 also fail on any unhandled rejection outside
 `KNOWN_LAUNCH_REJECTIONS` (evals/worlds/packaged-first-launch.ts). A release
 that predates a fix already on `dev` fails there with `Uncaught (in promise)`
-entries (0.18.45 and 0.18.46: two `OpenWork must be activated…` IPC rejections,
+entries (0.18.45 and 0.18.46: two `Harness must be activated…` IPC rejections,
 fixed by #4727). Report those messages verbatim as `Failed`; a render crash
 (no `(in promise)` prefix) or the recovery screen is a rollout blocker.
 

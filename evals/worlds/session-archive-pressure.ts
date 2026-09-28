@@ -1,11 +1,11 @@
-import { browserScript, evaluate, type Surface } from "@openwork/cdp";
-import { SkipError, type Place, type Seed } from "@openwork/env";
+import { browserScript, evaluate, type Surface } from "@harness/cdp";
+import { SkipError, type Place, type Seed } from "@harness/env";
 import { archiveActiveSessions } from "./session-shell.ts";
 
 export function archivePressureMode(): "baseline" | "fixed" {
-  const mode = process.env.OPENWORK_ARCHIVE_PRESSURE_MODE ?? "fixed";
+  const mode = process.env.HARNESS_ARCHIVE_PRESSURE_MODE ?? "fixed";
   if (mode !== "baseline" && mode !== "fixed") {
-    throw new Error("OPENWORK_ARCHIVE_PRESSURE_MODE must be baseline or fixed");
+    throw new Error("HARNESS_ARCHIVE_PRESSURE_MODE must be baseline or fixed");
   }
   return mode;
 }
@@ -204,8 +204,8 @@ export async function sessionArchivePressure(seed: Seed, context: { place: Place
   if (context.place.kind !== "local") {
     throw new SkipError("pressure readback requires runner-reachable fixture loopback; use --local --engine v1 --surface electron");
   }
-  if (process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) {
-    throw new SkipError("pressure witness requires the source-built fixture app; unset OPENWORK_EVAL_ELECTRON_BINARY");
+  if (process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) {
+    throw new SkipError("pressure witness requires the source-built fixture app; unset HARNESS_EVAL_ELECTRON_BINARY");
   }
   await using resources = new AsyncDisposableStack();
   const fixture = resources.use(await archiveActiveSessions(seed, context));
@@ -215,7 +215,7 @@ export async function sessionArchivePressure(seed: Seed, context: { place: Place
   const mount = (workspaceId: string) => `/workspace/${encodeURIComponent(workspaceId)}/opencode`;
   const targetPath = `${mount(a2.workspaceId)}/session/${encodeURIComponent(a2.sessionId)}`;
   const server = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Pressure fixture server unavailable");
     return { baseUrl: info.baseUrl, token: info.ownerToken ?? info.clientToken };
   }, { awaitPromise: true, timeoutMs: 5_000 });
@@ -277,10 +277,10 @@ export async function sessionArchivePressure(seed: Seed, context: { place: Place
     holdRun: fixture.holdRun,
     mainRequests: fixture.mainRequests,
     mainFetchControl: () => evaluate(app.client, browserScript(async path => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       const started = performance.now();
       try {
-        const response = await window.__OPENWORK_ELECTRON__.invokeDesktop("__fetch", `${info.baseUrl}${path}`, {
+        const response = await window.__HARNESS_ELECTRON__.invokeDesktop("__fetch", `${info.baseUrl}${path}`, {
           headers: { Authorization: `Bearer ${info.ownerToken ?? info.clientToken}` }, timeoutMs: 2_000,
         });
         return { path, status: response.status, elapsedMs: performance.now() - started, completed: true };
@@ -299,7 +299,7 @@ export async function installSsePressure(app: Surface, workspaceIds: string[], u
   await using resources = new AsyncDisposableStack();
   const mounts = workspaceIds.map(id => `/workspace/${encodeURIComponent(id)}/opencode`);
   const origin = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Pressure fixture server unavailable");
     const url = new URL(info.baseUrl);
     if (url.protocol !== "http:" || !["127.0.0.1", "localhost", "[::1]"].includes(url.hostname)
@@ -317,7 +317,7 @@ export async function installSsePressure(app: Surface, workspaceIds: string[], u
     if (window.__archiveNetwork && (window.__archiveNetwork.mode !== "none" || window.__archiveNetwork.release)) {
       throw new Error("Pressure witness refuses synthetic archive faults");
     }
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl || new URL(info.baseUrl).origin !== origin) {
       throw new Error("Pressure witness server identity changed");
     }

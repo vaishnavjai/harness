@@ -1,7 +1,7 @@
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { expect } from "vitest";
-import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, SkipError, test } from "@openwork/testkit";
+import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, SkipError, test } from "@harness/testkit";
 
 const maxBytes = 32 * 1024 * 1024;
 

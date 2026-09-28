@@ -33,7 +33,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function hostHeaders() {
-  return { "x-openwork-host-token": HOST_TOKEN, "content-type": "application/json" };
+  return { "x-harness-host-token": HOST_TOKEN, "content-type": "application/json" };
 }
 
 function clientHeaders() {
@@ -47,12 +47,12 @@ async function readJsonObject(response: Response): Promise<Record<string, unknow
 }
 
 async function createTempRoot() {
-  const root = await mkdtemp(join(tmpdir(), "openwork-reload-guard-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-reload-guard-"));
   roots.push(root);
-  previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
-  previousEnvStore = process.env.OPENWORK_ENV_STORE;
-  process.env.OPENWORK_ENV_STORE = join(root, "env.json");
+  previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
+  previousEnvStore = process.env.HARNESS_ENV_STORE;
+  process.env.HARNESS_ENV_STORE = join(root, "env.json");
   return root;
 }
 
@@ -197,14 +197,14 @@ afterEach(async () => {
     const root = roots.pop();
     if (root) await rm(root, { recursive: true, force: true });
   }
-  if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
-  if (previousEnvStore === undefined) delete process.env.OPENWORK_ENV_STORE;
-  else process.env.OPENWORK_ENV_STORE = previousEnvStore;
-  if (previousDisposeTimeout === undefined) delete process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS;
-  else process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS = previousDisposeTimeout;
-  if (previousReloadRetry === undefined) delete process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-  else process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = previousReloadRetry;
+  if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
+  if (previousEnvStore === undefined) delete process.env.HARNESS_ENV_STORE;
+  else process.env.HARNESS_ENV_STORE = previousEnvStore;
+  if (previousDisposeTimeout === undefined) delete process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS;
+  else process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS = previousDisposeTimeout;
+  if (previousReloadRetry === undefined) delete process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+  else process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = previousReloadRetry;
 });
 
 async function waitUntil(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -218,8 +218,8 @@ async function waitUntil(predicate: () => boolean, timeoutMs: number): Promise<b
 
 describe("engine reload guard", () => {
   test("provider sync defers pool rollover while a generation is draining", async () => {
-    previousReloadRetry = process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "50";
+    previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "50";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const baseUrl = `http://127.0.0.1:${engine.port}`;
@@ -270,8 +270,8 @@ describe("engine reload guard", () => {
   });
 
   test("a forced rollover the pool did not apply keeps the reload pending and the status loud until it lands", async () => {
-    previousReloadRetry = process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "50";
+    previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "50";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const baseUrl = `http://127.0.0.1:${engine.port}`;
@@ -490,8 +490,8 @@ describe("engine reload guard", () => {
   });
 
   test("a deferred reload lands by itself once the engine idles, even with no Den session", async () => {
-    previousReloadRetry = process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "200";
+    previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "200";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const config = serverConfig(root, `http://127.0.0.1:${engine.port}`);
@@ -521,8 +521,8 @@ describe("engine reload guard", () => {
   });
 
   test("a reload failure mid-pass keeps the materialized providers visible and the failure loud", async () => {
-    previousDisposeTimeout = process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS;
-    process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS = "500";
+    previousDisposeTimeout = process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS;
+    process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS = "500";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const config = serverConfig(root, `http://127.0.0.1:${engine.port}`);
@@ -560,10 +560,10 @@ describe("engine reload guard", () => {
   });
 
   test("a failed reload self-heals through the retry poll and settles the status", async () => {
-    previousDisposeTimeout = process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS;
-    process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS = "500";
-    previousReloadRetry = process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS;
-    process.env.OPENWORK_ENGINE_RELOAD_RETRY_MS = "200";
+    previousDisposeTimeout = process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS;
+    process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS = "500";
+    previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
+    process.env.HARNESS_ENGINE_RELOAD_RETRY_MS = "200";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const config = serverConfig(root, `http://127.0.0.1:${engine.port}`);
@@ -606,8 +606,8 @@ describe("engine reload guard", () => {
   });
 
   test("a wedged dispose times out instead of freezing the sync queue", async () => {
-    previousDisposeTimeout = process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS;
-    process.env.OPENWORK_ENGINE_DISPOSE_TIMEOUT_MS = "500";
+    previousDisposeTimeout = process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS;
+    process.env.HARNESS_ENGINE_DISPOSE_TIMEOUT_MS = "500";
     const root = await createTempRoot();
     const engine = startFakeEngine();
     const config = serverConfig(root, `http://127.0.0.1:${engine.port}`);

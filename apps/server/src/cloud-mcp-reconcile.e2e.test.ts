@@ -3,13 +3,13 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { OPENWORK_CLOUD_EXPECTED_TOOLS, OPENWORK_CLOUD_PLUGIN_CANARIES, clearOpenworkCloudMcpProbeFlights, cloudMcpDeliveryState } from "./cloud-mcp-health.js";
+import { HARNESS_CLOUD_EXPECTED_TOOLS, HARNESS_CLOUD_PLUGIN_CANARIES, clearHarnessCloudMcpProbeFlights, cloudMcpDeliveryState } from "./cloud-mcp-health.js";
 import {
   CONNECT_MCP_SERVER_INDEX_SCHEMA_VERSION,
   CONNECT_MCP_SERVER_INDEX_URI,
   connectDirectMcpRuntimeName,
-  readOpenWorkConnectMcpAppHostCatalog,
-  type OpenWorkConnectMcpServerIndexInput,
+  readHarnessConnectMcpAppHostCatalog,
+  type HarnessConnectMcpServerIndexInput,
 } from "./connect-mcp-server-catalog.js";
 import { readGlobalRuntimeOpencodeConfig, readRuntimeOpencodeConfig, writeRuntimeOpencodeConfig } from "./runtime-opencode-config-store.js";
 import { inspectEngineMcpRegistration, registerTrustedOpencodeProcess, startServer } from "./server.js";
@@ -36,7 +36,7 @@ type MockOpencodeOptions = {
   delayMcpStatusMs?: number;
   postFailure?: { status: number; body: unknown };
   cloudFailedError?: string;
-  connectServers?: OpenWorkConnectMcpServerIndexInput["servers"];
+  connectServers?: HarnessConnectMcpServerIndexInput["servers"];
   appHostAuthorization?: string;
   trackRegistrations?: boolean;
   beforeRegistration?: (name: string) => Promise<Response | undefined>;
@@ -53,16 +53,16 @@ type CloudConfig = {
 const CLIENT_TOKEN = "owt_cloud_mcp_client";
 const HOST_TOKEN = "owt_cloud_mcp_host";
 const APP_HOST_AUTHORIZATION = "Bearer owt_secret_app_host_token";
-const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
-const previousDevMode = process.env.OPENWORK_DEV_MODE;
+const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
+const previousDevMode = process.env.HARNESS_DEV_MODE;
 const stops: Array<() => void | Promise<void>> = [];
 const roots: string[] = [];
 const runtimeDbRoots: string[] = [];
-const cloudConfigsByOpenworkBase = new Map<string, CloudConfig>();
+const cloudConfigsByHarnessBase = new Map<string, CloudConfig>();
 
 afterEach(async () => {
   cloudMcpDeliveryState.clear();
-  clearOpenworkCloudMcpProbeFlights();
+  clearHarnessCloudMcpProbeFlights();
   while (stops.length) await stops.pop()?.();
   while (roots.length) await rm(roots.pop() ?? "", { recursive: true, force: true });
   if (process.platform === "win32") {
@@ -72,27 +72,27 @@ afterEach(async () => {
   } else {
     while (runtimeDbRoots.length) await rm(runtimeDbRoots.pop() ?? "", { recursive: true, force: true });
   }
-  cloudConfigsByOpenworkBase.clear();
-  if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
-  if (previousDevMode === undefined) delete process.env.OPENWORK_DEV_MODE;
-  else process.env.OPENWORK_DEV_MODE = previousDevMode;
+  cloudConfigsByHarnessBase.clear();
+  if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
+  if (previousDevMode === undefined) delete process.env.HARNESS_DEV_MODE;
+  else process.env.HARNESS_DEV_MODE = previousDevMode;
 });
 
-async function createRoot(prefix = "openwork-cloud-mcp-"): Promise<string> {
+async function createRoot(prefix = "harness-cloud-mcp-"): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), prefix));
   roots.push(root);
   return root;
 }
 
 async function createRuntimeDbRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-cloud-mcp-runtime-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-cloud-mcp-runtime-"));
   runtimeDbRoots.push(root);
   return root;
 }
 
 function allReadyToolIds(): string[] {
-  return [...OPENWORK_CLOUD_EXPECTED_TOOLS, ...OPENWORK_CLOUD_PLUGIN_CANARIES];
+  return [...HARNESS_CLOUD_EXPECTED_TOOLS, ...HARNESS_CLOUD_PLUGIN_CANARIES];
 }
 
 function startMockOpencode(options: MockOpencodeOptions = {}) {
@@ -130,7 +130,7 @@ function startMockOpencode(options: MockOpencodeOptions = {}) {
       if (url.pathname.startsWith("/mcp/") && url.pathname.endsWith("/disconnect") && request.method === "POST") {
         // OpenCode closes the client and keeps the config; status is no longer
         // connected until a later POST /mcp re-registers it.
-        if (url.pathname === "/mcp/openwork-cloud/disconnect") registerCount = 0;
+        if (url.pathname === "/mcp/harness-cloud/disconnect") registerCount = 0;
         if (options.trackRegistrations) delete registeredServers[decodeURIComponent(url.pathname.split("/")[2] ?? "")];
         return Response.json(true);
       }
@@ -138,13 +138,13 @@ function startMockOpencode(options: MockOpencodeOptions = {}) {
         statusReads += 1;
         if (options.delayMcpStatusMs) await new Promise((resolve) => setTimeout(resolve, options.delayMcpStatusMs));
         if (options.cloudFailedError) {
-          return Response.json({ "openwork-cloud": { status: "failed", error: options.cloudFailedError } });
+          return Response.json({ "harness-cloud": { status: "failed", error: options.cloudFailedError } });
         }
         if (options.connectAfterStatusReads && statusReads < options.connectAfterStatusReads) {
-          return Response.json({ "openwork-cloud": { status: "failed", error: "slow connect" } });
+          return Response.json({ "harness-cloud": { status: "failed", error: "slow connect" } });
         }
         if (options.trackRegistrations) return Response.json(registeredServers);
-        return Response.json(registerCount > 0 || options.initialConnected ? { "openwork-cloud": { status: "connected" } } : {});
+        return Response.json(registerCount > 0 || options.initialConnected ? { "harness-cloud": { status: "connected" } } : {});
       }
       if (url.pathname === "/experimental/tool/ids") {
         if (options.unsupportedToolIds) return Response.json({ code: "not_found" }, { status: 404 });
@@ -161,15 +161,15 @@ function startMockOpencode(options: MockOpencodeOptions = {}) {
           : {
               "claude-sonnet-4": { id: "claude-sonnet-4", providerID: "anthropic", name: "Claude Sonnet", capabilities: { toolcall } },
               claude: { id: "claude", providerID: "anthropic", name: "Claude", capabilities: { toolcall } },
-              "gpt-5": { id: "gpt-5", providerID: "openwork", name: "GPT-5", capabilities: { toolcall } },
+              "gpt-5": { id: "gpt-5", providerID: "harness", name: "GPT-5", capabilities: { toolcall } },
             };
         return Response.json({
           all: [
             { id: "anthropic", name: "Anthropic", source: "config", env: [], options: {}, models },
-            { id: "openwork", name: "OpenWork", source: "config", env: [], options: {}, models },
+            { id: "harness", name: "Harness", source: "config", env: [], options: {}, models },
           ],
           default: {},
-          connected: ["anthropic", "openwork"],
+          connected: ["anthropic", "harness"],
         });
       }
       if (url.pathname.endsWith("/mcp/agent") && request.method === "POST") {
@@ -184,7 +184,7 @@ function startMockOpencode(options: MockOpencodeOptions = {}) {
           ? {
               protocolVersion: "2025-06-18",
               capabilities: { tools: {}, resources: {} },
-              serverInfo: { name: "openwork-cloud-test", version: "1.0.0" },
+              serverInfo: { name: "harness-cloud-test", version: "1.0.0" },
             }
           : rpc.method === "tools/list"
             ? { tools: (options.cloudToolNames ?? ["search_capabilities", "execute_capability"]).map((name) => ({ name, description: name, inputSchema: {} })) }
@@ -231,9 +231,9 @@ function workspace(id: string, path: string, baseUrl: string, extra?: Partial<Wo
   };
 }
 
-async function startOpenwork(workspaces: WorkspaceInfo[]): Promise<{ base: string; config: ServerConfig }> {
+async function startHarness(workspaces: WorkspaceInfo[]): Promise<{ base: string; config: ServerConfig }> {
   const runtimeRoot = await createRuntimeDbRoot();
-  process.env.OPENWORK_RUNTIME_DB = join(runtimeRoot, "runtime.sqlite");
+  process.env.HARNESS_RUNTIME_DB = join(runtimeRoot, "runtime.sqlite");
   const config: ServerConfig = {
     host: "127.0.0.1",
     port: 0,
@@ -254,7 +254,7 @@ async function startOpenwork(workspaces: WorkspaceInfo[]): Promise<{ base: strin
   const server = await startServer(config);
   stops.push(() => server.stop());
   const base = `http://127.0.0.1:${server.port}`;
-  cloudConfigsByOpenworkBase.set(base, cloudConfig(cloudUrlFromBase(workspaces[0]?.baseUrl)));
+  cloudConfigsByHarnessBase.set(base, cloudConfig(cloudUrlFromBase(workspaces[0]?.baseUrl)));
   return { base, config };
 }
 
@@ -295,7 +295,7 @@ function delivery(body: Record<string, unknown>): Record<string, unknown> {
 
 const CLOUD_CONFIG: CloudConfig = {
   type: "remote",
-  url: "https://api.openworklabs.com/mcp/agent",
+  url: "https://api.harness.invalid/mcp/agent",
   enabled: true,
   headers: { Authorization: "Bearer owt_secret_cloud_token" },
   oauth: false,
@@ -310,13 +310,13 @@ function cloudUrlFromBase(baseUrl: string | undefined): string {
   return new URL("/mcp/agent", baseUrl).toString();
 }
 
-function cloudConfigForOpenwork(base: string): CloudConfig {
-  return cloudConfigsByOpenworkBase.get(base) ?? CLOUD_CONFIG;
+function cloudConfigForHarness(base: string): CloudConfig {
+  return cloudConfigsByHarnessBase.get(base) ?? CLOUD_CONFIG;
 }
 
 async function reconcile(base: string, workspaceId = "ws_1", body: Record<string, unknown> = {}): Promise<Response> {
-  const config = body.config ?? cloudConfigsByOpenworkBase.get(base) ?? CLOUD_CONFIG;
-  return fetch(`${base}/workspace/${workspaceId}/mcp/openwork-cloud/reconcile`, {
+  const config = body.config ?? cloudConfigsByHarnessBase.get(base) ?? CLOUD_CONFIG;
+  return fetch(`${base}/workspace/${workspaceId}/mcp/harness-cloud/reconcile`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ config, ...body }),
@@ -324,16 +324,16 @@ async function reconcile(base: string, workspaceId = "ws_1", body: Record<string
 }
 
 async function getHealth(base: string, workspaceId = "ws_1", query = ""): Promise<Response> {
-  return fetch(`${base}/workspace/${workspaceId}/mcp/openwork-cloud/health${query}`, { headers: headers() });
+  return fetch(`${base}/workspace/${workspaceId}/mcp/harness-cloud/health${query}`, { headers: headers() });
 }
 
-describe("openwork-cloud MCP strict reconcile", () => {
+describe("harness-cloud MCP strict reconcile", () => {
   test("clean ready persists desired config, verifies tools, and redacts the token", async () => {
     const root = await createRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const response = await reconcile(openwork.base, "ws_1", {
+    const response = await reconcile(harness.base, "ws_1", {
       tokenMetadata: { expiresAt: "2026-07-13T00:00:00.000Z" },
       org: { id: "org_1", name: "Acme" },
       provider: "anthropic",
@@ -350,7 +350,7 @@ describe("openwork-cloud MCP strict reconcile", () => {
     expect(body.usable).toBe(true);
     expect(body.usableByCurrentModel).toBe(true);
     const tools = requireRecord(body.tools, "tools");
-    expect(requireArray(tools.present, "tools.present").sort()).toEqual([...OPENWORK_CLOUD_EXPECTED_TOOLS].sort());
+    expect(requireArray(tools.present, "tools.present").sort()).toEqual([...HARNESS_CLOUD_EXPECTED_TOOLS].sort());
     expect(requireRecord(tools.direct, "tools.direct")).toMatchObject({
       checked: true,
       present: ["search_capabilities", "execute_capability"],
@@ -366,8 +366,8 @@ describe("openwork-cloud MCP strict reconcile", () => {
     expect(requireRecord(requireRecord(body.compatibility, "compatibility").opencode, "opencode").expectedVersion).toBeTruthy();
     expect(requireRecord(requireRecord(body.compatibility, "compatibility").experimentalToolIds, "experimentalToolIds")).toMatchObject({ includesMcpTools: true });
     expect(requireRecord(requireRecord(body.compatibility, "compatibility").experimentalProviderTools, "experimentalProviderTools")).toMatchObject({ includesMcpTools: true });
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]?.url).toBe(cloudConfigForOpenwork(openwork.base).url);
-    expect((await readRuntimeOpencodeConfig(openwork.config, "ws_1")).mcp?.["openwork-cloud"]).toBeUndefined();
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]?.url).toBe(cloudConfigForHarness(harness.base).url);
+    expect((await readRuntimeOpencodeConfig(harness.config, "ws_1")).mcp?.["harness-cloud"]).toBeUndefined();
 
     const mcpPosts = mock.requests.filter((request) => request.method === "POST" && request.pathname === "/mcp");
     expect(mcpPosts.length).toBe(1);
@@ -380,7 +380,7 @@ describe("openwork-cloud MCP strict reconcile", () => {
   });
 
   test("keeps provider descriptors private while purging stale runtime endpoints", async () => {
-    process.env.OPENWORK_DEV_MODE = "1";
+    process.env.HARNESS_DEV_MODE = "1";
     const root = await createRoot();
     const connectionId = "emc_01privateapphostcatalog";
     const mockOptions: MockOpencodeOptions = {
@@ -393,35 +393,35 @@ describe("openwork-cloud MCP strict reconcile", () => {
       description: "Native MCP App fixture",
       url: `http://127.0.0.1:${mock.server.port}/mcp/agent/connections/emc_01privateapphostcatalog`,
     }];
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
-    await writeRuntimeOpencodeConfig(openwork.config, "ws_1", () => ({
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    await writeRuntimeOpencodeConfig(harness.config, "ws_1", () => ({
       mcp: {
         "user-server": { type: "remote", url: "https://user.example/mcp" },
-        "openwork-connect-stale": { type: "remote", url: "https://cloud.example/stale" },
+        "harness-connect-stale": { type: "remote", url: "https://cloud.example/stale" },
       },
     }));
 
-    const response = await reconcile(openwork.base, "ws_1", {
+    const response = await reconcile(harness.base, "ws_1", {
       appHostAuthorization: APP_HOST_AUTHORIZATION,
     });
     expect((await responseRecord(response)).phase).toBe("ready");
 
-    const runtime = await readRuntimeOpencodeConfig(openwork.config, "ws_1");
+    const runtime = await readRuntimeOpencodeConfig(harness.config, "ws_1");
     expect(runtime.mcp?.["user-server"]).toEqual({ type: "remote", url: "https://user.example/mcp" });
-    expect(runtime.mcp?.["openwork-cloud"]).toBeUndefined();
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]).toBeTruthy();
-    expect(Object.keys(runtime.mcp ?? {}).filter((name) => name.startsWith("openwork-connect-"))).toEqual([]);
-    expect((await readOpenWorkConnectMcpAppHostCatalog(openwork.config, "ws_1")).servers).toEqual([
+    expect(runtime.mcp?.["harness-cloud"]).toBeUndefined();
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]).toBeTruthy();
+    expect(Object.keys(runtime.mcp ?? {}).filter((name) => name.startsWith("harness-connect-"))).toEqual([]);
+    expect((await readHarnessConnectMcpAppHostCatalog(harness.config, "ws_1")).servers).toEqual([
       expect.objectContaining({ connectionId, name: "Private fixture provider" }),
     ]);
 
     const registrations = mock.requests.filter((request) => request.method === "POST" && request.pathname === "/mcp");
-    expect(registrations.map((request) => requireRecord(request.body, "registration").name)).toEqual(["openwork-cloud"]);
-    expect(mock.requests.some((request) => request.pathname === "/mcp/openwork-connect-stale/disconnect")).toBe(true);
+    expect(registrations.map((request) => requireRecord(request.body, "registration").name)).toEqual(["harness-cloud"]);
+    expect(mock.requests.some((request) => request.pathname === "/mcp/harness-connect-stale/disconnect")).toBe(true);
   });
 
   test("catalog refresh applies direct exposure toggles with persisted credentials and no healthy client churn", async () => {
-    process.env.OPENWORK_DEV_MODE = "1";
+    process.env.HARNESS_DEV_MODE = "1";
     const root = await createRoot();
     const mockOptions: MockOpencodeOptions = { appHostAuthorization: APP_HOST_AUTHORIZATION, trackRegistrations: true };
     const mock = startMockOpencode(mockOptions);
@@ -429,43 +429,43 @@ describe("openwork-cloud MCP strict reconcile", () => {
     const direct = { connectionId: "emc_catalogtoggle", name: "Catalog fixture", description: null,
       url: `${baseUrl}/mcp/agent/connections/emc_catalogtoggle`, exposeDirectly: false };
     mockOptions.connectServers = [direct];
-    const openwork = await startOpenwork([workspace("ws_1", root, baseUrl)]);
-    registerTrustedOpencodeProcess(openwork.config, { baseUrl, identity: "catalog-toggle", isAlive: () => true });
+    const harness = await startHarness([workspace("ws_1", root, baseUrl)]);
+    registerTrustedOpencodeProcess(harness.config, { baseUrl, identity: "catalog-toggle", isAlive: () => true });
     const local = { type: "remote", url: "https://user.example/mcp" };
-    await writeRuntimeOpencodeConfig(openwork.config, "ws_1", () => ({ mcp: { "user-server": local } }));
-    expect((await responseRecord(await reconcile(openwork.base, "ws_1", {
+    await writeRuntimeOpencodeConfig(harness.config, "ws_1", () => ({ mcp: { "user-server": local } }));
+    expect((await responseRecord(await reconcile(harness.base, "ws_1", {
       appHostAuthorization: APP_HOST_AUTHORIZATION,
     }))).usable).toBe(true);
-    const globalBefore = await readGlobalRuntimeOpencodeConfig(openwork.config);
+    const globalBefore = await readGlobalRuntimeOpencodeConfig(harness.config);
     mock.requests.length = 0;
-    const refresh = () => fetch(`${openwork.base}/workspace/ws_1/mcp/openwork-cloud/reconcile`, {
+    const refresh = () => fetch(`${harness.base}/workspace/ws_1/mcp/harness-cloud/reconcile`, {
       method: "POST", headers: headers(), body: JSON.stringify({ mode: "refresh_catalog" }),
     });
     const name = connectDirectMcpRuntimeName(direct);
     direct.exposeDirectly = true;
     expect((await responseRecord(await refresh())).connectCatalogDiagnostic).toBe("ready");
-    expect((await readRuntimeOpencodeConfig(openwork.config, "ws_1")).mcp?.[name]?.headers).toEqual(CLOUD_CONFIG.headers);
+    expect((await readRuntimeOpencodeConfig(harness.config, "ws_1")).mcp?.[name]?.headers).toEqual(CLOUD_CONFIG.headers);
     expect((await responseRecord(await refresh())).usable).toBe(true);
     direct.exposeDirectly = false;
     expect((await responseRecord(await refresh())).usable).toBe(true);
-    const runtime = await readRuntimeOpencodeConfig(openwork.config, "ws_1");
+    const runtime = await readRuntimeOpencodeConfig(harness.config, "ws_1");
     expect(runtime.mcp?.[name]).toBeUndefined();
     expect(runtime.mcp?.["user-server"]).toEqual(local);
-    expect(await readGlobalRuntimeOpencodeConfig(openwork.config)).toEqual(globalBefore);
+    expect(await readGlobalRuntimeOpencodeConfig(harness.config)).toEqual(globalBefore);
     expect(mock.requests.filter((request) => request.pathname === "/mcp" && request.method === "POST")
       .map((request) => requireRecord(request.body, "registration").name)).toEqual([name]);
     expect(mock.requests.filter((request) => request.pathname.endsWith("/disconnect"))
       .map((request) => request.pathname)).toEqual([`/mcp/${name}/disconnect`]);
     expect(mock.requests.filter((request) => isRecord(request.body) && request.body.method === "resources/read")).toHaveLength(3);
     expect(JSON.stringify(runtime)).not.toContain(APP_HOST_AUTHORIZATION);
-    const rejected = await fetch(`${openwork.base}/workspace/ws_1/mcp/openwork-cloud/reconcile`, {
+    const rejected = await fetch(`${harness.base}/workspace/ws_1/mcp/harness-cloud/reconcile`, {
       method: "POST", headers: headers(), body: JSON.stringify({ mode: "refresh_catalog", config: CLOUD_CONFIG }),
     });
     expect(rejected.status).toBe(400);
   });
 
   test("central reconcile waits for root but not direct registration", async () => {
-    process.env.OPENWORK_DEV_MODE = "1";
+    process.env.HARNESS_DEV_MODE = "1";
     const root = await createRoot();
     const rootGate = Promise.withResolvers<void>();
     const directGate = Promise.withResolvers<void>();
@@ -478,7 +478,7 @@ describe("openwork-cloud MCP strict reconcile", () => {
       appHostAuthorization: APP_HOST_AUTHORIZATION,
       trackRegistrations: true,
       beforeRegistration: async (name) => {
-        if (name === "openwork-cloud") {
+        if (name === "harness-cloud") {
           rootObserved.resolve();
           await rootGate.promise;
           return undefined;
@@ -493,11 +493,11 @@ describe("openwork-cloud MCP strict reconcile", () => {
     const direct = { connectionId: "emc_heldregistration", name: "Held fixture", description: null,
       url: `${baseUrl}/mcp/agent/connections/emc_heldregistration`, exposeDirectly: true };
     mockOptions.connectServers = [direct];
-    const openwork = await startOpenwork([workspace("ws_1", root, baseUrl)]);
-    registerTrustedOpencodeProcess(openwork.config, { baseUrl, identity: "held-registration", isAlive: () => true });
+    const harness = await startHarness([workspace("ws_1", root, baseUrl)]);
+    registerTrustedOpencodeProcess(harness.config, { baseUrl, identity: "held-registration", isAlive: () => true });
     const name = connectDirectMcpRuntimeName(direct);
     let completed = false;
-    const pending = reconcile(openwork.base, "ws_1", { appHostAuthorization: APP_HOST_AUTHORIZATION })
+    const pending = reconcile(harness.base, "ws_1", { appHostAuthorization: APP_HOST_AUTHORIZATION })
       .then(async (response) => {
         const body = await responseRecord(response);
         completed = true;
@@ -514,9 +514,9 @@ describe("openwork-cloud MCP strict reconcile", () => {
       expect(body).toMatchObject({ usable: true, phase: "ready" });
       expect(mock.requests.some((request) => request.pathname === "/mcp" && request.method === "POST"
         && isRecord(request.body) && request.body.name === name)).toBe(true);
-      const directConfig = (await readRuntimeOpencodeConfig(openwork.config, "ws_1")).mcp?.[name];
+      const directConfig = (await readRuntimeOpencodeConfig(harness.config, "ws_1")).mcp?.[name];
       if (!directConfig) throw new Error("Direct runtime config missing");
-      const status = () => inspectEngineMcpRegistration(openwork.config, openwork.config.workspaces[0]!, name, directConfig);
+      const status = () => inspectEngineMcpRegistration(harness.config, harness.config.workspaces[0]!, name, directConfig);
       expect(status()).not.toBe("connected");
       directGate.resolve();
       const deadline = Date.now() + 1000;
@@ -538,25 +538,25 @@ describe("openwork-cloud MCP strict reconcile", () => {
     // post-registration health read failed, then heal on the next read.
     const mock = startMockOpencode({ connectAfterStatusReads: 3 });
     const baseUrl = `http://127.0.0.1:${mock.server.port}`;
-    const openwork = await startOpenwork([workspace("ws_1", root, baseUrl)]);
-    registerTrustedOpencodeProcess(openwork.config, {
+    const harness = await startHarness([workspace("ws_1", root, baseUrl)]);
+    registerTrustedOpencodeProcess(harness.config, {
       baseUrl,
       identity: "cloud-reconcile-live-heal",
       isAlive: () => true,
     });
 
-    const response = await reconcile(openwork.base);
+    const response = await reconcile(harness.base);
     const body = await responseRecord(response);
     expect(response.status).toBe(200);
     expect(firstFailure(body).code).toBe("opencode_mcp_sync_failed");
     expect(inspectEngineMcpRegistration(
-      openwork.config,
-      openwork.config.workspaces[0]!,
-      "openwork-cloud",
-      cloudConfigForOpenwork(openwork.base),
+      harness.config,
+      harness.config.workspaces[0]!,
+      "harness-cloud",
+      cloudConfigForHarness(harness.base),
     )).toBe("connected");
 
-    const health = await responseRecord(await getHealth(openwork.base));
+    const health = await responseRecord(await getHealth(harness.base));
     expect(health.phase).toBe("ready");
     expect(health.usable).toBe(true);
     expect(mock.requests.filter((request) => request.method === "POST" && request.pathname === "/mcp").length).toBe(1);
@@ -565,74 +565,74 @@ describe("openwork-cloud MCP strict reconcile", () => {
   test("rejects malformed desired config without persisting or registering it", async () => {
     const root = await createRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
     const cases: Array<{ config: Record<string, unknown>; code: string }> = [
-      { config: { ...CLOUD_CONFIG, url: "https://api.openworklabs.com/mcp" }, code: "cloud_endpoint_invalid" },
+      { config: { ...CLOUD_CONFIG, url: "https://api.harness.invalid/mcp" }, code: "cloud_endpoint_invalid" },
       { config: { ...CLOUD_CONFIG, enabled: false }, code: "cloud_mcp_disabled" },
       { config: { ...CLOUD_CONFIG, headers: {} }, code: "invalid_mcp_token" },
       { config: { ...CLOUD_CONFIG, oauth: {} }, code: "invalid_mcp_token" },
     ];
 
     for (const item of cases) {
-      const body = await responseRecord(await reconcile(openwork.base, "ws_1", { config: item.config }));
+      const body = await responseRecord(await reconcile(harness.base, "ws_1", { config: item.config }));
       expect(firstFailure(body).code).toBe(item.code);
       expect(firstFailure(body).stage).toBe("desired_config");
     }
 
-    const mismatch = await responseRecord(await reconcile(openwork.base, "ws_1", {
+    const mismatch = await responseRecord(await reconcile(harness.base, "ws_1", {
       tokenMetadata: { organizationId: "org_token" },
       org: { id: "org_active" },
     }));
     expect(firstFailure(mismatch).code).toBe("cloud_token_org_mismatch");
     expect(firstFailure(mismatch).stage).toBe("desired_config");
 
-    expect((await readRuntimeOpencodeConfig(openwork.config, "ws_1")).mcp?.["openwork-cloud"]).toBeUndefined();
+    expect((await readRuntimeOpencodeConfig(harness.config, "ws_1")).mcp?.["harness-cloud"]).toBeUndefined();
     expect(mock.requests.some((request) => request.method === "POST" && request.pathname === "/mcp")).toBe(false);
   });
 
   test("a collaborator token cannot globally persist an untrusted Cloud MCP endpoint", async () => {
     const root = await createRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
     // The primary client token is collaborator-scoped. The desired config is
     // account-global, so persisting a non-built-in, non-enterprise, non-loopback
     // endpoint must require the owner: a collaborator on one shared workspace
     // must not be able to redirect Connect for every workspace on this server.
-    const response = await reconcile(openwork.base, "ws_1", {
+    const response = await reconcile(harness.base, "ws_1", {
       config: { ...CLOUD_CONFIG, url: "https://evil.example/mcp/agent" },
     });
     expect(response.status).toBe(403);
 
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]).toBeUndefined();
-    expect((await readRuntimeOpencodeConfig(openwork.config, "ws_1")).mcp?.["openwork-cloud"]).toBeUndefined();
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]).toBeUndefined();
+    expect((await readRuntimeOpencodeConfig(harness.config, "ws_1")).mcp?.["harness-cloud"]).toBeUndefined();
     expect(mock.requests.some((request) => request.method === "POST" && request.pathname === "/mcp")).toBe(false);
   });
 
   test("normalizes a harmless trailing slash on the Cloud MCP endpoint", async () => {
     const root = await createRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
     const url = `http://127.0.0.1:${mock.server.port}/api/den/mcp/agent/`;
 
-    const body = await responseRecord(await reconcile(openwork.base, "ws_1", {
+    const body = await responseRecord(await reconcile(harness.base, "ws_1", {
       config: { ...CLOUD_CONFIG, url },
     }));
     expect(body.phase).toBe("ready");
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]?.url).toBe(url.slice(0, -1));
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]?.url).toBe(url.slice(0, -1));
   });
 
   test("GET health reports persisted malformed desired config even when the engine looks live", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
-    await writeRuntimeOpencodeConfig(openwork.config, "ws_1", (current) => ({
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    await writeRuntimeOpencodeConfig(harness.config, "ws_1", (current) => ({
       ...current,
-      mcp: { "openwork-cloud": { ...CLOUD_CONFIG, url: "https://api.openworklabs.com/mcp" } },
+      mcp: { "harness-cloud": { ...CLOUD_CONFIG, url: "https://api.harness.invalid/mcp" } },
     }));
 
-    const body = await responseRecord(await getHealth(openwork.base));
+    const body = await responseRecord(await getHealth(harness.base));
     expect(body.usable).toBe(false);
     expect(firstFailure(body).code).toBe("cloud_endpoint_invalid");
     expect(firstFailure(body).stage).toBe("desired_config");
@@ -641,13 +641,13 @@ describe("openwork-cloud MCP strict reconcile", () => {
   test("GET health safely adopts a live exact match before reporting ready", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
-    await writeRuntimeOpencodeConfig(openwork.config, "ws_1", (current) => ({
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    await writeRuntimeOpencodeConfig(harness.config, "ws_1", (current) => ({
       ...current,
-      mcp: { "openwork-cloud": cloudConfigForOpenwork(openwork.base) },
+      mcp: { "harness-cloud": cloudConfigForHarness(harness.base) },
     }));
 
-    const body = await responseRecord(await getHealth(openwork.base));
+    const body = await responseRecord(await getHealth(harness.base));
     expect(body.phase).toBe("ready");
     expect(body.usable).toBe(true);
     expect(delivery(body).appliedRevision).toBe(delivery(body).desiredRevision);
@@ -656,65 +656,65 @@ describe("openwork-cloud MCP strict reconcile", () => {
   test("GET health runs the direct Cloud endpoint probe only when requested", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
-    await writeRuntimeOpencodeConfig(openwork.config, "ws_1", (current) => ({
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    await writeRuntimeOpencodeConfig(harness.config, "ws_1", (current) => ({
       ...current,
-      mcp: { "openwork-cloud": cloudConfigForOpenwork(openwork.base) },
+      mcp: { "harness-cloud": cloudConfigForHarness(harness.base) },
     }));
 
-    const defaultBody = await responseRecord(await getHealth(openwork.base));
+    const defaultBody = await responseRecord(await getHealth(harness.base));
     expect(defaultBody.phase).toBe("ready");
     expect(mock.requests.filter((request) => request.pathname.endsWith("/mcp/agent")).length).toBe(0);
 
-    const probedBody = await responseRecord(await getHealth(openwork.base, "ws_1", "?probe=1"));
+    const probedBody = await responseRecord(await getHealth(harness.base, "ws_1", "?probe=1"));
     expect(probedBody.phase).toBe("ready");
     expect(mock.requests.filter((request) => request.pathname.endsWith("/mcp/agent")).length).toBeGreaterThan(0);
   });
 
   test("health probe timeout is bounded", async () => {
-    const previousTimeout = process.env.OPENWORK_CLOUD_MCP_PROBE_TIMEOUT_MS;
-    process.env.OPENWORK_CLOUD_MCP_PROBE_TIMEOUT_MS = "25";
+    const previousTimeout = process.env.HARNESS_CLOUD_MCP_PROBE_TIMEOUT_MS;
+    process.env.HARNESS_CLOUD_MCP_PROBE_TIMEOUT_MS = "25";
     try {
       const root = await createRoot();
       const mock = startMockOpencode({ initialConnected: true, delayMcpStatusMs: 100 });
-      const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
-      await writeRuntimeOpencodeConfig(openwork.config, "ws_1", (current) => ({
+      const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+      await writeRuntimeOpencodeConfig(harness.config, "ws_1", (current) => ({
         ...current,
-        mcp: { "openwork-cloud": cloudConfigForOpenwork(openwork.base) },
+        mcp: { "harness-cloud": cloudConfigForHarness(harness.base) },
       }));
 
-      const body = await responseRecord(await getHealth(openwork.base));
+      const body = await responseRecord(await getHealth(harness.base));
       expect(body.usable).toBe(false);
       expect(firstFailure(body).code).toBe("opencode_engine_unreachable");
     } finally {
-      if (previousTimeout === undefined) delete process.env.OPENWORK_CLOUD_MCP_PROBE_TIMEOUT_MS;
-      else process.env.OPENWORK_CLOUD_MCP_PROBE_TIMEOUT_MS = previousTimeout;
+      if (previousTimeout === undefined) delete process.env.HARNESS_CLOUD_MCP_PROBE_TIMEOUT_MS;
+      else process.env.HARNESS_CLOUD_MCP_PROBE_TIMEOUT_MS = previousTimeout;
     }
   });
 
   test("unreachable engine leaves desired config persisted but not applied", async () => {
     const root = await createRoot();
-    const openwork = await startOpenwork([workspace("ws_1", root, "http://127.0.0.1:9")]);
+    const harness = await startHarness([workspace("ws_1", root, "http://127.0.0.1:9")]);
 
-    const response = await reconcile(openwork.base);
+    const response = await reconcile(harness.base);
     const body = await responseRecord(response);
     expect(response.status).toBe(200);
     expect(firstFailure(body).code).toBe("opencode_mcp_sync_failed");
     expect(delivery(body).appliedRevision).toBeNull();
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]?.url).toBe(cloudConfigForOpenwork(openwork.base).url);
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]?.url).toBe(cloudConfigForHarness(harness.base).url);
   });
 
   test("uses the exact secondary workspace directory", async () => {
-    const rootA = await createRoot("openwork-cloud-primary-");
-    const rootB = await createRoot("openwork-cloud-secondary-");
+    const rootA = await createRoot("harness-cloud-primary-");
+    const rootB = await createRoot("harness-cloud-secondary-");
     const mock = startMockOpencode();
     const baseUrl = `http://127.0.0.1:${mock.server.port}`;
-    const openwork = await startOpenwork([
+    const harness = await startHarness([
       workspace("ws_1", rootA, baseUrl),
       workspace("ws_2", rootB, baseUrl),
     ]);
 
-    const response = await reconcile(openwork.base, "ws_2");
+    const response = await reconcile(harness.base, "ws_2");
     const body = await responseRecord(response);
     expect(body.phase).toBe("ready");
     const post = mock.requests.find((request) => request.method === "POST"
@@ -727,26 +727,26 @@ describe("openwork-cloud MCP strict reconcile", () => {
   });
 
   test("removes global desired state and disconnects every workspace directory", async () => {
-    const rootA = await createRoot("openwork-cloud-remove-a-");
-    const rootB = await createRoot("openwork-cloud-remove-b-");
+    const rootA = await createRoot("harness-cloud-remove-a-");
+    const rootB = await createRoot("harness-cloud-remove-b-");
     const mock = startMockOpencode();
     const baseUrl = `http://127.0.0.1:${mock.server.port}`;
-    const openwork = await startOpenwork([
+    const harness = await startHarness([
       workspace("ws_1", rootA, baseUrl),
       workspace("ws_2", rootB, baseUrl),
     ]);
-    expect((await responseRecord(await reconcile(openwork.base))).phase).toBe("ready");
+    expect((await responseRecord(await reconcile(harness.base))).phase).toBe("ready");
     const disconnectsBeforeRemoval = mock.requests
-      .filter((request) => request.pathname === "/mcp/openwork-cloud/disconnect").length;
+      .filter((request) => request.pathname === "/mcp/harness-cloud/disconnect").length;
 
-    const removed = await fetch(`${openwork.base}/workspace/ws_1/mcp/openwork-cloud`, {
+    const removed = await fetch(`${harness.base}/workspace/ws_1/mcp/harness-cloud`, {
       method: "DELETE",
       headers: headers(),
     });
     expect(removed.status).toBe(200);
-    expect((await readGlobalRuntimeOpencodeConfig(openwork.config)).mcp?.["openwork-cloud"]).toBeUndefined();
+    expect((await readGlobalRuntimeOpencodeConfig(harness.config)).mcp?.["harness-cloud"]).toBeUndefined();
     const disconnectDirectories = mock.requests
-      .filter((request) => request.pathname === "/mcp/openwork-cloud/disconnect")
+      .filter((request) => request.pathname === "/mcp/harness-cloud/disconnect")
       .slice(disconnectsBeforeRemoval)
       .map((request) => new URLSearchParams(request.search).get("directory"))
       .sort();
@@ -758,12 +758,12 @@ describe("openwork-cloud MCP strict reconcile", () => {
     const explicitDirectory = join(root, "remote-project");
     const mock = startMockOpencode();
     const baseUrl = `http://127.0.0.1:${mock.server.port}`;
-    const openwork = await startOpenwork([
+    const harness = await startHarness([
       workspace("ws_remote", root, baseUrl, { workspaceType: "remote", directory: explicitDirectory }),
       workspace("ws_ambiguous", root, baseUrl, { workspaceType: "remote" }),
     ]);
 
-    const ready = await reconcile(openwork.base, "ws_remote");
+    const ready = await reconcile(harness.base, "ws_remote");
     expect((await responseRecord(ready)).phase).toBe("ready");
     expectDirectoryQuery(mock.requests.find((request) => request.method === "POST"
       && request.pathname === "/mcp"
@@ -772,7 +772,7 @@ describe("openwork-cloud MCP strict reconcile", () => {
     const catalogReadsBeforeAmbiguous = mock.requests.filter((request) => (
       isRecord(request.body) && request.body.method === "resources/read"
     )).length;
-    const ambiguous = await reconcile(openwork.base, "ws_ambiguous");
+    const ambiguous = await reconcile(harness.base, "ws_ambiguous");
     const body = await responseRecord(ambiguous);
     expect(firstFailure(body).code).toBe("workspace_directory_ambiguous");
     expect(delivery(body).appliedRevision).toBeNull();
@@ -784,9 +784,9 @@ describe("openwork-cloud MCP strict reconcile", () => {
   test("connected engine with direct Cloud endpoint missing a tool reports cloud_tools_missing without re-registering", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ cloudToolNames: ["search_capabilities"] });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base));
+    const body = await responseRecord(await reconcile(harness.base));
     expect(firstFailure(body).code).toBe("cloud_tools_missing");
     expect(requireRecord(requireRecord(body.tools, "tools").direct, "direct").missing).toEqual(["execute_capability"]);
     expect(requireArray(requireRecord(body.tools, "tools").present, "tools.present")).toEqual([]);
@@ -796,13 +796,13 @@ describe("openwork-cloud MCP strict reconcile", () => {
   test("current OpenCode engines that exclude MCP tool IDs use direct tools/list plus provider capability", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({
-      toolIds: [...OPENWORK_CLOUD_PLUGIN_CANARIES],
-      providerToolIds: [...OPENWORK_CLOUD_PLUGIN_CANARIES],
+      toolIds: [...HARNESS_CLOUD_PLUGIN_CANARIES],
+      providerToolIds: [...HARNESS_CLOUD_PLUGIN_CANARIES],
       cloudToolsAsSse: true,
     });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base, "ws_1", { provider: "anthropic", model: "claude" }));
+    const body = await responseRecord(await reconcile(harness.base, "ws_1", { provider: "anthropic", model: "claude" }));
     expect(body.phase).toBe("ready");
     expect(body.usable).toBe(true);
     expect(body.usableByCurrentModel).toBe(true);
@@ -812,28 +812,28 @@ describe("openwork-cloud MCP strict reconcile", () => {
       source: "provider_capability",
       modelExists: true,
       toolCalling: true,
-      missing: [...OPENWORK_CLOUD_EXPECTED_TOOLS],
+      missing: [...HARNESS_CLOUD_EXPECTED_TOOLS],
     });
-    expect(requireArray(requireRecord(body.tools, "tools").present, "tools.present").sort()).toEqual([...OPENWORK_CLOUD_EXPECTED_TOOLS].sort());
+    expect(requireArray(requireRecord(body.tools, "tools").present, "tools.present").sort()).toEqual([...HARNESS_CLOUD_EXPECTED_TOOLS].sort());
   });
 
   test("reports provider projection missing when fallback provider model lacks tool calling", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({
-      toolIds: [...OPENWORK_CLOUD_PLUGIN_CANARIES],
-      providerToolIds: [...OPENWORK_CLOUD_PLUGIN_CANARIES],
+      toolIds: [...HARNESS_CLOUD_PLUGIN_CANARIES],
+      providerToolIds: [...HARNESS_CLOUD_PLUGIN_CANARIES],
       providerToolCalling: false,
     });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base, "ws_1", { provider: "anthropic", model: "claude" }));
+    const body = await responseRecord(await reconcile(harness.base, "ws_1", { provider: "anthropic", model: "claude" }));
     expect(firstFailure(body).code).toBe("provider_tool_projection_missing");
-    expect(firstFailure(body).recommendedAction).toBe("Choose a model that can use OpenWork Cloud tools");
+    expect(firstFailure(body).recommendedAction).toBe("Choose a model that can use Harness Cloud tools");
     expect(requireRecord(requireRecord(body.tools, "tools").providerProjection, "projection")).toMatchObject({
       source: "provider_capability",
       modelExists: true,
       toolCalling: false,
-      missing: [...OPENWORK_CLOUD_EXPECTED_TOOLS],
+      missing: [...HARNESS_CLOUD_EXPECTED_TOOLS],
     });
   });
 
@@ -843,13 +843,13 @@ describe("openwork-cloud MCP strict reconcile", () => {
       // Global IDs include Cloud MCP tools…
       toolIds: allReadyToolIds(),
       // …but the per-model experimental list does not (OpenCode ToolRegistry quirk).
-      providerToolIds: [...OPENWORK_CLOUD_PLUGIN_CANARIES],
+      providerToolIds: [...HARNESS_CLOUD_PLUGIN_CANARIES],
       providerToolCalling: true,
       cloudToolsAsSse: true,
     });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base, "ws_1", { provider: "anthropic", model: "claude" }));
+    const body = await responseRecord(await reconcile(harness.base, "ws_1", { provider: "anthropic", model: "claude" }));
     expect(body.phase).toBe("ready");
     expect(body.usable).toBe(true);
     expect(body.usableByCurrentModel).toBe(true);
@@ -865,35 +865,35 @@ describe("openwork-cloud MCP strict reconcile", () => {
 
   test("reports extension canary missing when docs canary is present but extension canary is absent", async () => {
     const root = await createRoot();
-    const mock = startMockOpencode({ toolIds: [...OPENWORK_CLOUD_EXPECTED_TOOLS, "openwork_docs_search"] });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const mock = startMockOpencode({ toolIds: [...HARNESS_CLOUD_EXPECTED_TOOLS, "harness_docs_search"] });
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base));
+    const body = await responseRecord(await reconcile(harness.base));
     expect(firstFailure(body).code).toBe("extensions_plugin_missing");
-    expect(requireArray(requireRecord(body.pluginCanaries, "pluginCanaries").missing, "missing")).toContain("openwork_query");
+    expect(requireArray(requireRecord(body.pluginCanaries, "pluginCanaries").missing, "missing")).toContain("harness_query");
   });
 
-  test("old engines without tool.ids return Update OpenWork guidance", async () => {
+  test("old engines without tool.ids return Update Harness guidance", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ unsupportedToolIds: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base));
+    const body = await responseRecord(await reconcile(harness.base));
     expect(firstFailure(body).code).toBe("opencode_tool_ids_unsupported");
-    expect(firstFailure(body).recommendedAction).toBe("Update OpenWork");
+    expect(firstFailure(body).recommendedAction).toBe("Update Harness");
   });
 
   test("health detects project tool denies while generic MCP add remains best-effort", async () => {
     const root = await createRoot();
-    await writeFile(join(root, "opencode.jsonc"), JSON.stringify({ tools: { deny: ["openwork-cloud_*"] } }), "utf8");
+    await writeFile(join(root, "opencode.jsonc"), JSON.stringify({ tools: { deny: ["harness-cloud_*"] } }), "utf8");
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const strictBody = await responseRecord(await reconcile(openwork.base));
+    const strictBody = await responseRecord(await reconcile(harness.base));
     expect(firstFailure(strictBody).code).toBe("cloud_tools_denied");
     expect(requireArray(strictBody.toolDenies, "toolDenies").length).toBeGreaterThan(0);
 
-    const generic = await fetch(`${openwork.base}/workspace/ws_1/mcp`, {
+    const generic = await fetch(`${harness.base}/workspace/ws_1/mcp`, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify({ name: "posthog", config: { type: "remote", url: "https://mcp.posthog.com/mcp", enabled: true } }),
@@ -905,24 +905,24 @@ describe("openwork-cloud MCP strict reconcile", () => {
 });
 
 async function engineRefresh(base: string, workspaceId = "ws_1", body?: Record<string, unknown>): Promise<Response> {
-  return fetch(`${base}/workspace/${workspaceId}/mcp/openwork-cloud/engine-refresh`, {
+  return fetch(`${base}/workspace/${workspaceId}/mcp/harness-cloud/engine-refresh`, {
     method: "POST",
     headers: headers(),
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 }
 
-describe("openwork-cloud MCP engine refresh", () => {
+describe("harness-cloud MCP engine refresh", () => {
   test("disconnects the engine client, re-registers, and returns ordered refresh steps with probed health", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const seeded = await reconcile(openwork.base, "ws_1", { trigger: "seed" });
+    const seeded = await reconcile(harness.base, "ws_1", { trigger: "seed" });
     expect(seeded.status).toBe(200);
     const registersBeforeRefresh = mock.requests.filter((request) => request.pathname === "/mcp" && request.method === "POST").length;
 
-    const response = await engineRefresh(openwork.base, "ws_1", { trigger: "support-call" });
+    const response = await engineRefresh(harness.base, "ws_1", { trigger: "support-call" });
     expect(response.status).toBe(200);
     const body = await responseRecord(response);
 
@@ -939,7 +939,7 @@ describe("openwork-cloud MCP engine refresh", () => {
     expect(health.usable).toBe(true);
     expect(delivery(health).state).toBe("ready");
 
-    const disconnects = mock.requests.filter((request) => request.pathname === "/mcp/openwork-cloud/disconnect");
+    const disconnects = mock.requests.filter((request) => request.pathname === "/mcp/harness-cloud/disconnect");
     expect(disconnects).toHaveLength(1);
     expectDirectoryQuery(disconnects[0]?.search, root);
     const registersAfterRefresh = mock.requests.filter((request) => request.pathname === "/mcp" && request.method === "POST").length;
@@ -949,9 +949,9 @@ describe("openwork-cloud MCP engine refresh", () => {
   test("reports desired_missing without touching the engine when no config is persisted", async () => {
     const root = await createRoot();
     const mock = startMockOpencode();
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const response = await engineRefresh(openwork.base);
+    const response = await engineRefresh(harness.base);
     expect(response.status).toBe(200);
     const body = await responseRecord(response);
 
@@ -960,22 +960,22 @@ describe("openwork-cloud MCP engine refresh", () => {
     expect(refresh.reason).toBe("desired_missing");
     expect(requireArray(refresh.steps, "refresh.steps")).toHaveLength(0);
     expect(requireRecord(body.health, "health").usable).toBe(false);
-    expect(mock.requests.filter((request) => request.pathname === "/mcp/openwork-cloud/disconnect")).toHaveLength(0);
+    expect(mock.requests.filter((request) => request.pathname === "/mcp/harness-cloud/disconnect")).toHaveLength(0);
   });
 
   test("rejects malformed JSON on engine refresh instead of silently ignoring it", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const response = await fetch(`${openwork.base}/workspace/ws_1/mcp/openwork-cloud/engine-refresh`, {
+    const response = await fetch(`${harness.base}/workspace/ws_1/mcp/harness-cloud/engine-refresh`, {
       method: "POST",
       headers: headers(),
       body: "not-json",
     });
     expect(response.status).toBe(400);
     expect((await responseRecord(response)).code).toBe("invalid_json");
-    expect(mock.requests.filter((request) => request.pathname === "/mcp/openwork-cloud/disconnect")).toHaveLength(0);
+    expect(mock.requests.filter((request) => request.pathname === "/mcp/harness-cloud/disconnect")).toHaveLength(0);
   });
 
   test("richer engine cert/TLS error strings stay classified as connection failures, not token problems", async () => {
@@ -983,35 +983,35 @@ describe("openwork-cloud MCP engine refresh", () => {
     const mock = startMockOpencode({
       cloudFailedError: "fetch failed; caused by: certificate has expired (CERT_HAS_EXPIRED)",
     });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base));
+    const body = await responseRecord(await reconcile(harness.base));
     const failure = firstFailure(body);
     // A transport/cert failure must never be classified as an expired token:
-    // "Reconnect OpenWork Cloud" cannot repair a broken TLS path.
+    // "Reconnect Harness Cloud" cannot repair a broken TLS path.
     expect(failure.code).toBe("opencode_mcp_sync_failed");
-    expect(failure.recommendedAction).toBe("Retry reconcile or reconnect OpenWork Cloud");
+    expect(failure.recommendedAction).toBe("Retry reconcile or reconnect Harness Cloud");
   });
 
   test("token-expired engine errors keep their token classification", async () => {
     const root = await createRoot();
-    const mock = startMockOpencode({ cloudFailedError: "openwork-cloud bearer token expired" });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const mock = startMockOpencode({ cloudFailedError: "harness-cloud bearer token expired" });
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const body = await responseRecord(await reconcile(openwork.base));
+    const body = await responseRecord(await reconcile(harness.base));
     expect(firstFailure(body).code).toBe("invalid_mcp_token");
   });
 
   test("keeps step-level failure detail when the engine goes down between seed and refresh", async () => {
     const root = await createRoot();
     const mock = startMockOpencode({ initialConnected: true });
-    const openwork = await startOpenwork([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
+    const harness = await startHarness([workspace("ws_1", root, `http://127.0.0.1:${mock.server.port}`)]);
 
-    const seeded = await reconcile(openwork.base, "ws_1", { trigger: "seed" });
+    const seeded = await reconcile(harness.base, "ws_1", { trigger: "seed" });
     expect(seeded.status).toBe(200);
     mock.server.stop(true);
 
-    const response = await engineRefresh(openwork.base, "ws_1", { trigger: "engine-down" });
+    const response = await engineRefresh(harness.base, "ws_1", { trigger: "engine-down" });
     expect(response.status).toBe(200);
     const body = await responseRecord(response);
 

@@ -74,7 +74,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REVIEW_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
       REVIEW_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
-      OPENWORK_REVIEW_URL: ${{ vars.OPENWORK_REVIEW_URL }}
+      HARNESS_REVIEW_URL: ${{ vars.HARNESS_REVIEW_URL }}
     outputs:
       state: ${{ steps.receipt.outputs.state }}
     steps:
@@ -90,14 +90,14 @@ jobs:
       - uses: pnpm/action-setup@v4
       - name: Install trusted publisher dependencies
         run: |
-          pnpm --filter @openwork/review... install --frozen-lockfile --ignore-scripts
-          pnpm --dir evals --filter @openwork/test-artifacts install --frozen-lockfile --ignore-scripts
+          pnpm --filter @harness/review... install --frozen-lockfile --ignore-scripts
+          pnpm --dir evals --filter @harness/test-artifacts install --frozen-lockfile --ignore-scripts
       - name: Publish only live PR proof evidence
         env:
           GH_TOKEN: ${{ github.token }}
           EVIDENCE_RECEIPT_PATH: ${{ runner.temp }}/evidence-publication.json
-          BLOB_READ_WRITE_TOKEN: ${{ secrets.OPENWORK_REVIEW_BLOB_TOKEN }}
-          OPENWORK_REVIEW_URL: ${{ vars.OPENWORK_REVIEW_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.HARNESS_REVIEW_BLOB_TOKEN }}
+          HARNESS_REVIEW_URL: ${{ vars.HARNESS_REVIEW_URL }}
           REVIEW_RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
           REVIEW_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
         run: node evals/scripts/publish-review.mjs
@@ -146,11 +146,11 @@ jobs:
           node-version: 24
       - uses: pnpm/action-setup@v4
       - name: Install the Freestyle controller only
-        run: pnpm --filter @openwork/freestyle... install --frozen-lockfile --ignore-scripts
+        run: pnpm --filter @harness/freestyle... install --frozen-lockfile --ignore-scripts
       - name: Build this commit's sandbox snapshot
         env:
           FREESTYLE_API_KEY: ${{ secrets.FREESTYLE_API_KEY }}
-          OPENWORK_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
+          HARNESS_PREVIEW_GITHUB_TOKEN: ${{ github.token }}
           PREVIEW_SHA: ${{ github.event.workflow_run.head_sha }}
           PREVIEW_WORLD: ${{ matrix.world }}
         run: node scripts/prepare-freestyle-preview.ts "$PREVIEW_SHA" "$PREVIEW_WORLD"

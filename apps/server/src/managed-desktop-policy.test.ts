@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { managedDesktopPolicy } from "./managed-desktop-policy.js";
 import { executionRules, legacyExecutionPermissions, managedPolicyActionSchema } from "./managed-policy-rules.js";
 import type { ServerConfig } from "./types.js";
-import type { DesktopExecutionPolicy } from "@openwork/types/den/desktop-policies";
+import type { DesktopExecutionPolicy } from "@harness/types/den/desktop-policies";
 
 const config: ServerConfig = {
   host: "127.0.0.1", port: 0, token: "test", hostToken: "test",

@@ -9,7 +9,7 @@ import { classifyScriptReceipt, main, parseWorldArgs } from "../src/cli.ts";
 import { computeInvocationHash, computeLocalSourceHash } from "../src/script-world.ts";
 
 test("env parser rejects likely secrets and preserves the script argument boundary", () => {
-  for (const key of ["TOKEN", "my_secret", "PASSWORD", "API_KEY", "CREDENTIAL", "AUTHORIZATION", "COOKIE", "OPENWORK_WORLD_PLACE"]) {
+  for (const key of ["TOKEN", "my_secret", "PASSWORD", "API_KEY", "CREDENTIAL", "AUTHORIZATION", "COOKIE", "HARNESS_WORLD_PLACE"]) {
     assert.equal(parseWorldArgs(["up", "app-web", "--env", key]).kind, "help");
   }
   assert.deepEqual(parseWorldArgs(["up", "app-web", "--env", "APP_MODE", "--place", "local", "--", "--env", "SCRIPT_ARG"]), {
@@ -25,7 +25,7 @@ test("env parser rejects likely secrets and preserves the script argument bounda
 
 test("legacy receipt adoption requires unchanged recipe and default local invocation; plan does not verify new identities", async () => {
   const root = await mkdtemp(join(tmpdir(), "world-legacy-review-"));
-  const previous = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
+  const previous = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
   const path = join(root, "probe.json");
   const recipe = join(root, "probe.ts");
   const snapshot = { version: 2, kind: "script", name: "probe", createdAt: "now", pid: process.pid, sourcePath: recipe, recipeHash: "same", outputs: {} };
@@ -41,14 +41,14 @@ test("legacy receipt adoption requires unchanged recipe and default local invoca
     await writeFile(recipe, "export {};");
     const { computeRecipeHash } = await import("../src/script-world.ts");
     await writeFile(path, JSON.stringify({ ...snapshot, recipeHash: await computeRecipeHash(recipe), invocationHash: "recorded" }));
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = root;
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = root;
     const lines: string[] = [];
     assert.equal(await main(["plan", recipe], { cwd: root, worldsDirectory: root, print: (line) => lines.push(line) }), 0);
     assert.match(lines.join("\n"), /invocation unverified/);
     assert.doesNotMatch(lines.join("\n"), /attachable/);
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previous;
+    if (previous === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previous;
     await rm(root, { recursive: true, force: true });
   }
 });
@@ -56,9 +56,9 @@ test("legacy receipt adoption requires unchanged recipe and default local invoca
 test("outputs mask secrets unless reveal is explicitly requested in text or JSON", async () => {
   const privateUrl = new URL(["https:", "", ["private", "example", "test"].join(".")].join("/")).origin;
   const root = await mkdtemp(join(tmpdir(), "world-outputs-review-"));
-  const previous = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
+  const previous = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
   try {
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR = root;
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR = root;
     await writeFile(join(root, "probe.json"), JSON.stringify({ version: 2, kind: "script", name: "probe", createdAt: "now", pid: process.pid,
       sourcePath: "probe.ts", outputs: { webUrl: privateUrl, placement: "daytona" }, outputMeta: { webUrl: { secret: true } } }));
     for (const json of [false, true]) {
@@ -77,8 +77,8 @@ test("outputs mask secrets unless reveal is explicitly requested in text or JSON
       }
     }
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previous;
+    if (previous === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previous;
     await rm(root, { recursive: true, force: true });
   }
 });

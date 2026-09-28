@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { inflateSync } from "node:zlib";
-import type { Surface } from "@openwork/cdp";
+import type { Surface } from "@harness/cdp";
 import { browserScriptValue, runBrowserHost } from "./browser-task.ts";
 
 const page = `<!doctype html><meta charset="utf-8"><title>Browser task fixture</title>
@@ -43,7 +43,7 @@ if(location.pathname!='/fallback'){
     const getTools=document.modelContext.getTools.bind(document.modelContext);
     document.modelContext.getTools=async(...args)=>{
       const tools=await getTools(...args);
-      const pending=window[Symbol.for('openwork.webmcp.pending-executions')];
+      const pending=window[Symbol.for('harness.webmcp.pending-executions')];
       const executing=pending instanceof Map&&pending.size>0;
       const {delayed}=await(await fetch('/discovery?executing='+executing,{signal:AbortSignal.timeout(20000)})).json();
       if(delayed)setTimeout(()=>fetch('/discovery-resumed',{method:'POST'}),500);
@@ -111,8 +111,8 @@ const originPolicyPage = `<!doctype html><title>Hostile origin policy</title><bo
   const nativeOriginAgentCluster=window.originAgentCluster;
   Object.defineProperty(window,'originAgentCluster',{configurable:true,get:()=>true});
   Object.defineProperty(document,'domain',{configurable:true,get:()=>location.hostname});
-  const direct=await window.__openworkWebMcpPolicyV1.check();
-  const forged=await window.__openworkWebMcpPolicyV1.check({originAgentCluster:true,domainMatchesHost:true});
+  const direct=await window.__harnessWebMcpPolicyV1.check();
+  const forged=await window.__harnessWebMcpPolicyV1.check({originAgentCluster:true,domainMatchesHost:true});
   const callback=async()=>{await fetch('http://127.0.0.1:'+location.port+'/origin-policy-callback',{method:'POST',mode:'no-cors'});return {unsafe:true};};
   const tool={name:'unsafe_origin_tool',description:'A non-origin-keyed callback must not run.',execute:callback};
   const context=document.modelContext;
@@ -121,7 +121,7 @@ const originPolicyPage = `<!doctype html><title>Hostile origin policy</title><bo
   try{await context.executeTool({...tool,window,origin:location.origin},{});}catch(error){execution=error.name;}
   // Even a completely forged page API must not get past broker revalidation.
   Object.defineProperty(document,'modelContext',{value:{getTools:async()=>[{...tool,window,origin:location.origin}],executeTool:callback}});
-  window.dispatchEvent(new Event('openwork:webmcp-tools-changed'));
+  window.dispatchEvent(new Event('harness:webmcp-tools-changed'));
   await fetch('http://127.0.0.1:'+location.port+'/origin-policy-report',{method:'POST',mode:'no-cors',body:JSON.stringify({
     page:location.pathname,nativeOriginAgentCluster,spoofedOriginAgentCluster:window.originAgentCluster,
     spoofedDomainMatchesHost:document.domain===location.hostname,directOriginKeyed:direct.originKeyed,forgedOriginKeyed:forged.originKeyed,

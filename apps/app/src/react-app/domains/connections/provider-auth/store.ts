@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { CLOUD_MODEL_CONFIG_VERSION } from "@openwork/types/cloud-model-fast";
+import { CLOUD_MODEL_CONFIG_VERSION } from "@harness/types/cloud-model-fast";
 
 import { applyEdits, modify, parse } from "jsonc-parser";
 import type {
@@ -17,16 +17,16 @@ import {
 } from "../../../../app/lib/den";
 import { readGatewayUsageScope } from "../../../../app/lib/gateway-usage-scope";
 import { refreshGatewayUsageAfterCloudSync } from "../../cloud/gateway-usage-refresh";
-import { getOpenworkGatewayOrigin } from "../../../../app/lib/gateway-runtime";
+import { getHarnessGatewayOrigin } from "../../../../app/lib/gateway-runtime";
 import { unwrap, waitForHealthy } from "../../../../app/lib/opencode";
 import {
   readOpencodeConfig,
   writeOpencodeConfig,
   engineRestart,
-  workspaceOpenworkRead,
-  workspaceOpenworkWrite,
+  workspaceHarnessRead,
+  workspaceHarnessWrite,
 } from "../../../../app/lib/desktop";
-import { OpenworkServerError } from "../../../../app/lib/openwork-server";
+import { HarnessServerError } from "../../../../app/lib/harness-server";
 import type {
   Client,
   ProviderListItem,
@@ -44,24 +44,24 @@ import {
   getConnectedProviderItems,
 } from "../../../infra/provider-list-query";
 import type {
-  OpenworkCloudProviderSyncRun,
-  OpenworkCloudProviderSyncSkippedProvider,
-} from "../../../../app/lib/openwork-server";
-import type { OpenworkServerStoreSnapshot } from "../openwork-server-store";
+  HarnessCloudProviderSyncRun,
+  HarnessCloudProviderSyncSkippedProvider,
+} from "../../../../app/lib/harness-server";
+import type { HarnessServerStoreSnapshot } from "../harness-server-store";
 
 /**
- * The slice of the openwork-server store this store actually consumes.
+ * The slice of the harness-server store this store actually consumes.
  * The settings route passes the full store; the session route passes a
  * lightweight endpoint-backed adapter (previously forced through `as never`).
  */
-export type ProviderAuthOpenworkServer = {
+export type ProviderAuthHarnessServer = {
   getSnapshot: () => Pick<
-    OpenworkServerStoreSnapshot,
-    "openworkServerStatus" | "openworkServerClient"
+    HarnessServerStoreSnapshot,
+    "harnessServerStatus" | "harnessServerClient"
   > & {
-    openworkServerAuth?: { token?: string; hostToken?: string };
-    openworkServerHostInfo?: { generation: number | null } | null;
-    openworkServerCapabilities: { config?: { read?: boolean; write?: boolean }; providerSync?: boolean } | null;
+    harnessServerAuth?: { token?: string; hostToken?: string };
+    harnessServerHostInfo?: { generation: number | null } | null;
+    harnessServerCapabilities: { config?: { read?: boolean; write?: boolean }; providerSync?: boolean } | null;
   };
 };
 import {
@@ -116,7 +116,7 @@ type CloudProviderSyncReason =
   | "settings_cloud_opened"
   | "manual";
 
-type CloudProviderSyncWorkResult = void | OpenworkCloudProviderSyncRun;
+type CloudProviderSyncWorkResult = void | HarnessCloudProviderSyncRun;
 
 type GlobalCloudProviderSyncOutcome = { contextKey: string } & (
   | { status: "completed"; result: CloudProviderSyncWorkResult }
@@ -292,7 +292,7 @@ export type ProviderOAuthStartResult = {
  */
 export type CloudProviderServerSyncState = {
   reloadPending: boolean;
-  skippedProviders: Record<string, OpenworkCloudProviderSyncSkippedProvider>;
+  skippedProviders: Record<string, HarnessCloudProviderSyncSkippedProvider>;
 };
 
 export type ProviderLoadState = {
@@ -328,7 +328,7 @@ type CreateProviderAuthStoreOptions = {
   selectedWorkspaceRoot: () => string;
   runtimeWorkspaceId: () => string | null;
   ensureRuntimeWorkspaceId?: () => Promise<string | null | undefined>;
-  openworkServer: ProviderAuthOpenworkServer;
+  harnessServer: ProviderAuthHarnessServer;
   setProviders: (value: ProviderListItem[]) => void;
   setProviderDefaults: (value: Record<string, string>) => void;
   setProviderConnectedIds: (value: string[]) => void;
@@ -455,49 +455,49 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     return Array.from(merged.values()).toSorted(compareProviders);
   };
 
-  const resolveOpenworkConfigTarget = async (mode: "read" | "write") => {
-    const openworkSnapshot = options.openworkServer.getSnapshot();
-    const openworkClient = openworkSnapshot.openworkServerClient;
-    let openworkWorkspaceId = options.runtimeWorkspaceId()?.trim() || null;
-    if (!openworkWorkspaceId && openworkSnapshot.openworkServerStatus === "connected" && openworkClient) {
-      openworkWorkspaceId = (await options.ensureRuntimeWorkspaceId?.())?.trim() || null;
+  const resolveHarnessConfigTarget = async (mode: "read" | "write") => {
+    const harnessSnapshot = options.harnessServer.getSnapshot();
+    const harnessClient = harnessSnapshot.harnessServerClient;
+    let harnessWorkspaceId = options.runtimeWorkspaceId()?.trim() || null;
+    if (!harnessWorkspaceId && harnessSnapshot.harnessServerStatus === "connected" && harnessClient) {
+      harnessWorkspaceId = (await options.ensureRuntimeWorkspaceId?.())?.trim() || null;
     }
-    const hasOpenworkTarget =
-      openworkSnapshot.openworkServerStatus === "connected" &&
-      Boolean(openworkClient && openworkWorkspaceId);
-    const canUseOpenworkServer =
-      hasOpenworkTarget &&
-      openworkSnapshot.openworkServerCapabilities?.config?.[mode] !== false;
+    const hasHarnessTarget =
+      harnessSnapshot.harnessServerStatus === "connected" &&
+      Boolean(harnessClient && harnessWorkspaceId);
+    const canUseHarnessServer =
+      hasHarnessTarget &&
+      harnessSnapshot.harnessServerCapabilities?.config?.[mode] !== false;
     return {
-      openworkClient,
-      openworkWorkspaceId,
-      hasOpenworkTarget,
-      canUseOpenworkServer,
+      harnessClient,
+      harnessWorkspaceId,
+      hasHarnessTarget,
+      canUseHarnessServer,
     };
   };
 
   const serverHandlesProviderSync = () => {
-    const openworkSnapshot = options.openworkServer.getSnapshot();
+    const harnessSnapshot = options.harnessServer.getSnapshot();
     return Boolean(
-      openworkSnapshot.openworkServerStatus === "connected" &&
-      openworkSnapshot.openworkServerCapabilities?.providerSync === true &&
-      openworkSnapshot.openworkServerAuth?.hostToken?.trim() &&
-      openworkSnapshot.openworkServerClient,
+      harnessSnapshot.harnessServerStatus === "connected" &&
+      harnessSnapshot.harnessServerCapabilities?.providerSync === true &&
+      harnessSnapshot.harnessServerAuth?.hostToken?.trim() &&
+      harnessSnapshot.harnessServerClient,
     );
   };
 
   const getDenSessionDeliveryKey = () => {
-    const openworkSnapshot = options.openworkServer.getSnapshot();
+    const harnessSnapshot = options.harnessServer.getSnapshot();
     const settings = readDenSettings();
     if (!serverHandlesProviderSync() || !settings.authToken?.trim() || !settings.activeOrgId?.trim()) return "";
     return JSON.stringify([
       settings.apiBaseUrl ?? resolveDenBaseUrls(settings).apiBaseUrl,
       settings.activeOrgId.trim(),
       settings.authToken.trim(),
-      openworkSnapshot.openworkServerClient?.baseUrl,
-      openworkSnapshot.openworkServerAuth?.token,
-      openworkSnapshot.openworkServerAuth?.hostToken,
-      openworkSnapshot.openworkServerHostInfo?.generation,
+      harnessSnapshot.harnessServerClient?.baseUrl,
+      harnessSnapshot.harnessServerAuth?.token,
+      harnessSnapshot.harnessServerAuth?.hostToken,
+      harnessSnapshot.harnessServerHostInfo?.generation,
     ]);
   };
 
@@ -528,8 +528,8 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
 
   const pushDenSession = (mode: "identity" | "sync" = "sync", force = false): Promise<boolean> => {
     const delivery = syncDenSessionDelivery();
-    const openworkClient = options.openworkServer.getSnapshot().openworkServerClient;
-    if (!delivery || !openworkClient || disposed) return Promise.resolve(false);
+    const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+    if (!delivery || !harnessClient || disposed) return Promise.resolve(false);
     if (!force && delivery.key === (mode === "identity" ? lastDenIdentityPushKey : lastDenSessionPushKey)) return Promise.resolve(true);
     if (denSessionPushInFlight) {
       if (denSessionPushInFlight.mode === mode) return denSessionPushInFlight.promise;
@@ -550,7 +550,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       for (let attempt = 0; attempt < 3; attempt += 1) {
         if (!isCurrentDenSessionDelivery(delivery)) return false;
         try {
-          const put = mode === "identity" ? openworkClient.putDenIdentity : openworkClient.putDenSession;
+          const put = mode === "identity" ? harnessClient.putDenIdentity : harnessClient.putDenSession;
           await put({ baseUrl: apiBaseUrl, token, orgId }, delivery.controller.signal);
           if (!isCurrentDenSessionDelivery(delivery)) return false;
           lastDenIdentityPushKey = delivery.key;
@@ -558,7 +558,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
           return true;
         } catch (error) {
           if (!isCurrentDenSessionDelivery(delivery)) return false;
-          const retryable = error instanceof OpenworkServerError
+          const retryable = error instanceof HarnessServerError
             ? (error.status === 403 && error.code === "policy_unavailable") || error.status === 408 || error.status >= 500
             : error instanceof TypeError || (error instanceof Error && error.message === "Request timed out.");
           if (!retryable || attempt === 2) throw error;
@@ -637,8 +637,8 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
   ) => {
     const trimmedKey = apiKey.trim();
     if (!trimmedKey) return;
-    const openworkClient = options.openworkServer.getSnapshot().openworkServerClient;
-    if (!openworkClient) return;
+    const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+    if (!harnessClient) return;
     const entries = [...resolvedEnvEntries];
     if (entries.length === 0) {
       entries.push(
@@ -647,37 +647,37 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
           .map((key) => ({ key, value: trimmedKey })),
       );
     }
-    if (provider.source === "openwork") {
-      if (!entries.some((entry) => entry.key === "OPENWORK_API_KEY")) {
-        entries.unshift({ key: "OPENWORK_API_KEY", value: trimmedKey });
+    if (provider.source === "harness") {
+      if (!entries.some((entry) => entry.key === "HARNESS_API_KEY")) {
+        entries.unshift({ key: "HARNESS_API_KEY", value: trimmedKey });
       }
       const baseUrl = readCloudProviderBaseUrl(provider);
-      if (baseUrl) entries.push({ key: "OPENWORK_INFERENCE_BASE_URL", value: baseUrl });
+      if (baseUrl) entries.push({ key: "HARNESS_INFERENCE_BASE_URL", value: baseUrl });
     }
     if (entries.length === 0) return;
-    await openworkClient.upsertUserEnv(entries);
+    await harnessClient.upsertUserEnv(entries);
   };
 
-  const readWorkspaceOpenworkConfigRecord = async (): Promise<
+  const readWorkspaceHarnessConfigRecord = async (): Promise<
     Record<string, unknown>
   > => {
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace =
       options.selectedWorkspaceDisplay().workspaceType === "local";
-    const { openworkClient, openworkWorkspaceId, hasOpenworkTarget, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("read");
+    const { harnessClient, harnessWorkspaceId, hasHarnessTarget, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("read");
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      const config = await openworkClient.getConfig(openworkWorkspaceId);
-      return config.openwork ?? {};
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      const config = await harnessClient.getConfig(harnessWorkspaceId);
+      return config.harness ?? {};
     }
 
-    if (hasOpenworkTarget) {
+    if (hasHarnessTarget) {
       return {};
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
-      return (await workspaceOpenworkRead({
+      return (await workspaceHarnessRead({
         workspacePath: root,
       })) as unknown as Record<string, unknown>;
     }
@@ -685,35 +685,35 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     return {};
   };
 
-  const writeWorkspaceOpenworkConfigRecord = async (
+  const writeWorkspaceHarnessConfigRecord = async (
     config: Record<string, unknown>,
     isCurrent = () => true,
   ) => {
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace =
       options.selectedWorkspaceDisplay().workspaceType === "local";
-    const { openworkClient, openworkWorkspaceId, hasOpenworkTarget, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("write");
+    const { harnessClient, harnessWorkspaceId, hasHarnessTarget, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("write");
     if (!isCurrent()) return false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      await openworkClient.patchConfig(openworkWorkspaceId, { openwork: config });
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      await harnessClient.patchConfig(harnessWorkspaceId, { harness: config });
       return true;
     }
 
-    if (hasOpenworkTarget) {
+    if (hasHarnessTarget) {
       return false;
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
-      const result = await workspaceOpenworkWrite({
+      const result = await workspaceHarnessWrite({
         workspacePath: root,
         config: config as never,
       });
       const typed = result as { ok: boolean; stderr?: string; stdout?: string };
       if (!typed.ok) {
         throw new Error(
-          typed.stderr || typed.stdout || "Failed to write .opencode/openwork.json",
+          typed.stderr || typed.stdout || "Failed to write .opencode/harness.json",
         );
       }
       return true;
@@ -726,7 +726,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     currentWorkspaceKey(),
     options.selectedWorkspaceDisplay().workspaceType,
     options.providerBaseUrl(),
-    options.openworkServer.getSnapshot().openworkServerClient?.baseUrl,
+    options.harnessServer.getSnapshot().harnessServerClient?.baseUrl,
   ]);
 
   const refreshImportedCloudProviders = async (refreshOptions?: { strict?: boolean; verifiedScope?: number }) => {
@@ -734,9 +734,9 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       if (serverHandlesProviderSync()) {
         const delivery = syncDenSessionDelivery();
         const contextKey = getCloudProviderSyncContextKey();
-        const openworkClient = options.openworkServer.getSnapshot().openworkServerClient;
-        if (!openworkClient) throw new Error("OpenWork server unavailable.");
-        const status = await openworkClient.getCloudProviderSyncStatus();
+        const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+        if (!harnessClient) throw new Error("Harness server unavailable.");
+        const status = await harnessClient.getCloudProviderSyncStatus();
         if (!isCurrentDenSessionDelivery(delivery) || contextKey !== getCloudProviderSyncContextKey()) return state.importedCloudProviders;
         const next = Object.fromEntries(status.providers.map((provider) => [provider.cloudProviderId, provider]));
         if (status.hasSession && refreshOptions?.verifiedScope === readGatewayUsageScope().generation) {
@@ -761,7 +761,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       const generation = cloudOrgProvidersGeneration;
       const contextKey = getCloudProviderSyncContextKey();
       const workspaceKey = cloudImportWorkspaceKey();
-      const config = await readWorkspaceOpenworkConfigRecord();
+      const config = await readWorkspaceHarnessConfigRecord();
       const cloudImports = readWorkspaceCloudImports(config);
       const next = cloudImports.providers;
       if (
@@ -806,7 +806,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     nextProviders: Record<string, CloudImportedProvider>,
     isCurrent = () => true,
   ) => {
-    const config = await readWorkspaceOpenworkConfigRecord();
+    const config = await readWorkspaceHarnessConfigRecord();
     if (!isCurrent()) return;
     const cloudImports = readWorkspaceCloudImports(config);
     const nextCloudImports = {
@@ -816,11 +816,11 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const nextConfig = withWorkspaceCloudImports(config, {
       ...nextCloudImports,
     });
-    const persisted = await writeWorkspaceOpenworkConfigRecord(nextConfig, isCurrent);
+    const persisted = await writeWorkspaceHarnessConfigRecord(nextConfig, isCurrent);
     if (!isCurrent()) return;
     if (!persisted) {
       throw new Error(
-        "OpenWork server unavailable. Connect to manage imported cloud providers.",
+        "Harness server unavailable. Connect to manage imported cloud providers.",
       );
     }
     setStateField("importedCloudProviders", nextProviders);
@@ -830,15 +830,15 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace =
       options.selectedWorkspaceDisplay().workspaceType === "local";
-    const { openworkClient, openworkWorkspaceId, hasOpenworkTarget, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("read");
+    const { harnessClient, harnessWorkspaceId, hasHarnessTarget, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("read");
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      return await openworkClient.readOpencodeConfigFile(openworkWorkspaceId, "project");
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      return await harnessClient.readOpencodeConfigFile(harnessWorkspaceId, "project");
     }
 
-    if (hasOpenworkTarget) {
-      throw new Error("OpenWork server config API is unavailable for this workspace.");
+    if (hasHarnessTarget) {
+      throw new Error("Harness server config API is unavailable for this workspace.");
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
@@ -852,13 +852,13 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const root = options.selectedWorkspaceRoot().trim();
     const isLocalWorkspace =
       options.selectedWorkspaceDisplay().workspaceType === "local";
-    const { openworkClient, openworkWorkspaceId, hasOpenworkTarget, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("write");
+    const { harnessClient, harnessWorkspaceId, hasHarnessTarget, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("write");
     if (!isCurrent()) return false;
 
-    if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-      const result = await openworkClient.writeOpencodeConfigFile(
-        openworkWorkspaceId,
+    if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+      const result = await harnessClient.writeOpencodeConfigFile(
+        harnessWorkspaceId,
         "project",
         content,
       ) as { ok: boolean; stderr?: string; stdout?: string };
@@ -868,8 +868,8 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       return true;
     }
 
-    if (hasOpenworkTarget) {
-      throw new Error("OpenWork server config API is unavailable for this workspace.");
+    if (hasHarnessTarget) {
+      throw new Error("Harness server config API is unavailable for this workspace.");
     }
 
     if (isLocalWorkspace && isDesktopRuntime() && root) {
@@ -890,13 +890,13 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
    * is no read-modify-write race and no edit of the user's opencode.jsonc.
    */
   const patchRuntimeProviders = async (update: Record<string, unknown>, isCurrent = () => true) => {
-    const { openworkClient, openworkWorkspaceId, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("write");
+    const { harnessClient, harnessWorkspaceId, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("write");
     if (!isCurrent()) return;
-    if (!canUseOpenworkServer || !openworkClient || !openworkWorkspaceId) {
-      throw new Error("OpenWork server unavailable. Connect to manage cloud providers.");
+    if (!canUseHarnessServer || !harnessClient || !harnessWorkspaceId) {
+      throw new Error("Harness server unavailable. Connect to manage cloud providers.");
     }
-    await openworkClient.patchConfig(openworkWorkspaceId, {
+    await harnessClient.patchConfig(harnessWorkspaceId, {
       opencode: { provider: update },
     });
   };
@@ -905,20 +905,20 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     providerUpdate: Record<string, unknown>,
     nextProviders: Record<string, CloudImportedProvider>,
   ) => {
-    const { openworkClient, openworkWorkspaceId, canUseOpenworkServer } =
-      await resolveOpenworkConfigTarget("write");
-    if (!canUseOpenworkServer || !openworkClient || !openworkWorkspaceId) {
-      throw new Error("OpenWork server unavailable. Connect to manage cloud providers.");
+    const { harnessClient, harnessWorkspaceId, canUseHarnessServer } =
+      await resolveHarnessConfigTarget("write");
+    if (!canUseHarnessServer || !harnessClient || !harnessWorkspaceId) {
+      throw new Error("Harness server unavailable. Connect to manage cloud providers.");
     }
-    const config = await readWorkspaceOpenworkConfigRecord();
+    const config = await readWorkspaceHarnessConfigRecord();
     const cloudImports = readWorkspaceCloudImports(config);
     const nextConfig = withWorkspaceCloudImports(config, {
       ...cloudImports,
       providers: nextProviders,
     });
-    await openworkClient.patchConfig(openworkWorkspaceId, {
+    await harnessClient.patchConfig(harnessWorkspaceId, {
       opencode: { provider: providerUpdate },
-      openwork: nextConfig,
+      harness: nextConfig,
     });
     setStateField("importedCloudProviders", nextProviders);
   };
@@ -967,10 +967,10 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     }
 
     const c = options.client();
-    const openworkSnapshot = options.openworkServer.getSnapshot();
+    const harnessSnapshot = options.harnessServer.getSnapshot();
     const workspaceId = options.runtimeWorkspaceId();
     const workspaceType = options.selectedWorkspaceDisplay().workspaceType;
-    const canUseManagedRuntime = Boolean(openworkSnapshot.openworkServerClient && workspaceId?.trim() && workspaceType === "local");
+    const canUseManagedRuntime = Boolean(harnessSnapshot.harnessServerClient && workspaceId?.trim() && workspaceType === "local");
     if (!c && !canUseManagedRuntime) {
       throw new Error(t("providers.not_connected"));
     }
@@ -978,7 +978,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const next = fallbackUpdate(config);
     await updateManagedDisabledProviders({
       opencodeClient: c,
-      openworkClient: openworkSnapshot.openworkServerClient,
+      harnessClient: harnessSnapshot.harnessServerClient,
       workspaceId,
       workspaceType,
       disabledProviders: next.disabled_providers,
@@ -1051,7 +1051,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     // the user's opencode.jsonc. Fall back to project config only when the
     // managed runtime endpoint is unavailable.
     const c = options.client();
-    const openworkSnapshot = options.openworkServer.getSnapshot();
+    const harnessSnapshot = options.harnessServer.getSnapshot();
     const workspaceId = options.runtimeWorkspaceId();
     const workspaceType = options.selectedWorkspaceDisplay().workspaceType;
     // Before the first workspace exists the client reaches the engine root,
@@ -1061,13 +1061,13 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       return false;
     }
     const canUseManagedRuntime = Boolean(
-      openworkSnapshot.openworkServerClient && workspaceId?.trim() && workspaceType === "local",
+      harnessSnapshot.harnessServerClient && workspaceId?.trim() && workspaceType === "local",
     );
 
     if (canUseManagedRuntime || c) {
       const result = await updateManagedDisabledProviders({
         opencodeClient: c,
-        openworkClient: openworkSnapshot.openworkServerClient,
+        harnessClient: harnessSnapshot.harnessServerClient,
         workspaceId,
         workspaceType,
         disabledProviders: nextDisabled,
@@ -1135,10 +1135,10 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
 
     // Runtime-managed orphans (`lpr_*` keys in the workspace runtime config).
     try {
-      const { openworkClient, openworkWorkspaceId, canUseOpenworkServer } =
-        await resolveOpenworkConfigTarget("write");
-      if (canUseOpenworkServer && openworkClient && openworkWorkspaceId) {
-        const merged = await openworkClient.getConfig(openworkWorkspaceId);
+      const { harnessClient, harnessWorkspaceId, canUseHarnessServer } =
+        await resolveHarnessConfigTarget("write");
+      if (canUseHarnessServer && harnessClient && harnessWorkspaceId) {
+        const merged = await harnessClient.getConfig(harnessWorkspaceId);
         const runtimeProvider = isRecord(merged.opencode) ? merged.opencode.provider : null;
         const runtimeOrphans = isRecord(runtimeProvider)
           ? Object.keys(runtimeProvider).filter((key) => /^lpr_/i.test(key))
@@ -1186,7 +1186,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
   ) => {
     const localProviderId = getCloudManagedProviderId(provider);
     const existingImported = state.importedCloudProviders[provider.id] ?? null;
-    // `lpr_*` / `openwork` keys are owned by the cloud-import system. When the
+    // `lpr_*` / `harness` keys are owned by the cloud-import system. When the
     // import baseline was lost or diverged (e.g. it lives in a different file
     // than the provider block, or a prior reconcile failed mid-flight), an
     // existing cloud-managed block must be treated as a re-import to reconcile,
@@ -1218,7 +1218,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     if (
       !configFile?.content?.trim() ||
       existingImported ||
-      (cloudManagedKey && localProviderId !== "openwork")
+      (cloudManagedKey && localProviderId !== "harness")
     ) {
       return;
     }
@@ -1671,7 +1671,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const force = Boolean(optionsArg?.dispose || optionsArg?.force || state.providerLoadState.error);
     setStateField("providerLoadState", { status: "loading", error: state.providerLoadState.error });
 
-    const serverClient = options.openworkServer.getSnapshot().openworkServerClient;
+    const serverClient = options.harnessServer.getSnapshot().harnessServerClient;
     const liveCatalog = optionsArg?.dispose && serverClient && options.selectedWorkspaceDisplay().workspaceType !== "remote"
       ? await serverClient.getEngineV2PreviewStatus().then(status => status.enabled && status.chatRouting).catch(() => false)
       : false;
@@ -1682,7 +1682,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       const shouldUseServerReload = !(
         isDesktopRuntime() && options.selectedWorkspaceDisplay().workspaceType === "local"
       );
-      // Prefer the OpenWork server engine reload: it disposes the engine AND
+      // Prefer the Harness server engine reload: it disposes the engine AND
       // re-registers runtime-DB MCPs, so non-primary workspaces and pending
       // changes are picked up instead of silently dropping (toggles "turn
       // off").
@@ -1691,19 +1691,19 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
         lastGlobalProviderDisposeRefreshAt = now;
         if (shouldUseServerReload) {
           try {
-            const openworkSnapshot = options.openworkServer.getSnapshot();
-            const openworkClient = openworkSnapshot.openworkServerClient;
-            if (openworkSnapshot.openworkServerStatus === "connected" && openworkClient) {
+            const harnessSnapshot = options.harnessServer.getSnapshot();
+            const harnessClient = harnessSnapshot.harnessServerClient;
+            if (harnessSnapshot.harnessServerStatus === "connected" && harnessClient) {
               const workspaceId =
                 options.runtimeWorkspaceId()?.trim() ||
                 (await options.ensureRuntimeWorkspaceId?.())?.trim() ||
                 "";
               if (workspaceId) {
                 try {
-                  await openworkClient.reloadEngine(workspaceId);
+                  await harnessClient.reloadEngine(workspaceId);
                 } catch (error) {
                   const unreachable =
-                    error instanceof OpenworkServerError && error.code === "opencode_engine_unreachable";
+                    error instanceof HarnessServerError && error.code === "opencode_engine_unreachable";
                   if (!unreachable || !isDesktopRuntime()) {
                     throw error;
                   }
@@ -1738,7 +1738,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     try {
       const disabledProviders = await readManagedDisabledProviders({
         opencodeClient: activeClient,
-        openworkClient: options.openworkServer.getSnapshot().openworkServerClient,
+        harnessClient: options.harnessServer.getSnapshot().harnessServerClient,
         workspaceId: options.runtimeWorkspaceId(),
         workspaceType: options.selectedWorkspaceDisplay().workspaceType,
       });
@@ -1898,7 +1898,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
     const token = settings.authToken?.trim() ?? "";
     const orgId = settings.activeOrgId?.trim() ?? "";
     if (!token || !orgId) {
-      throw new Error("Sign in to OpenWork Cloud and choose an organization first.");
+      throw new Error("Sign in to Harness Cloud and choose an organization first.");
     }
 
     try {
@@ -1921,15 +1921,15 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       await assertCloudProviderImportSafe(provider);
 
       if (envEntries.length > 0) {
-        const openworkClient = options.openworkServer.getSnapshot().openworkServerClient;
-        if (!openworkClient) {
+        const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+        if (!harnessClient) {
           throw new CloudProviderNeedsServerError(
             `${provider.name} needs environment variables (${envEntries
               .map((entry) => entry.key)
-              .join(", ")}) but the OpenWork server is not available.`,
+              .join(", ")}) but the Harness server is not available.`,
           );
         }
-        await openworkClient.upsertUserEnv(envEntries);
+        await harnessClient.upsertUserEnv(envEntries);
       }
       if (primaryApiKey) {
         await c.auth.set({
@@ -2182,19 +2182,19 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       return;
     }
 
-    // Imports, baseline reads, and persistence all go through the OpenWork
+    // Imports, baseline reads, and persistence all go through the Harness
     // server target (patchRuntimeProviders throws without it). Running before
     // the target resolves made the baseline read fall back to an empty source
     // and re-import every org provider — engine dispose churn on settings open.
     const [readTarget, target] = await Promise.all([
-      resolveOpenworkConfigTarget("read"),
-      resolveOpenworkConfigTarget("write"),
+      resolveHarnessConfigTarget("read"),
+      resolveHarnessConfigTarget("write"),
     ]);
     if (
-      !readTarget.canUseOpenworkServer ||
-      !target.canUseOpenworkServer ||
-      !target.openworkClient ||
-      !target.openworkWorkspaceId
+      !readTarget.canUseHarnessServer ||
+      !target.canUseHarnessServer ||
+      !target.harnessClient ||
+      !target.harnessWorkspaceId
     ) {
       return;
     }
@@ -2343,9 +2343,9 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
 
   async function startGatewayProviderOAuth(providerId: string, credentialSetId?: string, signal?: AbortSignal) {
     const orgId = readDenSettings().activeOrgId;
-    const client = options.openworkServer.getSnapshot().openworkServerClient;
-    if (!orgId || !client) throw new Error("Sign in to OpenWork before connecting this provider.");
-    if (getOpenworkGatewayOrigin()) throw new Error("Open My Model Connections in Den to connect your Google account, then refresh models here.");
+    const client = options.harnessServer.getSnapshot().harnessServerClient;
+    if (!orgId || !client) throw new Error("Sign in to Harness before connecting this provider.");
+    if (getHarnessGatewayOrigin()) throw new Error("Open My Model Connections in Den to connect your Google account, then refresh models here.");
     const contextKey = getCloudProviderSyncContextKey();
     const isCurrent = () => !disposed && !signal?.aborted && contextKey === getCloudProviderSyncContextKey();
     if (!isCurrent() || !await pushDenSession() || !isCurrent()) {
@@ -2382,7 +2382,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       }
       // The trusted local server needs the session before the engine or
       // workspace is ready. Provider materialization still waits for both.
-      if (delivery && !getOpenworkGatewayOrigin()) {
+      if (delivery && !getHarnessGatewayOrigin()) {
         try {
           await pushDenSession("identity");
         } catch (error) {
@@ -2391,7 +2391,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       }
       return;
     }
-    if (getOpenworkGatewayOrigin()) {
+    if (getHarnessGatewayOrigin()) {
       await refreshUsageOnly();
       if (!isCurrent()) return;
       if (!loggedGatewayCloudProviderSyncSkip) {
@@ -2414,16 +2414,16 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
           `server:${contextKey}`,
           async () => {
             if (!isCurrent()) return;
-            const openworkClient = options.openworkServer.getSnapshot().openworkServerClient;
-            if (!openworkClient) throw new Error("OpenWork server unavailable.");
+            const harnessClient = options.harnessServer.getSnapshot().harnessServerClient;
+            if (!harnessClient) throw new Error("Harness server unavailable.");
             // An old server session can still return noop after a failed token
             // refresh. Delivery must succeed before every run, not just no_session.
             if (!await pushDenSession() || !isCurrent()) return;
-            let result = await openworkClient.runCloudProviderSyncNow(reason, delivery?.controller.signal);
+            let result = await harnessClient.runCloudProviderSyncNow(reason, delivery?.controller.signal);
             if (!isCurrent()) return;
             if (result.status === "no_session") {
               if (!await pushDenSession("sync", true) || !isCurrent()) return;
-              result = await openworkClient.runCloudProviderSyncNow(reason, delivery?.controller.signal);
+              result = await harnessClient.runCloudProviderSyncNow(reason, delivery?.controller.signal);
             }
             if (isCurrent()) void refreshGatewayUsageAfterCloudSync(usageScope);
             return result;
@@ -2767,7 +2767,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
             const isCurrent = () => !disposed && generation === cloudOrgProvidersGeneration && workspaceKey === currentWorkspaceKey();
             setStateField("importedCloudProviders", {});
             void (async () => {
-              const cleared = await options.openworkServer.getSnapshot().openworkServerClient?.deleteDenSession().then(() => true, () => false);
+              const cleared = await options.harnessServer.getSnapshot().harnessServerClient?.deleteDenSession().then(() => true, () => false);
               if (!isCurrent()) return;
               // The server removes cloud-owned environment entries from disk,
               // but a running OpenCode child retains its spawn environment.
@@ -2876,7 +2876,7 @@ export function createProviderAuthStore(options: CreateProviderAuthStoreOptions)
       ) return;
       if (serverHandlesProviderSync()) {
         if (!readDenSettings().authToken?.trim()) {
-          void options.openworkServer.getSnapshot().openworkServerClient?.deleteDenSession().catch(() => undefined);
+          void options.harnessServer.getSnapshot().harnessServerClient?.deleteDenSession().catch(() => undefined);
         }
         return;
       }

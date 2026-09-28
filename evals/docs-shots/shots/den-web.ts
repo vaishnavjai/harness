@@ -25,9 +25,9 @@ export const denSkillEditor = shot("den-skill-editor", {
   out: "packages/docs/images/cloud-skill-editor.png",
 });
 
-export const denOpenworkWeb = shot("den-openwork-web", {
+export const denHarnessWeb = shot("den-harness-web", {
   use: browser,
   at: "/dashboard/web",
-  expect: ["OpenWork Web", "Open OpenWork Web"],
-  out: "packages/docs/images/cloud-openwork-web.png",
+  expect: ["Harness Web", "Open Harness Web"],
+  out: "packages/docs/images/cloud-harness-web.png",
 });

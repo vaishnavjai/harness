@@ -216,7 +216,7 @@ function main() {
   const [prev, tag] = positional;
   const jsonPath = option("--json");
   const markdownPath = option("--markdown");
-  const repo = option("--repo") ?? process.env.GITHUB_REPOSITORY ?? "different-ai/openwork";
+  const repo = option("--repo") ?? process.env.GITHUB_REPOSITORY ?? "vaishnavjai/harness";
   if (!prev || !tag || (!jsonPath && !markdownPath)) {
     console.error("usage: collect-release-prs.mjs <prev> <tag> --json <path> --markdown <path> [--repo owner/name]");
     process.exit(1);

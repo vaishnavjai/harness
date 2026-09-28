@@ -1,6 +1,6 @@
-import type { SurfaceHandle, SurfaceKind } from "@openwork/cdp";
+import type { SurfaceHandle, SurfaceKind } from "@harness/cdp";
 
-export type { SurfaceHandle, SurfaceKind } from "@openwork/cdp";
+export type { SurfaceHandle, SurfaceKind } from "@harness/cdp";
 
 export type DesktopReleaseDistribution = "public" | "cloud" | "enterprise";
 

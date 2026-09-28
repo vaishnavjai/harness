@@ -1,11 +1,11 @@
 import { DASHBOARD_TILE_CACHE_STORAGE_PREFIX } from "../src/app/lib/dashboard-cache-storage";
 import { expect, mock, test } from "bun:test";
-import type { GeneratedArtifactView, GeneratedArtifactViewRevision, SavedAppDetail } from "@openwork/types/workflows";
+import type { GeneratedArtifactView, GeneratedArtifactViewRevision, SavedAppDetail } from "@harness/types/workflows";
 import { isLiveGeneratedApp, liveGeneratedAppCacheScope, liveGeneratedAppEntry, loadSavedAppForDisplay, nextViewerDayBoundary, viewerLocalDate } from "../src/react-app/domains/apps/live-generated-app-model";
 import { DASHBOARD_AUTO_REFRESH_INTERVAL_MS, dashboardTileRunsAutomatically, shouldAutoRefreshDashboardTile } from "../src/react-app/domains/dashboard/dashboard-tile-cache";
 
 const revision: GeneratedArtifactViewRevision = {
-  id: "avr_fixture", artifactViewId: "arv_fixture", resourceUri: "ui://openwork/artifacts/arv_fixture/avr_fixture",
+  id: "avr_fixture", artifactViewId: "arv_fixture", resourceUri: "ui://harness/artifacts/arv_fixture/avr_fixture",
   buildStatus: "ready", sourceDigest: "source", resourceDigest: "resource", outputSchemaDigest: "output",
   csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, diagnostics: [],
   compilerName: "fixture", compilerVersion: "1", reactVersion: "19", compiledHtmlBytes: 10,
@@ -24,7 +24,7 @@ const snapshot: SavedAppDetail = {
 test("live tools carry the viewer time zone and retain the exact saved resource binding", () => {
   const entry = liveGeneratedAppEntry(view, revision, "America/Los_Angeles");
   expect(entry.toolName).toBe("run_artifact_arv_fixture");
-  expect(entry.projectedToolName).toBe("openwork-cloud_run_artifact_arv_fixture");
+  expect(entry.projectedToolName).toBe("harness-cloud_run_artifact_arv_fixture");
   expect(entry.resourceUri).toBe(revision.resourceUri);
   expect(entry.launchArguments).toEqual({ timeZone: "America/Los_Angeles" });
   expect(dashboardTileRunsAutomatically(false, entry.autoLaunch === true, false, false)).toBe(true);

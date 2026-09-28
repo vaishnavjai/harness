@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { denManageAsAdmin } from "../worlds/den-library-manage.ts";
 
 // Steps that sign someone out or take an app away ask first.
@@ -23,7 +23,7 @@ test("an admin: I want one Slack account for everyone, and to remove it later wi
     await user.screenshot();
   });
 
-  await step("2. I pick One account for everyone: OpenWork warns that it signs me out first", async () => {
+  await step("2. I pick One account for everyone: Harness warns that it signs me out first", async () => {
     await user.click({ role: "radio", label: /One account for everyone/ });
     await user.see({ testId: "step-footer-note" }, { text: "Next, sign in with the Slack account everyone will use." });
     await user.click({ role: "button", label: "Continue" });
@@ -53,7 +53,7 @@ test("an admin: I want one Slack account for everyone, and to remove it later wi
     await user.screenshot();
   });
 
-  await step("5. I choose Remove on Slack: OpenWork asks first, and Cancel keeps it", async () => {
+  await step("5. I choose Remove on Slack: Harness asks first, and Cancel keeps it", async () => {
     await user.click({ role: "button", label: "More for Slack" });
     await user.click({ role: "menuitem", label: "Remove" });
     await user.see({ testId: "confirm-dialog" }, { text: /Remove Slack\?/ });

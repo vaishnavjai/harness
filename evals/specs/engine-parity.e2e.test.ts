@@ -1,13 +1,13 @@
 import { performance } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { readTranscriptMessages, resolveEvalEngine, spec } from "@openwork/testkit";
+import { readTranscriptMessages, resolveEvalEngine, spec } from "@harness/testkit";
 import { engineParity } from "../worlds/engine-parity.ts";
 
 const test = spec.world(engineParity, {
   timeout: 420_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 
 test(`PARITY-STREAM ${resolveEvalEngine()}: read the beginning of an answer before the model finishes`, async ({ world, user, probe, step, evidence }) => {
@@ -158,7 +158,7 @@ test(`PARITY-BOOT ${resolveEvalEngine()}: open the app and send with its first a
       until: (state) => state.selectedModelLabel.includes("Big Pickle") && !state.modelUnavailable,
     });
     composerReadyMs = performance.now() - world.startedAt;
-    expect(await probe.storage("openwork.den.authToken")).toBeNull();
+    expect(await probe.storage("harness.den.authToken")).toBeNull();
     expect(await world.mock.agentRequests()).toEqual([]);
     await user.screenshot();
   });

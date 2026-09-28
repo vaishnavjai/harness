@@ -48,7 +48,7 @@ describe("session reference parsing and metadata index", () => {
     for (const raw of [
       "", "ses_", "session-a", " ses_alpha", "ses_alpha\n", "ses_alpha\u0000", "ses_alpha?x=1",
       "https://example.test/session/ses_alpha", "http://localhost/session/ses_alpha",
-      "openwork://session/ses_alpha", "javascript:ses_alpha", "//example.test/session/ses_alpha",
+      "harness://session/ses_alpha", "javascript:ses_alpha", "//example.test/session/ses_alpha",
       "session/ses_alpha", "/session", "/session/", "/session/ses_alpha/", "/session/ses_alpha/messages",
       "/workspace/workspace-a/session", "/workspace//session/ses_alpha", "/workspaces/a/session/ses_alpha",
       "/workspace/../session/ses_alpha", "/workspace/%2e%2e/session/ses_alpha", "/workspace/a%2fb/session/ses_alpha",
@@ -226,7 +226,7 @@ const primaryWorkspace: RouteWorkspace = {
 };
 const secondaryWorkspace: RouteWorkspace = {
   id: "rem_secondary", name: "Secondary", displayNameResolved: "Secondary", workspaceType: "remote",
-  remoteType: "openwork", path: "/tmp/reference-secondary", baseUrl: "http://secondary.invalid", openworkToken: "synthetic-secondary",
+  remoteType: "harness", path: "/tmp/reference-secondary", baseUrl: "http://secondary.invalid", harnessToken: "synthetic-secondary",
 };
 let routeWorkspaces: RouteWorkspace[] = [primaryWorkspace, secondaryWorkspace];
 let workspaceListError: Error | null = null;
@@ -236,17 +236,17 @@ const inventoryReads: Array<{ endpoint: ResolvedWorkspaceEndpoint; engine: "v1" 
 type MetadataSubscription = Partial<SessionMetadataCallbacks> & {
   workspaceId: string;
   baseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
   released?: boolean;
 };
 const metadataSubscriptions: MetadataSubscription[] = [];
 let unexpectedNetworkReads = 0;
 const originalFetch = globalThis.fetch;
-const serverModule = await import("../src/app/lib/openwork-server");
-const createServerClient = serverModule.createOpenworkServerClient;
-mock.module("@/app/lib/openwork-server", () => ({
+const serverModule = await import("../src/app/lib/harness-server");
+const createServerClient = serverModule.createHarnessServerClient;
+mock.module("@/app/lib/harness-server", () => ({
   ...serverModule,
-  createOpenworkServerClient: (options: Parameters<typeof createServerClient>[0]) => ({
+  createHarnessServerClient: (options: Parameters<typeof createServerClient>[0]) => ({
     ...createServerClient(options),
     listWorkspaces: async () => {
       if (workspaceListError) throw workspaceListError;
@@ -265,8 +265,8 @@ mock.module("@/react-app/shell/route-workspaces", () => ({
     return response.promise;
   },
 }));
-mock.module("@/react-app/shell/openwork-connection", () => ({
-  resolveOpenworkConnection: async () => ({
+mock.module("@/react-app/shell/harness-connection", () => ({
+  resolveHarnessConnection: async () => ({
     normalizedBaseUrl: "http://primary.invalid", resolvedToken: "synthetic-primary", resolvedHostToken: "", hostInfo: null,
   }),
 }));
@@ -307,7 +307,7 @@ function RouteMetadataProbe() {
       workspaceId={state.selectedWorkspaceEndpoint.workspaceId}
       sessionId={null}
       opencodeBaseUrl={state.opencodeBaseUrl}
-      openworkToken={state.selectedWorkspaceServerToken}
+      harnessToken={state.selectedWorkspaceServerToken}
       onSessionCreated={state.handleRuntimeSessionCreated}
       onSessionUpdated={state.handleRuntimeSessionUpdated}
       onSessionDeleted={state.handleRuntimeSessionDeleted}
@@ -315,12 +315,12 @@ function RouteMetadataProbe() {
     {endpoint ? <ReactSessionRuntime
       {...state.createWorkspaceSessionMetadataCallbacks({
         workspaceId: splitWorkspaceId, runtimeWorkspaceId: endpoint.workspaceId,
-        opencodeBaseUrl: endpoint.opencodeBaseUrl, openworkToken: endpoint.token,
+        opencodeBaseUrl: endpoint.opencodeBaseUrl, harnessToken: endpoint.token,
       })}
       workspaceId={endpoint.workspaceId}
       sessionId={null}
       opencodeBaseUrl={endpoint.opencodeBaseUrl}
-      openworkToken={endpoint.token}
+      harnessToken={endpoint.token}
     /> : null}
   </>;
 }
@@ -362,7 +362,7 @@ function currentMetadataCallbacks(workspaceId: string) {
   // current-generation callback factory directly, not an obsolete subscription.
   return hook().createWorkspaceSessionMetadataCallbacks({
     workspaceId, runtimeWorkspaceId: endpoint.workspaceId,
-    opencodeBaseUrl: endpoint.opencodeBaseUrl, openworkToken: endpoint.token,
+    opencodeBaseUrl: endpoint.opencodeBaseUrl, harnessToken: endpoint.token,
   });
 }
 
@@ -488,12 +488,12 @@ describe("real route metadata provenance and runtime subscriptions", () => {
     if (!current) throw new Error("Missing synthetic recovery endpoint");
     const runtime = {
       workspaceId: primaryWorkspace.id, runtimeWorkspaceId: current.workspaceId,
-      opencodeBaseUrl: current.opencodeBaseUrl, openworkToken: current.token,
+      opencodeBaseUrl: current.opencodeBaseUrl, harnessToken: current.token,
     };
     const rejected = [obsolete, ...[
       { runtimeWorkspaceId: "secondary" },
       { opencodeBaseUrl: "http://obsolete.invalid/workspace/workspace-a/opencode" },
-      { openworkToken: "obsolete-token" },
+      { harnessToken: "obsolete-token" },
       { opencodeBaseUrl: current.opencodeBaseUrl.replace(/opencode$/, "opencode2") },
     ].map((change) => hook().createWorkspaceSessionMetadataCallbacks({ ...runtime, ...change }))];
     await act(async () => {
@@ -521,7 +521,7 @@ describe("real route metadata provenance and runtime subscriptions", () => {
     await act(async () => {
       runtime.onSessionUpdated?.({ sessionId: "ses_shared", info: { title: "Unconfirmed rename", time: { archived: 2 } } });
       runtime.onSessionCreated?.(metadataSession(primaryWorkspace.id, "ses_unconfirmed"));
-      inventoryReads[2].response.reject(new serverModule.OpenworkServerError(403, "forbidden", "Synthetic recovery denial"));
+      inventoryReads[2].response.reject(new serverModule.HarnessServerError(403, "forbidden", "Synthetic recovery denial"));
     });
     expect(loadedReference()).toBeUndefined();
     expect(hook().sessionsByWorkspaceId[primaryWorkspace.id]).toBe(before);
@@ -579,7 +579,7 @@ describe("real route metadata provenance and runtime subscriptions", () => {
     if (!native) throw new Error("Missing native endpoint");
     const wrongEngine = hook().createWorkspaceSessionMetadataCallbacks({
       workspaceId: side.id, runtimeWorkspaceId: native.workspaceId,
-      opencodeBaseUrl: native.opencodeBaseUrl, openworkToken: native.token,
+      opencodeBaseUrl: native.opencodeBaseUrl, harnessToken: native.token,
     });
     await act(async () => { wrongEngine.onSessionDeleted("ses_shared"); });
     expect(loadedReference(side.id)?.title).toBe("V2 side rename");
@@ -607,7 +607,7 @@ describe("real route metadata provenance and runtime subscriptions", () => {
     expect(loadedReference()?.title).toBe("workspace-a title");
     const oldRuntime = subscription(primaryWorkspace.id);
     const initial = [...inventoryReads];
-    workspaceListError = new serverModule.OpenworkServerError(403, "forbidden", "Synthetic workspace denial");
+    workspaceListError = new serverModule.HarnessServerError(403, "forbidden", "Synthetic workspace denial");
     await act(async () => { await hook().refreshRouteState({ supersede: true }); });
     expect(loadedReference()).toBeUndefined();
     expect(inventoryReads).toHaveLength(2);
@@ -766,7 +766,7 @@ describe("real route metadata provenance and runtime subscriptions", () => {
       routeWorkspaces = [primaryWorkspace, next];
       hook().setWorkspaces(routeWorkspaces);
     });
-    await rotate({ ...secondaryWorkspace, baseUrl: "http://secondary-new.invalid", openworkToken: "synthetic-new" });
+    await rotate({ ...secondaryWorkspace, baseUrl: "http://secondary-new.invalid", harnessToken: "synthetic-new" });
     expect(loadedReference(secondaryWorkspace.id)).toBeUndefined();
     await finishInventoryReads(inventoryReads.slice(2), "New endpoint");
     expect(obsolete.released).toBe(true);

@@ -1,8 +1,8 @@
 import { createServer } from "node:http";
-import { catalogModelVariants } from "@openwork/types/cloud-model-fast";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { catalogModelVariants } from "@harness/types/cloud-model-fast";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 import { configureProvider } from "./chat.ts";
-import { close, isRecord, listen, readBody } from "./openwork-server-cli.ts";
+import { close, isRecord, listen, readBody } from "./harness-server-cli.ts";
 
 /** Real app and pinned engine; only the Anthropic HTTP endpoint is synthetic. */
 export async function anthropicEffort(seed: Seed) {

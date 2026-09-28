@@ -1,7 +1,7 @@
 import { expect } from "vitest";
-import { denFetch, freshSession } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { inviteMember, server, test } from "@openwork/testkit";
+import { denFetch, freshSession } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { inviteMember, server, test } from "@harness/testkit";
 
 const title = "a workspace super-admin can register SAML SSO without an internal authorization error";
 
@@ -28,7 +28,7 @@ async function organizationId(admin: DenSession, organizationName: string): Prom
 
 async function memberIdByEmail(admin: DenSession, orgId: string, email: string): Promise<string> {
   const result = await denFetch(admin, "/v1/org", {
-    headers: { ...auth(admin), "x-openwork-org-id": orgId },
+    headers: { ...auth(admin), "x-harness-org-id": orgId },
   });
   const members = isRecord(result.body) && Array.isArray(result.body.members)
     ? result.body.members.filter(isRecord)
@@ -44,11 +44,11 @@ async function memberIdByEmail(admin: DenSession, orgId: string, email: string):
 test(title, { timeout: 300_000 }, async ({ evidence, place }) => {
   const runId = `${Date.now().toString(36)}${process.pid.toString(36)}`;
   const organizationName = `Super-admin SSO ${runId}`;
-  const password = "OpenWorkEval123!";
+  const password = "HarnessEval123!";
 
   await using den = await server({ place, org: { name: organizationName, members: {} } });
   const superAdmin = await inviteMember(den, "superAdmin", {
-    email: `sso-super-admin.${runId}@openwork.test`,
+    email: `sso-super-admin.${runId}@harness.test`,
     name: "SSO Super Admin",
     password,
   });
@@ -73,7 +73,7 @@ test(title, { timeout: 300_000 }, async ({ evidence, place }) => {
     headers: {
       authorization: `Bearer ${superAdmin.token}`,
       cookie: memberCookie,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: samlBody,
   });
@@ -82,7 +82,7 @@ test(title, { timeout: 300_000 }, async ({ evidence, place }) => {
   const owner = await freshSession(den.admin);
   const promoted = await denFetch(owner, `/v1/members/${encodeURIComponent(memberId)}/role`, {
     method: "POST",
-    headers: { ...auth(owner), "x-openwork-org-id": orgId },
+    headers: { ...auth(owner), "x-harness-org-id": orgId },
     body: JSON.stringify({ role: "super-admin" }),
   });
   expect(promoted.response.status, promoted.text).toBe(200);
@@ -99,7 +99,7 @@ test(title, { timeout: 300_000 }, async ({ evidence, place }) => {
     headers: {
       authorization: `Bearer ${superAdmin.token}`,
       cookie: sessionCookie,
-      "x-openwork-org-id": orgId,
+      "x-harness-org-id": orgId,
     },
     body: samlBody,
   });

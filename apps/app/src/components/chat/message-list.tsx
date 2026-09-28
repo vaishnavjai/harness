@@ -44,8 +44,8 @@ import { GrepTool } from "@/components/tools/grep"
 import { LspTool } from "@/components/tools/lsp"
 import {
   isAutomationProposalToolPart,
-  OpenWorkAutomationProposalTool,
-} from "@/components/tools/openwork-automation-proposal"
+  HarnessAutomationProposalTool,
+} from "@/components/tools/harness-automation-proposal"
 import { QuestionTool } from "@/components/tools/question"
 import { SkillTool } from "@/components/tools/skill"
 import { TodoWriteTool } from "@/components/tools/todowrite"
@@ -317,10 +317,10 @@ const ToolMessageInner = ({ part }: ToolMessageProps) => {
   }
 
   if (part.type === "dynamic-tool" && isAutomationProposalToolPart(part)) {
-    return <OpenWorkAutomationProposalTool part={part} />
+    return <HarnessAutomationProposalTool part={part} />
   }
 
-  // OpenWork's own connection reports render as the native card: the host is
+  // Harness's own connection reports render as the native card: the host is
   // the presentation; the Den App remains for external hosts.
   if (part.type === "dynamic-tool" && connectionCardParts.has(part.toolCallId)) {
     return <ConnectionCard part={part} allowDiscovery={Boolean(getConnectionDecision?.(part.toolCallId))} />
@@ -1065,7 +1065,7 @@ interface ErrorMessageProps {
   /** Error type, status, provider, code, response body — for bug reports and support. */
   technicalDetails?: string | null
   /**
-   * Set (possibly null) only when the OpenWork Gateway rejected the request
+   * Set (possibly null) only when the Harness Gateway rejected the request
    * because the member must sign in: a URL opens the grant in the browser,
    * null deep-links to Settings > AI providers instead.
    */

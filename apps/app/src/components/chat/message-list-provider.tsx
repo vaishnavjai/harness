@@ -8,7 +8,7 @@ import type {
 } from "@/components/tools/error-attribution"
 import * as React from "react"
 import type { ConnectorToolIdentity } from "@/react-app/domains/connections/connector-tool-identity"
-import type { OpenworkServerClient } from "@/app/lib/openwork-server"
+import type { HarnessServerClient } from "@/app/lib/harness-server"
 import type { McpAppOrigin } from "./mcp-app-origin"
 import type { ChatConnectionDecisionBinding } from "@/react-app/domains/session/surface/mcp-chat-reconnect"
 
@@ -53,7 +53,7 @@ interface MessageListContextValue {
 const MessageListContext = React.createContext<MessageListContextValue | null>(null)
 
 interface MessageListProviderProps {
-  client?: OpenworkServerClient
+  client?: HarnessServerClient
   mcpAppEngine?: "v1" | "v2"
   readOnly?: boolean
   children: React.ReactNode

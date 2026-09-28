@@ -59,8 +59,8 @@ export function cloudWorkspaceTakeoverCopy(input: {
 }): { title: string; body: string } {
   if (input.variant === "access-required") {
     return {
-      title: "OpenWork Web needs an active plan",
-      body: "Your organization does not have an active OpenWork Web subscription or complimentary access. Get OpenWork Web in Den to start your cloud workspace.",
+      title: "Harness Web needs an active plan",
+      body: "Your organization does not have an active Harness Web subscription or complimentary access. Get Harness Web in Den to start your cloud workspace.",
     };
   }
   if (input.variant === "failed") {
@@ -72,7 +72,7 @@ export function cloudWorkspaceTakeoverCopy(input: {
   if (input.variant === "unavailable") {
     return {
       title: "Couldn’t check your workspace",
-      body: "OpenWork Cloud didn’t answer. Your sandbox may still be running, so try checking again.",
+      body: "Harness Cloud didn’t answer. Your sandbox may still be running, so try checking again.",
     };
   }
   if (input.slow) {
@@ -104,9 +104,9 @@ export function cloudWorkspaceTakeoverCopy(input: {
 export function formatCloudWorkspaceVersion(version: string | null): string | null {
   const trimmed = version?.trim() ?? "";
   if (!trimmed) return null;
-  const openworkPrefix = "openwork-";
-  if (!trimmed.toLowerCase().startsWith(openworkPrefix)) return trimmed;
-  const withoutPrefix = trimmed.slice(openworkPrefix.length);
+  const harnessPrefix = "harness-";
+  if (!trimmed.toLowerCase().startsWith(harnessPrefix)) return trimmed;
+  const withoutPrefix = trimmed.slice(harnessPrefix.length);
   return withoutPrefix.toLowerCase().startsWith("v") ? withoutPrefix : `v${withoutPrefix}`;
 }
 
@@ -272,9 +272,9 @@ export function mapCloudWorkspaceState(input: {
   if (input.accessRequired) {
     return {
       variant: "access-required",
-      label: "OpenWork Web plan required",
+      label: "Harness Web plan required",
       tone: "amber",
-      statusLine: "OpenWork Web plan required",
+      statusLine: "Harness Web plan required",
       ...lines,
       updateAvailable,
       showUpdate: false,

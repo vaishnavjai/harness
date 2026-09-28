@@ -1,10 +1,10 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
 import { checkpointWorld } from "../worlds/web-checkpoint.ts";
 
 const test = spec.world(() => checkpointWorld(), {
   resources: { surfaces: ["appWeb"], services: ["den", "mock"] },
-  needs: { placement: "local", env: ["FREESTYLE_API_KEY"], optIn: ["OPENWORK_EVIDENCE_CHECKPOINTS"] },
+  needs: { placement: "local", env: ["FREESTYLE_API_KEY"], optIn: ["HARNESS_EVIDENCE_CHECKPOINTS"] },
   timeout: 1_200_000,
 });
 
@@ -28,7 +28,7 @@ test("a reviewer enters a saved web browser with ten sessions and continues a pa
     const picture = await user.checkpoint("Ten saved sessions");
     if (!picture?.checkpoint) throw new Error("This run did not save a checkpoint");
     expect(picture.checkpoint.sourceSha).toBe(world.sourceSha);
-    evidence.recordAssertionEvidence("Ten real OpenWork sessions are saved", `The product session list contains all ten named sessions; screenshot and checkpoint identify this source commit (${picture.checkpointMatch} match).`, true);
+    evidence.recordAssertionEvidence("Ten real Harness sessions are saved", `The product session list contains all ten named sessions; screenshot and checkpoint identify this source commit (${picture.checkpointMatch} match).`, true);
     return world.publish(picture, "Ten saved sessions");
   });
 

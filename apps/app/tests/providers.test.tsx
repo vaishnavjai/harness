@@ -23,9 +23,9 @@ import { useReloadCoordinator } from "../src/react-app/shell/reload-coordinator"
 // that gates every feature behind Den activation.
 const ENTERPRISE_DISTRIBUTION = {
   flavor: "enterprise",
-  appName: "OpenWork Enterprise",
-  appIdentifier: "com.differentai.openwork",
-  protocolScheme: "openwork",
+  appName: "Harness Enterprise",
+  appIdentifier: "com.vaishnavjai.harness",
+  protocolScheme: "harness",
   requireSignin: true,
   requireActivation: true,
 } as const;
@@ -47,7 +47,7 @@ const ACTIVATED_BOOTSTRAP = {
 const GATED_DESKTOP_COMMANDS = new Set([
   "workspaceBootstrap",
   "runtimeBootstrap",
-  "openworkServerRestart",
+  "harnessServerRestart",
   "engineStart",
   "automationRunnerConfigure",
 ]);
@@ -61,7 +61,7 @@ function installElectronBridge() {
   const meta: { distribution: typeof ENTERPRISE_DISTRIBUTION; desktopBootstrap?: typeof ACTIVATED_BOOTSTRAP } = {
     distribution: ENTERPRISE_DISTRIBUTION,
   };
-  Reflect.set(window, "__OPENWORK_ELECTRON__", {
+  Reflect.set(window, "__HARNESS_ELECTRON__", {
     meta,
     invokeDesktop: async (command: string) => {
       commands.push(command);

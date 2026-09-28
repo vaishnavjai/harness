@@ -1,4 +1,4 @@
-import type { GeneratedArtifactView, GeneratedArtifactViewRevision, SavedAppDetail, SavedAppSummary } from "@openwork/types/workflows";
+import type { GeneratedArtifactView, GeneratedArtifactViewRevision, SavedAppDetail, SavedAppSummary } from "@harness/types/workflows";
 import { DASHBOARD_TILE_CACHE_STORAGE_PREFIX } from "@/app/lib/dashboard-cache-storage";
 import type { DashboardMcpAppEntry } from "../dashboard/granted-dashboard-store";
 
@@ -11,9 +11,9 @@ export function liveGeneratedAppEntry(view: GeneratedArtifactView, revision: Gen
   return {
     kind: "mcp",
     id: JSON.stringify([view.id, revision.resourceUri, timeZone, viewerLocalDate(timeZone, now)]),
-    serverName: "openwork-cloud",
+    serverName: "harness-cloud",
     toolName,
-    projectedToolName: `openwork-cloud_${toolName}`,
+    projectedToolName: `harness-cloud_${toolName}`,
     resourceUri: revision.resourceUri,
     title: view.title,
     launchArguments: { timeZone },

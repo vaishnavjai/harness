@@ -548,7 +548,7 @@ async function requestProxiedRoute({ requestPath, secret, traceId = randomBytes(
   const requestResponse = await fetch(`${webUrl}${requestPath}`, {
     headers: {
       traceparent,
-      "x-openwork-otel-hono-e2e": traceId,
+      "x-harness-otel-hono-e2e": traceId,
     },
     redirect: "manual",
   });

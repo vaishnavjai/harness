@@ -175,7 +175,7 @@ function composerContext(): NewTaskComposerContext {
     modelVariantLabel: "Default",
     modelVariant: null,
     onModelVariantChange: () => {},
-    agentLabel: "OpenWork",
+    agentLabel: "Harness",
     selectedAgent: null,
     listAgents: async () => [],
     onSelectAgent: () => {},

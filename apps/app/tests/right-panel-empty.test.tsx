@@ -3,7 +3,7 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { BrowserPanelTab, BrowserStatePayload } from "@openwork/browser-tabs";
+import type { BrowserPanelTab, BrowserStatePayload } from "@harness/browser-tabs";
 import type { PanelTab } from "../src/react-app/domains/session/panel/panel-tab-store";
 
 import {

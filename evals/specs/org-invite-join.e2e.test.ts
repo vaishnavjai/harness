@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { invitationWitnesses, invitationsFor, membersFor, orgInvite, rows, text } from "../worlds/org-invite.ts";
 
 const test = spec.world(orgInvite, { resources: { surfaces: ["web"], services: ["den"] }, timeout: 900_000 });
@@ -84,11 +84,11 @@ test("OPE-82: cloud invitations retain identity and organization through authent
       const person = identity(`${state}-invitee`);
       const invite = await witnesses.invite(person.email, orgId);
       if (state === "canceled") {
-        const canceled = await witnesses.api(`/v1/invitations/${invite.id}`, { method: "DELETE", headers: { "x-openwork-org-id": orgId } });
+        const canceled = await witnesses.api(`/v1/invitations/${invite.id}`, { method: "DELETE", headers: { "x-harness-org-id": orgId } });
         expect(canceled.response.ok, canceled.text).toBe(true);
       }
       if (state === "blocked") {
-        const restricted = await witnesses.api("/v1/org", { method: "PATCH", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ allowedEmailDomains: ["allowed.test"] }) });
+        const restricted = await witnesses.api("/v1/org", { method: "PATCH", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ allowedEmailDomains: ["allowed.test"] }) });
         expect(restricted.response.ok, restricted.text).toBe(true);
       }
       try {
@@ -106,7 +106,7 @@ test("OPE-82: cloud invitations retain identity and organization through authent
         await noCrossOrg();
       } finally {
         if (state === "blocked") {
-          const restored = await witnesses.api("/v1/org", { method: "PATCH", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ allowedEmailDomains: [] }) });
+          const restored = await witnesses.api("/v1/org", { method: "PATCH", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ allowedEmailDomains: [] }) });
           expect(restored.response.ok, restored.text).toBe(true);
         }
       }

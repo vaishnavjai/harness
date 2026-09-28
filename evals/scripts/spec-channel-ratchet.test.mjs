@@ -7,7 +7,7 @@ import test from "node:test";
 import { compareBaseline, countRawEscapes, compareWorldContracts } from "./spec-channel-ratchet.mjs";
 
 test("world contracts ratchet new bindings and explicit removals against source history", () => {
-  const header = 'import { spec as journey } from "@openwork/testkit";';
+  const header = 'import { spec as journey } from "@harness/testkit";';
   const legacy = `${header} const test = journey.world(arrange);`;
   const explicit = `${header} const test = journey.world(arrange, { resources: { surfaces: ["appWeb"], services: [] } });`;
   assert.deepEqual(compareWorldContracts("fixture.ts", legacy, legacy), []);
@@ -20,7 +20,7 @@ test("world contracts ratchet new bindings and explicit removals against source 
 
 test("countRawEscapes counts raw rails only when their exact syntax is present", () => {
   const source = `
-    import { evalIn } from "@openwork/behaviors";
+    import { evalIn } from "@harness/behaviors";
     evalIn(app, "read");
     denFetch(den, "/v1/write");
     browser.client.send("Input.insertText");

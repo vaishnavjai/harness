@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { devOpenworkProxy } from "./dev-openwork-proxy";
+import { devHarnessProxy } from "./dev-harness-proxy";
 import { devDenProxy } from "./dev-den-proxy";
 
 const portValue = Number.parseInt(process.env.PORT ?? "", 10);
@@ -21,7 +21,7 @@ const addHost = (value?: string | null) => {
 };
 
 envAllowedHosts.split(",").forEach(addHost);
-addHost(process.env.OPENWORK_PUBLIC_HOST ?? null);
+addHost(process.env.HARNESS_PUBLIC_HOST ?? null);
 const hostname = os.hostname();
 addHost(hostname);
 const shortHostname = hostname.split(".")[0];
@@ -62,13 +62,13 @@ function readPackageVersion(packagePath: string): string | null {
 }
 
 const buildAppVersion =
-  process.env.VITE_OPENWORK_APP_VERSION?.trim() ||
+  process.env.VITE_HARNESS_APP_VERSION?.trim() ||
   readPackageVersion(desktopPackagePath) ||
   readPackageVersion(appPackagePath) ||
   "0.0.0";
 const buildSha = firstNonEmpty([
-  process.env.VITE_OPENWORK_BUILD_SHA,
-  process.env.OPENWORK_GIT_SHA,
+  process.env.VITE_HARNESS_BUILD_SHA,
+  process.env.HARNESS_GIT_SHA,
   process.env.VERCEL_GIT_COMMIT_SHA,
   process.env.GITHUB_SHA,
 ]) ?? readLocalGitSha();
@@ -100,7 +100,7 @@ const migrationReleaseEnv = loadMigrationReleaseEnv();
 // Electron packaged builds load index.html via `file://`, so asset URLs
 // must be relative. Tauri serves via its own protocol so absolute paths
 // work there. Gate on an env var the electron build script sets.
-const isElectronPackagedBuild = process.env.OPENWORK_ELECTRON_BUILD === "1";
+const isElectronPackagedBuild = process.env.HARNESS_ELECTRON_BUILD === "1";
 
 // Headless-web dev (scripts/dev-headless-web.ts): serve /api/den same-origin
 // from the dev server, proxied to the Den control plane, so the browser never
@@ -110,16 +110,16 @@ const isElectronPackagedBuild = process.env.OPENWORK_ELECTRON_BUILD === "1";
 // that runtime implies a provisioned cloud instance, which local dev lacks.
 export default defineConfig(({ command, isPreview }) => {
   const denProxy = devDenProxy(command === "serve" && !isPreview ? process.env : {});
-  const openworkProxy = devOpenworkProxy(command === "serve" && !isPreview ? process.env : {});
-  const headlessBrowserHostSuffix = Object.keys(openworkProxy).length > 0
-    ? process.env.OPENWORK_DEV_BROWSER_HOST_SUFFIX
+  const harnessProxy = devHarnessProxy(command === "serve" && !isPreview ? process.env : {});
+  const headlessBrowserHostSuffix = Object.keys(harnessProxy).length > 0
+    ? process.env.HARNESS_DEV_BROWSER_HOST_SUFFIX
     : undefined;
   if (headlessBrowserHostSuffix && !/^\.[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(headlessBrowserHostSuffix)) {
     throw new Error("Invalid development browser host suffix.");
   }
   return {
     base: isElectronPackagedBuild ? "./" : "/",
-    ...(process.env.OPENWORK_VITE_CACHE_DIR ? { cacheDir: process.env.OPENWORK_VITE_CACHE_DIR } : {}),
+    ...(process.env.HARNESS_VITE_CACHE_DIR ? { cacheDir: process.env.HARNESS_VITE_CACHE_DIR } : {}),
     define: {
       ...Object.fromEntries(
         Object.entries(migrationReleaseEnv).map(([k, v]) => [
@@ -127,14 +127,14 @@ export default defineConfig(({ command, isPreview }) => {
           JSON.stringify(v),
         ]),
       ),
-      "import.meta.env.VITE_OPENWORK_APP_VERSION": JSON.stringify(buildAppVersion),
-      "import.meta.env.VITE_OPENWORK_BUILD_SHA": JSON.stringify(shortBuildSha),
+      "import.meta.env.VITE_HARNESS_APP_VERSION": JSON.stringify(buildAppVersion),
+      "import.meta.env.VITE_HARNESS_BUILD_SHA": JSON.stringify(shortBuildSha),
     },
     plugins: [
       {
-        name: "openwork-dev-server-id",
+        name: "harness-dev-server-id",
         configureServer(server) {
-          server.middlewares.use("/__openwork_dev_server_id", (_req, res) => {
+          server.middlewares.use("/__harness_dev_server_id", (_req, res) => {
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ appRoot }));
           });
@@ -155,7 +155,7 @@ export default defineConfig(({ command, isPreview }) => {
         : {}),
       proxy: {
         ...denProxy,
-        ...openworkProxy,
+        ...harnessProxy,
       },
     },
     build: {

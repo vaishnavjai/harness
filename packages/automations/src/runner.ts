@@ -1,4 +1,4 @@
-import { AUTOMATION_DESKTOP_RUNNER_PRESENCE_WINDOW_MS } from "@openwork/types/automations"
+import { AUTOMATION_DESKTOP_RUNNER_PRESENCE_WINDOW_MS } from "@harness/types/automations"
 
 /** Shortest window an occurrence stays claimable, whatever the deployment tunes. */
 export const AUTOMATION_MIN_CLAIM_WINDOW_MS = 60_000

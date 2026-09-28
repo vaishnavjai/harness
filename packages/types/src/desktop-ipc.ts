@@ -7,7 +7,7 @@
  * Consumer: apps/app/src/app/lib/desktop.ts — the `desktopBridge` Proxy and
  * its named exports derive per-command signatures from `DesktopCommandMap`.
  *
- * Every command sent over the `openwork:desktop` channel has exactly one
+ * Every command sent over the `harness:desktop` channel has exactly one
  * entry here: `args` is the tuple the renderer passes, `result` what the
  * main process resolves. Results marked `unknown` are not yet modeled —
  * tighten them instead of widening call sites.
@@ -72,7 +72,7 @@ export type DesktopIntegrationIssue =
 export type DesktopIntegrationStatus = {
   supported: boolean;
   state: "unsupported" | "not_integrated" | "integrated" | "needs_repair" | "managed_externally";
-  ownership: "none" | "openwork" | "external";
+  ownership: "none" | "harness" | "external";
   appImagePath: string | null;
   desktopEntryPath: string | null;
   handlerDesktopId: string | null;
@@ -85,7 +85,7 @@ export type DesktopIntegrationResult = {
   error?: string;
 };
 
-export type OpenworkServerInfo = {
+export type HarnessServerInfo = {
   running: boolean;
   /**
    * Monotonic per-start identity of the embedded server within this desktop
@@ -154,7 +154,7 @@ export type OpencodeCommandDraft = {
   subtask?: boolean;
 };
 
-export type WorkspaceOpenworkConfig = {
+export type WorkspaceHarnessConfig = {
   version: number;
   workspace?: {
     name?: string | null;
@@ -172,7 +172,7 @@ export type AppBuildInfo = {
   version: string;
   gitSha?: string | null;
   buildEpoch?: string | null;
-  openworkDevMode?: boolean;
+  harnessDevMode?: boolean;
   os?: string | null;
   arch?: string | null;
 };
@@ -228,7 +228,7 @@ export type DesktopBootstrapConfig = {
   } | null;
 };
 
-export type OpenworkDockerCleanupResult = {
+export type HarnessDockerCleanupResult = {
   candidates: string[];
   removed: string[];
   errors: string[];
@@ -366,15 +366,15 @@ export type WorkspaceCreateInput = {
 
 export type WorkspaceCreateRemoteInput = {
   baseUrl: string;
-  remoteType?: "openwork" | "opencode" | null;
+  remoteType?: "harness" | "opencode" | null;
   directory?: string | null;
   displayName?: string | null;
-  openworkHostUrl?: string | null;
-  openworkToken?: string | null;
-  openworkClientToken?: string | null;
-  openworkHostToken?: string | null;
-  openworkWorkspaceId?: string | null;
-  openworkWorkspaceName?: string | null;
+  harnessHostUrl?: string | null;
+  harnessToken?: string | null;
+  harnessClientToken?: string | null;
+  harnessHostToken?: string | null;
+  harnessWorkspaceId?: string | null;
+  harnessWorkspaceName?: string | null;
   sandboxBackend?: string | null;
   sandboxRunId?: string | null;
   sandboxContainerName?: string | null;
@@ -424,12 +424,12 @@ export type DesktopCommandMap = {
     args: [input: { workspacePath: string; folderPath?: string; authorizedRoot?: string }];
     result: unknown;
   };
-  workspaceOpenworkRead: {
+  workspaceHarnessRead: {
     args: [input: { workspacePath: string }];
-    result: WorkspaceOpenworkConfig;
+    result: WorkspaceHarnessConfig;
   };
-  workspaceOpenworkWrite: {
-    args: [input: { workspacePath: string; config: WorkspaceOpenworkConfig }];
+  workspaceHarnessWrite: {
+    args: [input: { workspacePath: string; config: WorkspaceHarnessConfig }];
     result: unknown;
   };
   workspaceExportConfig: {
@@ -472,11 +472,6 @@ export type DesktopCommandMap = {
     args: [input: DesktopNotificationInput];
     result: DesktopNotificationResult;
   };
-  desktopSentrySetSession: {
-    args: [input: { userId: string; orgId: string }];
-    result: { enabled: boolean };
-  };
-  desktopSentryClearSession: { args: []; result: { enabled: boolean } };
   desktopIntegrationStatus: { args: []; result: DesktopIntegrationStatus };
   desktopIntegrationInstall: {
     args: [options?: { useExternalLauncher?: boolean }];
@@ -484,11 +479,11 @@ export type DesktopCommandMap = {
   };
   desktopIntegrationRemove: { args: []; result: DesktopIntegrationResult };
   getUiControlBridgeInfo: { args: []; result: UiControlBridgeInfo | null };
-  getOpenworkUiMcpCommand: { args: []; result: string[] };
+  getHarnessUiMcpCommand: { args: []; result: string[] };
   getComputerUseMcpCommand: { args: []; result: string[] };
   getComputerUseState: { args: []; result: unknown };
   computerUseAction: { args: [value: { connectionId: string; id: string; action: string; windowId?: number }]; result: void };
-  getOpenworkUiMcpEnvironment: { args: []; result: Record<string, string> };
+  getHarnessUiMcpEnvironment: { args: []; result: Record<string, string> };
 
   // Computer use
   checkComputerUsePermissions: { args: []; result: ComputerUsePermissions };
@@ -514,21 +509,21 @@ export type DesktopCommandMap = {
     args: [rawUrl: string];
     result: { ok: true; config: DesktopBootstrapConfig } | ConnectLinkVerifyFailure;
   };
-  nukeOpenworkAndOpencodeConfigPreview: { args: [options?: NukeOptions]; result: NukeManifestPreview };
-  nukeOpenworkAndOpencodeConfigAndExit: { args: [options?: NukeOptions]; result: NukeReceipt };
+  nukeHarnessAndOpencodeConfigPreview: { args: [options?: NukeOptions]; result: NukeManifestPreview };
+  nukeHarnessAndOpencodeConfigAndExit: { args: [options?: NukeOptions]; result: NukeReceipt };
 
   // Sandbox
-  sandboxCleanupOpenworkContainers: { args: []; result: OpenworkDockerCleanupResult };
+  sandboxCleanupHarnessContainers: { args: []; result: HarnessDockerCleanupResult };
 
-  // Openwork server sidecar
-  openworkServerInfo: { args: []; result: OpenworkServerInfo };
+  // Harness server sidecar
+  harnessServerInfo: { args: []; result: HarnessServerInfo };
   automationRunnerConfigure: {
     args: [configuration: { baseUrl: string; token: string; runnerId: string } | null];
     result: { connected: boolean };
   };
-  openworkServerRestart: {
+  harnessServerRestart: {
     args: [options?: Record<string, unknown>];
-    result: OpenworkServerInfo;
+    result: HarnessServerInfo;
   };
 
   // Dialogs
@@ -582,7 +577,7 @@ export type DesktopCommandMap = {
    * the renderer's localStorage cleanup is mode-scoped. Follow-up: decide
    * whether "onboarding" should preserve desktop workspace state.
    */
-  resetOpenworkState: { args: [mode?: "onboarding" | "all"]; result: unknown };
+  resetHarnessState: { args: [mode?: "onboarding" | "all"]; result: unknown };
   resetOpencodeCache: { args: []; result: CacheResetResult };
   opencodeMcpAuth: { args: [action: string, name: string]; result: ExecResult };
   setWindowDecorations: { args: [decorated: boolean]; result: unknown };
@@ -591,7 +586,7 @@ export type DesktopCommandMap = {
   __showContextMenu: { args: [request: NativeContextMenuRequest]; result: string | null };
   __cancelContextMenu: { args: [requestId: string]; result: boolean };
   __openPath: { args: [target: string]; result: unknown };
-  __openWorkspaceFile: { args: [workspaceRoot: string, target: string]; result: DesktopWorkspaceFileOpenResult };
+  __harnessspaceFile: { args: [workspaceRoot: string, target: string]; result: DesktopWorkspaceFileOpenResult };
   __revealItemInDir: { args: [target: string]; result: unknown };
   __getFileIcon: { args: [target: string, size?: "small" | "normal" | "large"]; result: string | null };
   __applyBrandAppName: { args: [appName: string | null]; result: { ok: true; appName: string } };

@@ -39,13 +39,13 @@ jobs:
           version: 11.4.0
 
       - name: Install dependencies
-        run: pnpm install --filter "@openwork-ee/den-db..."
+        run: pnpm install --filter "@harness-ee/den-db..."
 
       - name: Generate migrations from schema
-        run: pnpm --filter @openwork-ee/den-db db:generate
+        run: pnpm --filter @harness-ee/den-db db:generate
 
       - name: Run migration readiness tests
-        run: pnpm --filter @openwork-ee/den-db test
+        run: pnpm --filter @harness-ee/den-db test
         env:
           DEN_DB_MYSQL_TEST_URL: mysql://root:repro@127.0.0.1:33062/mysql
 
@@ -55,7 +55,7 @@ jobs:
           changes="$(git status --porcelain -- ee/packages/den-db/drizzle)"
           if [ -n "$changes" ]; then
             echo "$changes"
-            echo "::error::Schema changed without a committed migration. Run 'pnpm --filter @openwork-ee/den-db db:generate' locally and commit the generated files in ee/packages/den-db/drizzle."
+            echo "::error::Schema changed without a committed migration. Run 'pnpm --filter @harness-ee/den-db db:generate' locally and commit the generated files in ee/packages/den-db/drizzle."
             exit 1
           fi
           echo "Migrations are in sync with the schema."

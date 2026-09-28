@@ -17,8 +17,8 @@ const {
   toSessionTransportDirectory,
 } = await import("../src/app/lib/session-scope.ts");
 
-const starterRoot = "/Users/test/OpenWork/starter";
-const otherRoot = "/Users/test/OpenWork/second";
+const starterRoot = "/Users/test/Harness/starter";
+const otherRoot = "/Users/test/Harness/second";
 
 const results = {
   ok: true,
@@ -99,7 +99,7 @@ try {
       },
     });
 
-    const winRoot = String.raw`C:\Users\Test\OpenWork\starter`;
+    const winRoot = String.raw`C:\Users\Test\Harness\starter`;
     const transport = toSessionTransportDirectory(winRoot);
 
     assert.equal(transport, winRoot);
@@ -110,9 +110,9 @@ try {
     assert.equal(toSessionTransportDirectory(uncRoot), String.raw`\\server\share\starter`);
     assert.equal(describeDirectoryScope(uncRoot).normalized, "//server/share/starter");
 
-    const verbatimDriveRoot = String.raw`\\?\C:\Users\Test\OpenWork\starter`;
-    assert.equal(toSessionTransportDirectory(verbatimDriveRoot), String.raw`C:\Users\Test\OpenWork\starter`);
-    assert.equal(describeDirectoryScope(verbatimDriveRoot).normalized, "c:/users/test/openwork/starter");
+    const verbatimDriveRoot = String.raw`\\?\C:\Users\Test\Harness\starter`;
+    assert.equal(toSessionTransportDirectory(verbatimDriveRoot), String.raw`C:\Users\Test\Harness\starter`);
+    assert.equal(describeDirectoryScope(verbatimDriveRoot).normalized, "c:/users/test/harness/starter");
   });
 
   step("round-trip invariant: every query path equals the create path (unix)", () => {
@@ -126,8 +126,8 @@ try {
     });
 
     const unixPaths = [
-      "/Users/test/OpenWork/starter",
-      "/Users/test/OpenWork/starter/",
+      "/Users/test/Harness/starter",
+      "/Users/test/Harness/starter/",
       "/home/user/projects/my-app",
       "/tmp/sandbox",
       "/private/tmp/sandbox",
@@ -153,11 +153,11 @@ try {
 
     // Use escaped strings — Bun's parser chokes on String.raw inside array literals.
     const windowsPaths = [
-      "C:\\Users\\Test\\OpenWork\\starter",
-      "C:\\Users\\Test\\OpenWork\\starter\\",
+      "C:\\Users\\Test\\Harness\\starter",
+      "C:\\Users\\Test\\Harness\\starter\\",
       "D:\\projects\\my-app",
       "\\\\server\\share\\starter",
-      "\\\\?\\C:\\Users\\Test\\OpenWork\\starter",
+      "\\\\?\\C:\\Users\\Test\\Harness\\starter",
       "\\\\?\\UNC\\server\\share\\starter",
     ];
 
@@ -181,7 +181,7 @@ try {
     });
 
     const samples = [
-      "/Users/test/OpenWork/starter",
+      "/Users/test/Harness/starter",
       "/home/user/projects/my-app",
     ];
     for (const raw of samples) {
@@ -200,7 +200,7 @@ try {
     });
 
     const winSamples = [
-      "C:\\Users\\Test\\OpenWork\\starter",
+      "C:\\Users\\Test\\Harness\\starter",
       "\\\\server\\share\\starter",
     ];
     for (const raw of winSamples) {

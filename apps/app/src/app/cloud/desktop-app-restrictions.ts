@@ -2,7 +2,7 @@ import {
   DESKTOP_POLICY_ENFORCEMENT_ENABLED,
   desktopPolicyUserNotices,
   type DesktopPolicyKey,
-} from "@openwork/types/den/desktop-policies";
+} from "@harness/types/den/desktop-policies";
 import type { DenDesktopConfig } from "../lib/den";
 import type { ModelRef, SettingsTab } from "../types";
 

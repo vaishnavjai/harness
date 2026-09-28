@@ -13,8 +13,8 @@ export interface WorldTarget {
   os: WorldOs;
 }
 
-export const PLACE_ENV = "OPENWORK_WORLD_PLACE";
-export const OS_ENV = "OPENWORK_WORLD_OS";
+export const PLACE_ENV = "HARNESS_WORLD_PLACE";
+export const OS_ENV = "HARNESS_WORLD_OS";
 
 /**
  * Which operating systems each provider can actually give a world. `host`

@@ -1,14 +1,14 @@
 ---
 title: "Work with Excel workbooks"
-description: "Attach, read, and produce .xlsx workbooks with the agent without leaving OpenWork."
+description: "Attach, read, and produce .xlsx workbooks with the agent without leaving Harness."
 ---
 
-OpenWork treats Excel workbooks as first-class files. The agent reads any sheet of a workbook in your workspace, and it writes new workbooks that open in Excel, Numbers, Google Sheets, and the OpenWork artifact preview.
+Harness treats Excel workbooks as first-class files. The agent reads any sheet of a workbook in your workspace, and it writes new workbooks that open in Excel, Numbers, Google Sheets, and the Harness artifact preview.
 
 ## Attach a workbook
 
 1. Drop a `.xlsx` file into the composer or reference one already in the workspace.
-2. OpenWork keeps the original bytes out of the model request. The file is copied under `.opencode/openwork/inbox/chat-attachments/` and the agent receives a compact preview instead: every sheet name, its used range and formula count, and the first rows of each sheet as a grid with real row numbers and column letters.
+2. Harness keeps the original bytes out of the model request. The file is copied under `.opencode/harness/inbox/chat-attachments/` and the agent receives a compact preview instead: every sheet name, its used range and formula count, and the first rows of each sheet as a grid with real row numbers and column letters.
 3. The preview names the workspace path of the attached file, so the agent can read the rest of it on demand.
 
 Workbooks exported from Excel and Google Sheets both work, including files with merged cells, dates, number formats, and formulas. Password-protected workbooks, legacy `.xls`, `.numbers`, and `.ods` files are not read; save them as `.xlsx` first.

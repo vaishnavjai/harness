@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { allConnectorsPrompt, allConnectorsReply, connectorCatalogDiscovery, connectorCatalogPrompt, connectorCatalogReply } from "../worlds/library.ts";
 
 const test = spec.world(connectorCatalogDiscovery, {
@@ -58,7 +58,7 @@ test("a member gets setup links without starting OAuth or creating connections",
     const chatLink = (await webProbe.connectorCatalog()).chatLinks[0];
     if (!chatLink) throw new Error("The connector page has no Chat link.");
     const link = new URL(chatLink.href);
-    expect(`${link.protocol}//${link.host}`).toBe("openwork://chat");
+    expect(`${link.protocol}//${link.host}`).toBe("harness://chat");
     expect(link.searchParams.get("connector")).toBe(heading);
     expect([...link.searchParams.keys()].sort()).toEqual(["connector", "prompt"]);
     const prompt = link.searchParams.get("prompt");

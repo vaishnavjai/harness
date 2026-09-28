@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { personDefaults, selfHostServer, spec } from "@openwork/testkit";
+import { personDefaults, selfHostServer, spec } from "@harness/testkit";
 import { invitationWitnesses, invitationsFor, localInviteNeeds, membersFor, record, rows, text } from "../worlds/org-invite.ts";
 
 const test = spec.world(async (seed, { place }) => {

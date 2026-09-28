@@ -1,20 +1,20 @@
 # Local managed MCP OAuth
 
-OpenWork desktop can own OAuth for a custom remote MCP and expose its tools to
+Harness desktop can own OAuth for a custom remote MCP and expose its tools to
 the bundled OpenCode engine through an authenticated loopback MCP gateway. This
 provides a compatibility path for providers whose OAuth flow works through
-OpenWork's enterprise MCP client but not through OpenCode's direct MCP client.
+Harness's enterprise MCP client but not through OpenCode's direct MCP client.
 
 ## User flow
 
-1. In a local desktop workspace, add a remote MCP and expand **OpenWork-managed
+1. In a local desktop workspace, add a remote MCP and expand **Harness-managed
    OAuth**.
 2. Optionally enter a pre-registered client ID, client secret, and scopes. If
    the provider supports dynamic client registration, those fields may remain
    empty.
-3. OpenWork performs OAuth discovery, DCR when needed, PKCE authorization, the
+3. Harness performs OAuth discovery, DCR when needed, PKCE authorization, the
    loopback callback, token exchange, and an authenticated `tools/list` check.
-4. OpenCode receives a remote MCP entry pointing at the OpenWork loopback
+4. OpenCode receives a remote MCP entry pointing at the Harness loopback
    gateway with `oauth: false`. It sees the provider tools but never receives
    the provider access token, refresh token, or OAuth client secret.
 
@@ -24,13 +24,13 @@ The managed path is opt-in per connection and is currently desktop-only.
 ## Persistence and lifecycle
 
 - Provider credentials, OAuth registrations, discovery state, and PKCE
-  transactions are encrypted with AES-256-GCM in OpenWork's runtime storage.
-- OpenWork Desktop keeps the encryption key behind the operating system's
+  transactions are encrypted with AES-256-GCM in Harness's runtime storage.
+- Harness Desktop keeps the encryption key behind the operating system's
   secure-storage service and persists only the protected key blob, separately
   from the encrypted vault. A standalone server must set
-  `OPENWORK_ENCRYPTION_KEY`; there is no plaintext key-file fallback.
+  `HARNESS_ENCRYPTION_KEY`; there is no plaintext key-file fallback.
 - The gateway bearer is scoped to a workspace and connection, generated from a
-  process-only secret, and rotated on every OpenWork server restart.
+  process-only secret, and rotated on every Harness server restart.
 - Startup reconciliation rewrites managed runtime MCP entries with the current
   loopback port and bearer while keeping the encrypted provider credential.
 - Disconnect deletes the stored credential and disables the gateway entry.

@@ -1,12 +1,12 @@
 import { expect } from "vitest";
-import { browserScript, spec, type User, type Probe } from "@openwork/testkit";
-import { gatewayUsageLimitPolicySchema, gatewayUsagePeriod, gatewayUsageResetPageSchema, gatewayUsageStatusSchema, gatewayUsageTimeframes, type GatewayUsageStatus } from "@openwork/types/den/gateway-usage-limits";
+import { browserScript, spec, type User, type Probe } from "@harness/testkit";
+import { gatewayUsageLimitPolicySchema, gatewayUsagePeriod, gatewayUsageResetPageSchema, gatewayUsageStatusSchema, gatewayUsageTimeframes, type GatewayUsageStatus } from "@harness/types/den/gateway-usage-limits";
 import { gatewayUsagePolicy, usageRecord, usageRecords } from "../worlds/gateway-usage-policy.ts";
 
 const test = spec.world(gatewayUsagePolicy, {
   timeout: 600_000,
   resources: { surfaces: ["web", "desktop"], services: ["den", "mock"], nativeReason: "Verify Electron submits a usage increase through its native UI and the same composer completes a real Gateway-backed assistant turn after Den approval." },
-  needs: { commands: ["pnpm", "bun"], optIn: ["OPENWORK_EVAL_E2E_TESTS"] },
+  needs: { commands: ["pnpm", "bun"], optIn: ["HARNESS_EVAL_E2E_TESTS"] },
 });
 
 const policyName = "Usage Member";
@@ -202,19 +202,19 @@ test("GATEWAY-USAGE-01 admin policy blocks member Gateway calls until a reviewed
       expect(await adminProbe.eval(browserScript(() => location.pathname, []))).toBe(oldPath);
     }
     await admin.navigate(new URL("/dashboard/inference?source=legacy&tag=one&tag=two&tab=limits", world.den.ref.webUrl).toString());
-    await admin.see({ role: "heading", label: "OpenWork Models" });
-    await expectAdminRoute("/dashboard/ai-gateway?tab=openwork-models&source=legacy&tag=one&tag=two", "OpenWork Models");
+    await admin.see({ role: "heading", label: "Harness Models" });
+    await expectAdminRoute("/dashboard/ai-gateway?tab=harness-models&source=legacy&tag=one&tag=two", "Harness Models");
     await admin.see({ role: "heading", label: "Models" });
-    await admin.notSee({ role: "link", label: "OpenWork Models" });
+    await admin.notSee({ role: "link", label: "Harness Models" });
     await admin.notSee({ role: "button", label: "Apply new usage limit" });
     expect((await adminProbe.dom("h1")).elements).toHaveLength(1);
-    await capture("Den OpenWork Models tab", admin, adminProbe, '[role="tabpanel"][aria-label="OpenWork Models"]');
+    await capture("Den Harness Models tab", admin, adminProbe, '[role="tabpanel"][aria-label="Harness Models"]');
     await admin.navigate(new URL("/dashboard/ai-gateway?tab=limits", world.den.ref.webUrl).toString());
     await admin.see({ role: "button", label: "Refresh requests" });
     await expectAdminRoute("/dashboard/ai-gateway?tab=limits", "Limits");
     expect(await policies()).toHaveLength(1);
     expect(world.upstreamCount()).toBe(0);
-    evidence.recordAssertionEvidence("AI Gateway tab and nested form ownership", "New/edit provider forms stay within AI Providers without saving changes. The old Gateway sidebar link is absent and its list/new/detail/edit URLs show 404 without redirecting. The New limit page assigns only Usage Member; Usage Member's page reports $0.00 used of $1.00 a month and the unassigned control's page shows No limit. The legacy Models URL forwards to the OpenWork Models tab with repeated query values intact and no duplicate sidebar link or page heading. No upstream inference calls occurred.", true);
+    evidence.recordAssertionEvidence("AI Gateway tab and nested form ownership", "New/edit provider forms stay within AI Providers without saving changes. The old Gateway sidebar link is absent and its list/new/detail/edit URLs show 404 without redirecting. The New limit page assigns only Usage Member; Usage Member's page reports $0.00 used of $1.00 a month and the unassigned control's page shows No limit. The legacy Models URL forwards to the Harness Models tab with repeated query values intact and no duplicate sidebar link or page heading. No upstream inference calls occurred.", true);
   });
 
   const sessionId = await step("member selects the actual managed Gateway model in a real Desktop session", async () => {
@@ -272,7 +272,7 @@ test("GATEWAY-USAGE-01 admin policy blocks member Gateway calls until a reviewed
     expect(status.buckets).toEqual([{ ...initialBucket, usedMicroUsd: 1_000_000, remainingMicroUsd: 0, canRequestReset: true }]);
     expectSettledCoverage(status);
     const blocked = await world.generate();
-    expect(blocked).toMatchObject({ status: 429, errorCode: "openwork_gateway_usage_limit_exceeded", usageState: "blocked", body: { error: { source: "openwork_gateway", code: "openwork_gateway_usage_limit_exceeded", details: { exhaustedBuckets: [{ bucketId: initialBucket.id, usedMicroUsd: 1_000_000, allowanceMicroUsd: 1_000_000 }] } } } });
+    expect(blocked).toMatchObject({ status: 429, errorCode: "harness_gateway_usage_limit_exceeded", usageState: "blocked", body: { error: { source: "harness_gateway", code: "harness_gateway_usage_limit_exceeded", details: { exhaustedBuckets: [{ bucketId: initialBucket.id, usedMicroUsd: 1_000_000, allowanceMicroUsd: 1_000_000 }] } } } });
     expect(world.upstreamCount()).toBe(1);
     expect((await own()).buckets).toEqual(status.buckets);
     expect(await own(world.control)).toMatchObject({ state: "unlimited", buckets: [] });
@@ -301,7 +301,7 @@ test("GATEWAY-USAGE-01 admin policy blocks member Gateway calls until a reviewed
       within: 120_000, intervalMs: 500, label: "native engine request rejected by the real Gateway",
       until: (rows) => rows.length > rejectedBefore.length,
     });
-    for (const row of rejectedAfter) expect(row).toMatchObject({ status: 429, error_code: "openwork_gateway_usage_limit_exceeded", org_membership_id: world.memberId, requested_model: world.modelId });
+    for (const row of rejectedAfter) expect(row).toMatchObject({ status: 429, error_code: "harness_gateway_usage_limit_exceeded", org_membership_id: world.memberId, requested_model: world.modelId });
     const native = await probe.eventually(() => world.nativeMessages(sessionId), {
       within: 120_000, intervalMs: 500, label: "native engine records the submitted prompt and terminal assistant error",
       until: (value) => {

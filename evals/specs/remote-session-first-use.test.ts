@@ -1,8 +1,8 @@
 import { expect } from "vitest";
-import { denFetch, type DenSession } from "@openwork/behaviors";
-import { queryDenDatabase } from "@openwork/env";
-import { startCloudRuntimeWitness } from "@openwork/labs";
-import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@openwork/testkit";
+import { denFetch, type DenSession } from "@harness/behaviors";
+import { queryDenDatabase } from "@harness/env";
+import { startCloudRuntimeWitness } from "@harness/labs";
+import { eventually, localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@harness/testkit";
 
 const available = await localMysqlIsRunning() && await localRedisIsRunning();
 
@@ -21,8 +21,8 @@ function runtimeEnv(url: string) {
     DAYTONA_SNAPSHOT: "witness-snapshot", DAYTONA_SHARED_VOLUME_NAME: "witness-volume",
     DAYTONA_USE_DEPRECATED_POLLING: "true", DAYTONA_HEALTHCHECK_TIMEOUT_MS: "120000",
     WORKER_PROVISIONING_RECONCILE_INTERVAL_MS: "0", CLOUD_IDLE_LOOP_SECONDS: "0",
-    DEN_OPENWORK_WEB_ENABLED: "true", DEN_GATEWAY_KEY: "witness-gateway-key",
-    STRIPE_OPENWORK_WEB_PRICE_ID: "price_first_use_witness",
+    DEN_HARNESS_WEB_ENABLED: "true", DEN_GATEWAY_KEY: "witness-gateway-key",
+    STRIPE_HARNESS_WEB_PRICE_ID: "price_first_use_witness",
   };
 }
 
@@ -48,7 +48,7 @@ async function grantWebAccess(databaseUrl: string, orgId: string) {
 async function cloudRequest(session: DenSession, path = "/v1/cloud/instance", init: { body?: unknown } = {}) {
   const result = await denFetch(session, path, {
     method: path.endsWith("/retry") || path.endsWith("/update") ? "POST" : "GET",
-    headers: { authorization: `Bearer ${session.token}`, "X-OpenWork-Gateway-Key": "witness-gateway-key" },
+    headers: { authorization: `Bearer ${session.token}`, "X-Harness-Gateway-Key": "witness-gateway-key" },
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
   });
   expect(result.response.status, result.text).toBe(200);
@@ -146,7 +146,7 @@ test("first cloud task provisions once over MCP, recovers its workspace, and pre
         directoryMode: "700", fileMode: "600", selfUnlink: true,
       });
       expect([...bootstrap.credentialNames].sort()).toEqual([
-        "DEN_ACTIVITY_HEARTBEAT_TOKEN", "OPENWORK_HOST_TOKEN", "OPENWORK_TOKEN",
+        "DEN_ACTIVITY_HEARTBEAT_TOKEN", "HARNESS_HOST_TOKEN", "HARNESS_TOKEN",
       ]);
     }
     for (const launch of witness.fileEvents.filter((entry) => entry.operation === "launch")) {
@@ -161,7 +161,7 @@ test("first cloud task provisions once over MCP, recovers its workspace, and pre
     return bootstraps.length;
   }
 
-  expect((await call(writeToken, "create", {})).payload.error).toBe("openwork_web_access_required");
+  expect((await call(writeToken, "create", {})).payload.error).toBe("harness_web_access_required");
   expect(await workers()).toEqual([]);
   expect(witness.sandboxes).toHaveLength(0);
   evidence.recordAssertionEvidence("Paid access is checked before provisioning", "A valid write token in an organization without Web access was denied; zero worker rows and zero provider creates.", true);
@@ -364,7 +364,7 @@ test("first cloud task provisions once over MCP, recovers its workspace, and pre
   evidence.recordAssertionEvidence("Neutral instance reads keep Daytona rollback data current", "After provision, wake, endpoint refresh, rejected restore and successful recycle, both members retained one neutral instance row with provider and endpoint semantics. Its sandbox, volumes, URL and expiry matched the legacy Daytona row after every operation. Expiring only the neutral row triggered refresh, proving the new table owns reads.", true);
 
   await queryDenDatabase(databaseUrl, "UPDATE org_subscriptions SET status = 'canceled' WHERE organization_id = ?", [orgId]);
-  expect((await call(writeToken, "create", task)).payload.error).toBe("openwork_web_access_required");
+  expect((await call(writeToken, "create", task)).payload.error).toBe("harness_web_access_required");
   expect(witness.sessions).toHaveLength(2);
   expect(witness.sandboxes).toHaveLength(6);
   expect(await workers()).toHaveLength(2);
@@ -405,8 +405,8 @@ test("Cloud instance and gateway APIs persist neutral labels and reuse only the 
   if (!original) throw new Error("Instance API sandbox missing");
   expect(original.labels).toEqual({
     "code-toolbox-language": "python",
-    "openwork.den.provider": "daytona",
-    "openwork.den.worker-id": original.workerId,
+    "harness.den.provider": "daytona",
+    "harness.den.worker-id": original.workerId,
   });
   const ownerRows = await workers();
   expect(ownerRows).toHaveLength(1);
@@ -427,8 +427,8 @@ test("Cloud instance and gateway APIs persist neutral labels and reuse only the 
   if (!other) throw new Error("Gateway sandbox missing");
   expect(other.labels).toEqual({
     "code-toolbox-language": "python",
-    "openwork.den.provider": "daytona",
-    "openwork.den.worker-id": other.workerId,
+    "harness.den.provider": "daytona",
+    "harness.den.worker-id": other.workerId,
   });
   const rows = await workers();
   expect(rows.map((entry) => record(entry).name)).toEqual(["Cloud", "Cloud"]);
@@ -540,8 +540,8 @@ test("concurrent retries isolate workers with identical names and colliding Type
     expect(sandbox.name).not.toMatch(/cloud|workspace|owner|colleague/);
     expect(sandbox.labels).toEqual({
       "code-toolbox-language": "python",
-      "openwork.den.provider": "daytona",
-      "openwork.den.worker-id": workerId,
+      "harness.den.provider": "daytona",
+      "harness.den.worker-id": workerId,
     });
     expect(sandbox.bootstrapWorkerIds).toEqual([workerId]);
     expect(sandbox.state).toBe("started");

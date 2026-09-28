@@ -5,24 +5,24 @@ import type { DenExternalMcpConnection } from "../src/app/lib/den";
 import type { McpServerEntry } from "../src/app/types";
 import {
   buildExtensionItems,
-  isOpenworkProvidedSkill,
+  isHarnessProvidedSkill,
   resolveExtensionInventoryGroup,
   type ExtensionItem,
 } from "../src/react-app/domains/settings/extension-items";
 
 const connectedBuiltIn: McpDirectoryInfo = {
-  id: "openwork-browser",
-  name: "OpenWork Browser",
-  serverName: "openwork-browser",
+  id: "harness-browser",
+  name: "Harness Browser",
+  serverName: "harness-browser",
   description: "Connected by default.",
   oauth: false,
   kind: "extension",
   extensionManifest: {
     schemaVersion: 1,
-    id: "openwork-browser",
-    name: "OpenWork Browser",
+    id: "harness-browser",
+    name: "Harness Browser",
     description: "Connected by default.",
-    source: { format: "openwork-builtin", origin: "builtin", trusted: true },
+    source: { format: "harness-builtin", origin: "builtin", trusted: true },
     resources: [],
   },
 };
@@ -39,7 +39,7 @@ const availableBuiltIn: McpDirectoryInfo = {
     id: "computer-use",
     name: "Computer Use",
     description: "Marketplace-only until installed.",
-    source: { format: "openwork-builtin", origin: "builtin", trusted: true },
+    source: { format: "harness-builtin", origin: "builtin", trusted: true },
     resources: [],
   },
 };
@@ -79,12 +79,12 @@ function orgMcpConnection(input: Partial<DenExternalMcpConnection> = {}): DenExt
 }
 
 describe("extension item projection", () => {
-  test("attributes only current OpenWork-provided local skills", () => {
-    expect(isOpenworkProvidedSkill({
+  test("attributes only current Harness-provided local skills", () => {
+    expect(isHarnessProvidedSkill({
       name: "skill-creator",
       path: "/workspace/.opencode/skills/skill-creator/SKILL.md",
     })).toBe(true);
-    expect(isOpenworkProvidedSkill({
+    expect(isHarnessProvidedSkill({
       name: "workspace-guide",
       path: String.raw`C:\workspace\.opencode\skills\workspace-guide\SKILL.md`,
     })).toBe(true);
@@ -96,7 +96,7 @@ describe("extension item projection", () => {
       "plugin-creator",
       "customer-creator",
     ]) {
-      expect(isOpenworkProvidedSkill({
+      expect(isHarnessProvidedSkill({
         name,
         path: `/workspace/.opencode/skills/${name}/SKILL.md`,
       })).toBe(false);
@@ -114,9 +114,9 @@ describe("extension item projection", () => {
       isBuiltInConnected: (entry) => entry.id === connectedBuiltIn.id,
     });
 
-    expect(result.installedMcpEntries.map((entry) => entry.name)).toEqual(["OpenWork Browser"]);
-    expect(result.builtInItems.map((item) => item.name)).toEqual(["OpenWork Browser", "Computer Use"]);
-    expect(result.quickConnectEntries.map((entry) => entry.name)).toEqual(["OpenWork Browser", "Computer Use"]);
+    expect(result.installedMcpEntries.map((entry) => entry.name)).toEqual(["Harness Browser"]);
+    expect(result.builtInItems.map((item) => item.name)).toEqual(["Harness Browser", "Computer Use"]);
+    expect(result.quickConnectEntries.map((entry) => entry.name)).toEqual(["Harness Browser", "Computer Use"]);
   });
 
   test("projects per-member org MCP grants as Marketplace items until connected", () => {
@@ -213,9 +213,9 @@ describe("extension item projection", () => {
 
 describe("resolveExtensionInventoryGroup", () => {
   const baseItem = (overrides: Partial<ExtensionItem> = {}): ExtensionItem => ({
-    id: "builtin:openwork-browser",
+    id: "builtin:harness-browser",
     source: "builtin",
-    name: "OpenWork Browser",
+    name: "Harness Browser",
     description: null,
     installState: "installed",
     setupState: "ready",

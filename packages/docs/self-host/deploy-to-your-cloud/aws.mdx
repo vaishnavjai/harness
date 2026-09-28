@@ -1,6 +1,6 @@
 ---
 title: "Deploy on AWS"
-description: "Run OpenWork on Amazon EKS with Amazon RDS for MySQL."
+description: "Run Harness on Amazon EKS with Amazon RDS for MySQL."
 ---
 
 The recommended AWS path is Helm on Amazon EKS with Amazon RDS for MySQL. For the smallest first deployment, use EKS Auto Mode and Kubernetes `LoadBalancer` Services so AWS provisions Network Load Balancers for Den web and Den API. Move to an ALB or an existing ingress platform when you need shared layer-7 routing, WAF policy, or more advanced certificate handling.
@@ -12,7 +12,7 @@ The recommended AWS path is Helm on Amazon EKS with Amazon RDS for MySQL. For th
 - RDS for MySQL, encryption, backups, and failover
 - Route 53 DNS and ACM certificates when you use those services
 
-The OpenWork chart manages Deployments, Services, ConfigMaps, Secret references, probes, and the database migration Job.
+The Harness chart manages Deployments, Services, ConfigMaps, Secret references, probes, and the database migration Job.
 
 ## AWS checklist
 
@@ -24,6 +24,6 @@ The OpenWork chart manages Deployments, Services, ConfigMaps, Secret references,
 6. Install the chart, verify migrations and readiness, then point DNS at the generated load balancers.
 7. Enable trusted HTTPS before creating the first administrator.
 
-For exact CLI commands, values, DNS/TLS choices, migration troubleshooting, verification, and cleanup, follow the [AWS EKS operator runbook](https://github.com/different-ai/openwork/blob/dev/docs/aws-eks-helm.md).
+For exact CLI commands, values, DNS/TLS choices, migration troubleshooting, verification, and cleanup, follow the [AWS EKS operator runbook](https://github.com/vaishnavjai/harness/blob/dev/docs/aws-eks-helm.md).
 
 Next: [Create the first administrator](/self-host/deploy-to-your-cloud/first-administrator).

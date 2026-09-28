@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { DenMcpToken } from "../src/app/lib/den";
-import type { OpenworkCloudMcpFailure, OpenworkCloudMcpHealth, OpenworkCloudMcpReconcilePayload } from "../src/app/lib/openwork-server";
+import type { HarnessCloudMcpFailure, HarnessCloudMcpHealth, HarnessCloudMcpReconcilePayload } from "../src/app/lib/harness-server";
 import {
   __setCloudMcpUserStateStorageForTest,
   getCloudMcpScopeKey,
@@ -10,26 +10,26 @@ import {
   writeCloudMcpSyncMarker,
 } from "../src/react-app/domains/connections/cloud-mcp-user-state";
 import {
-  buildOpenworkCloudMcpReconcilePayload,
+  buildHarnessCloudMcpReconcilePayload,
   cloudMcpDisplaySummary,
   cloudMcpFailureStageLabel,
   isCloudMcpAuthTokenFailure,
   isCloudMcpAuthTokenFailureCode,
-  runOpenworkCloudMcpEngineRefresh,
-  runOpenworkCloudMcpReconciler,
+  runHarnessCloudMcpEngineRefresh,
+  runHarnessCloudMcpReconciler,
 } from "../src/react-app/domains/connections/cloud-mcp-reconciler";
 
 const NOW = Date.parse("2026-07-09T12:00:00.000Z");
 const scope = {
-  denBaseUrl: "https://app.openwork.test",
-  serverBaseUrl: "https://worker.openwork.test",
+  denBaseUrl: "https://app.harness.test",
+  serverBaseUrl: "https://worker.harness.test",
   orgId: "org_1",
   workspaceId: "ws_1",
 };
 const context = {
   ...scope,
   denAuthToken: "den-session-token",
-  providerModel: { provider: "openwork", model: "gpt-5" },
+  providerModel: { provider: "harness", model: "gpt-5" },
 };
 const token: DenMcpToken = {
   token: "owt_mcp_secret_token",
@@ -38,7 +38,7 @@ const token: DenMcpToken = {
   appHostExpiresAt: new Date(NOW + 7 * 24 * 60 * 60 * 1000).toISOString(),
   organizationId: "org_1",
   scopes: ["mcp:read", "mcp:write"],
-  resource: "https://api.openwork.test/mcp",
+  resource: "https://api.harness.test/mcp",
 };
 
 function installStorageStub() {
@@ -50,7 +50,7 @@ function installStorageStub() {
   });
 }
 
-function failure(code: string): OpenworkCloudMcpFailure {
+function failure(code: string): HarnessCloudMcpFailure {
   return {
     code,
     stage: "engine_status",
@@ -60,7 +60,7 @@ function failure(code: string): OpenworkCloudMcpFailure {
   };
 }
 
-function health(input: { usable: boolean; failure?: OpenworkCloudMcpFailure | null; projectionChecked?: boolean }): OpenworkCloudMcpHealth {
+function health(input: { usable: boolean; failure?: HarnessCloudMcpFailure | null; projectionChecked?: boolean }): HarnessCloudMcpHealth {
   const usable = input.usable;
   const projectionChecked = input.projectionChecked ?? usable;
   return {
@@ -72,7 +72,7 @@ function health(input: { usable: boolean; failure?: OpenworkCloudMcpFailure | nu
     workspace: { id: scope.workspaceId, type: "local", directory: "/workspace", path: "/workspace" },
     desired: {
       present: true,
-      name: "openwork-cloud",
+      name: "harness-cloud",
       revision: "rev_desired",
       config: null,
       token: { present: true, metadata: { expiresAt: token.expiresAt, scopes: "mcp:read mcp:write" } },
@@ -87,9 +87,9 @@ function health(input: { usable: boolean; failure?: OpenworkCloudMcpFailure | nu
     },
     engine: { status: usable ? "connected" : "failed" },
     tools: {
-      expected: ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
-      present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-      missing: usable ? [] : ["openwork-cloud_search_capabilities"],
+      expected: ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
+      present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+      missing: usable ? [] : ["harness-cloud_search_capabilities"],
       direct: {
         checked: true,
         source: "mcp_tools_list",
@@ -99,33 +99,33 @@ function health(input: { usable: boolean; failure?: OpenworkCloudMcpFailure | nu
       },
       providerProjection: {
         checked: projectionChecked,
-        provider: "openwork",
+        provider: "harness",
         model: "gpt-5",
         source: "experimental_tool",
-        present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-        missing: usable ? [] : ["openwork-cloud_execute_capability"],
+        present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+        missing: usable ? [] : ["harness-cloud_execute_capability"],
       },
     },
-    pluginCanaries: { expected: ["openwork_docs_search"], present: usable ? ["openwork_docs_search"] : [], missing: usable ? [] : ["openwork_docs_search"] },
+    pluginCanaries: { expected: ["harness_docs_search"], present: usable ? ["harness_docs_search"] : [], missing: usable ? [] : ["harness_docs_search"] },
     compatibility: {
-      openwork: { serverVersion: "test", app: null },
+      harness: { serverVersion: "test", app: null },
       opencode: { expectedVersion: "1.17.11", actualVersion: "1.17.11", probe: "ok" },
       pluginFileHashes: [],
       supportedFeatures: { dynamicMcp: true, directoryScoping: true, toolIds: true, providerToolProjection: projectionChecked, pluginCanaries: true },
       experimentalToolIds: {
         checked: true,
-        expected: ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
-        present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-        missing: usable ? [] : ["openwork-cloud_execute_capability"],
+        expected: ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
+        present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+        missing: usable ? [] : ["harness-cloud_execute_capability"],
         includesMcpTools: usable,
       },
       experimentalProviderTools: {
         checked: projectionChecked,
-        provider: "openwork",
+        provider: "harness",
         model: "gpt-5",
-        expected: ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"],
-        present: usable ? ["openwork-cloud_search_capabilities", "openwork-cloud_execute_capability"] : [],
-        missing: usable ? [] : ["openwork-cloud_execute_capability"],
+        expected: ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"],
+        present: usable ? ["harness-cloud_search_capabilities", "harness-cloud_execute_capability"] : [],
+        missing: usable ? [] : ["harness-cloud_execute_capability"],
         includesMcpTools: projectionChecked ? usable : null,
       },
     },
@@ -135,26 +135,26 @@ function health(input: { usable: boolean; failure?: OpenworkCloudMcpFailure | nu
   };
 }
 
-describe("OpenWork Cloud MCP reconciler", () => {
+describe("Harness Cloud MCP reconciler", () => {
   beforeEach(() => installStorageStub());
 
   test("uses the minted web proxy resource instead of a stale direct API fallback", () => {
-    const payload = buildOpenworkCloudMcpReconcilePayload({
+    const payload = buildHarnessCloudMcpReconcilePayload({
       context: {
         ...context,
-        fallbackUrl: "https://api.openwork.test/mcp/agent",
+        fallbackUrl: "https://api.harness.test/mcp/agent",
       },
       token: {
         ...token,
-        resource: "https://app.openwork.test/api/den/mcp",
+        resource: "https://app.harness.test/api/den/mcp",
       },
     });
 
-    expect(payload?.config.url).toBe("https://app.openwork.test/api/den/mcp/agent");
+    expect(payload?.config.url).toBe("https://app.harness.test/api/den/mcp/agent");
   });
 
   test("keeps central search and execute working against an older Den without opening the App host", () => {
-    const payload = buildOpenworkCloudMcpReconcilePayload({
+    const payload = buildHarnessCloudMcpReconcilePayload({
       context,
       token: {
         token: token.token,
@@ -185,15 +185,15 @@ describe("OpenWork Cloud MCP reconciler", () => {
     let getCount = 0;
     let mintCount = 0;
     let postCount = 0;
-    const result = await runOpenworkCloudMcpReconciler({
+    const result = await runHarnessCloudMcpReconciler({
       mode: "health",
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => {
+        getHarnessCloudMcpHealth: async () => {
           getCount += 1;
           return { ...health({ usable: true }), appHostAuthorizationReady: false };
         },
-        reconcileOpenworkCloudMcp: async () => {
+        reconcileHarnessCloudMcp: async () => {
           postCount += 1;
           return health({ usable: true });
         },
@@ -217,7 +217,7 @@ describe("OpenWork Cloud MCP reconciler", () => {
     const probeOptionsSeen: Array<{ probe?: boolean } | undefined> = [];
     const client = {
       baseUrl: scope.serverBaseUrl,
-      getOpenworkCloudMcpHealth: async (
+      getHarnessCloudMcpHealth: async (
         _workspaceId: string,
         _providerModel?: unknown,
         options?: { probe?: boolean },
@@ -225,10 +225,10 @@ describe("OpenWork Cloud MCP reconciler", () => {
         probeOptionsSeen.push(options);
         return health({ usable: true });
       },
-      reconcileOpenworkCloudMcp: async () => health({ usable: true }),
+      reconcileHarnessCloudMcp: async () => health({ usable: true }),
     };
 
-    await runOpenworkCloudMcpReconciler({
+    await runHarnessCloudMcpReconciler({
       mode: "health",
       client,
       context,
@@ -236,7 +236,7 @@ describe("OpenWork Cloud MCP reconciler", () => {
       refreshMarginMs: 24 * 60 * 60 * 1000,
       probe: true,
     });
-    await runOpenworkCloudMcpReconciler({
+    await runHarnessCloudMcpReconciler({
       mode: "health",
       client,
       context,
@@ -252,24 +252,24 @@ describe("OpenWork Cloud MCP reconciler", () => {
     const missing = { ...health({ usable: true }), appHostAuthorizationReady: false };
     let currentHealth = missing;
     let mintCount = 0;
-    const posts: Array<{ workspaceId: string; payload: OpenworkCloudMcpReconcilePayload }> = [];
+    const posts: Array<{ workspaceId: string; payload: HarnessCloudMcpReconcilePayload }> = [];
     const client = {
       baseUrl: scope.serverBaseUrl,
-      getOpenworkCloudMcpHealth: async () => currentHealth,
-      reconcileOpenworkCloudMcp: async (workspaceId: string, payload: OpenworkCloudMcpReconcilePayload) => {
+      getHarnessCloudMcpHealth: async () => currentHealth,
+      reconcileHarnessCloudMcp: async (workspaceId: string, payload: HarnessCloudMcpReconcilePayload) => {
         posts.push({ workspaceId, payload });
         currentHealth = { ...missing, appHostAuthorizationReady: true };
         return currentHealth;
       },
     };
-    const input: Parameters<typeof runOpenworkCloudMcpReconciler>[0] = {
+    const input: Parameters<typeof runHarnessCloudMcpReconciler>[0] = {
       mode: "repair", client, context, now: NOW, refreshMarginMs: 1,
       mintToken: async () => { mintCount += 1; return token; },
     };
-    expect(await runOpenworkCloudMcpReconciler(input)).toMatchObject({
+    expect(await runHarnessCloudMcpReconciler(input)).toMatchObject({
       status: "repaired", attempts: 1, health: { usable: true, appHostAuthorizationReady: true },
     });
-    expect(await runOpenworkCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
+    expect(await runHarnessCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
     expect(mintCount).toBe(1);
     expect(posts).toHaveLength(1);
     expect(posts[0]?.workspaceId).toBe(scope.workspaceId);
@@ -283,12 +283,12 @@ describe("OpenWork Cloud MCP reconciler", () => {
     for (const appHostAuthorizationReady of [undefined, null, true]) {
       let mintCount = 0;
       let postCount = 0;
-      const result = await runOpenworkCloudMcpReconciler({
+      const result = await runHarnessCloudMcpReconciler({
         mode: "repair", context, now: NOW, refreshMarginMs: 1,
         client: {
           baseUrl: scope.serverBaseUrl,
-          getOpenworkCloudMcpHealth: async () => ({ ...health({ usable: true }), appHostAuthorizationReady }),
-          reconcileOpenworkCloudMcp: async () => { postCount += 1; return health({ usable: true }); },
+          getHarnessCloudMcpHealth: async () => ({ ...health({ usable: true }), appHostAuthorizationReady }),
+          reconcileHarnessCloudMcp: async () => { postCount += 1; return health({ usable: true }); },
         },
         mintToken: async () => { mintCount += 1; return token; },
       });
@@ -303,26 +303,26 @@ describe("OpenWork Cloud MCP reconciler", () => {
     let ordinaryUsable = true;
     const client = {
       baseUrl: scope.serverBaseUrl,
-      getOpenworkCloudMcpHealth: async () => ({ ...health({ usable: ordinaryUsable }), appHostAuthorizationReady: false }),
-      reconcileOpenworkCloudMcp: async () => ({ ...health({ usable: true }), appHostAuthorizationReady: false }),
+      getHarnessCloudMcpHealth: async () => ({ ...health({ usable: ordinaryUsable }), appHostAuthorizationReady: false }),
+      reconcileHarnessCloudMcp: async () => ({ ...health({ usable: true }), appHostAuthorizationReady: false }),
     };
-    const input: Parameters<typeof runOpenworkCloudMcpReconciler>[0] = {
+    const input: Parameters<typeof runHarnessCloudMcpReconciler>[0] = {
       mode: "repair", client, context, now: NOW, refreshMarginMs: 1,
       mintToken: async () => {
         mintCount += 1;
         return { ...token, appHostToken: undefined, appHostExpiresAt: undefined };
       },
     };
-    const first = await runOpenworkCloudMcpReconciler(input);
+    const first = await runHarnessCloudMcpReconciler(input);
     expect(first).toMatchObject({ attempts: 1, health: { usable: true, appHostAuthorizationReady: false } });
-    expect(await runOpenworkCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
+    expect(await runHarnessCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
     expect(mintCount).toBe(1);
-    expect(await runOpenworkCloudMcpReconciler({ ...input, context: { ...context, workspaceId: "ws_other" } })).toMatchObject({ attempts: 1 });
-    expect(await runOpenworkCloudMcpReconciler({ ...input, force: true })).toMatchObject({ attempts: 1 });
+    expect(await runHarnessCloudMcpReconciler({ ...input, context: { ...context, workspaceId: "ws_other" } })).toMatchObject({ attempts: 1 });
+    expect(await runHarnessCloudMcpReconciler({ ...input, force: true })).toMatchObject({ attempts: 1 });
     ordinaryUsable = false;
-    expect(await runOpenworkCloudMcpReconciler(input)).toMatchObject({ attempts: 1 });
+    expect(await runHarnessCloudMcpReconciler(input)).toMatchObject({ attempts: 1 });
     ordinaryUsable = true;
-    expect(await runOpenworkCloudMcpReconciler({ ...input, now: NOW + 60 * 60 * 1_000 })).toMatchObject({ attempts: 1 });
+    expect(await runHarnessCloudMcpReconciler({ ...input, now: NOW + 60 * 60 * 1_000 })).toMatchObject({ attempts: 1 });
     expect(mintCount).toBe(5);
   });
 
@@ -331,12 +331,12 @@ describe("OpenWork Cloud MCP reconciler", () => {
       installStorageStub();
       let mintCount = 0;
       const observed = { ...health({ usable: true }), appHostAuthorizationReady: false };
-      const input: Parameters<typeof runOpenworkCloudMcpReconciler>[0] = {
+      const input: Parameters<typeof runHarnessCloudMcpReconciler>[0] = {
         mode: "repair", context, now: NOW, refreshMarginMs: 1,
         client: {
           baseUrl: scope.serverBaseUrl,
-          getOpenworkCloudMcpHealth: async () => observed,
-          reconcileOpenworkCloudMcp: async () => { throw new Error("Synthetic reconcile unavailable"); },
+          getHarnessCloudMcpHealth: async () => observed,
+          reconcileHarnessCloudMcp: async () => { throw new Error("Synthetic reconcile unavailable"); },
         },
         mintToken: async () => {
           mintCount += 1;
@@ -344,10 +344,10 @@ describe("OpenWork Cloud MCP reconciler", () => {
           return failingStep === "empty-token" ? null : token;
         },
       };
-      const failed = await runOpenworkCloudMcpReconciler(input);
+      const failed = await runHarnessCloudMcpReconciler(input);
       expect(failed).toMatchObject({ status: "failed", attempts: 1 });
       expect(failed.health).toBe(observed);
-      expect(await runOpenworkCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
+      expect(await runHarnessCloudMcpReconciler(input)).toMatchObject({ status: "unchanged", attempts: 0 });
       expect(mintCount).toBe(1);
       expect(readCloudMcpUnhealthyRemintAttempt(scope)?.attemptedAt).toBe(NOW);
     }
@@ -366,12 +366,12 @@ describe("OpenWork Cloud MCP reconciler", () => {
         { step: "reapply", ok: true, latencyMs: 480 },
       ],
     };
-    const result = await runOpenworkCloudMcpEngineRefresh({
+    const result = await runHarnessCloudMcpEngineRefresh({
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => refreshedHealth,
-        reconcileOpenworkCloudMcp: async () => refreshedHealth,
-        refreshOpenworkCloudMcpEngine: async (workspaceId, payload) => {
+        getHarnessCloudMcpHealth: async () => refreshedHealth,
+        reconcileHarnessCloudMcp: async () => refreshedHealth,
+        refreshHarnessCloudMcpEngine: async (workspaceId, payload) => {
           calls.push({ workspaceId, payload });
           return { refresh, health: refreshedHealth };
         },
@@ -384,16 +384,16 @@ describe("OpenWork Cloud MCP reconciler", () => {
     expect(calls).toEqual([
       {
         workspaceId: scope.workspaceId,
-        payload: { provider: "openwork", model: "gpt-5", trigger: "desktop-engine-refresh" },
+        payload: { provider: "harness", model: "gpt-5", trigger: "desktop-engine-refresh" },
       },
     ]);
 
-    const failed = await runOpenworkCloudMcpEngineRefresh({
+    const failed = await runHarnessCloudMcpEngineRefresh({
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => refreshedHealth,
-        reconcileOpenworkCloudMcp: async () => refreshedHealth,
-        refreshOpenworkCloudMcpEngine: async () => ({
+        getHarnessCloudMcpHealth: async () => refreshedHealth,
+        reconcileHarnessCloudMcp: async () => refreshedHealth,
+        refreshHarnessCloudMcpEngine: async () => ({
           refresh: { ...refresh, steps: [{ step: "engine_disconnect", ok: false, latencyMs: 3 }, { step: "reapply", ok: false, latencyMs: 9 }] },
           health: health({ usable: false }),
         }),
@@ -402,11 +402,11 @@ describe("OpenWork Cloud MCP reconciler", () => {
     });
     expect(failed.status).toBe("failed");
 
-    const skipped = await runOpenworkCloudMcpEngineRefresh({
+    const skipped = await runHarnessCloudMcpEngineRefresh({
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => refreshedHealth,
-        reconcileOpenworkCloudMcp: async () => refreshedHealth,
+        getHarnessCloudMcpHealth: async () => refreshedHealth,
+        reconcileHarnessCloudMcp: async () => refreshedHealth,
       },
       context,
     });
@@ -417,16 +417,16 @@ describe("OpenWork Cloud MCP reconciler", () => {
   test("writes marker only when returned health is usable", async () => {
     const client = {
       baseUrl: scope.serverBaseUrl,
-      getOpenworkCloudMcpHealth: async () => health({ usable: false, failure: failure("cloud_status_missing") }),
-      reconcileOpenworkCloudMcp: async () => health({ usable: false, failure: failure("cloud_status_missing") }),
+      getHarnessCloudMcpHealth: async () => health({ usable: false, failure: failure("cloud_status_missing") }),
+      reconcileHarnessCloudMcp: async () => health({ usable: false, failure: failure("cloud_status_missing") }),
     };
 
-    await runOpenworkCloudMcpReconciler({ mode: "repair", client, context, mintToken: async () => token, force: true, refreshMarginMs: 1 });
+    await runHarnessCloudMcpReconciler({ mode: "repair", client, context, mintToken: async () => token, force: true, refreshMarginMs: 1 });
     expect(readCloudMcpSyncMarker(scope)).toBeNull();
 
-    await runOpenworkCloudMcpReconciler({
+    await runHarnessCloudMcpReconciler({
       mode: "repair",
-      client: { ...client, reconcileOpenworkCloudMcp: async () => health({ usable: true }) },
+      client: { ...client, reconcileHarnessCloudMcp: async () => health({ usable: true }) },
       context,
       mintToken: async () => token,
       force: true,
@@ -437,16 +437,16 @@ describe("OpenWork Cloud MCP reconciler", () => {
 
   test("auth failures remint exactly once", async () => {
     let mintCount = 0;
-    const posts: OpenworkCloudMcpReconcilePayload[] = [];
-    const result = await runOpenworkCloudMcpReconciler({
+    const posts: HarnessCloudMcpReconcilePayload[] = [];
+    const result = await runHarnessCloudMcpReconciler({
       mode: "repair",
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => health({ usable: false }),
-        reconcileOpenworkCloudMcp: async (_workspaceId, payload) => {
+        getHarnessCloudMcpHealth: async () => health({ usable: false }),
+        reconcileHarnessCloudMcp: async (_workspaceId, payload) => {
           posts.push(payload);
           return posts.length === 1
-            ? health({ usable: false, failure: failure("openwork_cloud_token_expired") })
+            ? health({ usable: false, failure: failure("harness_cloud_token_expired") })
             : health({ usable: true });
         },
       },
@@ -465,19 +465,19 @@ describe("OpenWork Cloud MCP reconciler", () => {
   });
 
   test("membership and scope failures do not retry", async () => {
-    for (const code of ["openwork_cloud_membership_required", "openwork_cloud_scope_missing", "openwork_cloud_resource_forbidden"]) {
+    for (const code of ["harness_cloud_membership_required", "harness_cloud_scope_missing", "harness_cloud_resource_forbidden"]) {
       expect(isCloudMcpAuthTokenFailureCode(code)).toBe(false);
     }
     let mintCount = 0;
     let postCount = 0;
-    await runOpenworkCloudMcpReconciler({
+    await runHarnessCloudMcpReconciler({
       mode: "repair",
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => health({ usable: false }),
-        reconcileOpenworkCloudMcp: async () => {
+        getHarnessCloudMcpHealth: async () => health({ usable: false }),
+        reconcileHarnessCloudMcp: async () => {
           postCount += 1;
-          return health({ usable: false, failure: failure("openwork_cloud_membership_required") });
+          return health({ usable: false, failure: failure("harness_cloud_membership_required") });
         },
       },
       context,
@@ -499,30 +499,30 @@ describe("OpenWork Cloud MCP reconciler", () => {
     // and the remint retry never fired for ~7 days.
     expect(isCloudMcpAuthTokenFailureCode("invalid_mcp_token")).toBe(true);
     expect(isCloudMcpAuthTokenFailureCode("missing_mcp_token")).toBe(true);
-    expect(isCloudMcpAuthTokenFailureCode("openwork_cloud_token_expired")).toBe(true);
+    expect(isCloudMcpAuthTokenFailureCode("harness_cloud_token_expired")).toBe(true);
     expect(isCloudMcpAuthTokenFailureCode("invalid_token")).toBe(true);
     // Exclusions still hold.
-    expect(isCloudMcpAuthTokenFailureCode("openwork_cloud_client_registration_required")).toBe(false);
+    expect(isCloudMcpAuthTokenFailureCode("harness_cloud_client_registration_required")).toBe(false);
     expect(isCloudMcpAuthTokenFailureCode("membership_not_found")).toBe(false);
     expect(isCloudMcpAuthTokenFailureCode(null)).toBe(false);
   });
 
   test("auth aliases trigger the remint retry when the primary code is unrecognized", async () => {
-    expect(isCloudMcpAuthTokenFailure({ code: "cloud_connection_failed", aliases: ["openwork_cloud_token_expired"] })).toBe(true);
+    expect(isCloudMcpAuthTokenFailure({ code: "cloud_connection_failed", aliases: ["harness_cloud_token_expired"] })).toBe(true);
     expect(isCloudMcpAuthTokenFailure({ code: "cloud_connection_failed", aliases: ["cloud_tools_missing"] })).toBe(false);
     expect(isCloudMcpAuthTokenFailure(null)).toBe(false);
 
     let mintCount = 0;
-    const posts: OpenworkCloudMcpReconcilePayload[] = [];
-    const result = await runOpenworkCloudMcpReconciler({
+    const posts: HarnessCloudMcpReconcilePayload[] = [];
+    const result = await runHarnessCloudMcpReconciler({
       mode: "repair",
       client: {
         baseUrl: scope.serverBaseUrl,
-        getOpenworkCloudMcpHealth: async () => health({ usable: false }),
-        reconcileOpenworkCloudMcp: async (_workspaceId, payload) => {
+        getHarnessCloudMcpHealth: async () => health({ usable: false }),
+        reconcileHarnessCloudMcp: async (_workspaceId, payload) => {
           posts.push(payload);
           return posts.length === 1
-            ? health({ usable: false, failure: { ...failure("invalid_mcp_token"), aliases: ["openwork_cloud_token_expired"] } })
+            ? health({ usable: false, failure: { ...failure("invalid_mcp_token"), aliases: ["harness_cloud_token_expired"] } })
             : health({ usable: true });
         },
       },
@@ -560,7 +560,7 @@ describe("OpenWork Cloud MCP reconciler", () => {
     const canonicalProjectionFailure = {
       ...failure("provider_tool_projection_missing"),
       stage: "provider_projection" as const,
-      recommendedAction: "Choose a model that can use OpenWork Cloud tools",
+      recommendedAction: "Choose a model that can use Harness Cloud tools",
     };
     expect(cloudMcpFailureStageLabel({
       signedIn: true,
@@ -575,7 +575,7 @@ describe("OpenWork Cloud MCP reconciler", () => {
     })).toMatchObject({
       statusLabel: "Degraded",
       stageLabel: "Current model can’t use Cloud tools",
-      recommendedAction: "Choose a model that can use OpenWork Cloud tools.",
+      recommendedAction: "Choose a model that can use Harness Cloud tools.",
     });
 
     const summary = cloudMcpDisplaySummary({
@@ -593,7 +593,7 @@ describe("OpenWork Cloud MCP reconciler", () => {
       ...health({ usable: false, failure: { ...failure("cloud_mcp_missing"), stage: "desired_config" } }),
       desired: {
         present: false,
-        name: "openwork-cloud",
+        name: "harness-cloud",
         revision: null,
         config: null,
         token: { present: false, metadata: {} },

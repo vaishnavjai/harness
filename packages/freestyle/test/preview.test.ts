@@ -41,9 +41,9 @@ function mockApi(snapshotCreatedAt = new Date().toISOString(), files: Record<str
   return { api, creates, writes, createsByVm, writesByVm, deleted, commands };
 }
 
-const reachable: typeof fetch = async (input) => new URL(String(input)).pathname === "/__openwork_launch"
-  ? new Response(null, { status: 303, headers: { "set-cookie": "__Host-openwork-preview=synthetic" } })
-  : new Response("<title>OpenWork</title>", { status: 200 });
+const reachable: typeof fetch = async (input) => new URL(String(input)).pathname === "/__harness_launch"
+  ? new Response(null, { status: 303, headers: { "set-cookie": "__Host-harness-preview=synthetic" } })
+  : new Response("<title>Harness</title>", { status: 200 });
 
 test("concurrent launches from one report get separate VMs, credentials and provider expiry", async () => {
   const { api, creates, writes } = mockApi();
@@ -55,7 +55,7 @@ test("concurrent launches from one report get separate VMs, credentials and prov
   assert.notEqual(first.url, second.url);
   assert.notEqual(new URL(first.url).searchParams.get("token"), new URL(second.url).searchParams.get("token"));
   assert.equal(first.snapshotId, second.snapshotId);
-  assert.ok(new URL(first.url).hostname.endsWith(".preview.openwork.software"));
+  assert.ok(new URL(first.url).hostname.endsWith(".preview.harness-legacy.invalid"));
   assert.equal(creates.length, 2);
   for (const body of creates) {
     assert.equal(body.snapshotId, "sh-template");
@@ -102,7 +102,7 @@ test("fresh ACME clones skip guest startup while old snapshots rotate their demo
   const fresh = mockApi();
   const ready = await launchPreview({ gitSha: sha, world: "acme-web" }, fresh.api, reachable);
   assert.equal(fresh.commands.length, 0);
-  assert.ok(ready.outputs.denWeb?.value.includes("__openwork_launch"));
+  assert.ok(ready.outputs.denWeb?.value.includes("__harness_launch"));
   const old = mockApi(new Date(Date.now() - 6 * 24 * 60 * 60_000).toISOString());
   await launchPreview({ gitSha: sha, world: "acme-web" }, old.api, reachable);
   assert.equal(old.commands.length, 1);
@@ -199,7 +199,7 @@ test("desktop templates use their own runtime and refresh an exact frontend-only
   const first = await ensureSnapshot(sha, api, undefined, "desktop", { sourceFetch: source(sha) });
   assert.equal(creates.length, 5);
   assert.ok([...snapshots.keys()].every((slug) => slug.includes("-desktop-")));
-  const text = (name: string) => writes.find((item) => item.path === `/opt/openwork-preview/${name}`)?.text ?? "";
+  const text = (name: string) => writes.find((item) => item.path === `/opt/harness-preview/${name}`)?.text ?? "";
   assert.match(text("runtime.mjs"), /bootDesktopOnly/);
   assert.doesNotMatch(text("runtime.mjs"), /bootAcme|signIn|bootstrap|modelId/);
   assert.match(text("health.mjs"), /inspectDesktop/);
@@ -213,7 +213,7 @@ test("desktop templates use their own runtime and refresh an exact frontend-only
   assert.equal(creates.length, 6, "frontend-only commits reuse the running desktop template");
   const refresh = writes.filter((item) => item.path.endsWith("/refresh.sh")).at(-1)?.text ?? "";
   assert.ok(refresh.includes(`git fetch --depth=1 origin ${secondSha}`));
-  assert.ok(refresh.includes(`node /opt/openwork-preview/refresh.mjs ${secondSha}`));
+  assert.ok(refresh.includes(`node /opt/harness-preview/refresh.mjs ${secondSha}`));
   assert.doesNotMatch(refresh, /resume\.mjs|health\.mjs|git clean/);
 });
 
@@ -245,7 +245,7 @@ test("the review page accepts every service link an ACME launch returns, includi
   // The browser re-validates the launch response; a rejected link hides a working sandbox.
   const parsed = parsePreviewOutputs(JSON.parse(JSON.stringify(session.outputs)));
   assert.ok(parsed.desktopUrl, "the desktop viewer link must survive client validation");
-  assert.throws(() => parsePreviewOutputs({ desktopUrl: { value: "https://evil.example/__openwork_launch?token=x", group: "Services" } }), /Invalid private service link/);
+  assert.throws(() => parsePreviewOutputs({ desktopUrl: { value: "https://evil.example/__harness_launch?token=x", group: "Services" } }), /Invalid private service link/);
 });
 
 const desktopFiles = {
@@ -271,7 +271,7 @@ test("desktop clones use only their viewer, isolated access and exact source eve
   assert.deepEqual(provider.commands, []);
   for (const session of [first, second]) {
     const domain = new URL(session.url).hostname;
-    assert.match(domain, /^desktop-[a-f0-9]{32}\.preview\.openwork\.software$/);
+    assert.match(domain, /^desktop-[a-f0-9]{32}\.preview\.harness\.software$/);
     // Concurrent file uploads can complete in either order. Match receipts to
     // their VM, never to the index at which a response body finished reading.
     const creation = provider.createsByVm.get(session.id);
@@ -313,8 +313,8 @@ test("ACME clones link the desktop viewer only when the snapshot started the des
   const ready = mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "starting", group: "Desktop" } }) });
   const session = await launchPreview({ gitSha: sha, world: "acme-web" }, ready.api, reachable);
   const desktop = new URL(session.outputs.desktopUrl?.value ?? "https://missing.invalid");
-  assert.match(desktop.hostname, /^desktop-[a-f0-9]{32}\.preview\.openwork\.software$/);
-  assert.equal(desktop.pathname, "/__openwork_launch");
+  assert.match(desktop.hostname, /^desktop-[a-f0-9]{32}\.preview\.harness\.software$/);
+  assert.equal(desktop.pathname, "/__harness_launch");
   assert.equal(desktop.searchParams.get("token"), new URL(session.url).searchParams.get("token"));
   assert.equal(session.outputs.desktopUrl?.group, "Services");
   const tls = ready.creates[0].tls;
@@ -324,7 +324,7 @@ test("ACME clones link the desktop viewer only when the snapshot started the des
   const unavailable = mockApi(undefined, { "outputs.json": JSON.stringify({ desktopStatus: { value: "unavailable", group: "Desktop" } }) });
   const web = await launchPreview({ gitSha: sha, world: "acme-web" }, unavailable.api, reachable);
   assert.equal(web.outputs.desktopUrl, undefined, "a failed desktop never produces a dead link");
-  assert.ok(web.outputs.webUrl?.value.includes("__openwork_launch"), "the web preview still launches");
+  assert.ok(web.outputs.webUrl?.value.includes("__harness_launch"), "the web preview still launches");
   const older = mockApi();
   assert.equal((await launchPreview({ gitSha: sha, world: "acme-web" }, older.api, reachable)).outputs.desktopUrl, undefined, "snapshots from before this change are unaffected");
 });
@@ -332,7 +332,7 @@ test("ACME clones link the desktop viewer only when the snapshot started the des
 test("ACME launches return only after every linked service hostname routes to the clone", async () => {
   const handshakes = (seen: string[]): typeof fetch => async (input, init) => {
     const url = new URL(String(input));
-    if (url.pathname === "/__openwork_launch") seen.push(url.hostname.split("-")[0]);
+    if (url.pathname === "/__harness_launch") seen.push(url.hostname.split("-")[0]);
     return reachable(input, init);
   };
   const withDesktop: string[] = [];

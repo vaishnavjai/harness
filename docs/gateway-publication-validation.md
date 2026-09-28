@@ -32,7 +32,7 @@ and their regression evidence.
   No shared or user database was accessed.
 - Den Web, Den API and Gateway: `pnpm exec tsc --noEmit --pretty false --incremental false`
   (API/Gateway additionally `-p tsconfig.json`), each exit 0.
-- `pnpm --filter @openwork-ee/den-web test`: 374 passed, 0 failed, 0 skipped.
+- `pnpm --filter @harness-ee/den-web test`: 374 passed, 0 failed, 0 skipped.
 - `pnpm evals:pr specs/managed-inference.test.ts`: exit 0, 1 passed.
 - `pnpm evals:pr specs/inference-gateway-lifecycle.test.ts`: exit 0, 1 passed.
 - `pnpm evals:pr specs/inference-gateway-org-provider.test.ts`: exit 0, 3 passed.
@@ -70,15 +70,15 @@ After commit/push, run from a source checkout matching the published full SHA:
 
 ```sh
 PR_SHA='<published-full-40-character-SHA>'
-env -u OPENWORK_EVAL_DEN_API_URL -u OPENWORK_EVAL_DEN_WEB_URL \
-  -u OPENWORK_EVAL_DAYTONA_DEN_SANDBOX \
-  -u OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX \
-  -u OPENWORK_EVAL_ELECTRON_BINARY \
-  OPENWORK_EVAL_REF="$PR_SHA" OPENWORK_EVAL_DAYTONA_REF="$PR_SHA" \
+env -u HARNESS_EVAL_DEN_API_URL -u HARNESS_EVAL_DEN_WEB_URL \
+  -u HARNESS_EVAL_DAYTONA_DEN_SANDBOX \
+  -u HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX \
+  -u HARNESS_EVAL_ELECTRON_BINARY \
+  HARNESS_EVAL_REF="$PR_SHA" HARNESS_EVAL_DAYTONA_REF="$PR_SHA" \
   pnpm evals:e2e inference-gateway-desktop-sync --daytona
 ```
 
-`OPENWORK_EVAL_REF` pins both Den and Desktop in this legacy spec. Dirty source is
+`HARNESS_EVAL_REF` pins both Den and Desktop in this legacy spec. Dirty source is
 not uploaded automatically; the local harness/start script must match the same
 revision. Do not substitute a local lane for a red Daytona result.
 
@@ -89,7 +89,7 @@ Its pinned Daytona desktop runner passed (1/0/0), and the three PR suites were
 rerun cold on Vitest 4.1.11 (1, 1 and 3 passed; zero failed/skipped). Visual
 judgments remain pending; the lifecycle test has ordinary runner assertions but
 does not capture claim-evidence records. Composed evidence publication is blocked
-until `OPENWORK_REVIEW_URL` is configured. Neither gap is counted as passing proof.
+until `HARNESS_REVIEW_URL` is configured. Neither gap is counted as passing proof.
 
 GitHub checks for that head ran on synthetic merge commit
 `e5ad36ab95bfeb1fbe839e120eaa17514f6b5154` and found additional integration defects:
@@ -115,8 +115,8 @@ Serial verification against the repaired working tree:
 | Check | Result |
 | --- | --- |
 | Types build and bare-Node production Gateway import | Exit 0; 4 import/parser assertions |
-| `pnpm --filter @openwork-ee/den-db db:generate` | Exit 0; 110 tables, no schema changes |
-| `pnpm --filter @openwork-ee/den-db test` | Exit 0; 55 passed, 0 failed, 0 skipped |
+| `pnpm --filter @harness-ee/den-db db:generate` | Exit 0; 110 tables, no schema changes |
+| `pnpm --filter @harness-ee/den-db test` | Exit 0; 55 passed, 0 failed, 0 skipped |
 | Updated isolated SDK schema preparation via `node --import tsx` | Exit 0 |
 | `pnpm sdk:check` and `pnpm sdk:build` | Exit 0; no generated drift |
 

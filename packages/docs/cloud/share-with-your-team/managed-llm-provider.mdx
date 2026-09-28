@@ -1,9 +1,9 @@
 ---
 title: "Adding a managed LLM provider"
-description: "Share one provider key with your org from OpenWork Cloud. It syncs to members' desktop apps automatically."
+description: "Share one provider key with your org from Harness Cloud. It syncs to members' desktop apps automatically."
 ---
 
-An org admin adds a provider once in OpenWork Cloud. Members get its models in the model picker without handling the key.
+An org admin adds a provider once in Harness Cloud. Members get its models in the model picker without handling the key.
 
 There are two ways to do this. Both live under `AI Gateway` > `AI Providers` in the Cloud dashboard.
 
@@ -17,18 +17,18 @@ There are two ways to do this. Both live under `AI Gateway` > `AI Providers` in 
 For an AI Gateway provider, follow [AI Gateway: Set it up](/ai-gateway/overview#set-it-up). The rest of this page covers legacy providers.
 
 <Frame>
-  ![The AI Providers tab in OpenWork Cloud, with the Legacy Providers section below the AI Gateway providers](/images/cloud-ai-gateway-legacy-providers.png)
+  ![The AI Providers tab in Harness Cloud, with the Legacy Providers section below the AI Gateway providers](/images/cloud-ai-gateway-legacy-providers.png)
 </Frame>
 
 ## Add a legacy provider
 
-1. In OpenWork Cloud, open `AI Gateway` > `AI Providers`.
+1. In Harness Cloud, open `AI Gateway` > `AI Providers`.
 2. Scroll to `Legacy Providers` and click `Add legacy provider`.
-3. Stay on `Catalog provider` and choose one in `Provider`. OpenWork names it for you. Click `Rename` to change the name.
+3. Stay on `Catalog provider` and choose one in `Provider`. Harness names it for you. Click `Rename` to change the name.
 4. Paste the shared key into `API key / credential`.
 5. Under `Models`, pick the models to share.
 6. Under `Who can use it`, keep `Everyone in <your org>`, or pick specific `Teams` and `People`.
-7. Click `Create Provider`. OpenWork checks the models first. If the check fails and you still want to save, click `Save anyway`.
+7. Click `Create Provider`. Harness checks the models first. If the check fails and you still want to save, click `Save anyway`.
 
 <Frame>
   ![The Add a new LLM provider form: Catalog provider, API key / credential, and Models](/images/cloud-managed-llm-provider-form.png)
@@ -50,10 +50,10 @@ If a provider doesn't show as `Connected`, its status tells you why:
 
 | Status | What to do |
 | --- | --- |
-| `Needs organization credential` | An admin needs to add the key to the provider in OpenWork Cloud. |
-| `Sync error` | Click `Retry`. If it keeps failing, check the provider's settings in OpenWork Cloud. |
+| `Needs organization credential` | An admin needs to add the key to the provider in Harness Cloud. |
+| `Sync error` | Click `Retry`. If it keeps failing, check the provider's settings in Harness Cloud. |
 | `Unavailable on this desktop` | A desktop policy blocks this provider on this device. |
-| `Needs OpenWork server` or `Imports unavailable in this workspace` | The current workspace can't store provider config. Switch to a local workspace. |
+| `Needs Harness server` or `Imports unavailable in this workspace` | The current workspace can't store provider config. Switch to a local workspace. |
 
 ## Change or remove it
 

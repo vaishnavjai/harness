@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { MCP_QUICK_CONNECT, type McpDirectoryInfo } from "../src/app/constants";
-import { BUILT_IN_OPENWORK_EXTENSION_MANIFESTS } from "../src/app/extensions";
+import { BUILT_IN_HARNESS_EXTENSION_MANIFESTS } from "../src/app/extensions";
 import {
   isLibraryMcpDirectoryEntry,
   matchesExtensionFilter,
@@ -31,23 +31,23 @@ describe("extension taxonomy", () => {
     expect(primaryLibraryFilter("mcp")).toBe("connection");
   });
 
-  test("the MCPs category lists third-party servers, not OpenWork's own runtimes or plumbing", () => {
+  test("the MCPs category lists third-party servers, not Harness's own runtimes or plumbing", () => {
     const listed = MCP_QUICK_CONNECT.filter(isLibraryMcpDirectoryEntry).map((entry) => entry.name);
     expect(listed).toEqual(["Notion", "Linear", "Sentry", "Stripe", "Context7"]);
-    for (const id of ["openwork-browser", "computer-use", "ollama"]) {
+    for (const id of ["harness-browser", "computer-use", "ollama"]) {
       expect(isLibraryMcpDirectoryEntry(builtInEntry(id))).toBe(false);
     }
     expect(MCP_QUICK_CONNECT.filter((entry) => entry.kind === "ui-control" || entry.defaultHidden).every((entry) => !isLibraryMcpDirectoryEntry(entry))).toBe(true);
   });
   test("built-ins are apps because they run on this device", () => {
-    for (const id of ["openwork-browser", "computer-use", "ollama"]) {
+    for (const id of ["harness-browser", "computer-use", "ollama"]) {
       expect(taxonomyForDirectoryEntry(builtInEntry(id))).toBe("app");
     }
   });
 
   test("Google Workspace is not a built-in app; it arrives as an org connection", () => {
     expect(MCP_QUICK_CONNECT.some((entry) => entry.id === "google-workspace")).toBe(false);
-    expect(BUILT_IN_OPENWORK_EXTENSION_MANIFESTS.some((entry) => entry.id === "google-workspace")).toBe(false);
+    expect(BUILT_IN_HARNESS_EXTENSION_MANIFESTS.some((entry) => entry.id === "google-workspace")).toBe(false);
   });
 
   test("directory entries that are not built-in stay MCPs", () => {

@@ -1,9 +1,9 @@
-# Deploy OpenWork EE on AWS with EKS and Helm
+# Deploy Harness EE on AWS with EKS and Helm
 
 Status: self-host operator guide
-Related: `packaging/helm/openwork-ee`, `packaging/helm/openwork-ee/examples/values.aws-load-balancer.yaml`, `packaging/helm/openwork-ee/examples/values.aws-load-balancer-http-smoke.yaml`
+Related: `packaging/helm/harness-ee`, `packaging/helm/harness-ee/examples/values.aws-load-balancer.yaml`, `packaging/helm/harness-ee/examples/values.aws-load-balancer-http-smoke.yaml`
 
-This is the recommended AWS path for a first production-like OpenWork EE
+This is the recommended AWS path for a first production-like Harness EE
 self-host install. Use Helm on Amazon EKS with Amazon RDS for MySQL. For the
 simplest customer deployment, use EKS Auto Mode and Kubernetes
 `LoadBalancer` Services so AWS provisions Network Load Balancers directly from
@@ -14,20 +14,20 @@ HTTP routing, WAF rules, or an existing ingress platform.
 
 - Den API on port `8788`
 - Den Web on port `3005`
-- optional OpenWork Gateway service, disabled by default (`inference.enabled`)
+- optional Harness Gateway service, disabled by default (`inference.enabled`)
 - one RDS MySQL database
-- one single-org OpenWork deployment
+- one single-org Harness deployment
 - two public AWS Network Load Balancers by default: one for web and one for API
 
 AWS owns the EKS cluster, node lifecycle, VPC networking, load balancers, RDS,
-DNS, TLS certificates, IAM, and security groups. The OpenWork Helm chart owns
-OpenWork Deployments, Services, ConfigMaps, Secrets, health probes, and the
+DNS, TLS certificates, IAM, and security groups. The Harness Helm chart owns
+Harness Deployments, Services, ConfigMaps, Secrets, health probes, and the
 database migration Job.
 
 ## Use Helm or something else?
 
 Use Helm on EKS for AWS unless the customer explicitly cannot run Kubernetes.
-The OpenWork EE release artifact is already a Helm chart, the service split maps
+The Harness EE release artifact is already a Helm chart, the service split maps
 cleanly to Kubernetes, and EKS Auto Mode removes most node and load balancer
 setup from the customer path. A VM or ECS guide can be useful later, but it
 would be a separate packaging surface to maintain. The practical gap found by
@@ -42,8 +42,8 @@ missing chart knobs for AWS service annotations.
 - Permission to create EKS, EC2/VPC, IAM, Elastic Load Balancing, RDS, Secrets
   Manager, Route 53, and ACM resources.
 - A real admin email address for the first owner account.
-- A domain you control, such as `openwork.example.com` and
-  `api.openwork.example.com`.
+- A domain you control, such as `harness.example.com` and
+  `api.harness.example.com`.
 
 Do not run production installs as the AWS root account. Use AWS SSO or an IAM
 role with only the permissions needed for the cluster, VPC/load balancer, RDS,
@@ -110,7 +110,7 @@ For a first deployment, create an EKS Auto Mode cluster:
 
 ```bash
 export AWS_REGION=us-east-1
-export CLUSTER_NAME=openwork-ee
+export CLUSTER_NAME=harness-ee
 
 eksctl create cluster \
   --name "$CLUSTER_NAME" \
@@ -138,7 +138,7 @@ Create a MySQL database reachable from the EKS worker security group. The exact
 VPC and subnet commands vary by account, so the important requirements are:
 
 - RDS MySQL 8-compatible engine.
-- Database name: `openwork_den`.
+- Database name: `harness_den`.
 - Private subnets in the same VPC as the EKS cluster.
 - RDS security group inbound TCP `3306` from the EKS node/pod security group.
 - Storage encryption enabled.
@@ -149,11 +149,11 @@ VPC and subnet commands vary by account, so the important requirements are:
 Example database URL:
 
 ```text
-mysql://openwork:<password>@<rds-endpoint>:3306/openwork_den?sslaccept=accept
+mysql://harness:<password>@<rds-endpoint>:3306/harness_den?sslaccept=accept
 ```
 
 Use `?sslaccept=accept` for the simple private-RDS smoke path. This keeps TLS on
-but does not require the RDS CA bundle to be mounted into the OpenWork image.
+but does not require the RDS CA bundle to be mounted into the Harness image.
 Use strict certificate verification later, after you provide the RDS CA bundle,
 with a hardened value such as `sslmode=verify-ca` or `sslmode=verify-full`.
 
@@ -189,7 +189,7 @@ aws ec2 authorize-security-group-ingress \
   --source-group "$NODE_SG_ID"
 ```
 
-Before installing OpenWork, verify network access from the cluster. One simple
+Before installing Harness, verify network access from the cluster. One simple
 way is to run a temporary MySQL client pod:
 
 ```bash
@@ -200,7 +200,7 @@ kubectl run mysql-client \
   --image=mysql:8 \
   -- mysql \
     --host="$RDS_ENDPOINT" \
-    --user=openwork \
+    --user=harness \
     --password \
     --ssl-mode=REQUIRED \
     --execute "select 1"
@@ -211,14 +211,14 @@ kubectl run mysql-client \
 Copy the starter file:
 
 ```bash
-cp packaging/helm/openwork-ee/examples/values.aws-load-balancer.yaml values.aws.yaml
+cp packaging/helm/harness-ee/examples/values.aws-load-balancer.yaml values.aws.yaml
 ```
 
 If you do not have DNS and ACM ready yet, use the HTTP smoke-test starter
 instead:
 
 ```bash
-cp packaging/helm/openwork-ee/examples/values.aws-load-balancer-http-smoke.yaml values.aws.yaml
+cp packaging/helm/harness-ee/examples/values.aws-load-balancer-http-smoke.yaml values.aws.yaml
 ```
 
 Replace every `REPLACE_*` placeholder.
@@ -239,10 +239,10 @@ To send transactional email, configure SMTP in the same values file:
 ```yaml
 secret:
   values:
-    emailFrom: "OpenWork <no-reply@example.com>"
+    emailFrom: "Harness <no-reply@example.com>"
     smtpHost: "smtp.example.com"
     smtpPort: "587"
-    smtpUser: "openwork@example.com"
+    smtpUser: "harness@example.com"
     smtpPass: "REPLACE_SMTP_PASSWORD"
     smtpSecure: "false"
 ```
@@ -254,7 +254,7 @@ add those keys to the existing Kubernetes Secret referenced by
 `SMTP_HOST`; leave `smtpHost` blank only when SMTP-backed transactional email
 should be disabled.
 
-Use a values file, not a long list of `--set` flags. Several OpenWork values are
+Use a values file, not a long list of `--set` flags. Several Harness values are
 comma-separated strings, such as `config.public.corsOrigins`, and plain
 `--set` parsing commonly breaks them.
 
@@ -267,24 +267,24 @@ Before installing, render the chart and verify the migration Job will use your
 RDS URL:
 
 ```bash
-helm template openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
-  -f values.aws.yaml > /tmp/openwork-rendered.yaml
+helm template harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
+  -f values.aws.yaml > /tmp/harness-rendered.yaml
 
-grep -E 'DATABASE_URL|DEN_BASE_URL|DEN_WEB_PUBLIC_ORIGIN|EMAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURE' /tmp/openwork-rendered.yaml
+grep -E 'DATABASE_URL|DEN_BASE_URL|DEN_WEB_PUBLIC_ORIGIN|EMAIL_FROM|SMTP_HOST|SMTP_PORT|SMTP_SECURE' /tmp/harness-rendered.yaml
 ```
 
 Redact secrets before sharing rendered manifests or terminal output.
 
-## 4. Install OpenWork
+## 4. Install Harness
 
 Published chart releases live in GHCR:
 
 ```bash
-helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
   --create-namespace \
   -f values.aws.yaml
 ```
@@ -292,8 +292,8 @@ helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee
 For a checkout-local test:
 
 ```bash
-helm upgrade --install openwork-ee ./packaging/helm/openwork-ee \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee ./packaging/helm/harness-ee \
+  --namespace harness-ee \
   --create-namespace \
   -f values.aws.yaml
 ```
@@ -304,7 +304,7 @@ private packages or private forks do:
 
 ```bash
 kubectl create secret docker-registry ghcr-pull-secret \
-  --namespace openwork-ee \
+  --namespace harness-ee \
   --docker-server=ghcr.io \
   --docker-username="$GITHUB_USER" \
   --docker-password="$GITHUB_TOKEN"
@@ -320,7 +320,7 @@ imagePullSecrets:
 The migration Job runs before the Deployments and Services are installed. If it
 fails, fix that before debugging web/API readiness.
 
-Avoid `kubectl describe job openwork-ee-migrate` in shared reports because the
+Avoid `kubectl describe job harness-ee-migrate` in shared reports because the
 hook Job currently includes `DATABASE_URL` and `DEN_DB_ENCRYPTION_KEY` in the
 rendered environment. Use logs and redacted rendered manifests instead.
 
@@ -336,15 +336,15 @@ migrations:
 Then run Helm and inspect the normal Job logs:
 
 ```bash
-helm upgrade --install openwork-ee oci://ghcr.io/different-ai/charts/openwork-ee \
-  --version REPLACE_OPENWORK_VERSION \
-  --namespace openwork-ee \
+helm upgrade --install harness-ee oci://ghcr.io/different-ai/charts/harness-ee \
+  --version REPLACE_HARNESS_VERSION \
+  --namespace harness-ee \
   --create-namespace \
   -f values.aws.yaml \
   --wait=false
 
-kubectl get jobs,pods -n openwork-ee
-kubectl logs -n openwork-ee -l job-name=openwork-ee-migrate --all-containers=true
+kubectl get jobs,pods -n harness-ee
+kubectl logs -n harness-ee -l job-name=harness-ee-migrate --all-containers=true
 ```
 
 If you see `self-signed certificate in certificate chain` against RDS, use the
@@ -365,18 +365,18 @@ migrations:
 Wait for AWS to allocate load balancer hostnames:
 
 ```bash
-kubectl get svc -n openwork-ee
+kubectl get svc -n harness-ee
 ```
 
 You should see external hostnames for:
 
-- `openwork-ee-den-web`
-- `openwork-ee-den-api`
+- `harness-ee-den-web`
+- `harness-ee-den-api`
 
 Create DNS records:
 
-- `openwork.example.com` -> Den Web load balancer hostname.
-- `api.openwork.example.com` -> Den API load balancer hostname.
+- `harness.example.com` -> Den Web load balancer hostname.
+- `api.harness.example.com` -> Den API load balancer hostname.
 
 The starter values terminate TLS on port `443` at each Network Load Balancer
 and forward clear HTTP to the Kubernetes service target port. Use an ACM
@@ -415,9 +415,9 @@ when ConfigMap or Secret content changes. On older chart versions, manually
 restart the deployments after changing public origin values:
 
 ```bash
-kubectl rollout restart deployment/openwork-ee-den-api deployment/openwork-ee-den-web -n openwork-ee
-kubectl rollout status deployment/openwork-ee-den-api -n openwork-ee --timeout=180s
-kubectl rollout status deployment/openwork-ee-den-web -n openwork-ee --timeout=180s
+kubectl rollout restart deployment/harness-ee-den-api deployment/harness-ee-den-web -n harness-ee
+kubectl rollout status deployment/harness-ee-den-api -n harness-ee --timeout=180s
+kubectl rollout status deployment/harness-ee-den-web -n harness-ee --timeout=180s
 ```
 
 ## 7. Verify readiness
@@ -425,19 +425,19 @@ kubectl rollout status deployment/openwork-ee-den-web -n openwork-ee --timeout=1
 Check Kubernetes state:
 
 ```bash
-helm status openwork-ee -n openwork-ee
-kubectl get pods -n openwork-ee
-kubectl get jobs -n openwork-ee
-kubectl describe pods -n openwork-ee
-kubectl logs -n openwork-ee deploy/openwork-ee-den-api
-kubectl logs -n openwork-ee deploy/openwork-ee-den-web
+helm status harness-ee -n harness-ee
+kubectl get pods -n harness-ee
+kubectl get jobs -n harness-ee
+kubectl describe pods -n harness-ee
+kubectl logs -n harness-ee deploy/harness-ee-den-api
+kubectl logs -n harness-ee deploy/harness-ee-den-web
 ```
 
 Check service readiness from your machine:
 
 ```bash
-curl -fsS https://api.openwork.example.com/ready
-curl -fsS https://openwork.example.com/api/ready
+curl -fsS https://api.harness.example.com/ready
+curl -fsS https://harness.example.com/api/ready
 ```
 
 For HTTP smoke tests, use the raw NLB hostnames and ports:
@@ -469,8 +469,8 @@ secret:
 For releases that include initial-administrator bootstrap, inject the
 release-documented one-time setup secret through the Kubernetes Secret referenced
 by `secret.existingSecret`. Do not store the code in the values file or a
-ConfigMap. Then open `https://openwork.example.com/setup`, enter the configured
-owner email and one-time operator code, and create the first account. OpenWork
+ConfigMap. Then open `https://harness.example.com/setup`, enter the configured
+owner email and one-time operator code, and create the first account. Harness
 creates the singleton organization, grants owner and configured platform-admin
 access, and signs the administrator in. Public signup remains disabled. After
 the first user exists, the setup code cannot bootstrap another account.
@@ -493,19 +493,19 @@ IdPs.
 Configure the IdP application with these callback URLs:
 
 ```text
-https://openwork.example.com/api/auth/sso/callback/openwork-sso-<org-id>
+https://harness.example.com/api/auth/sso/callback/harness-sso-<org-id>
 ```
 
-In OpenWork, sign in as the owner, open the organization SSO settings, and enter
+In Harness, sign in as the owner, open the organization SSO settings, and enter
 the IdP issuer/client details. After saving, the organization sign-in path is:
 
 ```text
-https://openwork.example.com/sso/<singleOrgSlug>
+https://harness.example.com/sso/<singleOrgSlug>
 ```
 
-For SAML, OpenWork shows the generated ACS URL and metadata URL after the SAML
+For SAML, Harness shows the generated ACS URL and metadata URL after the SAML
 connection is registered. Use those values in the IdP rather than guessing.
-OpenWork rejects unsigned or weak SAML responses, so configure the IdP to sign
+Harness rejects unsigned or weak SAML responses, so configure the IdP to sign
 assertions.
 
 After SSO is configured, root sign-in shows the SSO-only experience for the
@@ -525,7 +525,7 @@ single organization. Password sign-in for that organization is rejected.
 | Runtime is ready but migration failed | Helm hook did not complete | Check `kubectl get jobs` and the migration Job logs before testing web |
 | `ImagePullBackOff` from GHCR | Private image or missing pull token | Add `imagePullSecrets` |
 | Browser auth loops or CORS errors | Public origins do not match DNS/TLS | Set `webOrigin`, `apiOrigin`, `corsOrigins`, `betterAuthTrustedOrigins`, and `authCallbackUrl` to the final HTTPS domains |
-| SSO callback rejected | IdP callback URL does not match OpenWork | Use the callback/ACS URL shown by OpenWork for that org/provider |
+| SSO callback rejected | IdP callback URL does not match Harness | Use the callback/ACS URL shown by Harness for that org/provider |
 | SSO settings show Enterprise gating | `DEN_PLAN_GATING_ENABLED=true` or org is not entitled | Leave plan gating off for self-host smoke tests, or grant enterprise entitlement |
 
 ## 11. Cleanup
@@ -533,7 +533,7 @@ single organization. Password sign-in for that organization is rejected.
 For a disposable test:
 
 ```bash
-helm uninstall openwork-ee -n openwork-ee
+helm uninstall harness-ee -n harness-ee
 eksctl delete cluster --name "$CLUSTER_NAME" --region "$AWS_REGION"
 ```
 

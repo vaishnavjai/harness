@@ -11,7 +11,7 @@ export interface LedgerEntry {
   at: string;
 }
 
-export const LEDGER_ENV = "OPENWORK_WORLD_LEDGER";
+export const LEDGER_ENV = "HARNESS_WORLD_LEDGER";
 
 export function ledgerPath(snapshotDirectory: string, receiptName: string): string {
   return join(snapshotDirectory, `${receiptName}.ledger.jsonl`);

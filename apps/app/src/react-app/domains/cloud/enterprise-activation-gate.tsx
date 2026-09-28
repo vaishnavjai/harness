@@ -51,7 +51,7 @@ function EnterpriseActivationPage() {
   const submitServer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // The address field quietly accepts a pasted openwork:// sign-in link as
+    // The address field quietly accepts a pasted harness:// sign-in link as
     // the recovery path when the browser round trip cannot come back.
     const pastedLink = parseManualAuthInput(serverInput);
     if (pastedLink?.baseUrl && pastedLink.grant) {
@@ -67,7 +67,7 @@ function EnterpriseActivationPage() {
 
     const baseUrl = normalizeOrganizationServerInput(serverInput);
     if (!baseUrl) {
-      setServerError("Enter a valid OpenWork server address.");
+      setServerError("Enter a valid Harness server address.");
       return;
     }
 
@@ -82,7 +82,7 @@ function EnterpriseActivationPage() {
     setAuthBusy(true);
     setAuthError(null);
     setServerError(null);
-    setStatusMessage("Finishing OpenWork Enterprise sign-in…");
+    setStatusMessage("Finishing Harness Enterprise sign-in…");
     try {
       // The confirmed server, session, and activation stamp commit in one
       // handoff transaction, so activation can never leave the bootstrap and
@@ -90,7 +90,7 @@ function EnterpriseActivationPage() {
       const result = await exchangeHandoffAndSignIn(grant, {
         baseUrl,
         desktopInitiated: true,
-        fallbackErrorMessage: "OpenWork Enterprise did not return a session token.",
+        fallbackErrorMessage: "Harness Enterprise did not return a session token.",
         bootstrap: {
           requireSignin: true,
           enterpriseActivation: {
@@ -107,7 +107,7 @@ function EnterpriseActivationPage() {
     } catch (error) {
       setStatusMessage(null);
       setAuthError(
-        error instanceof Error ? error.message : "Unable to finish OpenWork Enterprise sign-in.",
+        error instanceof Error ? error.message : "Unable to finish Harness Enterprise sign-in.",
       );
     } finally {
       setAuthBusy(false);
@@ -137,11 +137,11 @@ function EnterpriseActivationPage() {
         setAuthError("We couldn't open your browser automatically. Try again, or paste the sign-in link from your browser into the address field.");
         return;
       }
-      setStatusMessage("Finish signing in in your browser, then return to OpenWork.");
+      setStatusMessage("Finish signing in in your browser, then return to Harness.");
     } catch (error) {
       setStatusMessage(null);
       setServerError(
-        error instanceof Error ? error.message : "Unable to save this OpenWork server.",
+        error instanceof Error ? error.message : "Unable to save this Harness server.",
       );
     } finally {
       setBrowserBusy(false);
@@ -177,7 +177,7 @@ function EnterpriseActivationPage() {
         >
           <div className="flex items-center gap-2.5">
             <img
-              src={resolveExtensionIconSrc("/openwork-mark.svg")}
+              src={resolveExtensionIconSrc("/harness-mark.svg")}
               alt=""
               width={26}
               height={26}
@@ -185,7 +185,7 @@ function EnterpriseActivationPage() {
               aria-hidden="true"
             />
             <span className="text-[15px] font-semibold tracking-tight text-foreground">
-              OpenWork Enterprise
+              Harness Enterprise
             </span>
           </div>
 
@@ -213,7 +213,7 @@ function EnterpriseActivationPage() {
                     data-testid="organization-server-input"
                     value={serverInput}
                     onChange={(event) => setServerInput(event.currentTarget.value)}
-                    placeholder="openwork.acme.com"
+                    placeholder="harness.acme.com"
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
@@ -235,7 +235,7 @@ function EnterpriseActivationPage() {
             {pendingConfirmation ? (
               <section className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
                 <p className="text-sm leading-6 text-foreground">
-                  Connect this app to <strong className="break-all font-semibold">{pendingConfirmation.baseUrl}</strong>? This signs you in with that organization and binds OpenWork Enterprise to it.
+                  Connect this app to <strong className="break-all font-semibold">{pendingConfirmation.baseUrl}</strong>? This signs you in with that organization and binds Harness Enterprise to it.
                 </p>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button

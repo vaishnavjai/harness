@@ -1,8 +1,8 @@
-import type { WorkspaceWire } from "@openwork/types/workspace";
+import type { WorkspaceWire } from "@harness/types/workspace";
 
 export type WorkspaceType = "local" | "remote";
 
-export type RemoteType = "opencode" | "openwork";
+export type RemoteType = "opencode" | "harness";
 
 export type ApprovalMode = "manual" | "auto";
 
@@ -24,10 +24,10 @@ export interface WorkspaceConfig {
   baseUrl?: string;
   directory?: string;
   displayName?: string;
-  openworkHostUrl?: string;
-  openworkToken?: string;
-  openworkWorkspaceId?: string;
-  openworkWorkspaceName?: string;
+  harnessHostUrl?: string;
+  harnessToken?: string;
+  harnessWorkspaceId?: string;
+  harnessWorkspaceName?: string;
   sandboxBackend?: string;
   sandboxRunId?: string;
   sandboxContainerName?: string;
@@ -45,10 +45,10 @@ export interface WorkspaceInfo {
   baseUrl?: string;
   directory?: string;
   displayName?: string;
-  openworkHostUrl?: string;
-  openworkToken?: string;
-  openworkWorkspaceId?: string;
-  openworkWorkspaceName?: string;
+  harnessHostUrl?: string;
+  harnessToken?: string;
+  harnessWorkspaceId?: string;
+  harnessWorkspaceName?: string;
   sandboxBackend?: string;
   sandboxRunId?: string;
   sandboxContainerName?: string;
@@ -103,7 +103,7 @@ export interface ServerConfig {
   hostTokenSource: "cli" | "env" | "file" | "generated";
   logFormat: LogFormat;
   logRequests: boolean;
-  /** In-memory secure key custody supplied by an embedding host such as OpenWork Desktop. */
+  /** In-memory secure key custody supplied by an embedding host such as Harness Desktop. */
   localManagedMcpVaultKey?: LocalManagedMcpVaultKeyProvider;
   /** Desktop-owned managed engines only; never enabled by remote clients. */
   resumeInterruptedTasks?: boolean;
@@ -114,7 +114,7 @@ export interface Capabilities {
   serverVersion: string;
   opencodeVersion: string;
   providerSync: true;
-  skills: { read: boolean; write: boolean; source: "openwork" | "opencode" };
+  skills: { read: boolean; write: boolean; source: "harness" | "opencode" };
   plugins: { read: boolean; write: boolean };
   mcp: { read: boolean; write: boolean };
   commands: { read: boolean; write: boolean };

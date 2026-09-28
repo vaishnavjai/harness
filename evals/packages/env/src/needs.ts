@@ -44,23 +44,23 @@ export function unmetNeeds(requirements: TestNeeds, env: NodeJS.ProcessEnv): str
     if (result.error || result.status !== 0) missing.push(`install ${command}`);
   }
   if (requirements.model === "tool-capable") {
-    if (!present(env, "OPENWORK_EVAL_MODEL")) missing.push("set OPENWORK_EVAL_MODEL");
+    if (!present(env, "HARNESS_EVAL_MODEL")) missing.push("set HARNESS_EVAL_MODEL");
     if (!present(env, "OPENAI_API_KEY") && !present(env, "ANTHROPIC_API_KEY")) {
       missing.push("set OPENAI_API_KEY or ANTHROPIC_API_KEY");
     }
   }
   if (requirements.platform && process.platform !== requirements.platform) missing.push(`run on ${requirements.platform}`);
-  if (requirements.daytona && env.OPENWORK_EVAL_DAYTONA?.trim() !== "1") {
-    missing.push("set OPENWORK_EVAL_DAYTONA=1");
+  if (requirements.daytona && env.HARNESS_EVAL_DAYTONA?.trim() !== "1") {
+    missing.push("set HARNESS_EVAL_DAYTONA=1");
   }
-  if (requirements.placement === "daytona" && env.OPENWORK_EVAL_DAYTONA?.trim() !== "1") {
-    missing.push("set OPENWORK_EVAL_DAYTONA=1");
+  if (requirements.placement === "daytona" && env.HARNESS_EVAL_DAYTONA?.trim() !== "1") {
+    missing.push("set HARNESS_EVAL_DAYTONA=1");
   }
   if (
     requirements.placement === "local"
-    && (env.OPENWORK_EVAL_DAYTONA?.trim() === "1" || present(env, "OPENWORK_EVAL_DEN_API_URL"))
+    && (env.HARNESS_EVAL_DAYTONA?.trim() === "1" || present(env, "HARNESS_EVAL_DEN_API_URL"))
   ) {
-    missing.push("use local placement without OPENWORK_EVAL_DEN_API_URL");
+    missing.push("use local placement without HARNESS_EVAL_DEN_API_URL");
   }
   return missing;
 }

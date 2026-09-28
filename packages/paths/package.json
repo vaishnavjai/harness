@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/paths",
+  "name": "@harness/paths",
   "private": true,
   "type": "module",
   "exports": {

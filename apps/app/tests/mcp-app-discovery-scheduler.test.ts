@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { createMcpAppDiscoveryScheduler, mcpAppDiscoverySignature } from "../src/app/lib/mcp-app-discovery-scheduler"
-import { createOpenworkServerClient, OpenworkServerError, type OpenworkMcpAppResource, type OpenworkServerClient } from "../src/app/lib/openwork-server"
+import { createHarnessServerClient, HarnessServerError, type HarnessMcpAppResource, type HarnessServerClient } from "../src/app/lib/harness-server"
 import type { McpAppOrigin } from "../src/components/chat/mcp-app-origin"
 
 const flush = async () => { for (let i = 0; i < 30; i++) await Promise.resolve() }
-const originFor = (resolveMcpApp: OpenworkServerClient["resolveMcpApp"]): McpAppOrigin => ({
-  client: { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid", token: "fixture" }), resolveMcpApp },
+const originFor = (resolveMcpApp: HarnessServerClient["resolveMcpApp"]): McpAppOrigin => ({
+  client: { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid", token: "fixture" }), resolveMcpApp },
   workspaceId: "workspace", sessionId: "session", engine: "v2", readOnly: false,
 })
-const resource = (launchId: string): OpenworkMcpAppResource => ({
+const resource = (launchId: string): HarnessMcpAppResource => ({
   launchId, serverName: "fixture", toolName: "render", resourceUri: "ui://fixture/view",
   html: "", csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, prefersBorder: false,
 })
@@ -18,7 +18,7 @@ describe("chat discovery admission", () => {
     const schedule = createMcpAppDiscoveryScheduler()
     let calls = 0
     let outcomes = 0
-    const origin = originFor(async () => { calls++; if (code) throw new OpenworkServerError(403, code, "Blocked"); return { app: null } })
+    const origin = originFor(async () => { calls++; if (code) throw new HarnessServerError(403, code, "Blocked"); return { app: null } })
     for (let i = 0; i < 100; i++) schedule(origin, "ambiguous_tool_name", null, false, () => outcomes++, () => outcomes++)
     await flush()
     expect(calls).toBe(1)
@@ -36,7 +36,7 @@ describe("chat discovery admission", () => {
       return new Promise(resolve => completions.push(() => resolve({ app: resource(id) })))
     })
     origin.client.releaseMcpApp = async (_workspace, id) => { released.push(id); return { released: true } }
-    const receive = (app: OpenworkMcpAppResource | null) => { if (app?.launchId) received.push(app.launchId) }
+    const receive = (app: HarnessMcpAppResource | null) => { if (app?.launchId) received.push(app.launchId) }
     const fail = () => { throw new Error("Unexpected failure") }
     const cancelActive = schedule(origin, "render", null, false, receive, fail)
     schedule(origin, "render", null, false, receive, fail)
@@ -57,7 +57,7 @@ describe("chat discovery admission", () => {
     let time = 10_000
     const schedule = createMcpAppDiscoveryScheduler(() => time)
     let calls = 0
-    const resolve: OpenworkServerClient["resolveMcpApp"] = async () => { calls++; return { app: null } }
+    const resolve: HarnessServerClient["resolveMcpApp"] = async () => { calls++; return { app: null } }
     const origin = originFor(resolve)
     const run = (scope = origin, manual = false, launch = null) => schedule(scope, "render", launch, manual, () => {}, () => {})
     run(); await flush()

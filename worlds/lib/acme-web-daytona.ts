@@ -16,7 +16,7 @@ const DAYTONA_WEB_PORT = 5178;
 const DAYTONA_LIFETIME_MINUTES = 120;
 
 /**
- * The OpenWork web runtime on its own private Daytona sandbox, proxying the
+ * The Harness web runtime on its own private Daytona sandbox, proxying the
  * world's Den. Same shape as app-web, but the proxy target is this world's Den
  * preview URL so a person can sign in as alex and chat through the gateway.
  */
@@ -38,9 +38,9 @@ async function startDaytonaWebRuntime(stack: AsyncDisposableStack, place: Place,
   const preview = await privateWebPreview(sandboxId, DAYTONA_WEB_PORT, undefined, (DAYTONA_LIFETIME_MINUTES + 10) * 60);
   const runtime = await startRemoteRuntime(sandboxId, runtimeName, "/workspace", room.source, {
     env: {
-      OPENWORK_WEB_PORT: String(DAYTONA_WEB_PORT), VITE_HOST: "0.0.0.0",
-      OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY: "1", OPENWORK_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
-      VITE_DEN_BASE_URL: den.ref.webUrl, VITE_DEN_API_BASE_URL: den.ref.apiUrl, VITE_DISABLE_OPENWORK_MODELS: "0",
+      HARNESS_WEB_PORT: String(DAYTONA_WEB_PORT), VITE_HOST: "0.0.0.0",
+      HARNESS_DEV_HEADLESS_WEB_DEN_PROXY: "1", HARNESS_DEV_DEN_PROXY_TARGET: den.ref.webUrl,
+      VITE_DEN_BASE_URL: den.ref.webUrl, VITE_DEN_API_BASE_URL: den.ref.apiUrl, VITE_DISABLE_HARNESS_MODELS: "0",
     },
     browserHostSuffix: preview.browserHostSuffix,
   });
@@ -65,9 +65,9 @@ async function signRuntimeIntoDen(sandboxId: string, runtimeDirectory: string, d
 import base64, json, urllib.request
 manifest = json.load(open(${JSON.stringify(manifest)}))
 session = base64.b64decode(${JSON.stringify(session)})
-headers = {"x-openwork-host-token": manifest["hostToken"], "content-type": "application/json"}
+headers = {"x-harness-host-token": manifest["hostToken"], "content-type": "application/json"}
 def call(method, path, body):
-    request = urllib.request.Request(manifest["openworkUrl"] + path, data=body, method=method, headers=headers)
+    request = urllib.request.Request(manifest["harnessUrl"] + path, data=body, method=method, headers=headers)
     with urllib.request.urlopen(request, timeout=60) as response:
         return response.status, response.read().decode("utf-8")
 print("den-session", call("PUT", "/den-session", session)[0])
@@ -83,7 +83,7 @@ PYEOF`;
 /**
  * acme-web on Daytona: Den + real AI Gateway + deterministic upstream in one
  * sandbox, verified with one message through the public gateway URL, plus the
- * OpenWork web runtime on a private sandbox signed into that Den.
+ * Harness web runtime on a private sandbox signed into that Den.
  */
 export async function bootAcmeWebOnDaytona(stack: AsyncDisposableStack, place: Place): Promise<Record<string, WorldOutput>> {
   const gateway = await bootAcmeGatewayOnDaytona(stack, place, { denEnv: { DEN_DASHBOARDS_ENABLED: "true" } });
@@ -91,7 +91,7 @@ export async function bootAcmeWebOnDaytona(stack: AsyncDisposableStack, place: P
   const web = await startDaytonaWebRuntime(stack, place, gateway.den, gateway.model.orgId);
   const { den, model, gatewayUrl } = gateway;
   return {
-    webUrl: secret(web.browserOrigin, { group: "URLs", note: "Private signed OpenWork web runtime; sign in as alex, then pick Acme AI Gateway / Claude Haiku 4.5" }),
+    webUrl: secret(web.browserOrigin, { group: "URLs", note: "Private signed Harness web runtime; sign in as alex, then pick Acme AI Gateway / Claude Haiku 4.5" }),
     denWeb: output(den.ref.webUrl, { group: "URLs" }),
     denApi: output(den.ref.apiUrl, { group: "URLs" }),
     aiGateway: output(`${den.ref.webUrl}/dashboard/ai-gateway?tab=ai-providers`, { group: "URLs", note: "Den admin screen for providers, keys and who can use them" }),

@@ -1,4 +1,4 @@
-import { resolvePlace } from "@openwork/env";
+import { resolvePlace } from "@harness/env";
 
 export interface TestContext {
   place: ReturnType<typeof resolvePlace>;
@@ -15,6 +15,6 @@ export function setBriefTestRegistrar(registrar: RegisterTest): void {
 }
 
 export function getBriefTestRegistrar(): RegisterTest {
-  if (!registerTest) throw new Error("briefTest must be imported from @openwork/testkit.");
+  if (!registerTest) throw new Error("briefTest must be imported from @harness/testkit.");
   return registerTest;
 }

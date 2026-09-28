@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
-import { currentTestEvidence } from "@openwork/test-evidence";
+import { test } from "@harness/testkit";
+import { currentTestEvidence } from "@harness/test-evidence";
 
 import { resolveWorkspaceEndpoint } from "../../apps/app/src/app/lib/workspace-endpoint.ts";
 import {
@@ -42,7 +42,7 @@ function directoryFor(request: Observation) {
 // Contracts checked against v1.18.18 and beta-19086, release run 33857761662:
 // b09a74591cbd4d2ea1488e56177898a13f21278d, protocol/groups/session.ts and
 // server/handlers/session.ts. v2 emits cursor.next for EVERY nonempty native
-// page; OpenWork's proxy filters by real directory AFTER paging, retaining it.
+// page; Harness's proxy filters by real directory AFTER paging, retaining it.
 function pageReply(engine: Engine, source: RouteSession[]) {
   const cursors = new Map<string, number>();
   return (request: Observation): Reply => {
@@ -108,7 +108,7 @@ async function withWitness(
     const local = resolveWorkspaceEndpoint({ id: "local workspace", workspaceType: "local" }, handle);
     const remote = resolveWorkspaceEndpoint({
       id: "rem_synthetic", workspaceType: "remote", baseUrl: `${baseUrl}/remote`,
-      openworkWorkspaceId: "remote/id", openworkToken: "synthetic-remote",
+      harnessWorkspaceId: "remote/id", harnessToken: "synthetic-remote",
     }, handle);
     if (!local || !remote) throw new Error("Missing witness endpoints");
     await run({ local, remote, requests });

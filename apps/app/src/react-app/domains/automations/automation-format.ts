@@ -1,4 +1,4 @@
-import type { AutomationRun, AutomationSchedule } from "@openwork/types/automations";
+import type { AutomationRun, AutomationSchedule } from "@harness/types/automations";
 
 type RunReceiptState = Pick<AutomationRun, "status" | "error" | "attemptCount" | "startedAt">;
 
@@ -15,7 +15,7 @@ export function automationRunNotice(run: RunReceiptState): RunNotice | null {
       return {
         variant: "default",
         title: "Run missed",
-        message: `This occurrence never started. ${run.error.message.trim() || "The desktop runner was unavailable."} Keep OpenWork open, signed in, and your computer awake and connected for future runs.`,
+        message: `This occurrence never started. ${run.error.message.trim() || "The desktop runner was unavailable."} Keep Harness open, signed in, and your computer awake and connected for future runs.`,
       };
     }
     return {

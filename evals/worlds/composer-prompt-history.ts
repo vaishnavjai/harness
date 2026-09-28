@@ -1,17 +1,17 @@
-import { reattachSurface } from "@openwork/cdp";
-import { evalIn } from "@openwork/behaviors";
-import { resolveEvalEngine, SkipError, type Seed } from "@openwork/env";
+import { reattachSurface } from "@harness/cdp";
+import { evalIn } from "@harness/behaviors";
+import { resolveEvalEngine, SkipError, type Seed } from "@harness/env";
 import { longHistory } from "./chat.ts";
 
 export async function composerPromptHistory(seed: Seed) {
-  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (OPENWORK_EVAL_ENGINE=v1)");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 stored history (HARNESS_EVAL_ENGINE=v1)");
   const base = await longHistory(seed);
   return {
     ...base,
     async restart() {
       const previousOrigin = await evalIn(base.app, () => performance.timeOrigin);
       // Real main-process relaunch, keeping the seed-owned profile and engine data.
-      await evalIn(base.app, async () => { await window.__OPENWORK_ELECTRON__.shell.relaunch(); }, { reattachAttempts: 0 })
+      await evalIn(base.app, async () => { await window.__HARNESS_ELECTRON__.shell.relaunch(); }, { reattachAttempts: 0 })
         .catch(() => undefined); // Quit may destroy the context before the IPC reply; never dispatch twice.
       const deadline = Date.now() + 90_000;
       while (Date.now() < deadline) {

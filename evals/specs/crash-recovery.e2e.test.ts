@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
-import { spec, createBriefRun, claim } from '@openwork/testkit';
-import type { User } from '@openwork/testkit';
+import { spec, createBriefRun, claim } from '@harness/testkit';
+import type { User } from '@harness/testkit';
 import { crashRecoveryWorld } from '../worlds/crash-recovery.ts';
 import type { CrashRecoveryWorld } from '../worlds/crash-recovery.ts';
 import type { RecoverySnapshot } from '../fixtures/crash-recovery/state.ts';
@@ -8,11 +8,11 @@ import type { RecoverySnapshot } from '../fixtures/crash-recovery/state.ts';
 const test = spec.world(crashRecoveryWorld, {
   // Each test provisions a fresh Chrome sandbox and installs dependencies; Daytona has needed over 90 s.
   timeout: 300_000,
-  needs: { commands: ['git', ...(process.env.OPENWORK_EVAL_DAYTONA === '1' ? ['daytona'] : [])] },
+  needs: { commands: ['git', ...(process.env.HARNESS_EVAL_DAYTONA === '1' ? ['daytona'] : [])] },
   // Real app source in a standalone Chrome; no Den, mock services or Electron.
   resources: { surfaces: ['appWeb'], services: [] },
 });
-const heading = 'OpenWork hit an unexpected error';
+const heading = 'Harness hit an unexpected error';
 const safeMessage = 'synthetic ordinary failure';
 const safeStack = `Error: ${safeMessage}\n    at SyntheticChild (file:///synthetic/source.tsx:12:34)`;
 const settle = () => new Promise<void>(resolve => setTimeout(resolve, 350));
@@ -73,7 +73,7 @@ test('crash recovery ordinary Error recovers, copies exact diagnostics, and repo
   await click(user, 'Technical details'); await click(user, 'Copy details'); await settle();
   const copied = await observe(world, 'ordinary-copy');
   expect(copied.stack).toBe(safeStack); expect(copied.witness.copies).toHaveLength(1);
-  expect(copied.witness.copies[0].split('\n\n')[0]).toMatch(new RegExp(`^OpenWork ${world.version.replaceAll('.', '\\.')} \\(web, [^)]+\\)$`));
+  expect(copied.witness.copies[0].split('\n\n')[0]).toMatch(new RegExp(`^Harness ${world.version.replaceAll('.', '\\.')} \\(web, [^)]+\\)$`));
   expect(copied.witness.copies[0].split('\n\n').slice(1)).toEqual([safeMessage, safeStack]);
   expect(copied.buttons).toContain('Copied'); recovered(copied); noDelivery(world);
 });

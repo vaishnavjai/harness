@@ -1,15 +1,15 @@
 import { createServer } from "node:http";
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
-import { attachSurface, evaluateOnSurface } from "@openwork/cdp";
-import type { AttachedSurface, SurfaceHandle } from "@openwork/cdp";
-import { SkipError } from "@openwork/env";
-import type { Seed } from "@openwork/env";
-import { localHost } from "@openwork/hosts";
-import type { ElectronSurfaceOptions } from "@openwork/hosts";
+import { attachSurface, evaluateOnSurface } from "@harness/cdp";
+import type { AttachedSurface, SurfaceHandle } from "@harness/cdp";
+import { SkipError } from "@harness/env";
+import type { Seed } from "@harness/env";
+import { localHost } from "@harness/hosts";
+import type { ElectronSurfaceOptions } from "@harness/hosts";
 
 /**
- * A packaged enterprise desktop on a machine that has never run OpenWork,
+ * A packaged enterprise desktop on a machine that has never run Harness,
  * booted behind a logging forward proxy that refuses everything. Before the
  * person enters their workspace address the install knows no organization
  * server, so any request that leaves loopback goes to a host nobody chose:
@@ -89,8 +89,8 @@ export async function startEgressWitness(): Promise<{
 }
 
 async function launchPackagedEnterprise(name: string, bootstrap?: ElectronSurfaceOptions["bootstrap"]) {
-  if (!process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim()) {
-    throw new SkipError("OPENWORK_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
+  if (!process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim()) {
+    throw new SkipError("HARNESS_EVAL_ELECTRON_BINARY points at a packaged enterprise desktop binary");
   }
   const witness = await startEgressWitness();
   const host = localHost();
@@ -100,8 +100,8 @@ async function launchPackagedEnterprise(name: string, bootstrap?: ElectronSurfac
       profile: "fresh",
       prepareSharedResources: false,
       env: {
-        OPENWORK_DEV_MODE: "0",
-        OPENWORK_ELECTRON_START_URL: "",
+        HARNESS_DEV_MODE: "0",
+        HARNESS_ELECTRON_START_URL: "",
         ELECTRON_START_URL: "",
         ELECTRON_EXTRA_LAUNCH_ARGS: `--proxy-server=http://127.0.0.1:${witness.port}`,
       },
@@ -134,7 +134,7 @@ async function launchPackagedEnterprise(name: string, bootstrap?: ElectronSurfac
     app: attached,
     /** Flavor baked into the packaged artifact, as the renderer sees it. */
     flavor: () => evaluateOnSurface(attached, (): string | null => {
-      const electron: unknown = Reflect.get(window, "__OPENWORK_ELECTRON__");
+      const electron: unknown = Reflect.get(window, "__HARNESS_ELECTRON__");
       if (typeof electron !== "object" || electron === null) return null;
       const meta: unknown = Reflect.get(electron, "meta");
       if (typeof meta !== "object" || meta === null) return null;
@@ -151,7 +151,7 @@ async function launchPackagedEnterprise(name: string, bootstrap?: ElectronSurfac
   };
 }
 
-/** First launch on a machine that has never run OpenWork: no bootstrap, so activation is required. */
+/** First launch on a machine that has never run Harness: no bootstrap, so activation is required. */
 export function packagedPreactivationEgressWorld(_seed: Seed) {
   return launchPackagedEnterprise("packaged-preactivation-egress");
 }

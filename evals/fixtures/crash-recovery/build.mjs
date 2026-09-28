@@ -19,7 +19,7 @@ async function buildFixture() {
   const output = await mkdtemp(`${results}/source-`);
   const source = resolve(output, 'source');
   await mkdir(source);
-  const ref = process.env.OPENWORK_RECOVERY_SOURCE_REF;
+  const ref = process.env.HARNESS_RECOVERY_SOURCE_REF;
   if (ref) {
     const archive = execFileSync('git', ['archive', '--format=tar', ref, 'apps/app/src'], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
     execFileSync('tar', ['-xf', '-', '-C', source], { input: archive });
@@ -45,7 +45,7 @@ async function buildFixture() {
     const variant = { name, deployment, dsn, modules: [] };
     await build({
       root: fixture, configFile: false, envDir: false, envPrefix: 'CRASH_FIXTURE_NO_ENV_', publicDir: false, base: `/${name}/`, logLevel: 'warn',
-      define: { 'process.env.NODE_ENV': JSON.stringify('production'), 'import.meta.env.VITE_OPENWORK_APP_VERSION': JSON.stringify(version), 'import.meta.env.VITE_OPENWORK_BUILD_SHA': JSON.stringify(release), 'import.meta.env.VITE_OPENWORK_DEPLOYMENT': JSON.stringify(deployment), 'import.meta.env.VITE_OPENWORK_SENTRY_DSN': JSON.stringify(dsn), 'import.meta.env.VITE_OPENWORK_POSTHOG_KEY': JSON.stringify(''), 'import.meta.env.VITE_DEN_BASE_URL': JSON.stringify('https://den.invalid') },
+      define: { 'process.env.NODE_ENV': JSON.stringify('production'), 'import.meta.env.VITE_HARNESS_APP_VERSION': JSON.stringify(version), 'import.meta.env.VITE_HARNESS_BUILD_SHA': JSON.stringify(release), 'import.meta.env.VITE_HARNESS_DEPLOYMENT': JSON.stringify(deployment), 'import.meta.env.VITE_HARNESS_SENTRY_DSN': JSON.stringify(dsn), 'import.meta.env.VITE_HARNESS_POSTHOG_KEY': JSON.stringify(''), 'import.meta.env.VITE_DEN_BASE_URL': JSON.stringify('https://den.invalid') },
       esbuild: { jsx: 'automatic', jsxDev: false },
       resolve: { alias: { '@': resolve(source, 'apps/app/src'), react: dirname(requireApp.resolve('react/package.json')), 'react-dom': dirname(requireApp.resolve('react-dom/package.json')) } },
       plugins: [{ name: 'source-fixture-provenance', transformIndexHtml: { order: 'pre', handler: () => [{ tag: 'script', children: preload, injectTo: 'head-prepend' }] }, async generateBundle() { for (const id of this.getModuleIds()) if (id.startsWith(source) && !id.includes('?')) variant.modules.push({ path: relative(source, id), sha256: digest(await readFile(id)) }); } }],

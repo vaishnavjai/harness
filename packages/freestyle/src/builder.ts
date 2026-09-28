@@ -9,7 +9,7 @@ import { readAsset, type ControllerAsset } from "./assets.ts";
 /**
  * Template origins are placeholders that only the authenticated edge rewrites,
  * and only for browsers. Den still advertises them to in-VM clients: the signed-in
- * desktop's OpenWork Cloud MCP pointed at the template API origin, so every sync
+ * desktop's Harness Cloud MCP pointed at the template API origin, so every sync
  * hung at the public edge and the engine kept reloading, starving the 4-vCPU VM
  * until desktop setup hit the snapshot deadline. Refusing them locally makes those
  * calls fail at once. Cloud MCP was never reachable in previews either way.
@@ -27,12 +27,12 @@ export interface BuildOptions {
 
 /** Metadata on every builder VM of one commit/world build; see `isBuilding`. */
 export function buildLabel(sha: string, world: PreviewWorld): Record<string, string> {
-  return { openworkBuild: `${world}-${sha}` };
+  return { harnessBuild: `${world}-${sha}` };
 }
 
 export async function runScript(vm: Vm, stage: string, script: string, options: BuildOptions) {
-  const root = `/opt/openwork-preview/${stage}`;
-  await execChecked(vm, "mkdir -p /opt/openwork-preview");
+  const root = `/opt/harness-preview/${stage}`;
+  await execChecked(vm, "mkdir -p /opt/harness-preview");
   await vm.fs.writeTextFile(`${root}.sh`, `#!/bin/bash
 set -euo pipefail
 exec > ${root}.log 2>&1
@@ -52,8 +52,8 @@ touch ${root}.ready
     if (state === "ready") return;
     if (state === "failed") {
       if (options.diagnostic) {
-        const runtime = stage === "world" ? await execChecked(vm, "journalctl -u openwork-preview-runtime --no-pager -n 100")
-          : stage === "evidence-world" ? await execChecked(vm, "journalctl -u openwork-evidence --no-pager -n 100") : "";
+        const runtime = stage === "world" ? await execChecked(vm, "journalctl -u harness-preview-runtime --no-pager -n 100")
+          : stage === "evidence-world" ? await execChecked(vm, "journalctl -u harness-evidence --no-pager -n 100") : "";
         await options.diagnostic(stage, await vm.fs.readTextFile(`${root}.log`) + runtime);
       }
       throw new Error(`Snapshot ${stage} failed. Private builder log: ${root}.log`);
@@ -84,12 +84,12 @@ export async function ensureSnapshot(sha: string, api = client(), log: (message:
       // Remove application source before installing the shared layer. Only
       // fingerprinted inputs and immutable registry dependencies may affect it.
       const inputs = entries.filter((entry) => entry.type === "blob" && dependencyInput(entry.path)).map((entry) => entry.path);
-      await vm.fs.writeTextFile("/opt/openwork-preview/dependency-inputs.json", JSON.stringify(inputs));
+      await vm.fs.writeTextFile("/opt/harness-preview/dependency-inputs.json", JSON.stringify(inputs));
       await runScript(vm, "dependencies", `${checkoutRecipe(sha)}
 node --input-type=module - <<'NODE'
 import { readFile, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-const keep = new Set(JSON.parse(await readFile('/opt/openwork-preview/dependency-inputs.json', 'utf8')));
+const keep = new Set(JSON.parse(await readFile('/opt/harness-preview/dependency-inputs.json', 'utf8')));
 for (const path of execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\\0').filter(Boolean)) {
   if (!keep.has(path)) await rm(path, { force: true });
 }
@@ -116,50 +116,50 @@ ${dependencies}`, options);
         ["refresh.mjs", world === "desktop" ? "desktop-refresh.mjs" : "refresh.mjs"], ["desktop-state.mjs", "desktop-state.mjs"],
       ];
       for (const [target, source] of files) {
-        await vm.fs.writeTextFile(`/opt/openwork-preview/${target}`, await readAsset(source));
+        await vm.fs.writeTextFile(`/opt/harness-preview/${target}`, await readAsset(source));
       }
-      await vm.fs.writeTextFile("/etc/systemd/system/openwork-preview-runtime.service", `[Unit]
-Description=OpenWork isolated preview runtime
+      await vm.fs.writeTextFile("/etc/systemd/system/harness-preview-runtime.service", `[Unit]
+Description=Harness isolated preview runtime
 [Service]
 Type=${world === "app-web" ? "oneshot" : "simple"}
 RemainAfterExit=${world === "app-web" ? "yes" : "no"}
 WorkingDirectory=/workspace
-Environment=PATH=/opt/openwork-preview/tools/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-ExecStart=/usr/bin/env node /opt/openwork-preview/runtime.mjs
+Environment=PATH=/opt/harness-preview/tools/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/env node /opt/harness-preview/runtime.mjs
 `);
-      await vm.fs.writeTextFile("/etc/systemd/system/openwork-preview-gateway.service", `[Unit]
-Description=OpenWork private preview gateway
+      await vm.fs.writeTextFile("/etc/systemd/system/harness-preview-gateway.service", `[Unit]
+Description=Harness private preview gateway
 [Service]
-ExecStart=/usr/bin/env node /opt/openwork-preview/gateway.mjs
+ExecStart=/usr/bin/env node /opt/harness-preview/gateway.mjs
 Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 `);
-      if (world === "acme-web") await vm.fs.writeTextFile("/opt/openwork-preview/template-hosts", templateHostsEntries());
+      if (world === "acme-web") await vm.fs.writeTextFile("/opt/harness-preview/template-hosts", templateHostsEntries());
       await runScript(vm, "world", `
 stage_start=$(date +%s%3N)
-mark() { now=$(date +%s%3N); printf '{"stage":"%s","durationMs":%s}\\n' "$1" "$((now-stage_start))" >> /opt/openwork-preview/build-stages.jsonl; stage_start=$now; }
+mark() { now=$(date +%s%3N); printf '{"stage":"%s","durationMs":%s}\\n' "$1" "$((now-stage_start))" >> /opt/harness-preview/build-stages.jsonl; stage_start=$now; }
 ${checkoutRecipe(sha)}
 mark checkout
-tar -xf /opt/openwork-preview/compiled.tar -C /workspace
+tar -xf /opt/harness-preview/compiled.tar -C /workspace
 mark compile
-export PATH="/opt/openwork-preview/tools/node_modules/.bin:$PATH"
-${world === "acme-web" ? "grep -qxF -f /opt/openwork-preview/template-hosts /etc/hosts || cat /opt/openwork-preview/template-hosts >> /etc/hosts" : ""}
+export PATH="/opt/harness-preview/tools/node_modules/.bin:$PATH"
+${world === "acme-web" ? "grep -qxF -f /opt/harness-preview/template-hosts /etc/hosts || cat /opt/harness-preview/template-hosts >> /etc/hosts" : ""}
 systemctl daemon-reload
-systemctl start openwork-preview-runtime
+systemctl start harness-preview-runtime
 ${world === "app-web" ? "curl --retry 180 --retry-delay 1 --retry-max-time 180 --retry-all-errors -fsS http://127.0.0.1:5178/ >/dev/null" : `for attempt in $(seq 1 480); do
-  test ! -f /opt/openwork-preview/failed-world
-  if test -f /opt/openwork-preview/ready-world; then break; fi
+  test ! -f /opt/harness-preview/failed-world
+  if test -f /opt/harness-preview/ready-world; then break; fi
   sleep 1
 done
-test -f /opt/openwork-preview/ready-world`}
-node /opt/openwork-preview/health.mjs
-${world === "app-web" ? `node /opt/openwork-preview/refresh.mjs ${sha}` : ""}
-systemctl enable --now openwork-preview-gateway
+test -f /opt/harness-preview/ready-world`}
+node /opt/harness-preview/health.mjs
+${world === "app-web" ? `node /opt/harness-preview/refresh.mjs ${sha}` : ""}
+systemctl enable --now harness-preview-gateway
 mark boot-and-verify
 `, options);
-      const timings = await vm.fs.readTextFile("/opt/openwork-preview/build-stages.jsonl")
-        + (world === "acme-web" ? await vm.fs.readTextFile("/opt/openwork-preview/runtime-stages.jsonl") : "");
+      const timings = await vm.fs.readTextFile("/opt/harness-preview/build-stages.jsonl")
+        + (world === "acme-web" ? await vm.fs.readTextFile("/opt/harness-preview/runtime-stages.jsonl") : "");
       for (const line of timings.trim().split("\n")) {
         const value: unknown = JSON.parse(line);
         if (!value || typeof value !== "object" || !("stage" in value) || typeof value.stage !== "string"
@@ -179,7 +179,7 @@ mark boot-and-verify
       // Keep the isolated database and running processes. Only tracked frontend
       // source (or inert docs/CI files) may differ from this immutable template.
       await runScript(vm, "refresh", `${checkoutRecipe(sha).replace("git clean -ffdx -e node_modules/", "")}
-node /opt/openwork-preview/refresh.mjs ${sha}`, options);
+node /opt/harness-preview/refresh.mjs ${sha}`, options);
       observe({ stage: "source-refresh", durationMs: Math.round(performance.now() - start) });
     },
   }, api);
@@ -192,6 +192,6 @@ node /opt/openwork-preview/refresh.mjs ${sha}`, options);
  * treat a sustained "not building, not ready" as a failed build.
  */
 export async function isBuilding(sha: string, world: PreviewWorld, api = client()): Promise<boolean> {
-  const { vms } = await api.vms.list({ metadata: `openworkBuild:${buildLabel(sha, world).openworkBuild}`, limit: 20 });
+  const { vms } = await api.vms.list({ metadata: `harnessBuild:${buildLabel(sha, world).harnessBuild}`, limit: 20 });
   return vms.some((vm) => vm.state === "starting" || vm.state === "running");
 }

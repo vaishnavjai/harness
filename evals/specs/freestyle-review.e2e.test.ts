@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec, type Target } from "@openwork/testkit";
+import { spec, type Target } from "@harness/testkit";
 import { reviewBrowserWorld } from "../worlds/evidence-review.ts";
 
 const test = spec.world(reviewBrowserWorld, {
@@ -8,7 +8,7 @@ const test = spec.world(reviewBrowserWorld, {
 });
 
 const choices = [
-  { value: "app-web", label: "OpenWork web" },
+  { value: "app-web", label: "Harness web" },
   { value: "desktop", label: "Desktop only (signed out)" },
   { value: "acme-web", label: "ACME web (full stack)" },
   { value: "acme-desktop", label: "ACME desktop (full stack)" },
@@ -23,7 +23,7 @@ test("a reviewer can choose a signed-out desktop without mistaking it for an ACM
       signal: AbortSignal.timeout(10_000),
     });
     expect(page.status).toBe(200);
-    expect(await page.text()).not.toContain("__openwork_launch?token=");
+    expect(await page.text()).not.toContain("__harness_launch?token=");
     await user.navigate(`${world.baseUrl}/r/${world.passed}`);
     await user.click({ role: "button", text: "Show sandbox" });
     await user.see(picker, { value: "app-web", editable: true });
@@ -40,7 +40,7 @@ test("a reviewer can choose a signed-out desktop without mistaking it for an ACM
     await user.notSee({ role: "link", text: "Open sandbox" });
     evidence.recordAssertionEvidence(
       "The reviewer can choose a scope without being promised an available sandbox",
-      "Production review HTTP 200; one native selector offers OpenWork web, Desktop only (signed out), ACME web (full stack), and ACME desktop (full stack). Launch is disabled, the missing connection names the review app owner, and no sandbox access link is present.",
+      "Production review HTTP 200; one native selector offers Harness web, Desktop only (signed out), ACME web (full stack), and ACME desktop (full stack). Launch is disabled, the missing connection names the review app owner, and no sandbox access link is present.",
       true,
     );
     await user.screenshot();
@@ -65,7 +65,7 @@ test("a reviewer can choose a signed-out desktop without mistaking it for an ACM
   await step("after: the signed-out desktop scope excludes the full stack and a separate web preview", async () => {
     await user.click({ text: "Sandbox details" });
     await user.see(picker, { value: "desktop" });
-    const scope = { text: /^OpenWork web runs the OpenWork web app and its local engine\./ };
+    const scope = { text: /^Harness web runs the Harness web app and its local engine\./ };
     await user.see(scope);
     const details = (await probe.dom(".preview-launch details[open] p")).elements.map(({ text }) => text).join("\n");
     expect(details).toContain("Desktop only opens the real desktop app from this commit with a fresh, signed-out profile");

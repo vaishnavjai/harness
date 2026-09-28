@@ -1,4 +1,4 @@
-import type { OpenworkMcpAppResource } from "@/app/lib/openwork-server";
+import type { HarnessMcpAppResource } from "@/app/lib/harness-server";
 import { createDashboardTileCacheStore, DASHBOARD_TILE_CACHE_STORAGE_PREFIX } from "@/app/lib/dashboard-cache-storage";
 import type { PreservedMcpAppResult } from "@/components/chat/mcp-app-frame";
 
@@ -10,7 +10,7 @@ export type DashboardTileCache = {
   argumentsSignature?: string;
   cachedAt: number;
   workspaceId: string;
-  app: OpenworkMcpAppResource;
+  app: HarnessMcpAppResource;
   result: PreservedMcpAppResult;
 };
 
@@ -22,7 +22,7 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-function parseApp(value: unknown): OpenworkMcpAppResource | null {
+function parseApp(value: unknown): HarnessMcpAppResource | null {
   if (!isRecord(value) || !isRecord(value.csp)) return null;
   if (
     typeof value.serverName !== "string"

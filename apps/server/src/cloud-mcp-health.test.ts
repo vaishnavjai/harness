@@ -7,12 +7,12 @@ import {
   cloudMcpDeliveryState,
   CloudMcpDeliveryStateStore,
   calculateCloudMcpDesiredRevision,
-  clearOpenworkCloudMcpProbeFlights,
+  clearHarnessCloudMcpProbeFlights,
   cloudMcpTokenHealthFromConfig,
-  OPENWORK_CLOUD_EXPECTED_TOOLS,
-  OPENWORK_CLOUD_PLUGIN_CANARIES,
-  migrateOpenworkCloudMcpRuntimeConfig,
-  readOpenworkCloudMcpHealth,
+  HARNESS_CLOUD_EXPECTED_TOOLS,
+  HARNESS_CLOUD_PLUGIN_CANARIES,
+  migrateHarnessCloudMcpRuntimeConfig,
+  readHarnessCloudMcpHealth,
 } from "./cloud-mcp-health.js";
 import { sanitizeDiagnosticValue } from "./diagnostic-sanitizer.js";
 import { diagnoseMcpToolDeniesFromConfigs } from "./mcp.js";
@@ -33,7 +33,7 @@ const workspace: WorkspaceInfo = {
   workspaceType: "local",
 };
 
-const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
+const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
 const previousFetch = globalThis.fetch;
 const roots: string[] = [];
 const runtimeDbRoots: string[] = [];
@@ -48,7 +48,7 @@ type ReadHealthOptions = {
 afterEach(async () => {
   globalThis.fetch = previousFetch;
   cloudMcpDeliveryState.clear();
-  clearOpenworkCloudMcpProbeFlights();
+  clearHarnessCloudMcpProbeFlights();
   while (stops.length) stops.pop()?.();
   while (roots.length) await rm(roots.pop() ?? "", { recursive: true, force: true });
   if (process.platform === "win32") {
@@ -58,8 +58,8 @@ afterEach(async () => {
   } else {
     while (runtimeDbRoots.length) await rm(runtimeDbRoots.pop() ?? "", { recursive: true, force: true });
   }
-  if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
+  if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
 });
 
 async function createRoot(prefix: string): Promise<string> {
@@ -121,20 +121,20 @@ function startMockOpencode(initialMode: DirectProbeMode) {
       if (url.pathname === "/mcp" && request.method === "GET") {
         if (mode === "status_missing_token") {
           return Response.json({
-            "openwork-cloud": {
+            "harness-cloud": {
               status: "failed",
               error: "Streamable HTTP error: Error POSTing to endpoint: {\"error\":\"missing_mcp_token\",\"message\":\"Provide a Bearer token with MCP scope to access this resource.\",\"referenceId\":\"req_missing\"}",
             },
           });
         }
         return Response.json({
-          "openwork-cloud": { status: "connected" },
+          "harness-cloud": { status: "connected" },
           "sibling-remote": { status: "failed", error: "fetch failed" },
         });
       }
       if (url.pathname === "/experimental/tool/ids") {
         if (toolIdsBarrier) await toolIdsBarrier.enter();
-        return Response.json([...OPENWORK_CLOUD_EXPECTED_TOOLS, ...OPENWORK_CLOUD_PLUGIN_CANARIES]);
+        return Response.json([...HARNESS_CLOUD_EXPECTED_TOOLS, ...HARNESS_CLOUD_PLUGIN_CANARIES]);
       }
       if (url.pathname === "/cloud-mcp/mcp/agent" && request.method === "POST") {
         const body: unknown = await request.json();
@@ -151,7 +151,7 @@ function startMockOpencode(initialMode: DirectProbeMode) {
             result: {
               capabilities: { tools: {} },
               protocolVersion: "2025-06-18",
-              serverInfo: { name: "openwork-cloud-test", version: "1.0.0" },
+              serverInfo: { name: "harness-cloud-test", version: "1.0.0" },
             },
           });
         }
@@ -227,7 +227,7 @@ async function setupDirectProbeHarness(mode: DirectProbeMode, workspaceIds = ["w
   const baseUrl = `http://127.0.0.1:${engine.server.port}`;
   const workspaces: WorkspaceInfo[] = [];
   for (const id of workspaceIds) {
-    const root = await createRoot(`openwork-cloud-health-${id}-`);
+    const root = await createRoot(`harness-cloud-health-${id}-`);
     workspaces.push({
       id,
       name: `Workspace ${id}`,
@@ -242,7 +242,7 @@ async function setupDirectProbeHarness(mode: DirectProbeMode, workspaceIds = ["w
   const config = serverConfig(primary.path, primary);
   config.workspaces = workspaces;
   config.authorizedRoots = workspaces.map((entry) => entry.path);
-  process.env.OPENWORK_RUNTIME_DB = await createRuntimeDbPath("openwork-cloud-health-runtime-");
+  process.env.HARNESS_RUNTIME_DB = await createRuntimeDbPath("harness-cloud-health-runtime-");
   const directUrl = `${baseUrl}/cloud-mcp/mcp/agent`;
   const desiredConfig = {
     type: "remote",
@@ -253,12 +253,12 @@ async function setupDirectProbeHarness(mode: DirectProbeMode, workspaceIds = ["w
   };
   await writeGlobalRuntimeOpencodeConfig(config, (current) => ({
     ...current,
-    mcp: { ...current.mcp, "openwork-cloud": desiredConfig },
+    mcp: { ...current.mcp, "harness-cloud": desiredConfig },
   }));
   const read = async (workspaceId = primary.id, providerModel?: { provider: string; model: string }) => {
     const testWorkspace = workspaces.find((entry) => entry.id === workspaceId);
     if (!testWorkspace) throw new Error(`Unknown direct-probe workspace ${workspaceId}`);
-    return readOpenworkCloudMcpHealth({
+    return readHarnessCloudMcpHealth({
       config,
       workspace: testWorkspace,
       directory: testWorkspace.path,
@@ -273,7 +273,7 @@ async function setupDirectProbeHarness(mode: DirectProbeMode, workspaceIds = ["w
 async function readHealthForDirectProbe(mode: DirectProbeMode, options: ReadHealthOptions = {}) {
   const harness = await setupDirectProbeHarness(mode, [`ws_${mode}`]);
   options.beforeRead?.(harness.directUrl);
-  const health = options.probe ? await harness.read() : await readOpenworkCloudMcpHealth({
+  const health = options.probe ? await harness.read() : await readHarnessCloudMcpHealth({
     config: harness.config,
     workspace: harness.primary,
     directory: harness.primary.path,
@@ -328,7 +328,7 @@ describe("cloud MCP health foundation", () => {
   test("desired revisions detect token changes without exposing reusable auth fingerprints", async () => {
     const config = {
       type: "remote",
-      url: "https://api.openworklabs.com/mcp/agent",
+      url: "https://api.harness.invalid/mcp/agent",
       headers: { Authorization: "Bearer owt_super_secret" },
       oauth: false,
     };
@@ -388,35 +388,35 @@ describe("cloud MCP health foundation", () => {
   });
 
   test("migrates the newest valid workspace config globally and preserves workspace state", async () => {
-    const root = await createRoot("openwork-cloud-migration-");
+    const root = await createRoot("harness-cloud-migration-");
     const workspaceA = { ...workspace, id: "ws_a", path: join(root, "a") };
     const workspaceB = { ...workspace, id: "ws_b", path: join(root, "b") };
     const workspaceC = { ...workspace, id: "ws_c", path: join(root, "c") };
     const config = serverConfig(root, workspaceA);
     config.workspaces = [workspaceA, workspaceB, workspaceC];
-    process.env.OPENWORK_RUNTIME_DB = await createRuntimeDbPath("openwork-cloud-migration-runtime-");
+    process.env.HARNESS_RUNTIME_DB = await createRuntimeDbPath("harness-cloud-migration-runtime-");
     // Trusted origins: promotion to account-global scope refuses anything else.
     const older = { type: "remote", url: "http://127.0.0.1:4801/mcp/agent", enabled: true, headers: { Authorization: "Bearer older" }, oauth: false };
-    const newer = { ...older, url: "https://api.openworklabs.com/mcp/agent", headers: { Authorization: "Bearer newer" } };
+    const newer = { ...older, url: "https://api.harness.invalid/mcp/agent", headers: { Authorization: "Bearer newer" } };
     await writeRuntimeOpencodeConfig(config, workspaceA.id, () => ({
       plugin: ["keep-a"],
-      mcp: { "openwork-cloud": older, posthog: { type: "remote", url: "https://posthog.example/mcp" } },
+      mcp: { "harness-cloud": older, posthog: { type: "remote", url: "https://posthog.example/mcp" } },
     }));
     await Bun.sleep(2);
     await writeRuntimeOpencodeConfig(config, workspaceB.id, () => ({
       disabled_providers: ["keep-b"],
-      mcp: { "openwork-cloud": newer, stripe: { type: "remote", url: "https://stripe.example/mcp" } },
+      mcp: { "harness-cloud": newer, stripe: { type: "remote", url: "https://stripe.example/mcp" } },
     }));
     await Bun.sleep(2);
     await writeRuntimeOpencodeConfig(config, workspaceC.id, () => ({
       mcp: {
-        "openwork-cloud": { ...newer, headers: {} },
+        "harness-cloud": { ...newer, headers: {} },
         linear: { type: "remote", url: "https://linear.example/mcp" },
       },
     }));
 
-    expect(await migrateOpenworkCloudMcpRuntimeConfig(config)).toMatchObject({ config: newer, changed: true });
-    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["openwork-cloud"]).toEqual(newer);
+    expect(await migrateHarnessCloudMcpRuntimeConfig(config)).toMatchObject({ config: newer, changed: true });
+    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["harness-cloud"]).toEqual(newer);
     expect(await readRuntimeOpencodeConfig(config, workspaceA.id)).toEqual({
       plugin: ["keep-a"],
       mcp: { posthog: { type: "remote", url: "https://posthog.example/mcp" } },
@@ -428,42 +428,42 @@ describe("cloud MCP health foundation", () => {
     expect((await readRuntimeOpencodeConfig(config, workspaceC.id)).mcp).toEqual({
       linear: { type: "remote", url: "https://linear.example/mcp" },
     });
-    expect((await readEffectiveRuntimeOpencodeConfig(config, workspaceA.id)).mcp?.["openwork-cloud"]).toEqual(newer);
-    expect((await readEffectiveRuntimeOpencodeConfig(config, workspaceB.id)).mcp?.["openwork-cloud"]).toEqual(newer);
-    expect(await migrateOpenworkCloudMcpRuntimeConfig(config)).toEqual({ config: newer, changed: false });
+    expect((await readEffectiveRuntimeOpencodeConfig(config, workspaceA.id)).mcp?.["harness-cloud"]).toEqual(newer);
+    expect((await readEffectiveRuntimeOpencodeConfig(config, workspaceB.id)).mcp?.["harness-cloud"]).toEqual(newer);
+    expect(await migrateHarnessCloudMcpRuntimeConfig(config)).toEqual({ config: newer, changed: false });
   });
 
   test("does not promote an untrusted legacy endpoint to account-global scope", async () => {
-    const root = await createRoot("openwork-cloud-migration-untrusted-");
+    const root = await createRoot("harness-cloud-migration-untrusted-");
     const workspaceA = { ...workspace, id: "ws_a", path: join(root, "a") };
     const config = serverConfig(root, workspaceA);
     config.workspaces = [workspaceA];
-    process.env.OPENWORK_RUNTIME_DB = await createRuntimeDbPath("openwork-cloud-migration-untrusted-runtime-");
+    process.env.HARNESS_RUNTIME_DB = await createRuntimeDbPath("harness-cloud-migration-untrusted-runtime-");
     // Valid shape, untrusted origin: a planted or stale workspace row must stay
     // workspace-scoped instead of silently reconfiguring every workspace.
     const untrusted = { type: "remote", url: "https://evil.example/mcp/agent", enabled: true, headers: { Authorization: "Bearer planted" }, oauth: false };
-    await writeRuntimeOpencodeConfig(config, workspaceA.id, () => ({ mcp: { "openwork-cloud": untrusted } }));
+    await writeRuntimeOpencodeConfig(config, workspaceA.id, () => ({ mcp: { "harness-cloud": untrusted } }));
 
-    const result = await migrateOpenworkCloudMcpRuntimeConfig(config);
+    const result = await migrateHarnessCloudMcpRuntimeConfig(config);
 
     expect(result).toEqual({ config: null, changed: false });
-    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["openwork-cloud"]).toBeUndefined();
+    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["harness-cloud"]).toBeUndefined();
     // Not promoted and not destroyed: the entry keeps its pre-migration
     // workspace-scoped blast radius.
-    expect((await readRuntimeOpencodeConfig(config, workspaceA.id)).mcp?.["openwork-cloud"]).toEqual(untrusted);
+    expect((await readRuntimeOpencodeConfig(config, workspaceA.id)).mcp?.["harness-cloud"]).toEqual(untrusted);
   });
 
   test("does not mutate legacy rows while the server is read-only", async () => {
-    const root = await createRoot("openwork-cloud-readonly-migration-");
+    const root = await createRoot("harness-cloud-readonly-migration-");
     const config = serverConfig(root, workspace);
-    process.env.OPENWORK_RUNTIME_DB = await createRuntimeDbPath("openwork-cloud-readonly-migration-runtime-");
+    process.env.HARNESS_RUNTIME_DB = await createRuntimeDbPath("harness-cloud-readonly-migration-runtime-");
     const desired = { type: "remote", url: "http://127.0.0.1:4802/mcp/agent", enabled: true, headers: { Authorization: "Bearer token" }, oauth: false };
-    await writeRuntimeOpencodeConfig(config, workspace.id, () => ({ mcp: { "openwork-cloud": desired } }));
+    await writeRuntimeOpencodeConfig(config, workspace.id, () => ({ mcp: { "harness-cloud": desired } }));
     config.readOnly = true;
 
-    expect(await migrateOpenworkCloudMcpRuntimeConfig(config)).toEqual({ config: desired, changed: false });
-    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["openwork-cloud"]).toBeUndefined();
-    expect((await readRuntimeOpencodeConfig(config, workspace.id)).mcp?.["openwork-cloud"]).toEqual(desired);
+    expect(await migrateHarnessCloudMcpRuntimeConfig(config)).toEqual({ config: desired, changed: false });
+    expect((await readGlobalRuntimeOpencodeConfig(config)).mcp?.["harness-cloud"]).toBeUndefined();
+    expect((await readRuntimeOpencodeConfig(config, workspace.id)).mcp?.["harness-cloud"]).toEqual(desired);
   });
 
   test("keeps delivery state independent for two directories sharing global desired state", () => {
@@ -484,56 +484,56 @@ describe("cloud MCP health foundation", () => {
 
   test("diagnoses project and global OpenCode tool denies for exact Cloud IDs", () => {
     const denies = diagnoseMcpToolDeniesFromConfigs({
-      name: "openwork-cloud",
-      toolIds: [...OPENWORK_CLOUD_EXPECTED_TOOLS],
+      name: "harness-cloud",
+      toolIds: [...HARNESS_CLOUD_EXPECTED_TOOLS],
       projectConfig: {
         tools: {
-          "openwork-cloud_search_capabilities": false,
+          "harness-cloud_search_capabilities": false,
         },
       },
       globalConfig: {
         permission: [
-          { permission: "tool", pattern: "openwork-cloud_execute_capability", action: "deny" },
+          { permission: "tool", pattern: "harness-cloud_execute_capability", action: "deny" },
         ],
       },
     });
 
     expect(denies.map((deny) => deny.source).sort()).toEqual(["config.global", "config.project"]);
     expect(denies.map((deny) => deny.matched).sort()).toEqual([
-      "openwork-cloud_execute_capability",
-      "openwork-cloud_search_capabilities",
+      "harness-cloud_execute_capability",
+      "harness-cloud_search_capabilities",
     ]);
   });
 
   test("project tool allows override global denies for matching Cloud tool IDs", () => {
     const denies = diagnoseMcpToolDeniesFromConfigs({
-      name: "openwork-cloud",
-      toolIds: [...OPENWORK_CLOUD_EXPECTED_TOOLS],
+      name: "harness-cloud",
+      toolIds: [...HARNESS_CLOUD_EXPECTED_TOOLS],
       projectConfig: {
         tools: {
-          "openwork-cloud_search_capabilities": true,
+          "harness-cloud_search_capabilities": true,
         },
       },
       globalConfig: {
-        tools: { deny: ["openwork-cloud_*"] },
+        tools: { deny: ["harness-cloud_*"] },
       },
     });
 
     expect(denies).toHaveLength(1);
     expect(denies[0]).toMatchObject({
       source: "config.global",
-      pattern: "openwork-cloud_*",
-      matched: "openwork-cloud_execute_capability",
+      pattern: "harness-cloud_*",
+      matched: "harness-cloud_execute_capability",
     });
   });
 
   test("plugin canary denies are not reported as Cloud tool denies", () => {
     const denies = diagnoseMcpToolDeniesFromConfigs({
-      name: "openwork-cloud",
-      toolIds: [...OPENWORK_CLOUD_EXPECTED_TOOLS],
+      name: "harness-cloud",
+      toolIds: [...HARNESS_CLOUD_EXPECTED_TOOLS],
       projectConfig: {
         tools: {
-          openwork_query: false,
+          harness_query: false,
         },
       },
       globalConfig: {},
@@ -552,7 +552,7 @@ describe("cloud MCP health foundation", () => {
 
     expect(health.usable).toBe(true);
     expect(health.phase).toBe("ready");
-    expect(health.tools.present.sort()).toEqual([...OPENWORK_CLOUD_EXPECTED_TOOLS].sort());
+    expect(health.tools.present.sort()).toEqual([...HARNESS_CLOUD_EXPECTED_TOOLS].sort());
     expect(health.tools.missing).toEqual([]);
     expect(health.tools.direct.checked).toBe(false);
     expect(directFetchCount).toBe(0);
@@ -614,7 +614,7 @@ describe("cloud MCP health foundation", () => {
     const providerInitialize = harness.blockInitialize();
     const providerChecks = [
       harness.read("ws_a", { provider: "anthropic", model: "claude" }),
-      harness.read("ws_a", { provider: "openwork", model: "gpt-5" }),
+      harness.read("ws_a", { provider: "harness", model: "gpt-5" }),
     ];
     await providerToolIds.waitForEntries(2);
     providerToolIds.release();
@@ -649,7 +649,7 @@ describe("cloud MCP health foundation", () => {
     };
     await writeGlobalRuntimeOpencodeConfig(harness.config, (current) => ({
       ...current,
-      mcp: { ...current.mcp, "openwork-cloud": changedConfig },
+      mcp: { ...current.mcp, "harness-cloud": changedConfig },
     }));
     const changedAuthToolIds = harness.blockToolIds();
     const changedAuthCheck = harness.read("ws_a");
@@ -732,7 +732,7 @@ describe("cloud MCP health foundation", () => {
 
     expect(health.usable).toBe(false);
     expect(health.firstFailure?.code).toBe("missing_mcp_token");
-    expect(health.firstFailure?.aliases).toContain("openwork_cloud_auth_required");
+    expect(health.firstFailure?.aliases).toContain("harness_cloud_auth_required");
   });
 
   test("still reports missing Cloud tools when tools/list completes without required tools", async () => {
@@ -751,7 +751,7 @@ describe("cloud MCP health foundation", () => {
     expect(health.engineInspection.cloudPresent).toBe(true);
     expect(health.engineInspection.serverCount).toBe(2);
     expect(health.engineInspection.servers).toEqual([
-      { name: "openwork-cloud", status: "connected" },
+      { name: "harness-cloud", status: "connected" },
       { name: "sibling-remote", status: "failed", error: "fetch failed" },
     ]);
   });
@@ -767,7 +767,7 @@ describe("cloud MCP health foundation", () => {
       expect(step.latencyMs).toBeGreaterThanOrEqual(0);
     }
     expect(trace?.steps[0]?.httpStatus).toBe(200);
-    expect(trace?.serverInfo).toEqual({ name: "openwork-cloud-test", version: "1.0.0" });
+    expect(trace?.serverInfo).toEqual({ name: "harness-cloud-test", version: "1.0.0" });
     expect(trace?.protocolVersion).toBe("2025-06-18");
     expect(health.durationMs).toBeGreaterThanOrEqual(0);
   });
@@ -816,7 +816,7 @@ describe("Connect health on the active v2 engine", () => {
   async function nativeHealth(options: { model?: "missing" | "no-tools"; mcp?: "failed" | "pending"; unavailable?: boolean } = {}) {
     const harness = await setupDirectProbeHarness("ok");
     const paths: string[] = [];
-    const health = await readOpenworkCloudMcpHealth({
+    const health = await readHarnessCloudMcpHealth({
       config: harness.config, workspace: harness.primary, directory: harness.primary.path,
       providerModel: { provider: "native-provider", model: "native-model" },
       createWorkspaceOpencodeClient: () => createOpencodeClient({
@@ -827,7 +827,7 @@ describe("Connect health on the active v2 engine", () => {
         expect(directory).toBe(harness.primary.path);
         paths.push(path);
         if (options.unavailable) throw new Error("Native engine unavailable");
-        if (path === "/api/mcp") return { data: [{ name: "openwork-cloud", status: options.mcp ? { status: options.mcp, error: "Connection refused" } : { status: "connected" } }] };
+        if (path === "/api/mcp") return { data: [{ name: "harness-cloud", status: options.mcp ? { status: options.mcp, error: "Connection refused" } : { status: "connected" } }] };
         if (path === "/api/model") return { data: options.model === "missing" ? [] : [{ id: "native-model", providerID: "native-provider", capabilities: { tools: options.model !== "no-tools" } }] };
         throw new Error(`Unexpected native path: ${path}`);
       } }),

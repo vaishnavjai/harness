@@ -17,18 +17,18 @@ async function writeBootstrapConfig(targetPath, config) {
 }
 
 async function withIsolatedBootstrapStore(callback) {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-bootstrap-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-bootstrap-store-"));
   const home = path.join(root, "home");
   const xdg = path.join(root, "xdg");
   const previousHome = process.env.HOME;
   const previousXdg = process.env.XDG_CONFIG_HOME;
-  const previousOverride = process.env.OPENWORK_DESKTOP_BOOTSTRAP_PATH;
-  const previousDevMode = process.env.OPENWORK_DEV_MODE;
+  const previousOverride = process.env.HARNESS_DESKTOP_BOOTSTRAP_PATH;
+  const previousDevMode = process.env.HARNESS_DEV_MODE;
 
   process.env.HOME = home;
   process.env.XDG_CONFIG_HOME = xdg;
-  delete process.env.OPENWORK_DESKTOP_BOOTSTRAP_PATH;
-  delete process.env.OPENWORK_DEV_MODE;
+  delete process.env.HARNESS_DESKTOP_BOOTSTRAP_PATH;
+  delete process.env.HARNESS_DEV_MODE;
 
   try {
     const module = await import(`./workspace-store.mjs?bootstrap-test=${Date.now()}-${Math.random()}`);
@@ -43,21 +43,21 @@ async function withIsolatedBootstrapStore(callback) {
     return await callback({
       store,
       createStore,
-      canonicalPath: path.join(xdg, "openwork", "desktop-bootstrap.json"),
-      legacyPath: path.join(home, ".config", "openwork", "desktop-bootstrap.json"),
+      canonicalPath: path.join(xdg, "harness", "desktop-bootstrap.json"),
+      legacyPath: path.join(home, ".config", "harness", "desktop-bootstrap.json"),
       root,
       userDataPath: path.join(root, "userData"),
     });
   } finally {
     restoreEnv("HOME", previousHome);
     restoreEnv("XDG_CONFIG_HOME", previousXdg);
-    restoreEnv("OPENWORK_DESKTOP_BOOTSTRAP_PATH", previousOverride);
-    restoreEnv("OPENWORK_DEV_MODE", previousDevMode);
+    restoreEnv("HARNESS_DESKTOP_BOOTSTRAP_PATH", previousOverride);
+    restoreEnv("HARNESS_DEV_MODE", previousDevMode);
   }
 }
 
 test("recovers missing desktop workspace state from token store paths", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
   const oldWorkspace = path.join(root, "old-workspace");
   await mkdir(oldWorkspace, { recursive: true });
@@ -65,7 +65,7 @@ test("recovers missing desktop workspace state from token store paths", async ()
   await mkdir(userData, { recursive: true });
 
   await writeFile(
-    path.join(userData, "openwork-server-tokens.json"),
+    path.join(userData, "harness-server-tokens.json"),
     JSON.stringify({
       version: 1,
       workspaces: {
@@ -77,8 +77,8 @@ test("recovers missing desktop workspace state from token store paths", async ()
     "utf8",
   );
 
-  const previous = process.env.OPENWORK_SERVER_CONFIG;
-  process.env.OPENWORK_SERVER_CONFIG = path.join(root, "missing-server.json");
+  const previous = process.env.HARNESS_SERVER_CONFIG;
+  process.env.HARNESS_SERVER_CONFIG = path.join(root, "missing-server.json");
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? userData : root },
@@ -96,20 +96,20 @@ test("recovers missing desktop workspace state from token store paths", async ()
     await store.bootstrapFirstLaunchWorkspace();
     assert.deepEqual((await store.readWorkspaceState()).workspaces, state.workspaces);
 
-    const persisted = JSON.parse(await readFile(path.join(userData, "openwork-workspaces.json"), "utf8"));
+    const persisted = JSON.parse(await readFile(path.join(userData, "harness-workspaces.json"), "utf8"));
     assert.equal(persisted.workspaces.length, 1);
     assert.equal(persisted.selectedWorkspaceId, state.workspaces[0].id);
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_SERVER_CONFIG;
-    else process.env.OPENWORK_SERVER_CONFIG = previous;
+    if (previous === undefined) delete process.env.HARNESS_SERVER_CONFIG;
+    else process.env.HARNESS_SERVER_CONFIG = previous;
   }
 });
 
 test("reads live shared workspace state from the explicit production path", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-shared-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-shared-"));
   const isolatedUserData = path.join(root, "isolated-userData");
   const workspace = path.join(root, "production-workspace");
-  const sharedState = path.join(root, "production-userData", "openwork-workspaces.json");
+  const sharedState = path.join(root, "production-userData", "harness-workspaces.json");
   await mkdir(isolatedUserData, { recursive: true });
   await mkdir(workspace, { recursive: true });
   await mkdir(path.dirname(sharedState), { recursive: true });
@@ -120,10 +120,10 @@ test("reads live shared workspace state from the explicit production path", asyn
     workspaces: [{ id: "ws_production", name: "Production", path: workspace, workspaceType: "local" }],
   }), "utf8");
 
-  const previousStatePath = process.env.OPENWORK_DESKTOP_WORKSPACE_STATE_PATH;
-  const previousRecovery = process.env.OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY;
-  process.env.OPENWORK_DESKTOP_WORKSPACE_STATE_PATH = sharedState;
-  process.env.OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY = "1";
+  const previousStatePath = process.env.HARNESS_DESKTOP_WORKSPACE_STATE_PATH;
+  const previousRecovery = process.env.HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY;
+  process.env.HARNESS_DESKTOP_WORKSPACE_STATE_PATH = sharedState;
+  process.env.HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY = "1";
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? isolatedUserData : root },
@@ -135,33 +135,33 @@ test("reads live shared workspace state from the explicit production path", asyn
     assert.equal(state.selectedId, "ws_production");
     assert.equal(state.workspaces.length, 1);
     assert.equal(state.workspaces[0].path, workspace);
-    await assert.rejects(readFile(path.join(isolatedUserData, "openwork-workspaces.json"), "utf8"));
+    await assert.rejects(readFile(path.join(isolatedUserData, "harness-workspaces.json"), "utf8"));
   } finally {
-    restoreEnv("OPENWORK_DESKTOP_WORKSPACE_STATE_PATH", previousStatePath);
-    restoreEnv("OPENWORK_DESKTOP_DISABLE_WORKSPACE_RECOVERY", previousRecovery);
+    restoreEnv("HARNESS_DESKTOP_WORKSPACE_STATE_PATH", previousStatePath);
+    restoreEnv("HARNESS_DESKTOP_DISABLE_WORKSPACE_RECOVERY", previousRecovery);
   }
 });
 
 test("keeps persisted empty desktop workspace state authoritative", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
   const oldWorkspace = path.join(root, "old-workspace");
   await mkdir(oldWorkspace, { recursive: true });
   await mkdir(userData, { recursive: true });
 
   await writeFile(
-    path.join(userData, "openwork-workspaces.json"),
+    path.join(userData, "harness-workspaces.json"),
     JSON.stringify({ selectedId: "", activeId: null, watchedId: null, workspaces: [] }),
     "utf8",
   );
   await writeFile(
-    path.join(userData, "openwork-server-tokens.json"),
+    path.join(userData, "harness-server-tokens.json"),
     JSON.stringify({ version: 1, workspaces: { [oldWorkspace]: { updatedAt: 2 } } }),
     "utf8",
   );
 
-  const previous = process.env.OPENWORK_SERVER_CONFIG;
-  process.env.OPENWORK_SERVER_CONFIG = path.join(root, "missing-server.json");
+  const previous = process.env.HARNESS_SERVER_CONFIG;
+  process.env.HARNESS_SERVER_CONFIG = path.join(root, "missing-server.json");
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? userData : root },
@@ -176,12 +176,12 @@ test("keeps persisted empty desktop workspace state authoritative", async () => 
     await store.bootstrapFirstLaunchWorkspace();
     assert.deepEqual((await store.readWorkspaceState()).workspaces, []);
   } finally {
-    restoreEnv("OPENWORK_SERVER_CONFIG", previous);
+    restoreEnv("HARNESS_SERVER_CONFIG", previous);
   }
 });
 
 test("prefers server config workspaces when desktop state is missing", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
   const oldWorkspace = path.join(root, "server-workspace");
   const serverConfig = path.join(root, "server.json");
@@ -195,13 +195,13 @@ test("prefers server config workspaces when desktop state is missing", async () 
     "utf8",
   );
   await writeFile(
-    path.join(userData, "openwork-server-tokens.json"),
+    path.join(userData, "harness-server-tokens.json"),
     JSON.stringify({ version: 1, workspaces: { [path.join(root, "other")]: { updatedAt: 9 } } }),
     "utf8",
   );
 
-  const previous = process.env.OPENWORK_SERVER_CONFIG;
-  process.env.OPENWORK_SERVER_CONFIG = serverConfig;
+  const previous = process.env.HARNESS_SERVER_CONFIG;
+  process.env.HARNESS_SERVER_CONFIG = serverConfig;
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? userData : root },
@@ -215,18 +215,18 @@ test("prefers server config workspaces when desktop state is missing", async () 
     assert.equal(state.workspaces[0].path, oldWorkspaceReal);
     assert.equal(state.workspaces[0].name, "From Server");
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_SERVER_CONFIG;
-    else process.env.OPENWORK_SERVER_CONFIG = previous;
+    if (previous === undefined) delete process.env.HARNESS_SERVER_CONFIG;
+    else process.env.HARNESS_SERVER_CONFIG = previous;
   }
 });
 
 test("first-launch bootstrap creates and selects the chat folder, but ordinary reads do not", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
-  const previousDevMode = process.env.OPENWORK_DEV_MODE;
-  const previousServerConfig = process.env.OPENWORK_SERVER_CONFIG;
-  process.env.OPENWORK_DEV_MODE = "1";
-  process.env.OPENWORK_SERVER_CONFIG = path.join(root, "missing-server.json");
+  const previousDevMode = process.env.HARNESS_DEV_MODE;
+  const previousServerConfig = process.env.HARNESS_SERVER_CONFIG;
+  process.env.HARNESS_DEV_MODE = "1";
+  process.env.HARNESS_SERVER_CONFIG = path.join(root, "missing-server.json");
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? userData : root },
@@ -237,47 +237,47 @@ test("first-launch bootstrap creates and selects the chat folder, but ordinary r
 
     const state = await store.readWorkspaceState();
     assert.equal(state.workspaces.length, 0);
-    await assert.rejects(readFile(path.join(userData, "openwork-dev-data", "home", "OpenWork Chat", ".opencode", "openwork.json"), "utf8"));
+    await assert.rejects(readFile(path.join(userData, "harness-dev-data", "home", "Harness Chat", ".opencode", "harness.json"), "utf8"));
 
     await store.bootstrapFirstLaunchWorkspace();
     const created = await store.readWorkspaceState();
-    const folder = path.join(userData, "openwork-dev-data", "home", "OpenWork Chat");
+    const folder = path.join(userData, "harness-dev-data", "home", "Harness Chat");
     assert.equal(created.workspaces.length, 1);
     assert.equal(created.workspaces[0].path, folder);
     assert.equal(created.workspaces[0].workspaceType, "local");
     assert.equal(created.selectedId, created.workspaces[0].id);
     assert.equal(created.watchedId, created.selectedId);
     assert.equal(created.activeId, created.selectedId);
-    const config = await store.readWorkspaceOpenworkConfig(folder);
+    const config = await store.readWorkspaceHarnessConfig(folder);
     assert.deepEqual(config.authorizedRoots, [folder]);
     assert.equal(config.workspace.preset, "starter");
     await store.bootstrapFirstLaunchWorkspace();
     assert.deepEqual(await store.readWorkspaceState(), created);
   } finally {
-    restoreEnv("OPENWORK_DEV_MODE", previousDevMode);
-    restoreEnv("OPENWORK_SERVER_CONFIG", previousServerConfig);
+    restoreEnv("HARNESS_DEV_MODE", previousDevMode);
+    restoreEnv("HARNESS_SERVER_CONFIG", previousServerConfig);
   }
 });
 
 test("first-launch bootstrap preserves existing folders and their model configuration", async () => {
   await withIsolatedBootstrapStore(async ({ store, root }) => {
-    const folder = path.join(root, "home", "OpenWork Chat");
+    const folder = path.join(root, "home", "Harness Chat");
     const config = { version: 1, authorizedRoots: [folder], workspace: { name: "Existing chat" } };
-    await store.writeWorkspaceOpenworkConfig(folder, config);
+    await store.writeWorkspaceHarnessConfig(folder, config);
     const modelConfigPath = path.join(folder, "opencode.json");
     const modelConfig = JSON.stringify({ model: "existing-provider/existing-model" });
     await writeFile(modelConfigPath, modelConfig, "utf8");
 
     await store.bootstrapFirstLaunchWorkspace();
     assert.equal((await store.readWorkspaceState()).workspaces[0].path, await realpath(folder));
-    assert.deepEqual(await store.readWorkspaceOpenworkConfig(folder), config);
+    assert.deepEqual(await store.readWorkspaceHarnessConfig(folder), config);
     assert.equal(await readFile(modelConfigPath, "utf8"), modelConfig);
   });
 });
 
 test("a blocked default folder reports the error and allows a different authorized workspace", async () => {
   await withIsolatedBootstrapStore(async ({ store, root }) => {
-    const folder = path.join(root, "home", "OpenWork Chat");
+    const folder = path.join(root, "home", "Harness Chat");
     await mkdir(path.dirname(folder), { recursive: true });
     await writeFile(folder, "keep this file", "utf8");
 
@@ -291,7 +291,7 @@ test("a blocked default folder reports the error and allows a different authoriz
     const created = await store.createWorkspace({ folderPath: alternate });
     assert.equal(created.workspaces.length, 1);
     assert.equal(created.selectedId, created.workspaces[0].id);
-    assert.deepEqual((await store.readWorkspaceOpenworkConfig(alternate)).authorizedRoots, [alternate]);
+    assert.deepEqual((await store.readWorkspaceHarnessConfig(alternate)).authorizedRoots, [alternate]);
   });
 });
 
@@ -299,7 +299,7 @@ test("a non-writable default folder reports a recoverable permission error", {
   skip: process.platform === "win32" || process.getuid?.() === 0,
 }, async () => {
   await withIsolatedBootstrapStore(async ({ store, root }) => {
-    const folder = path.join(root, "home", "OpenWork Chat");
+    const folder = path.join(root, "home", "Harness Chat");
     await mkdir(folder, { recursive: true });
     await chmod(folder, 0o500);
     try {
@@ -321,8 +321,8 @@ test("first-launch bootstrap does not hide workspace registry failures", async (
   });
 });
 
-test("normalizes recovered remote OpenWork entries before persisting", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+test("normalizes recovered remote Harness entries before persisting", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
   const serverConfig = path.join(root, "server.json");
   await mkdir(userData, { recursive: true });
@@ -335,14 +335,14 @@ test("normalizes recovered remote OpenWork entries before persisting", async () 
           id: "legacy_one",
           path: "/workspace",
           workspaceType: "remote",
-          remoteType: "openwork",
+          remoteType: "harness",
           baseUrl: "https://worker.example.com/workspace/ws_remote",
         },
         {
           id: "legacy_two",
           path: "/workspace",
           workspaceType: "remote",
-          remoteType: "openwork",
+          remoteType: "harness",
           baseUrl: "https://worker.example.com/w/ws_remote",
         },
       ],
@@ -350,8 +350,8 @@ test("normalizes recovered remote OpenWork entries before persisting", async () 
     "utf8",
   );
 
-  const previous = process.env.OPENWORK_SERVER_CONFIG;
-  process.env.OPENWORK_SERVER_CONFIG = serverConfig;
+  const previous = process.env.HARNESS_SERVER_CONFIG;
+  process.env.HARNESS_SERVER_CONFIG = serverConfig;
   try {
     const store = createWorkspaceStore({
       app: { getPath: (name) => name === "userData" ? userData : root },
@@ -364,16 +364,16 @@ test("normalizes recovered remote OpenWork entries before persisting", async () 
     assert.equal(state.workspaces.length, 1);
     assert.equal(state.workspaces[0].id, "rem_ws_remote");
     assert.equal(state.workspaces[0].baseUrl, "https://worker.example.com");
-    assert.equal(state.workspaces[0].openworkWorkspaceId, "ws_remote");
+    assert.equal(state.workspaces[0].harnessWorkspaceId, "ws_remote");
     assert.equal(state.selectedId, "rem_ws_remote");
   } finally {
-    if (previous === undefined) delete process.env.OPENWORK_SERVER_CONFIG;
-    else process.env.OPENWORK_SERVER_CONFIG = previous;
+    if (previous === undefined) delete process.env.HARNESS_SERVER_CONFIG;
+    else process.env.HARNESS_SERVER_CONFIG = previous;
   }
 });
 
 test("forgetting a local workspace removes its recovery token", async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "openwork-workspace-store-"));
+  const root = await mkdtemp(path.join(tmpdir(), "harness-workspace-store-"));
   const userData = path.join(root, "userData");
   const forgottenWorkspace = path.join(root, "forgotten-workspace");
   const retainedWorkspace = path.join(root, "retained-workspace");
@@ -382,7 +382,7 @@ test("forgetting a local workspace removes its recovery token", async () => {
   await mkdir(userData, { recursive: true });
 
   await writeFile(
-    path.join(userData, "openwork-workspaces.json"),
+    path.join(userData, "harness-workspaces.json"),
     JSON.stringify({
       selectedId: "ws_forgotten",
       activeId: "ws_forgotten",
@@ -395,7 +395,7 @@ test("forgetting a local workspace removes its recovery token", async () => {
     "utf8",
   );
   await writeFile(
-    path.join(userData, "openwork-server-tokens.json"),
+    path.join(userData, "harness-server-tokens.json"),
     JSON.stringify({
       version: 1,
       workspaces: {
@@ -419,7 +419,7 @@ test("forgetting a local workspace removes its recovery token", async () => {
   assert.equal(state.activeId, null);
   assert.equal(state.watchedId, null);
 
-  const tokens = JSON.parse(await readFile(path.join(userData, "openwork-server-tokens.json"), "utf8"));
+  const tokens = JSON.parse(await readFile(path.join(userData, "harness-server-tokens.json"), "utf8"));
   assert.deepEqual(Object.keys(tokens.workspaces), [retainedWorkspace]);
   assert.equal(tokens.workspaces[retainedWorkspace].token, "retained");
 });
@@ -472,13 +472,13 @@ test("desktop bootstrap migrates a newer legacy writtenAt to canonical", async (
 test("explicit desktop bootstrap path never inherits legacy activation state", async () => {
   await withIsolatedBootstrapStore(async ({ store, legacyPath, root }) => {
     const explicitPath = path.join(root, "isolated", "desktop-bootstrap.json");
-    process.env.OPENWORK_DESKTOP_BOOTSTRAP_PATH = explicitPath;
+    process.env.HARNESS_DESKTOP_BOOTSTRAP_PATH = explicitPath;
     await writeBootstrapConfig(legacyPath, {
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       requireSignin: true,
       enterpriseActivation: {
         activatedAt: "2026-07-27T13:30:23.342Z",
-        denBaseUrl: "https://app.openworklabs.com/api/den",
+        denBaseUrl: "https://app.harness.invalid/api/den",
       },
     });
 
@@ -492,7 +492,7 @@ test("explicit desktop bootstrap path never inherits legacy activation state", a
 test("explicit desktop bootstrap path still reads its configured bootstrap", async () => {
   await withIsolatedBootstrapStore(async ({ store, root }) => {
     const explicitPath = path.join(root, "isolated", "desktop-bootstrap.json");
-    process.env.OPENWORK_DESKTOP_BOOTSTRAP_PATH = explicitPath;
+    process.env.HARNESS_DESKTOP_BOOTSTRAP_PATH = explicitPath;
     await writeBootstrapConfig(explicitPath, {
       baseUrl: "https://enterprise.example.com",
       requireSignin: true,
@@ -508,46 +508,46 @@ test("explicit desktop bootstrap path still reads its configured bootstrap", asy
 test("desktop bootstrap prefers an older legacy organization config over a newer canonical hosted default", async () => {
   await withIsolatedBootstrapStore(async ({ store, canonicalPath, legacyPath }) => {
     await writeBootstrapConfig(canonicalPath, {
-      baseUrl: "https://app.openworklabs.com/api/den/",
+      baseUrl: "https://app.harness.invalid/api/den/",
       apiBaseUrl: "https://api.unrelated.example",
       requireSignin: false,
       writtenAt: "2026-07-10T13:00:00.000Z",
     });
     await writeBootstrapConfig(legacyPath, {
-      baseUrl: "https://openwork.organization.internal.example",
+      baseUrl: "https://harness.organization.internal.example",
       apiBaseUrl: "https://api.organization.internal.example",
       requireSignin: true,
       writtenAt: "2026-07-09T12:00:00.000Z",
     });
 
     const config = await store.getDesktopBootstrapConfig();
-    assert.equal(config.baseUrl, "https://openwork.organization.internal.example");
+    assert.equal(config.baseUrl, "https://harness.organization.internal.example");
     assert.equal(config.fromFile, true);
     const migrated = JSON.parse(await readFile(canonicalPath, "utf8"));
-    assert.equal(migrated.baseUrl, "https://openwork.organization.internal.example");
+    assert.equal(migrated.baseUrl, "https://harness.organization.internal.example");
   });
 });
 
 test("desktop bootstrap keeps an older canonical organization config over a newer legacy hosted default", async () => {
   await withIsolatedBootstrapStore(async ({ store, canonicalPath, legacyPath }) => {
     await writeBootstrapConfig(canonicalPath, {
-      baseUrl: "https://openwork.organization.internal.example",
+      baseUrl: "https://harness.organization.internal.example",
       apiBaseUrl: "https://api.organization.internal.example",
       requireSignin: true,
       writtenAt: "2026-07-09T12:00:00.000Z",
     });
     await writeBootstrapConfig(legacyPath, {
-      baseUrl: "https://api.openworklabs.com/v1/",
+      baseUrl: "https://api.harness.invalid/v1/",
       apiBaseUrl: "https://api.unrelated.example",
       requireSignin: false,
       writtenAt: "2026-07-10T13:00:00.000Z",
     });
 
     const config = await store.getDesktopBootstrapConfig();
-    assert.equal(config.baseUrl, "https://openwork.organization.internal.example");
+    assert.equal(config.baseUrl, "https://harness.organization.internal.example");
     assert.equal(config.fromFile, true);
     const persisted = JSON.parse(await readFile(canonicalPath, "utf8"));
-    assert.equal(persisted.baseUrl, "https://openwork.organization.internal.example");
+    assert.equal(persisted.baseUrl, "https://harness.organization.internal.example");
   });
 });
 
@@ -657,12 +657,12 @@ test("enterprise activation is preserved, required activation is overrideable, a
       forceRequireSignin: true,
     });
     await store.setDesktopBootstrapConfig({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       requireSignin: false,
       requireActivation: false,
       enterpriseActivation: {
         activatedAt: "2026-07-27T12:00:00.000Z",
-        denBaseUrl: "https://app.openworklabs.com",
+        denBaseUrl: "https://app.harness.invalid",
       },
     });
 
@@ -671,7 +671,7 @@ test("enterprise activation is preserved, required activation is overrideable, a
     assert.equal(config.requireActivation, false);
     assert.deepEqual(config.enterpriseActivation, {
       activatedAt: "2026-07-27T12:00:00.000Z",
-      denBaseUrl: "https://app.openworklabs.com",
+      denBaseUrl: "https://app.harness.invalid",
     });
     const persisted = JSON.parse(await readFile(canonicalPath, "utf8"));
     assert.equal(persisted.requireSignin, true);
@@ -685,7 +685,7 @@ test("enterprise activation is preserved, required activation is overrideable, a
 test("an omitted requireActivation is never materialized into the shared bootstrap file", async () => {
   await withIsolatedBootstrapStore(async ({ store, canonicalPath }) => {
     await store.setDesktopBootstrapConfig({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       requireSignin: true,
     });
 
@@ -697,7 +697,7 @@ test("an omitted requireActivation is never materialized into the shared bootstr
 
 test("clearDesktopBootstrapConfig removes bootstrap files without deleting workspace state", async () => {
   await withIsolatedBootstrapStore(async ({ store, canonicalPath, legacyPath, userDataPath }) => {
-    const workspaceStatePath = path.join(userDataPath, "openwork-workspaces.json");
+    const workspaceStatePath = path.join(userDataPath, "harness-workspaces.json");
     await writeBootstrapConfig(canonicalPath, {
       baseUrl: "https://canonical.example.com",
       requireSignin: false,

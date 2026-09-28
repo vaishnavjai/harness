@@ -24,9 +24,9 @@ test("native read capability is authenticated, isolated, and never offers comman
       headers: { Authorization: `Bearer ${bridge.token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name, input: {} }),
     });
-    expect((await call("openwork_execute")).status).toBe(400);
+    expect((await call("harness_execute")).status).toBe(400);
     expect(requests).toHaveLength(0);
-    const result = await call("openwork_context");
+    const result = await call("harness_context");
     expect(result.status).toBe(200);
     const context = await result.text();
     expect(context).toContain("screen.read");

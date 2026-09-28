@@ -134,7 +134,7 @@ describe("session error resilience", () => {
   test("does not diagnose a generic database failure as a full disk", () => {
     const presentation = presentOpencodeSessionError("effect/sql/SqlError: Failed to execute statement\n at runLoop (/$bunfs/root/chunk.js:25:2045)")
     expect(presentation.kind).toBe("database-error")
-    expect(presentation.title).toBe("OpenWork couldn’t access its saved data")
+    expect(presentation.title).toBe("Harness couldn’t access its saved data")
     expect(presentation.description).toContain("check the available disk space")
     expect(presentation.description).not.toContain("has run out")
   })
@@ -188,7 +188,7 @@ describe("session error resilience", () => {
     const syncInput = {
       workspaceId: "workspace-1",
       baseUrl: "http://127.0.0.1:1234",
-      openworkToken: "token",
+      harnessToken: "token",
     }
     const cleanup = __createWorkspaceSessionSyncForTest(syncInput)
     const release = trackWorkspaceSessionSync(syncInput, "session-1")
@@ -334,7 +334,7 @@ describe("session error resilience", () => {
   })
 
   test.each([
-    { name: "APIError", data: { statusCode: 401, code: "openwork_auth_required" }, kind: "gateway-auth-required", title: "Sign in to keep using this model" },
+    { name: "APIError", data: { statusCode: 401, code: "harness_auth_required" }, kind: "gateway-auth-required", title: "Sign in to keep using this model" },
     { name: "APIError", data: { statusCode: 403 }, kind: "provider-access-denied", title: "You don’t have access to this model" },
     { name: "APIError", data: { code: "ENOTFOUND" }, kind: "network-unavailable", title: "Can’t reach the model service" },
     { name: "TimeoutError", data: { statusCode: 401 }, kind: "provider-timeout", title: "Provider did not respond in time" },
@@ -366,10 +366,10 @@ describe("session error resilience", () => {
     expect(html).not.toContain("Status: 200")
     expect(html).not.toContain("managed-interruption-diagnostic")
   })
-  test("classifies openwork_auth_required but never trusts an upstream auth_url as a Connect target", () => {
+  test("classifies harness_auth_required but never trusts an upstream auth_url as a Connect target", () => {
     const authUrl = "https://evil.example.test/steal-session"
     const body = JSON.stringify({
-      error: { code: "openwork_auth_required", message: "Sign in to Member Vertex to continue.", auth_url: authUrl, provider_id: "ipr_member" },
+      error: { code: "harness_auth_required", message: "Sign in to Member Vertex to continue.", auth_url: authUrl, provider_id: "ipr_member" },
     })
     const presentation = presentOpencodeSessionError({
       name: "APIError",
@@ -394,7 +394,7 @@ describe("session error resilience", () => {
   test("still offers Connect (deep-linking to providers) when the auth body has no auth_url", () => {
     const presentation = presentOpencodeSessionError({
       name: "APIError",
-      data: { message: '{"error":{"code":"openwork_auth_required","provider_id":"ipr_member"}}', statusCode: 401 },
+      data: { message: '{"error":{"code":"harness_auth_required","provider_id":"ipr_member"}}', statusCode: 401 },
     })
     expect(presentation.kind).toBe("gateway-auth-required")
     expect(presentation.connectUrl).toBeNull()
@@ -433,7 +433,7 @@ describe("session error resilience", () => {
   })
 
   test("explains local workspace and model access errors without exposing machine details", () => {
-    const local = presentOpencodeSessionError(new Error("Error invoking remote method 'openwork:desktop': TypeError: fetch failed: connect ECONNREFUSED 127.0.0.1:12345"))
+    const local = presentOpencodeSessionError(new Error("Error invoking remote method 'harness:desktop': TypeError: fetch failed: connect ECONNREFUSED 127.0.0.1:12345"))
     expect(local.title).toBe("Can’t reach this workspace")
     expect(local.technicalDetails).toContain("ECONNREFUSED")
     expect(local.recoveryPrompt).toBeNull()

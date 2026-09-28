@@ -41,7 +41,7 @@ test("published evidence creates a SHA-bound check and native deployment with im
   assert.ok(f.writes.some(w => w.path.endsWith("/issues/7/comments")));
   assert.equal(deployment.transient_environment, false);
   const commitStatus = f.writes.find(w => w.path.includes("/statuses/"));
-  assert.equal(commitStatus.body.context, "OpenWork Evidence");
+  assert.equal(commitStatus.body.context, "Harness Evidence");
   assert.equal(commitStatus.body.target_url, url);
 });
 
@@ -95,7 +95,7 @@ test("untrusted report URLs and commit receipts are rejected before writing", as
 
 test("new runs retire only authenticated older evidence deployments, never a newer one", async () => {
   const f = fixture(); f.input.phase = "progress";
-  for (const runId of [29, 31]) f.deployments.push({ id: runId, creator: { login: "github-actions[bot]" }, payload: { kind: "openwork-evidence-v1", pr: 7, runId, runAttempt: 1 } });
+  for (const runId of [29, 31]) f.deployments.push({ id: runId, creator: { login: "github-actions[bot]" }, payload: { kind: "harness-evidence-v1", pr: 7, runId, runAttempt: 1 } });
   f.deployments.push({ ...f.deployments[0], id: 28, creator: { login: "someone-else" } });
   await presentEvidence(f.input, f.api);
   const statuses = f.writes.filter(w => w.path.endsWith("statuses"));

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import type { DesktopConfig } from "@openwork/types/den/desktop-policies";
+import type { DesktopConfig } from "@harness/types/den/desktop-policies";
 import { policyDenial } from "./managed-policy-rules.js";
 
 test("approved browser origins reject file URLs while allowing an approved HTTPS page", () => {

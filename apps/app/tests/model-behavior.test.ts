@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { CATALOG_FAST_VARIANT, catalogFastVariants, fastVariantId, nativeModelVariants } from "@openwork/types/cloud-model-fast";
+import { CATALOG_FAST_VARIANT, catalogFastVariants, fastVariantId, nativeModelVariants } from "@harness/types/cloud-model-fast";
 
 import type { ProviderListItem } from "../src/app/types";
 import {
@@ -151,12 +151,12 @@ describe("model behavior options", () => {
 
   test("Default is not replaced with a guessed medium effort", () => {
     for (const value of [null, "high", null]) {
-      const summary = getModelBehaviorSummary("openwork", model, value);
+      const summary = getModelBehaviorSummary("harness", model, value);
       expect(summary.value).toBe(value);
       expect(summary.label).toBe(value === null ? "Default" : "High");
       expect(summary.options.filter((option) => option.value === value)).toHaveLength(1);
     }
-    const single = getModelBehaviorOptions("openwork", { ...model, variants: { high: {} } });
+    const single = getModelBehaviorOptions("harness", { ...model, variants: { high: {} } });
     expect(nextModelBehaviorValue(single, null)).toBe("high");
     expect(nextModelBehaviorValue(single, "high")).toBeNull();
   });
@@ -164,7 +164,7 @@ describe("model behavior options", () => {
   test("preserves stale and malformed same-model settings with a visible advisory and Default recovery", () => {
     for (const configuration of [model, { ...model, variants: {} }, undefined]) {
       for (const value of ["retired-effort", " High ", "", "\n"]) {
-        const summary = getModelBehaviorSummary("openwork", configuration, value);
+        const summary = getModelBehaviorSummary("harness", configuration, value);
         expect(summary.value).toBe(value);
         expect(summary.label).toContain(JSON.stringify(value));
         expect(summary.label).toContain("not in current catalog");
@@ -178,15 +178,15 @@ describe("model behavior options", () => {
 
   test("explicit model switches only carry variants supplied by the target configuration", () => {
     const target = { ...model, variants: { low: {}, CustomEffort: {} } };
-    for (const provider of ["openwork", "lpr_custom"]) {
+    for (const provider of ["harness", "lpr_custom"]) {
       expect(sanitizeModelBehaviorValue(provider, target, "high")).toBeNull();
       expect(sanitizeModelBehaviorValue(provider, target, null)).toBeNull();
       expect(sanitizeModelBehaviorValue(provider, target, "low")).toBe("low");
       expect(sanitizeModelBehaviorValue(provider, target, "CustomEffort")).toBe("CustomEffort");
       expect(getModelBehaviorOptions(provider, target).map((option) => option.value)).toEqual([null, "low", "CustomEffort"]);
     }
-    expect(sanitizeModelBehaviorValue("openwork", { ...model, variants: {} }, "high")).toBeNull();
-    expect(getModelBehaviorOptions("openwork", { ...model, id: "future-model", variants: { newEffort: {} } })
+    expect(sanitizeModelBehaviorValue("harness", { ...model, variants: {} }, "high")).toBeNull();
+    expect(getModelBehaviorOptions("harness", { ...model, id: "future-model", variants: { newEffort: {} } })
       .map((option) => option.value)).toEqual([null, "newEffort"]);
   });
 });

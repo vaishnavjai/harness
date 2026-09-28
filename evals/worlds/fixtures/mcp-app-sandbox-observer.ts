@@ -1,4 +1,4 @@
-import { addInitScript, evaluate, type CdpClient, type Surface } from "@openwork/cdp";
+import { addInitScript, evaluate, type CdpClient, type Surface } from "@harness/cdp";
 
 function receiptObserver() {
   const marker = Symbol.for("fixture.hosted.receipt-observer");

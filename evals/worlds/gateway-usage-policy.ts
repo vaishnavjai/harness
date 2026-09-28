@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { allocateFreePort } from "@openwork/cdp";
-import { localMysqlIsRunning, queryDenDatabase, resolveEvalEngine, SkipError, type Place, type Seed } from "@openwork/env";
-import { engineSessionProbe } from "@openwork/behaviors";
-import { startInferenceWitness } from "@openwork/labs";
+import { allocateFreePort } from "@harness/cdp";
+import { localMysqlIsRunning, queryDenDatabase, resolveEvalEngine, SkipError, type Place, type Seed } from "@harness/env";
+import { engineSessionProbe } from "@harness/behaviors";
+import { startInferenceWitness } from "@harness/labs";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -28,8 +28,8 @@ export function usageRecords(value: unknown): Record<string, unknown>[] {
 
 export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }) {
   if (place.kind !== "local") throw new SkipError("co-located Den, Gateway, MySQL and loopback upstream; this world cannot provision a remote Gateway");
-  if (process.env.OPENWORK_EVAL_DEN_API_URL?.trim() || process.env.OPENWORK_EVAL_DEN_WEB_URL?.trim()) throw new Error("Gateway usage journey requires a fresh testkit Den, never an attached service");
-  if (!await localMysqlIsRunning()) throw new SkipError("local MySQL for a disposable openwork_eval_ database");
+  if (process.env.HARNESS_EVAL_DEN_API_URL?.trim() || process.env.HARNESS_EVAL_DEN_WEB_URL?.trim()) throw new Error("Gateway usage journey requires a fresh testkit Den, never an attached service");
+  if (!await localMysqlIsRunning()) throw new SkipError("local MySQL for a disposable harness_eval_ database");
   await using setup = new AsyncDisposableStack();
   const witness = setup.use(await startInferenceWitness({ reportedCostUsd: 1 }));
   witness.mode("json");
@@ -39,7 +39,7 @@ export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }
     web: true,
     schema: "migrate",
     env: {
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql",
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql",
       DEN_ORG_MODE: "multi_org", DEN_PLAN_GATING_ENABLED: "false",
       GATEWAY_ENABLED: "true", GATEWAY_PROXY_BASE_URL: gatewayUrl,
       GATEWAY_PUBLIC_BASE_URL: gatewayUrl, GATEWAY_EGRESS_ALLOWED_ORIGINS: new URL(witness.url).origin,
@@ -55,7 +55,7 @@ export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }
     },
   });
   const databaseUrl = den.database?.url;
-  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/openwork_eval_")) throw new Error("Expected testkit scratch database");
+  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/harness_eval_")) throw new Error("Expected testkit scratch database");
   for (const name of ["0105_gateway_incremental_usage", "0106_gateway_usage_lifecycle", "0107_gateway_usage_durable_capture", "0108_gateway_usage_organization_assignments"]) {
     const migration = await readFile(`${root}/ee/packages/den-db/drizzle/${name}.sql`, "utf8");
     const migrationHash = createHash("sha256").update(migration).digest("hex");
@@ -78,7 +78,7 @@ export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }
   const child = spawn(process.execPath, ["--conditions=development", "--import", "tsx", "src/server.ts"], {
     cwd: `${root}/ee/apps/gateway`, stdio: ["ignore", "pipe", "pipe"],
     env: {
-      PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", OPENWORK_DEV_MODE: "1",
+      PATH: process.env.PATH, HOME: process.env.HOME, NODE_ENV: "test", HARNESS_DEV_MODE: "1",
       PORT: String(port), GATEWAY_PORT: String(port), GATEWAY_ENABLED: "true",
       DATABASE_URL: databaseUrl, DB_MODE: "mysql",
       DEN_DB_ENCRYPTION_KEY: "local-dev-db-encryption-key-please-change-1234567890",
@@ -145,7 +145,7 @@ export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }
       return { ...messages, data: messages.data.toReversed(), body: { ...body, data: usageRecords(body.data).toReversed() } };
     },
     async rejectedCalls() {
-      return usageRecords(await queryDenDatabase(databaseUrl, "SELECT id, status, error_code, org_membership_id, requested_model FROM gateway_request_logs WHERE gateway_provider_id = ? AND org_membership_id = ? AND error_code = 'openwork_gateway_usage_limit_exceeded' AND completed_at IS NOT NULL", [providerId, memberId]));
+      return usageRecords(await queryDenDatabase(databaseUrl, "SELECT id, status, error_code, org_membership_id, requested_model FROM gateway_request_logs WHERE gateway_provider_id = ? AND org_membership_id = ? AND error_code = 'harness_gateway_usage_limit_exceeded' AND completed_at IS NOT NULL", [providerId, memberId]));
     },
     streamSuccess: () => witness.mode("success"),
     upstreamCount: () => witness.requests.length,
@@ -162,7 +162,7 @@ export async function gatewayUsagePolicy(seed: Seed, { place }: { place: Place }
         signal: AbortSignal.timeout(30_000),
       });
       const body: unknown = await response.json();
-      return { status: response.status, body, errorCode: response.headers.get("x-openwork-error-code"), usageState: response.headers.get("x-openwork-usage-state") };
+      return { status: response.status, body, errorCode: response.headers.get("x-harness-error-code"), usageState: response.headers.get("x-harness-usage-state") };
     },
     [Symbol.asyncDispose]: () => resources.disposeAsync(),
   };

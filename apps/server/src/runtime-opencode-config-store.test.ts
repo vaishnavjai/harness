@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { addMcp, listMcp, setMcpEnabled } from "./mcp.js";
-import { buildOpenworkRuntimeConfig } from "./openwork-runtime-config.js";
-import { readOpenworkWorkspaceConfig } from "./openwork-workspace-config-store.js";
+import { buildHarnessRuntimeConfig } from "./harness-runtime-config.js";
+import { readHarnessWorkspaceConfig } from "./harness-workspace-config-store.js";
 import { addPlugin, listPlugins, removePlugin } from "./plugins.js";
 import {
   ENGINE_GLOBAL_RUNTIME_CONFIG_ID,
@@ -48,11 +48,11 @@ function serverConfig(root: string, dbPath: string): ServerConfig {
 }
 
 async function withWorkspace(fn: (input: { root: string; config: ServerConfig }) => Promise<void>) {
-  const root = await mkdtemp(join(tmpdir(), "openwork-runtime-config-"));
-  const previousDb = process.env.OPENWORK_RUNTIME_DB;
+  const root = await mkdtemp(join(tmpdir(), "harness-runtime-config-"));
+  const previousDb = process.env.HARNESS_RUNTIME_DB;
   const previousOpencodeConfigDir = process.env.OPENCODE_CONFIG_DIR;
   const dbPath = join(root, "runtime.sqlite");
-  process.env.OPENWORK_RUNTIME_DB = dbPath;
+  process.env.HARNESS_RUNTIME_DB = dbPath;
   // MCP listings merge the global OpenCode config layer, so point it at an
   // empty directory inside the fixture. Without this the assertions observe
   // whatever MCP servers the developer happens to have in ~/.config/opencode.
@@ -61,8 +61,8 @@ async function withWorkspace(fn: (input: { root: string; config: ServerConfig })
   try {
     await fn({ root, config: serverConfig(root, dbPath) });
   } finally {
-    if (previousDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-    else process.env.OPENWORK_RUNTIME_DB = previousDb;
+    if (previousDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+    else process.env.HARNESS_RUNTIME_DB = previousDb;
     if (previousOpencodeConfigDir === undefined) delete process.env.OPENCODE_CONFIG_DIR;
     else process.env.OPENCODE_CONFIG_DIR = previousOpencodeConfigDir;
     await rm(root, { recursive: true, force: true });
@@ -76,7 +76,7 @@ async function expectMissing(path: string): Promise<void> {
 describe("runtime OpenCode config store", () => {
   test("ordinary concurrent config writes preserve the verified policy in every workspace", async () => {
     await withWorkspace(async ({ config }) => {
-      const policy: import("@openwork/types/den/desktop-policies").DesktopConfig = { allowManageExtensions: false, execution: { commands: "deny", blockedCommands: [], blockBrowserUploads: true } };
+      const policy: import("@harness/types/den/desktop-policies").DesktopConfig = { allowManageExtensions: false, execution: { commands: "deny", blockedCommands: [], blockBrowserUploads: true } };
       await writeManagedDesktopPolicy(config, policy);
       await Promise.all(Array.from({ length: 12 }, (_, index) => writeGlobalRuntimeOpencodeConfig(config, (current) => ({
         ...current, provider: { ...current.provider, [`provider-${index}`]: { name: `Provider ${index}` } },
@@ -127,7 +127,7 @@ describe("runtime OpenCode config store", () => {
     });
   });
 
-  test("stores MCP changes in the OpenWork runtime DB without rewriting workspace files", async () => {
+  test("stores MCP changes in the Harness runtime DB without rewriting workspace files", async () => {
     await withWorkspace(async ({ root, config }) => {
       const opencodePath = join(root, "opencode.jsonc");
       const opencode = '{\n  "mcp": {\n    "project": { "type": "remote", "url": "https://project.example/mcp" }\n  }\n}\n';
@@ -137,7 +137,7 @@ describe("runtime OpenCode config store", () => {
       await setMcpEnabled(config, WORKSPACE_ID, "runtime", false);
 
       expect(await readFile(opencodePath, "utf8")).toBe(opencode);
-      await expectMissing(join(root, ".opencode", "openwork.json"));
+      await expectMissing(join(root, ".opencode", "harness.json"));
       expect((await readRuntimeOpencodeConfig(config, WORKSPACE_ID)).mcp?.runtime?.enabled).toBe(false);
 
       const items = await listMcp(config, WORKSPACE_ID, root);
@@ -146,7 +146,7 @@ describe("runtime OpenCode config store", () => {
     });
   });
 
-  test("stores plugin changes in the OpenWork runtime DB without rewriting workspace files", async () => {
+  test("stores plugin changes in the Harness runtime DB without rewriting workspace files", async () => {
     await withWorkspace(async ({ root, config }) => {
       const opencodePath = join(root, "opencode.jsonc");
       const opencode = '{\n  "plugin": ["project-plugin"]\n}\n';
@@ -157,7 +157,7 @@ describe("runtime OpenCode config store", () => {
       expect(await addPlugin(config, "runtime-plugin")).toBe(true);
 
       expect(await readFile(opencodePath, "utf8")).toBe(opencode);
-      await expectMissing(join(root, ".opencode", "openwork.json"));
+      await expectMissing(join(root, ".opencode", "harness.json"));
       // Runtime plugins are engine-global so the injected file carries them.
       expect((await readGlobalRuntimeOpencodeConfig(config)).plugin).toEqual(["runtime-plugin"]);
 
@@ -165,7 +165,7 @@ describe("runtime OpenCode config store", () => {
       expect(result.items.map((item) => item.spec)).toEqual(["project-plugin", "runtime-plugin"]);
 
       await addMcp(config, WORKSPACE_ID, "runtime", { type: "remote", url: "https://runtime.example/mcp", enabled: true });
-      const runtimeConfig = JSON.parse(await buildOpenworkRuntimeConfig(config)) as {
+      const runtimeConfig = JSON.parse(await buildHarnessRuntimeConfig(config)) as {
         plugin?: string[];
         mcp?: Record<string, Record<string, unknown>>;
       };
@@ -189,7 +189,7 @@ describe("runtime OpenCode config store", () => {
     });
   });
 
-  test("stores OpenWork-owned workspace config in the runtime DB without writing legacy files", async () => {
+  test("stores Harness-owned workspace config in the runtime DB without writing legacy files", async () => {
     await withWorkspace(async ({ root, config }) => {
       const server = await startServer(config) as Served;
       try {
@@ -197,7 +197,7 @@ describe("runtime OpenCode config store", () => {
           method: "PATCH",
           headers: { authorization: `Bearer ${config.token}`, "content-type": "application/json" },
           body: JSON.stringify({
-            openwork: {
+            harness: {
               cloudImports: {
                 plugins: {
                   plugin_1: { pluginId: "plugin_1", name: "productivity", files: [] },
@@ -208,11 +208,11 @@ describe("runtime OpenCode config store", () => {
         });
         expect(response.status).toBe(200);
 
-        const legacyOpenworkPath = join(root, ".opencode", "openwork.json");
-        const legacyOpenwork = await readFile(legacyOpenworkPath, "utf8").catch(() => "");
-        expect(legacyOpenwork).not.toContain("productivity");
-        expect(legacyOpenwork).not.toContain("cloudImports");
-        expect((await readOpenworkWorkspaceConfig(config, WORKSPACE_ID)).cloudImports).toEqual({
+        const legacyHarnessPath = join(root, ".opencode", "harness.json");
+        const legacyHarness = await readFile(legacyHarnessPath, "utf8").catch(() => "");
+        expect(legacyHarness).not.toContain("productivity");
+        expect(legacyHarness).not.toContain("cloudImports");
+        expect((await readHarnessWorkspaceConfig(config, WORKSPACE_ID)).cloudImports).toEqual({
           plugins: {
             plugin_1: { pluginId: "plugin_1", name: "productivity", files: [] },
           },
@@ -223,7 +223,7 @@ describe("runtime OpenCode config store", () => {
         });
         expect(configResponse.status).toBe(200);
         expect(await configResponse.json()).toMatchObject({
-          openwork: {
+          harness: {
             cloudImports: {
               plugins: {
                 plugin_1: { pluginId: "plugin_1", name: "productivity", files: [] },
@@ -245,7 +245,7 @@ describe("runtime OpenCode config store", () => {
         permission: { external_directory: { "/folders/a": "allow" } },
         mcp: { notion: { type: "remote", url: "https://notion.example/mcp" } },
         provider: { "user-lmstudio": { npm: "@ai-sdk/openai-compatible", options: { baseURL: "https://a.example/v1" } }, local: { npm: "stale-copy" } },
-        default_agent: "openwork",
+        default_agent: "harness",
       }));
       await Bun.sleep(2);
       await writeRuntimeOpencodeConfig(config, "ws_b", () => ({
@@ -285,7 +285,7 @@ describe("runtime OpenCode config store", () => {
       expect(workspaceA.permission).toBeUndefined();
       expect(workspaceA.provider).toBeUndefined();
       expect(workspaceA.mcp?.notion?.url).toBe("https://notion.example/mcp");
-      expect(workspaceA.default_agent).toBe("openwork");
+      expect(workspaceA.default_agent).toBe("harness");
       expect(await readRuntimeOpencodeConfig(config, "ws_b")).toEqual({});
 
       const second = await migrateWorkspaceRuntimeConfigToEngineGlobal(config);
@@ -307,10 +307,10 @@ describe("runtime OpenCode config store", () => {
     });
   });
 
-  test("runtime config status tolerates malformed legacy OpenWork metadata", async () => {
+  test("runtime config status tolerates malformed legacy Harness metadata", async () => {
     await withWorkspace(async ({ root, config }) => {
       await mkdir(join(root, ".opencode"), { recursive: true });
-      await writeFile(join(root, ".opencode", "openwork.json"), "{ invalid\n", "utf8");
+      await writeFile(join(root, ".opencode", "harness.json"), "{ invalid\n", "utf8");
       await addMcp(config, WORKSPACE_ID, "runtime", { type: "remote", url: "https://runtime.example/mcp" });
 
       const server = await startServer(config) as Served;

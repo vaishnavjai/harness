@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { NO_WINDOW_ERROR, sessionMailboxLiveness } from "../worlds/session-mailbox-liveness.ts";
 
 const test = spec.world(sessionMailboxLiveness, {

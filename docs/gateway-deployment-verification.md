@@ -37,8 +37,8 @@ temporary processes and scratch databases.
 - Only explicit `gateway.enabled: true` admits the new deployment feature.
   Legacy `inference.enabled: true` retains the component but does not opt in.
 - Existing Service/Deployment names, selectors, container names, ingress hosts,
-  release identity, and `openwork-inference` image repository remain unchanged.
-  The Dockerfile/package already target `ee/apps/gateway` / `@openwork-ee/gateway`.
+  release identity, and `harness-inference` image repository remain unchanged.
+  The Dockerfile/package already target `ee/apps/gateway` / `@harness-ee/gateway`.
   `den-gateway` remains a different Web proxy service.
 - Native/hosted deployments use explicit `GATEWAY_ENABLED=true`; Helm is not
   assumed. Missing enablement preserves the legacy Models deployment behavior.
@@ -60,7 +60,7 @@ temporary processes and scratch databases.
 
   Feature children do not mount or fetch in that state. Loading and context
   errors are distinct. An upstream outage does not change deployment capability.
-- Effective deployment + organization enablement hides the OpenWork Models page
+- Effective deployment + organization enablement hides the Harness Models page
   and direct URL without altering keys, subscriptions, settlement, or runtime
   authorization. Non-opted-in hosted organizations retain that page.
 - Gateway internal and client-public origins are separate. The final combined
@@ -92,7 +92,7 @@ gateway:
 config:
   databaseMode: mysql
   internal:
-    gatewayProxyBaseUrl: http://openwork-ee-inference:8791
+    gatewayProxyBaseUrl: http://harness-ee-inference:8791
     # Preserve an existing Models client endpoint when one is in use.
     inferenceProxyBaseUrl: https://models.example.com
   public:
@@ -119,18 +119,18 @@ as distinct coverage. Checks without a test count are listed as checks, not test
 | --- | --- | --- |
 | `ee/apps/den-web` | `pnpm test` | 370 / 0 / 0 (270 main + 100 provider/guard tests) |
 | `ee/apps/den-web` | `pnpm exec tsc --noEmit --pretty false --incremental false` | typecheck; exit 0 |
-| root | `pnpm --filter @openwork-ee/den-api run test:gateway-deployment` | 30 / 0 / 0 (28 routes + 2 org contract) |
+| root | `pnpm --filter @harness-ee/den-api run test:gateway-deployment` | 30 / 0 / 0 (28 routes + 2 org contract) |
 | `ee/apps/den-api` | `pnpm exec bun test --conditions development test/inference-provider-config.test.ts` | 13 / 0 / 0 |
 | `ee/apps/den-api` | `pnpm exec tsc -p tsconfig.json --noEmit --pretty false` | typecheck; exit 0 |
 | `ee/apps/gateway` | `pnpm exec tsx --test test/env.test.ts` | 13 / 0 / 0 |
 | `ee/apps/gateway` | `NODE_OPTIONS=--conditions=development pnpm exec tsx --test test/deployment-capabilities.test.ts` | 6 / 0 / 0 |
 | `ee/apps/gateway` | `pnpm exec tsc -p tsconfig.json --noEmit --pretty false` | typecheck; exit 0 |
-| root | `pnpm --filter @openwork-ee/utils build` | build; exit 0 |
+| root | `pnpm --filter @harness-ee/utils build` | build; exit 0 |
 | root | `pnpm evals:pr specs/managed-inference.test.ts` | 1 / 0 / 0 |
 | root | `pnpm evals:pr specs/inference-gateway-lifecycle.test.ts` | 1 / 0 / 0 |
 | root | `pnpm evals:pr specs/inference-gateway-org-provider.test.ts` | 3 / 0 / 0 |
-| root | `bash packaging/helm/openwork-ee/tests/gateway.sh` | 71 / 0 / 0 |
-| root | `bash packaging/helm/openwork-ee/tests/upgrade-and-migration.sh` | 22 / 0 / 0 |
+| root | `bash packaging/helm/harness-ee/tests/gateway.sh` | 71 / 0 / 0 |
+| root | `bash packaging/helm/harness-ee/tests/upgrade-and-migration.sh` | 22 / 0 / 0 |
 | root | `git diff --check` | whitespace check; exit 0 |
 | `packages/docs` | `pnpm --config.node-linker=hoisted --package=mint --package=openapi-types dlx mint validate` | documentation validation; exit 0 |
 | `packages/docs` | `pnpm --config.node-linker=hoisted --package=mint --package=openapi-types dlx mint broken-links` | no broken links; exit 0 |
@@ -144,17 +144,17 @@ Helm `v3.19.0` was made available on PATH from temporary tooling. Final lint and
 render commands, from the root:
 
 ```bash
-helm lint packaging/helm/openwork-ee
-helm lint packaging/helm/openwork-ee --set gateway.enabled=true --set config.internal.gatewayProxyBaseUrl=http://openwork-ee-inference:8791 --set config.public.gatewayPublicBaseUrl=https://gateway.example.com --set secret.create=false --set secret.existingSecret=gateway-test
-helm template openwork-ee packaging/helm/openwork-ee --set gateway.enabled=true --set config.internal.gatewayProxyBaseUrl=http://openwork-ee-inference:8791 --set config.public.gatewayPublicBaseUrl=https://gateway.example.com --set secret.create=false --set secret.existingSecret=gateway-test > /dev/null
-for suite in packaging/helm/openwork-ee/tests/*.sh; do bash "$suite" || exit $?; done
+helm lint packaging/helm/harness-ee
+helm lint packaging/helm/harness-ee --set gateway.enabled=true --set config.internal.gatewayProxyBaseUrl=http://harness-ee-inference:8791 --set config.public.gatewayPublicBaseUrl=https://gateway.example.com --set secret.create=false --set secret.existingSecret=gateway-test
+helm template harness-ee packaging/helm/harness-ee --set gateway.enabled=true --set config.internal.gatewayProxyBaseUrl=http://harness-ee-inference:8791 --set config.public.gatewayPublicBaseUrl=https://gateway.example.com --set secret.create=false --set secret.existingSecret=gateway-test > /dev/null
+for suite in packaging/helm/harness-ee/tests/*.sh; do bash "$suite" || exit $?; done
 ```
 
 Result: **2 lint configurations, 1 standalone render, 9 shell suites passed**;
 the 71-case and 22-case matrices above are included in those suites, not extra
 distinct tests. The other suites cover Automations, custom CA (including a
 strict-TLS witness), Dashboards, image tags/migration hooks, observability,
-OpenWork Web, and private MCP URLs. Helm's icon recommendation is informational.
+Harness Web, and private MCP URLs. Helm's icon recommendation is informational.
 
 ### Red iterations (not hidden or labelled pre-existing)
 
@@ -206,7 +206,7 @@ files. The worktree also contains preserved work by the organization-flag agent.
 
 1. **No production rollout approval.** Actual hosted Render/Vercel environment,
    source paths, image digests, predeploy commands, Secrets, DNS, and TLS were not
-   queried or changed. Repository publishing preserves `openwork-inference`; its
+   queried or changed. Repository publishing preserves `harness-inference`; its
    automated `den-gateway` redeploy is for the separate service.
 2. **Existing database cutover is not an ordinary rolling upgrade.** Migration
    0097 and subsequent release migrations require reviewed ordering, backups,

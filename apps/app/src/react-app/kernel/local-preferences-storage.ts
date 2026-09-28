@@ -1,7 +1,7 @@
-export const LOCAL_PREFERENCES_KEY = "openwork.preferences";
+export const LOCAL_PREFERENCES_KEY = "harness.preferences";
 
-export type LinkOpenDestination = "openwork" | "external";
+export type LinkOpenDestination = "harness" | "external";
 
 export function isLinkOpenDestination(value: unknown): value is LinkOpenDestination {
-  return value === "openwork" || value === "external";
+  return value === "harness" || value === "external";
 }

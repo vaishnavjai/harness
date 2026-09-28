@@ -19,7 +19,7 @@ export async function probeHandoff({ spawnBrowser = spawn, kill = process.kill, 
       browser = spawnBrowser("xdg-open", [`http://127.0.0.1:${server.address().port}/browser-hop-proof`], {
         detached: true,
         stdio: "inherit",
-        env: { ...process.env, OPENWORK_PROOF_BROWSER_PROFILE: `${process.env.RUNNER_TEMP}/pr-proof-browser-gate` },
+        env: { ...process.env, HARNESS_PROOF_BROWSER_PROFILE: `${process.env.RUNNER_TEMP}/pr-proof-browser-gate` },
       });
       browser.once("error", reject);
     });

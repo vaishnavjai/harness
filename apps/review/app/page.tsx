@@ -1,7 +1,7 @@
 export default function Home() {
   return (
     <main className="home">
-      <p className="eyebrow">OpenWork Review</p>
+      <p className="eyebrow">Harness Review</p>
       <h1>
         A clearer view
         <br />

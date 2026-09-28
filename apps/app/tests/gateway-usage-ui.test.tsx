@@ -5,7 +5,7 @@ import type { Root } from "react-dom/client";
 import type { ReactNode } from "react";
 import { writeDenSettings } from "../src/app/lib/den";
 import { gatewayUsageQueryPrefix, gatewayUsageNoticeState, parseGatewayUsageError, type GatewayUsageErrorEvidence } from "../src/react-app/domains/cloud/gateway-usage-state";
-import { gatewayUsageLimitResponse } from "@openwork/types/den/gateway-usage-limits";
+import { gatewayUsageLimitResponse } from "@harness/types/den/gateway-usage-limits";
 import { approvedUsageStatus, trackedCoverage, usageStatus } from "./gateway-usage-fixture";
 import { readGatewayUsageScope } from "../src/app/lib/gateway-usage-scope";
 
@@ -216,7 +216,7 @@ test("Settings Usage has a layout-matching loading state, a no-false-unlimited e
   expect(container.textContent).toContain("Your limits");
   let opened = 0;
   await act(async () => { signedIn = false; changeSettings("org_test", ""); root?.render(shell(<GatewayUsageSettingsView onOpenAccount={() => { opened++; }} />)); });
-  expect(container.textContent).toContain("Sign in to OpenWork Cloud to see your usage limits.");
+  expect(container.textContent).toContain("Sign in to Harness Cloud to see your usage limits.");
   await act(async () => button("Open Account")?.click());
   expect(opened).toBe(1);
 });
@@ -720,7 +720,7 @@ test("background successful terminal events refresh the foreground own status wi
   status = usageStatus({ state: "within_limit" });
   await act(async () => renderProbe());
   await flush();
-  const input = { workspaceId: "background_workspace", baseUrl: "http://127.0.0.1:1234", openworkToken: "test-token" };
+  const input = { workspaceId: "background_workspace", baseUrl: "http://127.0.0.1:1234", harnessToken: "test-token" };
   const cleanup = __createWorkspaceSessionSyncForTest(input);
   try {
     __applySessionSyncEventForTest(input, { type: "session.execution.started", properties: { sessionID: "background_session", model: { providerID: "ipr_test" } } });
@@ -741,7 +741,7 @@ test("known local-provider completions do not start Gateway settlement refreshes
   status = usageStatus({ state: "within_limit" });
   await act(async () => renderProbe());
   await flush();
-  const input = { workspaceId: "local_background", baseUrl: "http://127.0.0.1:1234", openworkToken: "test-token" };
+  const input = { workspaceId: "local_background", baseUrl: "http://127.0.0.1:1234", harnessToken: "test-token" };
   const cleanup = __createWorkspaceSessionSyncForTest(input);
   try {
     __applySessionSyncEventForTest(input, { type: "session.execution.started", properties: { sessionID: "local_session", model: { providerID: "ollama" } } });
@@ -756,7 +756,7 @@ test("a run started in org A cannot refresh org B on a late background completio
   status = usageStatus({ state: "within_limit" });
   await act(async () => renderProbe());
   await flush();
-  const input = { workspaceId: "old_org_background", baseUrl: "http://127.0.0.1:1234", openworkToken: "test-token" };
+  const input = { workspaceId: "old_org_background", baseUrl: "http://127.0.0.1:1234", harnessToken: "test-token" };
   const cleanup = __createWorkspaceSessionSyncForTest(input);
   try {
     __applySessionSyncEventForTest(input, { type: "session.execution.started", properties: { sessionID: "old_org_session", model: { providerID: "ipr_org_a" } } });

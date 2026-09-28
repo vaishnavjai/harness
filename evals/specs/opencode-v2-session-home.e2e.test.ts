@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { sessionHome, movedSessionQuestion } from "../worlds/session-home.ts";
 
 const test = spec.world(sessionHome, {
@@ -27,7 +27,7 @@ test("HOME-01 a working-directory move preserves the chat, Stop, draft, and next
     await user.click("Run task");
     await probe.eventually(() => world.sessionState(), { within: 60_000, label: "native session moved but home stayed fixed",
       until: value => record(sessionInfo(value).location).directory === world.destination
-        && sessionInfo(value).openworkHomeDirectory === world.home });
+        && sessionInfo(value).harnessHomeDirectory === world.home });
     expect(await world.recoverUnindexedHome()).toBe(world.home);
     await user.see({ text: /sleep 120/ }, { timeoutMs: 45_000 });
     await user.type("composer", world.followup, { replace: true, verify: true });
@@ -54,7 +54,7 @@ test("HOME-01 a working-directory move preserves the chat, Stop, draft, and next
     await user.see({ text: world.reply }, { timeoutMs: 30_000 });
     expect(await probe.hash()).toBe(route);
     const info = sessionInfo(await world.sessionState());
-    expect(info.openworkHomeDirectory).toBe(world.home);
+    expect(info.harnessHomeDirectory).toBe(world.home);
     expect(record(info.location).directory).toBe(world.destination);
     expect(await world.runtime()).toEqual(runtime);
     await user.screenshot();

@@ -11,7 +11,7 @@ import {
 import { parseDynamicToolUIPart } from "../src/react-app/domains/session/sync/parse-tool-parts";
 import { codeModeToolCalls } from "../src/lib/code-mode-tools";
 import { getModelBehaviorControls, getModelBehaviorOptions } from "../src/app/lib/model-behavior";
-import { catalogFastVariants, fastVariantId, nativeModelVariants } from "@openwork/types/cloud-model-fast";
+import { catalogFastVariants, fastVariantId, nativeModelVariants } from "@harness/types/cloud-model-fast";
 import { mentionPromptParts } from "../src/react-app/domains/session/sync/mention-parts";
 import { subscribeProviderCatalogChanges } from "../src/app/lib/provider-events";
 
@@ -94,13 +94,13 @@ describe("explicit native skill attachments", () => {
     try {
       const capability = "plugin:plg_cobalt:cob_release";
       const parts = mentionPromptParts({ type: "connect-skill", slug: "cobalt", name: "Cobalt", marketplace: "Releases", capability })
-        .map(part => legacy && part.synthetic ? { ...part, metadata: { openworkSelectedSkill: { id: capability } } } : part);
+        .map(part => legacy && part.synthetic ? { ...part, metadata: { harnessSelectedSkill: { id: capability } } } : part);
       const result = await createClientV2("http://localhost:4096/opencode2", "/workspace", {}).session.promptAsync({ sessionID: "ses_cloud", model: { providerID: "witness", modelID: "model" }, parts });
       expect(result.error).toBeUndefined();
       expect(requests.map(request => request.path)).toEqual(["/opencode2/api/session/ses_cloud/model", "/opencode2/api/session/ses_cloud/prompt"]);
       expect(requests.at(-1)?.body).toEqual({ text: v2PromptText(parts) });
       expect(v2PromptText(parts)).toContain(capability);
-      expect(v2PromptText(parts)).toContain("openwork-cloud_");
+      expect(v2PromptText(parts)).toContain("harness-cloud_");
     } finally { globalThis.fetch = originalFetch; }
   });
 
@@ -145,7 +145,7 @@ describe("explicit native skill attachments", () => {
   test("does not interpret user prose as selection metadata", () => {
     const text = "Load [skill release] and follow its instructions.";
     expect(v2PromptText([{ type: "text", text }])).toBe(text);
-    expect(v2PromptText([{ type: "text", text, metadata: { openworkSelectedSkill: { name: "release" } } }])).toBe(text);
+    expect(v2PromptText([{ type: "text", text, metadata: { harnessSelectedSkill: { name: "release" } } }])).toBe(text);
   });
 
   test.each(["deny", "ask"])("does not send an attachment when native permission is %s", async (effect) => {
@@ -209,7 +209,7 @@ const capturedV2ToolMessage = {
     completed: 1_788_552_838_186,
   },
   type: "assistant",
-  agent: "openwork",
+  agent: "harness",
   model: { id: "model", providerID: "witness", variant: "default" },
   content: [
     { type: "text", text: "Running the shell.\n" },
@@ -390,7 +390,7 @@ describe("OpenCode v2 event translation", () => {
     translateV2Event({ type: "session.execution.started", data: { sessionID: "ses_move" } }, state);
     expect(translateV2Event({
       type: "session.moved", location: { directory: "/home" },
-      openworkWorkingLocation: { directory: "/worktree" },
+      harnessWorkingLocation: { directory: "/worktree" },
       data: { sessionID: "ses_move", location: { directory: "/worktree" } },
     }, state)).toEqual([{ type: "session.updated", properties: { info: { id: "ses_move", directory: "/home" } } }]);
     expect(translateV2Event({ type: "session.execution.interrupted", data: { sessionID: "ses_move", reason: "user" } }, state))
@@ -1317,14 +1317,14 @@ describe("OpenCode v2 client compatibility", () => {
     const state = createV2EventTranslationState();
     const data = { sessionID: "ses_code", assistantMessageID: "msg_code", id: "execute-code" };
     const toolCalls = [
-      { tool: "openwork-cloud.search_capabilities", status: "completed", input: { query: "Slack" } },
-      { tool: "openwork-cloud.execute_capability", status: "running", input: { name: "mcp:connection:list_channels" } },
+      { tool: "harness-cloud.search_capabilities", status: "completed", input: { query: "Slack" } },
+      { tool: "harness-cloud.execute_capability", status: "running", input: { name: "mcp:connection:list_channels" } },
     ];
     translateV2Event({ type: "session.tool.input.started", data: { ...data, name: "execute" } }, state);
     translateV2Event({ type: "session.tool.called", data: { ...data, input: { code: "recorded code" } } }, state);
     const progress = { type: "session.tool.progress", data: { ...data, metadata: { toolCalls } } };
     const expected = [{ type: "message.part.updated", properties: { part: {
-      id: "execute-code", callID: "execute-code", tool: "execute", metadata: { openworkV2CodeMode: true },
+      id: "execute-code", callID: "execute-code", tool: "execute", metadata: { harnessV2CodeMode: true },
       state: { status: "running", metadata: { toolCalls } },
     } } }];
     expect(translateV2Event(progress, state)).toMatchObject(expected);
@@ -1351,8 +1351,8 @@ describe("OpenCode v2 client compatibility", () => {
       const ui = parseDynamicToolUIPart(saved);
       if (!ui) throw new Error("Missing execute UI part");
       expect(codeModeToolCalls(ui)?.map(call => [call.toolCallId, call.toolName, call.state])).toEqual([
-        ["execute-code:call:0", "openwork-cloud_search_capabilities", "output-available"],
-        ["execute-code:call:1", "openwork-cloud_execute_capability", "output-available"],
+        ["execute-code:call:0", "harness-cloud_search_capabilities", "output-available"],
+        ["execute-code:call:1", "harness-cloud_execute_capability", "output-available"],
       ]);
       expect(ui).toMatchObject({ output: "Combined result" });
     } finally { globalThis.fetch = originalFetch; }
@@ -1530,7 +1530,7 @@ describe("OpenCode v2 client compatibility", () => {
   test("hydrates only exact previously observed subagent associations from live and reload caches", async () => {
     const ownedDom = typeof window === "undefined";
     if (ownedDom) GlobalRegistrator.register({ url: "http://localhost/" });
-    const storageKey = "openwork.v2.task-session-associations.v1";
+    const storageKey = "harness.v2.task-session-associations.v1";
     const previous = globalThis.sessionStorage.getItem(storageKey);
     const liveBaseUrl = "http://live-association.test/opencode2";
     const coldBaseUrl = "http://cold-association.test/opencode2";
@@ -1609,20 +1609,20 @@ describe("OpenCode v2 client compatibility", () => {
     try {
       const live = createClientV2(liveBaseUrl, undefined, {});
       expect(uiPart((await live.session.messages({ sessionID: "ses_parent_live" })).data, 0)?.callProviderMetadata)
-        .toMatchObject({ openwork: { childSessionId: "ses_child_live" } });
+        .toMatchObject({ harness: { childSessionId: "ses_child_live" } });
       const subscription = await live.event.subscribe();
       await subscription.stream.return(undefined);
       expect(uiPart((await live.session.messages({ sessionID: "ses_parent_live" })).data, 0)?.callProviderMetadata)
-        .toMatchObject({ openwork: { childSessionId: "ses_child_live" } });
+        .toMatchObject({ harness: { childSessionId: "ses_child_live" } });
       const hydrated = createClientV2(liveBaseUrl, directory, {});
       expect(uiPart((await hydrated.session.messages({ sessionID: "ses_parent_live" })).data, 0)?.callProviderMetadata)
-        .toMatchObject({ openwork: { childSessionId: "ses_child_live" } });
+        .toMatchObject({ harness: { childSessionId: "ses_child_live" } });
       expect(globalThis.sessionStorage.getItem(storageKey)).toContain("ses_child_live");
 
       const cold = createClientV2(coldBaseUrl, directory, {});
       const exact = await cold.session.messages({ sessionID: "ses_parent_cold" });
       expect(uiPart(exact.data, 0)?.callProviderMetadata)
-        .toMatchObject({ openwork: { childSessionId: "ses_child_cold" } });
+        .toMatchObject({ harness: { childSessionId: "ses_child_cold" } });
       for (const index of [1, 2, 3, 4]) {
         expect(JSON.stringify(uiPart(exact.data, index)?.callProviderMetadata)).not.toContain("ses_child_");
       }
@@ -1667,7 +1667,7 @@ describe("OpenCode v2 client compatibility", () => {
         const part = result.data?.[0]?.parts[0];
         if (!part || part.type !== "tool") throw new Error("Missing blocked-storage subagent");
         expect(parseDynamicToolUIPart(part)?.callProviderMetadata)
-          .toMatchObject({ openwork: { childSessionId: "ses_child_storage_blocked" } });
+          .toMatchObject({ harness: { childSessionId: "ses_child_storage_blocked" } });
       }
     } finally {
       globalThis.fetch = originalFetch;
@@ -2626,7 +2626,7 @@ describe("v2 question forms", () => {
         system: "Main conversation reference: ses_main", parts: [{ type: "text", text: "What is happening?" }] };
       expect((await client.session.promptAsync(parameters)).response.status).toBe(204);
       expect(requests.map((item) => item.method)).toEqual(["POST", "PUT", "POST"]);
-      expect(requests[1]).toMatchObject({ path: "/opencode2/api/session/ses_side/instructions/entries/openwork-context", body: { value: parameters.system } });
+      expect(requests[1]).toMatchObject({ path: "/opencode2/api/session/ses_side/instructions/entries/harness-context", body: { value: parameters.system } });
       expect(requests[2]?.body).toEqual({ text: "What is happening?" });
       requests.length = 0; status = 503;
       expect((await client.session.promptAsync(parameters)).response.status).toBe(503);

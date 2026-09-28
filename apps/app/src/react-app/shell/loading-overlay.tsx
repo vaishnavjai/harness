@@ -43,7 +43,7 @@ export function LoadingOverlay() {
   useEffect(() => {
     if (!error) return;
     let cancelled = false;
-    const bridge = window.__OPENWORK_ELECTRON__?.recovery;
+    const bridge = window.__HARNESS_ELECTRON__?.recovery;
     if (!bridge?.list) return;
     const cachedPolicy = {
       versions: [],
@@ -57,7 +57,7 @@ export function LoadingOverlay() {
         if (!cancelled && result.ok) setReleases(result.releases);
       })
       .catch(() => undefined);
-    if (window.__openworkRecoveryControl) {
+    if (window.__harnessRecoveryControl) {
       return () => {
         cancelled = true;
       };
@@ -92,7 +92,7 @@ export function LoadingOverlay() {
     }
   };
 
-  const useRelease = window.__OPENWORK_ELECTRON__?.recovery?.use;
+  const useRelease = window.__HARNESS_ELECTRON__?.recovery?.use;
 
   if (!visible || (suppressForGateway && !error)) return null;
 
@@ -110,7 +110,7 @@ export function LoadingOverlay() {
       <div className="flex w-full max-w-[320px] flex-col items-center gap-4 px-6 text-center">
         {error ? (
           <div className="flex w-full flex-col gap-3 text-[12px] leading-5">
-            <div className="text-base font-medium text-dls-primary">OpenWork couldn't start</div>
+            <div className="text-base font-medium text-dls-primary">Harness couldn't start</div>
             <div className="text-dls-secondary">Reload to try again, or return to a version that works on this computer.</div>
             <button
               type="button"
@@ -123,7 +123,7 @@ export function LoadingOverlay() {
               type="button"
               disabled={!releases.some((release) => release.marking === "previous")}
               className="rounded-md bg-dls-accent px-3 py-2 font-medium text-[var(--dls-accent-fg)] disabled:opacity-50"
-              onClick={() => void runRecovery(window.__OPENWORK_ELECTRON__?.recovery?.restorePrevious)}
+              onClick={() => void runRecovery(window.__HARNESS_ELECTRON__?.recovery?.restorePrevious)}
             >
               Restore previous version
             </button>

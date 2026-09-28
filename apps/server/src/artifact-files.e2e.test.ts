@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function createWorkspaceRoot() {
-  const root = await mkdtemp(join(tmpdir(), "openwork-artifacts-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-artifacts-"));
   roots.push(root);
   await mkdir(join(root, "reports"), { recursive: true });
   await writeFile(join(root, "reports", "artifact-eval.md"), "# Artifact Eval\n\nHello markdown.\n", "utf8");
@@ -33,7 +33,7 @@ async function createWorkspaceRoot() {
   return root;
 }
 
-async function startOpenworkServer(workspaceRoot: string) {
+async function startHarnessServer(workspaceRoot: string) {
   const config: ServerConfig = {
     host: "127.0.0.1",
     port: 0,
@@ -63,7 +63,7 @@ function auth(token: string) {
 describe("artifact file routes", () => {
   test("resolve, read, write, and download markdown/csv/xlsx/pptx/docx/html artifacts", async () => {
     const root = await createWorkspaceRoot();
-    const { base, token } = await startOpenworkServer(root);
+    const { base, token } = await startHarnessServer(root);
 
     const resolveResponse = await fetch(`${base}/workspace/ws_1/artifacts/resolve`, {
       method: "POST",
@@ -127,7 +127,7 @@ describe("artifact file routes", () => {
 
   test("lists code artifacts while excluding heavy directories", async () => {
     const root = await createWorkspaceRoot();
-    const { base, token } = await startOpenworkServer(root);
+    const { base, token } = await startHarnessServer(root);
     const sessionResponse = await fetch(`${base}/workspace/ws_1/files/sessions`, {
       method: "POST",
       headers: auth(token),

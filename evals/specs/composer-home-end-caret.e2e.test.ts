@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { emptySession } from "../worlds/desktop.ts";
 
 const test = spec.world(emptySession);

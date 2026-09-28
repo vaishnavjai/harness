@@ -1,9 +1,9 @@
 // Explicit extension: node --test loads this route without Next's resolver.
 import { after } from "next/server.js";
-import { readReview } from "@openwork/review/storage";
-import { ensureSnapshot } from "@openwork/freestyle/builder";
-import { buildProgress } from "@openwork/freestyle/progress";
-import { findSnapshot, launchPreview } from "@openwork/freestyle";
+import { readReview } from "@harness/review/storage";
+import { ensureSnapshot } from "@harness/freestyle/builder";
+import { buildProgress } from "@harness/freestyle/progress";
+import { findSnapshot, launchPreview } from "@harness/freestyle";
 import { launchHandlers } from "../../../../lib/launch.ts";
 
 export const runtime = "nodejs";

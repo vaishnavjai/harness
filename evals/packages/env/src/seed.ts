@@ -1,8 +1,8 @@
-import type { BrowserEvaluation, EvaluateOptions } from "@openwork/cdp";
-import type { DenFetchResult, DenSession, NativeConnectorInput } from "@openwork/behaviors";
-import type { AttachedSurface, Surface } from "@openwork/cdp";
-import type { StartMockMcpOptions } from "@openwork/labs";
-import type { DaytonaExec, DesktopHandle } from "@openwork/hosts";
+import type { BrowserEvaluation, EvaluateOptions } from "@harness/cdp";
+import type { DenFetchResult, DenSession, NativeConnectorInput } from "@harness/behaviors";
+import type { AttachedSurface, Surface } from "@harness/cdp";
+import type { StartMockMcpOptions } from "@harness/labs";
+import type { DaytonaExec, DesktopHandle } from "@harness/hosts";
 import type { App } from "./desktop-app.ts";
 import type { AppWeb, SeedAppWebOptions } from "./app-web.ts";
 import type { Den, ServerOptions } from "./den.ts";

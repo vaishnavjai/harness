@@ -103,7 +103,7 @@ export function useSessionArchive(input: {
   async function restore(target: ArchiveTarget, announce: boolean, undo?: typeof undoNavigation.current) {
     const { workspace, endpoint, sessionId } = target;
     try {
-      await setSessionArchived(createClient(endpoint.opencodeBaseUrl, workspace.path, { token: endpoint.token, mode: "openwork" }, { desktopTransport: "main" }), sessionId, false, workspace.path);
+      await setSessionArchived(createClient(endpoint.opencodeBaseUrl, workspace.path, { token: endpoint.token, mode: "harness" }, { desktopTransport: "main" }), sessionId, false, workspace.path);
       await Promise.all([...new Set([workspace.id, endpoint.workspaceId])].map(id => applySessionArchived(id, sessionId, false)));
       const now = current.current;
       if (mounted.current) now.input.onArchivedChange(workspace.id, sessionId, false);
@@ -154,7 +154,7 @@ export function useSessionArchive(input: {
     const baseUrl = endpoint.opencodeBaseUrl;
     // Finite archive verification must not queue behind retained renderer SSEs.
     // Keep the same safety checks; only the desktop HTTP transport changes.
-    const client = createClient(baseUrl, workspace.path, { token: endpoint.token, mode: "openwork" }, { desktopTransport: "main" });
+    const client = createClient(baseUrl, workspace.path, { token: endpoint.token, mode: "harness" }, { desktopTransport: "main" });
     const releases = new Map<string, () => void>();
     const controller = new AbortController();
     activeController.current = controller;

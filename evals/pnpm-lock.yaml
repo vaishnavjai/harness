@@ -8,43 +8,43 @@ importers:
 
   .:
     dependencies:
-      '@openwork/behaviors':
+      '@harness/behaviors':
         specifier: workspace:*
         version: link:packages/behaviors
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:packages/cdp
-      '@openwork/env':
+      '@harness/env':
         specifier: workspace:*
         version: link:packages/env
-      '@openwork/hosts':
+      '@harness/hosts':
         specifier: workspace:*
         version: link:packages/hosts
-      '@openwork/labs':
+      '@harness/labs':
         specifier: workspace:*
         version: link:packages/labs
-      '@openwork/matchers':
+      '@harness/matchers':
         specifier: workspace:*
         version: link:packages/matchers
-      '@openwork/review':
+      '@harness/review':
         specifier: link:../packages/review
         version: link:../packages/review
-      '@openwork/sdk':
+      '@harness/sdk':
         specifier: link:../packages/sdk
         version: link:../packages/sdk
-      '@openwork/test-artifacts':
+      '@harness/test-artifacts':
         specifier: workspace:*
         version: link:packages/test-artifacts
-      '@openwork/test-evidence':
+      '@harness/test-evidence':
         specifier: workspace:*
         version: link:packages/test-evidence
-      '@openwork/testkit':
+      '@harness/testkit':
         specifier: workspace:*
         version: link:packages/testkit
-      '@openwork/types':
+      '@harness/types':
         specifier: link:../packages/types
         version: link:../packages/types
-      '@openwork/world':
+      '@harness/world':
         specifier: link:../packages/world
         version: link:../packages/world
     devDependencies:
@@ -69,19 +69,19 @@ importers:
 
   ../scenarios:
     dependencies:
-      '@openwork/behaviors':
+      '@harness/behaviors':
         specifier: workspace:*
         version: link:../evals/packages/behaviors
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../evals/packages/cdp
-      '@openwork/env':
+      '@harness/env':
         specifier: workspace:*
         version: link:../evals/packages/env
-      '@openwork/presentation':
+      '@harness/presentation':
         specifier: link:../packages/presentation
         version: link:../packages/presentation
-      '@openwork/testkit':
+      '@harness/testkit':
         specifier: workspace:*
         version: link:../evals/packages/testkit
       '@remotion/bundler':
@@ -112,16 +112,16 @@ importers:
 
   packages/behaviors:
     dependencies:
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openwork/labs':
+      '@harness/labs':
         specifier: workspace:*
         version: link:../labs
-      '@openwork/matchers':
+      '@harness/matchers':
         specifier: workspace:*
         version: link:../matchers
-      '@openwork/timeline':
+      '@harness/timeline':
         specifier: workspace:*
         version: link:../timeline
 
@@ -129,22 +129,22 @@ importers:
 
   packages/env:
     dependencies:
-      '@openwork/freestyle':
+      '@harness/freestyle':
         specifier: link:../../../packages/freestyle
         version: link:../../../packages/freestyle
-      '@openwork/behaviors':
+      '@harness/behaviors':
         specifier: workspace:*
         version: link:../behaviors
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openwork/hosts':
+      '@harness/hosts':
         specifier: workspace:*
         version: link:../hosts
-      '@openwork/labs':
+      '@harness/labs':
         specifier: workspace:*
         version: link:../labs
-      '@openwork/world':
+      '@harness/world':
         specifier: link:../../../packages/world
         version: link:../../../packages/world
       mysql2:
@@ -153,13 +153,13 @@ importers:
 
   packages/hosts:
     dependencies:
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openwork/paths':
+      '@harness/paths':
         specifier: link:../../../packages/paths
         version: link:../../../packages/paths
-      '@openwork/timeline':
+      '@harness/timeline':
         specifier: workspace:*
         version: link:../timeline
 
@@ -169,46 +169,46 @@ importers:
 
   packages/test-artifacts:
     dependencies:
-      '@openwork/review':
+      '@harness/review':
         specifier: link:../../../packages/review
         version: link:../../../packages/review
 
   packages/test-evidence:
     dependencies:
-      '@openwork/freestyle':
+      '@harness/freestyle':
         specifier: link:../../../packages/freestyle
         version: link:../../../packages/freestyle
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openwork/env':
+      '@harness/env':
         specifier: workspace:*
         version: link:../env
-      '@openwork/timeline':
+      '@harness/timeline':
         specifier: workspace:*
         version: link:../timeline
 
   packages/testkit:
     dependencies:
-      '@openwork/behaviors':
+      '@harness/behaviors':
         specifier: workspace:*
         version: link:../behaviors
-      '@openwork/cdp':
+      '@harness/cdp':
         specifier: workspace:*
         version: link:../cdp
-      '@openwork/env':
+      '@harness/env':
         specifier: workspace:*
         version: link:../env
-      '@openwork/hosts':
+      '@harness/hosts':
         specifier: workspace:*
         version: link:../hosts
-      '@openwork/labs':
+      '@harness/labs':
         specifier: workspace:*
         version: link:../labs
-      '@openwork/test-artifacts':
+      '@harness/test-artifacts':
         specifier: workspace:*
         version: link:../test-artifacts
-      '@openwork/test-evidence':
+      '@harness/test-evidence':
         specifier: workspace:*
         version: link:../test-evidence
       mysql2:

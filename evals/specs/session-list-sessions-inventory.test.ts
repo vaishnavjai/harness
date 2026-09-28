@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { test } from "@openwork/testkit";
+import { test } from "@harness/testkit";
 
 import { listControlSessions } from "../../apps/app/src/react-app/domains/session/control/list-control-sessions";
 

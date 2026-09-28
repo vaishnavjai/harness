@@ -8,7 +8,6 @@ import { toast } from "@/components/ui/sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-import { captureAnalyticsEvent } from "@/app/lib/analytics";
 import { hasTerminalSessionReply, interruptSessionTurn, sessionHasPendingSubmission, sessionNeedsStop, sessionWorkHeld, submitAfterInterruption, submitImmediateSessionTurn, subscribeSessionInterruption } from "@/app/lib/opencode-interruption";
 import { createClient, createPromptMessageID, isPromptAdmissionUnknown, promptAdmissionFailure, readPromptAdmission, unwrap } from "@/app/lib/opencode";
 import { createClientV2, isOpencodeV2BaseUrl, v2PromptText } from "@/app/lib/opencode-v2-adapter";
@@ -24,10 +23,10 @@ import { createDenClient, readDenSettings } from "@/app/lib/den";
 import { denSettingsChangedEvent } from "@/app/lib/den-session-events";
 import { useSessionDraftState } from "@/react-app/domains/session/sync/draft-store";
 import type {
-  OpenworkServerClient,
-  OpenworkSessionHistory,
-} from "@/app/lib/openwork-server";
-import { isLoopbackOpenworkServerUrl } from "@/app/lib/openwork-server";
+  HarnessServerClient,
+  HarnessSessionHistory,
+} from "@/app/lib/harness-server";
+import { isLoopbackHarnessServerUrl } from "@/app/lib/harness-server";
 import type {
   ComposerAttachment,
   ComposerDraft,
@@ -44,7 +43,7 @@ import {
   publishInspectorSlice,
   recordInspectorEvent,
 } from "@/app/lib/app-inspector";
-import { useControlAction, type OpenworkControlAction } from "@/react-app/shell/control/control-provider";
+import { useControlAction, type HarnessControlAction } from "@/react-app/shell/control/control-provider";
 import { isConnectDirectMcpServerName } from "@/react-app/domains/connections/cloud-mcp-user-state";
 import { attemptSilentMcpReauth } from "@/react-app/domains/connections/mcp-silent-reauth";
 import type {
@@ -75,7 +74,7 @@ import {
   subscribeQueuedDrain,
 } from "./queued-drain-machine";
 import { DevProfiler } from "@/react-app/shell/dev-profiler";
-import { PaperGrainGradient } from "@openwork/ui/react";
+import { PaperGrainGradient } from "@harness/ui/react";
 import { useShellConfig } from "@/react-app/shell/shell-config";
 import { useReactRenderWatchdog } from "@/react-app/shell/react-render-watchdog";
 import { SessionDebugPanel } from "./debug-panel";
@@ -179,21 +178,21 @@ import { buildConnectorToolIdentities } from "@/react-app/domains/connections/co
 
 const EMPTY_TRANSCRIPT: UIMessage[] = [];
 const IDLE_STATUS: SessionStatus = { type: "idle" };
-const DEFAULT_COMPOSER_CONTROL_TEXT = "Help me outline the next OpenWork task.";
+const DEFAULT_COMPOSER_CONTROL_TEXT = "Help me outline the next Harness task.";
 const SESSION_SURFACE_SELECTOR = "[data-session-surface-id]";
 
 function sanitizedInspectorDiagnosticText(value: string) {
   return value
     .replace(/https?:\/\/[^\s"'<>]+/gi, "[url]")
     .replace(/\b(Bearer|Basic)\s+[^\s"'<>]+/gi, "$1 [redacted]")
-    .replace(/\b(authorization|ownerToken|clientToken|openworkToken|accessToken|apiKey|token)\b\s*[=:]\s*[^\s,;]+/gi, "$1=[redacted]")
+    .replace(/\b(authorization|ownerToken|clientToken|harnessToken|accessToken|apiKey|token)\b\s*[=:]\s*[^\s,;]+/gi, "$1=[redacted]")
     .replace(/[\r\n\t]+/g, " ")
     .slice(0, 240);
 }
 
 const MARKDOWN_PRIMITIVE_EVAL_TEXT = `# Markdown proof heading
 
-This shared renderer keeps **bold proof text**, inline \`renderMarkdownHtml\`, and [OpenWork link](https://openworklabs.com) readable in one message.
+This shared renderer keeps **bold proof text**, inline \`renderMarkdownHtml\`, and [Harness link](https://github.com/vaishnavjai/harness) readable in one message.
 
 \`\`\`ts
 const pipeline = "shared markdown primitive";
@@ -332,7 +331,7 @@ function createChatTranscriptEvalMessages(sessionId: string) {
         },
         {
           type: "dynamic-tool",
-          toolName: "openwork-cloud_execute_capability",
+          toolName: "harness-cloud_execute_capability",
           toolCallId: "eval-transcript-capability",
           state: "output-available",
           input: { name: "getCapabilitiesGoogleWorkspaceCalendarEvents", body: {} },
@@ -359,7 +358,7 @@ function createChatTranscriptEvalMessages(sessionId: string) {
           toolName: "edit",
           toolCallId: "eval-transcript-edit-1",
           state: "output-available",
-          input: { filePath: "/tmp/openwork-eval/plan-tomorrow.md", oldString: "", newString: "" },
+          input: { filePath: "/tmp/harness-eval/plan-tomorrow.md", oldString: "", newString: "" },
           output: "",
         },
         {
@@ -367,7 +366,7 @@ function createChatTranscriptEvalMessages(sessionId: string) {
           toolName: "read",
           toolCallId: "eval-transcript-read-1",
           state: "output-available",
-          input: { filePath: "/tmp/openwork-eval/meeting-notes.md" },
+          input: { filePath: "/tmp/harness-eval/meeting-notes.md" },
           output: "",
         },
         {
@@ -380,7 +379,7 @@ function createChatTranscriptEvalMessages(sessionId: string) {
         },
         {
           type: "text",
-          text: "Your plan is drafted — details in [OpenWork](https://openworklabs.com). Search token: chat-transcript-proof.",
+          text: "Your plan is drafted — details in [Harness](https://github.com/vaishnavjai/harness). Search token: chat-transcript-proof.",
         },
       ],
       // `completed` makes the finished turn fold behind a real
@@ -406,7 +405,7 @@ function createConnectorToolCallEvalMessages(sessionId: string): UIMessage[] {
       role: "assistant",
       parts: [{
         type: "dynamic-tool",
-        toolName: "openwork-cloud_execute_capability",
+        toolName: "harness-cloud_execute_capability",
         toolCallId: "eval-connector-google-workspace",
         state: "output-available",
         input: { name: "getCapabilitiesGoogleWorkspaceCalendarEvents", body: {} },
@@ -442,7 +441,7 @@ function createSessionLifecycleEvalMessages(sessionId: string): UIMessage[] {
           toolName: "read",
           toolCallId: "eval-lifecycle-read",
           state: "input-streaming",
-          input: { filePath: "/tmp/openwork-eval/brief.md" },
+          input: { filePath: "/tmp/harness-eval/brief.md" },
         },
       ],
       metadata: { opencode: { created: now + 1 } },
@@ -514,7 +513,7 @@ function createSubagentActivityEvalMessages(sessionId: string, childSessionId?: 
             prompt: "Reproduce the Azure failure in isolation.",
             subagent_type: "executor-deep",
           },
-          ...(childSessionId ? { callProviderMetadata: { openwork: { childSessionId } } } : {}),
+          ...(childSessionId ? { callProviderMetadata: { harness: { childSessionId } } } : {}),
         },
       ],
       metadata: { opencode: { created: now + 1 } },
@@ -585,8 +584,8 @@ function createImageLightboxEvalMessages(sessionId: string): UIMessage[] {
 }
 
 export type SessionSurfaceProps = {
-  client: OpenworkServerClient;
-  environmentClient?: OpenworkServerClient | null;
+  client: HarnessServerClient;
+  environmentClient?: HarnessServerClient | null;
   workspaceId: string;
   workspaceRoot: string;
   sessionId: string;
@@ -594,7 +593,7 @@ export type SessionSurfaceProps = {
   isControlTarget: boolean;
   chatPane?: "primary" | "secondary";
   opencodeBaseUrl: string;
-  openworkToken: string;
+  harnessToken: string;
   developerMode: boolean;
   modelLabel: string;
   onModelClick: (sessionId?: string) => void;
@@ -614,10 +613,10 @@ export type SessionSurfaceProps = {
   providerCatalog?: ProviderCatalog;
   gatewayProviderIds?: ReadonlySet<string>;
   gatewayUsageProviderScope?: number | null;
-  /** Den/import includes OpenWork Models for this org member (not just local sync). */
-  openWorkModelsEntitled?: boolean;
-  /** The server is waiting to reload this workspace with OpenWork Models. */
-  openWorkModelsSyncing?: boolean;
+  /** Den/import includes Harness Models for this org member (not just local sync). */
+  harnessModelsEntitled?: boolean;
+  /** The server is waiting to reload this workspace with Harness Models. */
+  harnessModelsSyncing?: boolean;
   onRefreshOrganizationModels?: () => void | Promise<void>;
   onModelPickerOpenChange: (open: boolean) => void;
   onModelChange: (model: ModelRef, variant?: string | null) => void;
@@ -667,7 +666,7 @@ export type SessionSurfaceProps = {
 };
 
 function messageToReadableText(message: UIMessage) {
-  const header = message.role === "user" ? "You" : message.role === "assistant" ? "OpenWork" : message.role;
+  const header = message.role === "user" ? "You" : message.role === "assistant" ? "Harness" : message.role;
   const body = message.parts
     .flatMap((part) => {
       if (part.type === "text") return [part.text];
@@ -958,7 +957,7 @@ function composerSessionHasContent(state: ComposerSessionState | undefined) {
   ));
 }
 
-function hiddenMessageCount(snapshot: OpenworkSessionHistory, revertMessageId: string): number {
+function hiddenMessageCount(snapshot: HarnessSessionHistory, revertMessageId: string): number {
   const index = snapshot.messages.findIndex((message) => message.info.id === revertMessageId);
   return index < 0 ? snapshot.messages.length : snapshot.messages.length - index;
 }
@@ -1085,7 +1084,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
       workspaceId: props.workspaceId,
       workspaceRoot: props.workspaceRoot,
       opencodeBaseUrl: props.opencodeBaseUrl,
-      openworkToken: props.openworkToken,
+      harnessToken: props.harnessToken,
       client: props.client,
       agent: sessionAgent.selectedAgent,
       variant: props.modelVariant,
@@ -1097,7 +1096,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     props.environmentRuntimeKey,
     props.modelVariant,
     props.opencodeBaseUrl,
-    props.openworkToken,
+    props.harnessToken,
     sessionAgent.selectedAgent,
     props.selectedModel,
     props.sessionId,
@@ -1160,12 +1159,12 @@ export function SessionSurface(props: SessionSurfaceProps) {
   activeSessionOwnerRef.current = sessionOwner;
   const snapshotTargetRef = useRef<NativeSessionSnapshotTarget>({
     owner: sessionOwner,
-    endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.openworkToken },
+    endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.harnessToken },
     sessionId: props.sessionId,
   });
   snapshotTargetRef.current = {
     owner: sessionOwner,
-    endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.openworkToken },
+    endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.harnessToken },
     sessionId: props.sessionId,
   };
   const [ownedError, setOwnedError] = useState<{ owner: string; error: SessionError } | null>(null);
@@ -1179,7 +1178,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   // Terminal invariant: an accepted admission that reached idle with no
   // assistant result surfaces a bounded recovery card instead of plain idle.
   const [admissionOutcomeUnresolved, setAdmissionOutcomeUnresolved] = useState(false);
-  const [rendered, setRendered] = useState<{ owner: string; sessionId: string; snapshot: OpenworkSessionHistory } | null>(null);
+  const [rendered, setRendered] = useState<{ owner: string; sessionId: string; snapshot: HarnessSessionHistory } | null>(null);
   const [toolSkills, setToolSkills] = useState<SkillCard[]>([]);
   const [toolMcpServers, setToolMcpServers] = useState<McpServerEntry[]>([]);
   const [toolMcpStatus, setToolMcpStatus] = useState<string | null>(null);
@@ -1225,9 +1224,9 @@ export function SessionSurface(props: SessionSurfaceProps) {
   const initializedAutoOpenSessionRef = useRef<string | null>(null);
   const opencodeClient = useMemo(
     () => isOpencodeV2BaseUrl(props.opencodeBaseUrl)
-      ? createClientV2(props.opencodeBaseUrl, props.workspaceRoot || undefined, { token: props.openworkToken })
-      : createClient(props.opencodeBaseUrl, props.workspaceRoot.trim() || undefined, { token: props.openworkToken, mode: "openwork" }),
-    [props.opencodeBaseUrl, props.openworkToken, props.workspaceRoot],
+      ? createClientV2(props.opencodeBaseUrl, props.workspaceRoot || undefined, { token: props.harnessToken })
+      : createClient(props.opencodeBaseUrl, props.workspaceRoot.trim() || undefined, { token: props.harnessToken, mode: "harness" }),
+    [props.opencodeBaseUrl, props.harnessToken, props.workspaceRoot],
   );
 
   const transcriptQueryKey = useMemo(
@@ -1239,7 +1238,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     [props.workspaceId, props.sessionId],
   );
   const useDesktopLoopbackSnapshotRetry = isDesktopRuntime()
-    && isLoopbackOpenworkServerUrl(props.opencodeBaseUrl);
+    && isLoopbackHarnessServerUrl(props.opencodeBaseUrl);
   const readSnapshot = useCallback(async (signal: AbortSignal, window?: OpeningHistoryWindow, options?: { desktopTransport: "main" }) => {
       if (evalSnapshotFailureRef.current) {
         throw new Error("eval: forced session snapshot failure");
@@ -1255,13 +1254,13 @@ export function SessionSurface(props: SessionSurfaceProps) {
           { ...window, signal },
         )
         : await opencodeSessionNative.composeNativeSessionHistory(
-          { opencodeBaseUrl: props.opencodeBaseUrl, token: props.openworkToken, desktopTransport: options?.desktopTransport },
+          { opencodeBaseUrl: props.opencodeBaseUrl, token: props.harnessToken, desktopTransport: options?.desktopTransport },
           props.sessionId,
           { ...window, signal },
         );
       markSessionSnapshotFetchStart(item, startedAt);
       return item;
-  }, [props.opencodeBaseUrl, props.openworkToken, props.sessionId, sessionOwner, useDesktopLoopbackSnapshotRetry]);
+  }, [props.opencodeBaseUrl, props.harnessToken, props.sessionId, sessionOwner, useDesktopLoopbackSnapshotRetry]);
   const readOpening = useCallback(async (signal: AbortSignal, window: OpeningHistoryWindow) => {
     if (evalSnapshotFailureRef.current) throw new Error("eval: forced session snapshot failure");
     const startedAt = Date.now();
@@ -1269,28 +1268,28 @@ export function SessionSurface(props: SessionSurfaceProps) {
     // retained read never follows a later owner. Its bounded retry only covers
     // transient failures; permanent ones settle immediately into Retry.
     const target = { owner: sessionOwner, sessionId: props.sessionId,
-      endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.openworkToken } };
+      endpoint: { opencodeBaseUrl: props.opencodeBaseUrl, token: props.harnessToken } };
     const item = await opencodeSessionNative.composeNativeSessionHistoryWithRetry(sessionOwner, () => target, { ...window, signal });
     markSessionSnapshotFetchStart(item, startedAt);
     return item;
-  }, [props.opencodeBaseUrl, props.openworkToken, props.sessionId, sessionOwner]);
+  }, [props.opencodeBaseUrl, props.harnessToken, props.sessionId, sessionOwner]);
   const readLatest = useCallback(async (signal: AbortSignal, options?: { desktopTransport: "main" }) => {
-    const endpoint = { opencodeBaseUrl: props.opencodeBaseUrl, token: props.openworkToken, ...options };
+    const endpoint = { opencodeBaseUrl: props.opencodeBaseUrl, token: props.harnessToken, ...options };
     const [session, messages] = await Promise.all([
       opencodeSessionNative.getNativeSession(endpoint, props.sessionId, { signal }),
       opencodeSessionNative.getNativeSessionMessages(endpoint, props.sessionId, { signal, limit: LATEST_HISTORY_WINDOW }),
     ]);
     return { session, messages };
-  }, [props.opencodeBaseUrl, props.openworkToken, props.sessionId]);
-  const snapshotOwnerRef = useRef({ queryKey: snapshotQueryKey, owner: sessionOwner, authToken: props.openworkToken });
+  }, [props.opencodeBaseUrl, props.harnessToken, props.sessionId]);
+  const snapshotOwnerRef = useRef({ queryKey: snapshotQueryKey, owner: sessionOwner, authToken: props.harnessToken });
   const snapshotOwnerMatches = hashKey(snapshotOwnerRef.current.queryKey) !== hashKey(snapshotQueryKey)
-    || snapshotOwnerRef.current.owner === sessionOwner && snapshotOwnerRef.current.authToken === props.openworkToken;
+    || snapshotOwnerRef.current.owner === sessionOwner && snapshotOwnerRef.current.authToken === props.harnessToken;
   const metadataQueryKey = useMemo(() => sessionMetadataKey({ workspaceId: props.workspaceId,
-    baseUrl: props.opencodeBaseUrl, openworkToken: props.openworkToken }, props.sessionId),
-  [props.workspaceId, props.opencodeBaseUrl, props.openworkToken, props.sessionId]);
-  const openingHistory = useOpeningSessionHistory({ owner: sessionOwner, runtimeOwner, sessionId: props.sessionId, authToken: props.openworkToken,
+    baseUrl: props.opencodeBaseUrl, harnessToken: props.harnessToken }, props.sessionId),
+  [props.workspaceId, props.opencodeBaseUrl, props.harnessToken, props.sessionId]);
+  const openingHistory = useOpeningSessionHistory({ owner: sessionOwner, runtimeOwner, sessionId: props.sessionId, authToken: props.harnessToken,
     ignoreCached: !snapshotOwnerMatches, metadataQueryKey, snapshotQueryKey, transcriptQueryKey, readSnapshot, readOpening, readLatest });
-  const snapshotQuery = useQuery<OpenworkSessionHistory>({
+  const snapshotQuery = useQuery<HarnessSessionHistory>({
     queryKey: snapshotQueryKey,
     queryFn: ({ signal }) => openingHistory.readFullSnapshot(signal),
     enabled: openingHistory.backgroundReady || findOwned,
@@ -1303,12 +1302,12 @@ export function SessionSurface(props: SessionSurfaceProps) {
   const historyViewOwner = JSON.stringify([sessionOwner, openingHistory.options.queryKey[2]]);
   useEffect(() => {
     const previous = snapshotOwnerRef.current;
-    snapshotOwnerRef.current = { queryKey: snapshotQueryKey, owner: sessionOwner, authToken: props.openworkToken };
+    snapshotOwnerRef.current = { queryKey: snapshotQueryKey, owner: sessionOwner, authToken: props.harnessToken };
     if (hashKey(previous.queryKey) !== hashKey(snapshotQueryKey)
-      || previous.owner === sessionOwner && previous.authToken === props.openworkToken) return;
+      || previous.owner === sessionOwner && previous.authToken === props.harnessToken) return;
     void queryClient.resetQueries({ queryKey: snapshotQueryKey, exact: true });
     void queryClient.resetQueries({ queryKey: transcriptQueryKey, exact: true });
-  }, [queryClient, sessionOwner, props.openworkToken, snapshotQueryKey, transcriptQueryKey]);
+  }, [queryClient, sessionOwner, props.harnessToken, snapshotQueryKey, transcriptQueryKey]);
 
   const fullSnapshot = snapshotOwnerMatches && snapshotQuery.data?.session.id === props.sessionId ? snapshotQuery.data : null;
   const hasFullHistory = snapshotOwnerMatches && openingHistory.complete;
@@ -1402,7 +1401,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
         currentSnapshotId: currentSnapshot?.session.id ?? null,
         intendedSessionId: props.sessionId,
         opencodeBaseUrl: inspectorOpencodeBaseUrl,
-        tokenPresent: props.openworkToken.length > 0,
+        tokenPresent: props.harnessToken.length > 0,
       },
       error,
     }));
@@ -1415,7 +1414,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     pasteParts,
     currentSnapshot,
     inspectorOpencodeBaseUrl,
-    props.openworkToken,
+    props.harnessToken,
     props.sessionId,
     props.workspaceId,
     props.cloudMcpSubmissionState,
@@ -1607,7 +1606,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   useEffect(() => {
     renderedMessagesRef.current = renderedMessages;
   }, [renderedMessages]);
-  const seedMarkdownPrimitiveControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedMarkdownPrimitiveControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1629,7 +1628,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId]);
   useControlAction(props.isControlTarget ? seedMarkdownPrimitiveControlAction : null);
-  const setMermaidEvalThemeControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const setMermaidEvalThemeControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1647,7 +1646,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId]);
   useControlAction(props.isControlTarget ? setMermaidEvalThemeControlAction : null);
-  const seedMarkdownMathControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedMarkdownMathControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1671,7 +1670,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId]);
   useControlAction(props.isControlTarget ? seedMarkdownMathControlAction : null);
-  const seedChatTranscriptControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedChatTranscriptControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1688,7 +1687,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId]);
   useControlAction(props.isControlTarget ? seedChatTranscriptControlAction : null);
-  const seedConnectorToolCallControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedConnectorToolCallControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1704,7 +1703,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId]);
   useControlAction(props.isControlTarget ? seedConnectorToolCallControlAction : null);
-  const seedSessionErrorControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedSessionErrorControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1734,7 +1733,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId, setError]);
   useControlAction(props.isControlTarget ? seedSessionErrorControlAction : null);
-  const seedSessionLifecycleControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedSessionLifecycleControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1776,7 +1775,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId, props.workspaceId]);
   useControlAction(props.isControlTarget ? seedSessionLifecycleControlAction : null);
-  const seedSubagentActivityControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedSubagentActivityControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1810,7 +1809,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId, props.workspaceId]);
   useControlAction(props.isControlTarget ? seedSubagentActivityControlAction : null);
-  const seedChatLoadingControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedChatLoadingControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1832,7 +1831,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     };
   }, [props.sessionId, props.workspaceId]);
   useControlAction(props.isControlTarget ? seedChatLoadingControlAction : null);
-  const seedImageLightboxControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const seedImageLightboxControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -1992,7 +1991,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     // A failed send stays visible for composer recovery; only snapshot failure invalidates the session transition.
     isError: snapshotQuery.isError || Boolean(openingHistory.openingError),
   });
-  const failSessionSnapshotControlAction = useMemo<OpenworkControlAction | null>(() => {
+  const failSessionSnapshotControlAction = useMemo<HarnessControlAction | null>(() => {
     if (!import.meta.env.DEV) return null;
 
     return {
@@ -2188,7 +2187,6 @@ export function SessionSurface(props: SessionSurfaceProps) {
       }
       dispatchQueuedDrain(props.sessionId, { type: "send_error", itemId });
       const parsed = parseSessionError(nextError);
-      captureAnalyticsEvent("task_send_failed", {});
       setError(parsed);
       useSessionActivityStore.getState().setError(props.workspaceId, props.sessionId, parsed.message);
       if (activeSessionOwnerRef.current === sessionOwner) {
@@ -2441,14 +2439,13 @@ export function SessionSurface(props: SessionSurfaceProps) {
       // and answers `200: false` while the stream keeps going (#2014).
       const stopClient = isOpencodeV2BaseUrl(props.opencodeBaseUrl) ? opencodeClient
         : createClient(props.opencodeBaseUrl, props.workspaceRoot.trim() || undefined,
-          { token: props.openworkToken, mode: "openwork" }, { desktopTransport: "main" });
+          { token: props.harnessToken, mode: "harness" }, { desktopTransport: "main" });
       await interruptSessionTurn(props.opencodeBaseUrl, stopClient, props.sessionId,
         props.workspaceRoot.trim() || undefined, {
           admissionUnknown: phase.kind === "admission_unknown",
           admissionMessageID: phase.kind === "admission_unknown" ? phase.messageID : undefined,
           onStopped: () => dispatchQueuedDrain(props.sessionId, { type: "stop_confirmed" }),
         });
-      captureAnalyticsEvent("task_run_stopped", {});
       // The surface survives navigation; refresh the stopped conversation, not
       // whichever query the observer is showing when cancellation finishes.
       if (isDesktopRuntime() && !isOpencodeV2BaseUrl(props.opencodeBaseUrl)) {
@@ -2464,7 +2461,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
       pendingStopsRef.current.delete(sessionOwner);
       setPendingStopSessions([...pendingStopsRef.current]);
     }
-  }, [chatStreaming, clearQueuedDrafts, opencodeClient, openingHistory.refreshFullSnapshot, props.opencodeBaseUrl, props.openworkToken, props.sessionId, props.workspaceRoot, queryClient, sessionOwner, snapshotQueryKey, setError]);
+  }, [chatStreaming, clearQueuedDrafts, opencodeClient, openingHistory.refreshFullSnapshot, props.opencodeBaseUrl, props.harnessToken, props.sessionId, props.workspaceRoot, queryClient, sessionOwner, snapshotQueryKey, setError]);
 
   const checkUnknownAdmission = useCallback(async (notify = false) => {
     const phase = getQueuedDrainState(props.sessionId).phase;
@@ -2760,12 +2757,12 @@ export function SessionSurface(props: SessionSurfaceProps) {
 
   const typeComposerText = useCallback(async (text: string, revertMessageId?: string | null) => {
     if (archived || !archiveStateKnown || sessionWorkHeld(props.opencodeBaseUrl, props.sessionId)) return;
-    window.dispatchEvent(new Event("openwork:focusPrompt"));
+    window.dispatchEvent(new Event("harness:focusPrompt"));
     replaceComposerDraft(props.sessionId, text, revertMessageId);
     await waitForControl(40);
   }, [archived, archiveStateKnown, props.opencodeBaseUrl, props.sessionId, replaceComposerDraft]);
 
-  const composerSetTextControlAction = useMemo<OpenworkControlAction>(() => ({
+  const composerSetTextControlAction = useMemo<HarnessControlAction>(() => ({
     id: "composer.set_text",
     label: "Type into the composer",
     description: "Replace the draft of the composer the person currently has focused and type the supplied text visibly. Focus-bound: it targets whichever pane is focused when it runs, never a session by id. To message another session use session.send.",
@@ -2786,7 +2783,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   }), [archived, archiveStateKnown, archiveHeld, attachments, buildDraft, props.onDraftChange, typeComposerText]);
   useControlAction(props.isControlTarget ? composerSetTextControlAction : null);
 
-  const composerSendControlAction = useMemo<OpenworkControlAction>(() => ({
+  const composerSendControlAction = useMemo<HarnessControlAction>(() => ({
     id: "composer.send",
     label: "Send the composer prompt",
     description: "Send the draft of the composer the person currently has focused to that session. Focus-bound: if focus moved since composer.set_text, the draft goes to the newly focused session. Disabled while that session is mid-turn. To message another session use session.send.",
@@ -2800,7 +2797,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   }), [archived, archiveStateKnown, archiveHeld, attachments.length, draft, handleSend, model.transitionState, queuedDrainState.phase.kind, sessionModelUnavailable]);
   useControlAction(props.isControlTarget ? composerSendControlAction : null);
 
-  const composerStopControlAction = useMemo<OpenworkControlAction>(() => ({
+  const composerStopControlAction = useMemo<HarnessControlAction>(() => ({
     id: "composer.stop",
     label: "Stop the current run",
     description: "Stop the run of the session the person currently has focused. Focus-bound: it never targets a session by id.",
@@ -2860,7 +2857,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
         name: entry.name,
         config: entry.config as McpServerEntry["config"],
         source: entry.source,
-        origin: entry.name === "openwork-cloud" ? "openwork-connect" : "local",
+        origin: entry.name === "harness-cloud" ? "harness-connect" : "local",
       } satisfies McpServerEntry));
 
     void connectPromise.then((connect) => {
@@ -3056,10 +3053,10 @@ export function SessionSurface(props: SessionSurfaceProps) {
   useEffect(() => {
     const refreshConnectionInventory = () => {
       clearCloudInventoryCache();
-      setToolSkills((current) => current.filter((skill) => skill.origin !== "openwork-connect"));
-      setToolMcpServers((current) => current.filter((server) => server.origin !== "openwork-connect"));
+      setToolSkills((current) => current.filter((skill) => skill.origin !== "harness-connect"));
+      setToolMcpServers((current) => current.filter((server) => server.origin !== "harness-connect"));
       setToolMcpStatuses((current) => Object.fromEntries(
-        Object.entries(current).filter(([key]) => !key.startsWith("openwork-connect:")),
+        Object.entries(current).filter(([key]) => !key.startsWith("harness-connect:")),
       ));
     };
     const refreshImportedPlugins = () => {
@@ -3084,7 +3081,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
     const organizationId = settings.activeOrgId?.trim() ?? "";
     if (!token || !organizationId) {
       props.onOpenConnect();
-      throw new Error("Sign in to OpenWork Cloud, then try reconnecting again.");
+      throw new Error("Sign in to Harness Cloud, then try reconnecting again.");
     }
 
     const scope: ChatMcpReconnectScope = {
@@ -3238,7 +3235,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
       });
   }, [archived, archiveStateKnown, openingHistory.runWithFullSnapshot, props.onRestoreRevertedSession, props.opencodeBaseUrl, props.sessionId, queryClient, snapshotQueryKey, restoringRevertedMessages, sessionOwner, setError]);
 
-  const sessionScrollTopControlAction = useMemo<OpenworkControlAction>(() => ({
+  const sessionScrollTopControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.scroll_top",
     label: "Go to the top of the session",
     description: "Scroll the visible session transcript to the first messages.",
@@ -3251,7 +3248,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   }), [sessionScroll.scrollToTop]);
   useControlAction(props.isControlTarget ? sessionScrollTopControlAction : null);
 
-  const sessionScrollBottomControlAction = useMemo<OpenworkControlAction>(() => ({
+  const sessionScrollBottomControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.scroll_bottom",
     label: "Go to the bottom of the session",
     description: "Scroll the visible session transcript to the newest messages and composer area.",
@@ -3264,7 +3261,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   }), [sessionScroll.jumpToLatest]);
   useControlAction(props.isControlTarget ? sessionScrollBottomControlAction : null);
 
-  const sessionLatestMessageControlAction = useMemo<OpenworkControlAction>(() => ({
+  const sessionLatestMessageControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.latest_message",
     label: "Read the latest session message",
     description: "Return the latest visible message in the current session transcript.",
@@ -3285,7 +3282,7 @@ export function SessionSurface(props: SessionSurfaceProps) {
   }), [props.sessionId, renderedMessages]);
   useControlAction(props.isControlTarget ? sessionLatestMessageControlAction : null);
 
-  const sessionReadTranscriptControlAction = useMemo<OpenworkControlAction>(() => ({
+  const sessionReadTranscriptControlAction = useMemo<HarnessControlAction>(() => ({
     id: "session.read_transcript",
     label: "Read the current session transcript",
     description: "Return the last messages from the current session transcript as readable text, including the session ID, title, and message count.",
@@ -3570,8 +3567,8 @@ export function SessionSurface(props: SessionSurfaceProps) {
         statusLabel={statusLabel(liveStatus, chatStreaming)}
         modelPickerOpen={modelPickerOpen}
         selectedModel={sessionModel.selectedModel}
-        openWorkModelsEntitled={props.openWorkModelsEntitled}
-        openWorkModelsSyncing={props.openWorkModelsSyncing}
+        harnessModelsEntitled={props.harnessModelsEntitled}
+        harnessModelsSyncing={props.harnessModelsSyncing}
         onRefreshOrganizationModels={props.onRefreshOrganizationModels}
         onModelPickerOpenChange={handleModelPickerOpenChange}
         onModelChange={handleModelChange}

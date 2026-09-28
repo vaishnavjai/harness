@@ -1,6 +1,6 @@
 ---
 name: run-tests
-description: Run the tests, run one spec, run e2e locally or on Daytona, investigate a skipped spec. Use for executing @openwork/testkit agent-first verification.
+description: Run the tests, run one spec, run e2e locally or on Daytona, investigate a skipped spec. Use for executing @harness/testkit agent-first verification.
 ---
 
 # Skill: Run Tests
@@ -25,16 +25,16 @@ switch lanes to turn a red Daytona run green.
 ## Prepare local fallback
 
 ```bash
-pnpm --filter @openwork/types build
-pnpm --filter @openwork-ee/den-db build
-pnpm --filter @openwork/email build
+pnpm --filter @harness/types build
+pnpm --filter @harness-ee/den-db build
+pnpm --filter @harness/email build
 pnpm dev:den:mysql
 ```
 
 - Local `server()` requires MySQL at `127.0.0.1:3306`.
 - Build those workspace dependencies before local Den; otherwise den-api imports
   can fail.
-- If the checkout path contains spaces, set `OPENWORK_EVAL_SURFACES_DIR` to a
+- If the checkout path contains spaces, set `HARNESS_EVAL_SURFACES_DIR` to a
   space-free path before E2E tests. node-gyp and electron-rebuild require it.
 
 ## Choose one lane
@@ -75,7 +75,7 @@ A green run on the wrong runtime is not evidence.
 
 ## Iterate, then cold-boot
 
-- While iterating, reuse a warm Den with `OPENWORK_EVAL_DEN_API_URL`.
+- While iterating, reuse a warm Den with `HARNESS_EVAL_DEN_API_URL`.
 - Before declaring `Passed`, remove the reuse override and cold-boot through
   `server()` on the same commit.
 - Inject secrets with `infisical run --silent --`; never print or echo values.

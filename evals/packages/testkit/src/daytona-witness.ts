@@ -3,8 +3,8 @@ import {
   defaultDaytonaExec,
   execInSandbox,
   retainedDesktop,
-} from "@openwork/hosts";
-import type { ElectronStartupObservation } from "@openwork/hosts";
+} from "@harness/hosts";
+import type { ElectronStartupObservation } from "@harness/hosts";
 
 export interface PublishedDesktopSandboxWitnessOptions {
   sandboxId: string;
@@ -86,7 +86,7 @@ for entry in (process_root / "environ").read_bytes().split(b"\\0"):
         environment[key] = value_bytes.decode("utf-8", errors="replace")
 
 sensitive_markers = ("API_KEY", "ACCESS_KEY", "CREDENTIAL", "PASSWORD", "PRIVATE_KEY", "SECRET", "TOKEN")
-source_overrides = {"OPENWORK_ELECTRON_BINARY", "OPENWORK_EVAL_ELECTRON_BINARY", "OPENWORK_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT", "OPENWORK_WORKSPACE_DIR", "VITE_DEV_SERVER_URL"}
+source_overrides = {"HARNESS_ELECTRON_BINARY", "HARNESS_EVAL_ELECTRON_BINARY", "HARNESS_GOOGLE_WORKSPACE_ALLOW_PLAINTEXT_VAULT", "HARNESS_WORKSPACE_DIR", "VITE_DEV_SERVER_URL"}
 unexpected_sensitive = sorted({
     key for key in environment_names
     if key in source_overrides or (key not in allowed and any(marker in key for marker in sensitive_markers))
@@ -106,7 +106,7 @@ xdg_environment["LANG"] = "C.UTF-8"
 xdg_environment["XDG_CURRENT_DESKTOP"] = "XFCE"
 xdg_environment["DESKTOP_SESSION"] = "xfce"
 handler = subprocess.run(
-    ["xdg-mime", "query", "default", "x-scheme-handler/openwork"],
+    ["xdg-mime", "query", "default", "x-scheme-handler/harness"],
     check=False,
     capture_output=True,
     text=True,
@@ -116,7 +116,7 @@ handler = subprocess.run(
 handoff_exit_code = None
 if request.get("dispatchDeepLink", False):
     handoff = subprocess.run(
-        ["xdg-open", "openwork://open"],
+        ["xdg-open", "harness://open"],
         check=False,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

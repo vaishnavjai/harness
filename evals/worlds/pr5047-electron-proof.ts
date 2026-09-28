@@ -1,6 +1,6 @@
-import { addInitScript, browserScript, evaluateOnSurface, type Surface } from "@openwork/cdp";
-import type { Seed } from "@openwork/env";
-import { evalIn } from "@openwork/behaviors";
+import { addInitScript, browserScript, evaluateOnSurface, type Surface } from "@harness/cdp";
+import type { Seed } from "@harness/env";
+import { evalIn } from "@harness/behaviors";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
@@ -87,7 +87,7 @@ export async function pr5047ElectronProof(seed: Seed) {
   const orgs=object((await seed.api(den.admin,"/v1/me/orgs")).body).orgs;
   if(!Array.isArray(orgs))throw new Error("No orgs");
   const orgId=text(object(orgs[0]).id);
-  const headers={"x-openwork-org-id":orgId};
+  const headers={"x-harness-org-id":orgId};
   const connection=await seed.orgConnection(den.admin,{name:"Synthetic local MCP witness",url:den.mocks.proof.mcpUrl,authType:"none",credentialMode:"shared",access:{orgWide:true}});
   const apps=object((await seed.api(den.admin,`/v1/mcp-connections/${connection.id}/mcp-apps`,{headers})).body).apps;
   if(!Array.isArray(apps)||!apps.length)throw new Error("No discovered MCP apps");
@@ -101,8 +101,8 @@ export async function pr5047ElectronProof(seed: Seed) {
   const app=await seed.desktop({den,as:"admin",enterpriseActivated:true});
   const workspace=await seed.workspace(app,seed.tmpPath("pr5047-proof"));
   const reconciled=await evalIn(app,browserScript(async(workspaceId,url,mcpToken,appHostToken)=>{
-    const port=localStorage.getItem("openwork.server.port");const token=localStorage.getItem("openwork.server.token");
-    const response=await fetch(`http://127.0.0.1:${port}/workspace/${encodeURIComponent(workspaceId)}/mcp/openwork-cloud/reconcile`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({config:{type:"remote",url,enabled:true,headers:{Authorization:`Bearer ${mcpToken}`},oauth:false},appHostAuthorization:`Bearer ${appHostToken}`,trigger:"pr5047-independent-proof"})});
+    const port=localStorage.getItem("harness.server.port");const token=localStorage.getItem("harness.server.token");
+    const response=await fetch(`http://127.0.0.1:${port}/workspace/${encodeURIComponent(workspaceId)}/mcp/harness-cloud/reconcile`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({config:{type:"remote",url,enabled:true,headers:{Authorization:`Bearer ${mcpToken}`},oauth:false},appHostAuthorization:`Bearer ${appHostToken}`,trigger:"pr5047-independent-proof"})});
     return response.status;
   },[workspace.workspaceId,`${den.ref.apiUrl}/mcp/agent`,text(tokens.token),text(tokens.appHostToken)]),{awaitPromise:true,timeoutMs:120_000});
   if(reconciled!==200)throw new Error(`Reconcile failed ${reconciled}`);

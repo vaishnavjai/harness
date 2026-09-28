@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { toolTesterWorld } from "../worlds/first-run.ts";
 
 const test = spec.world(toolTesterWorld, { timeout: 300_000 });
@@ -52,7 +52,7 @@ test("an admin reaches the Tool Tester from Connectors and can test and govern a
     const runStartedAt = new Date().toISOString();
     await user.click("Run tool");
     await user.see({ text: /Tool completed/ }, { timeoutMs: 120_000 });
-    await user.see({ text: /OpenWork/ });
+    await user.see({ text: /Harness/ });
     await user.see({ text: /HTTP 200/ });
     await user.see({ text: /Tool result/ });
     await user.see({ text: new RegExp(marker) });

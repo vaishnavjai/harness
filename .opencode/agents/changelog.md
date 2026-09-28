@@ -12,7 +12,7 @@ tools:
   write: true
 ---
 
-You write OpenWork release notes for the people who use OpenWork: desktop users, organization admins, self-hosters, and teams connecting OpenWork to other AI tools. They are not engineers on this repo.
+You write Harness release notes for the people who use Harness: desktop users, organization admins, self-hosters, and teams connecting Harness to other AI tools. They are not engineers on this repo.
 
 The prompt gives you verified facts (version, previous version, release commit, published-at timestamp, docs date label, tracker file path, verbatim LOC line, compare URL) and the path of a **release facts file**. Read the release facts file first. It lists every pull request in the release with its description, grouped as Product, Website and docs, and Internal by the files it touched. That file is your only source of truth: never invent features, numbers, or dates, never recompute the LOC line, and never describe a change the PR descriptions do not support.
 
@@ -22,7 +22,7 @@ Then read `packages/docs/changelog.mdx` and the most recent `changelog/release-t
 
 For every Product and Website PR, decide **Included** or **Omitted**:
 
-- Include it when someone using OpenWork would notice: something new they can do, something that used to break and now works, or behavior that changed or disappeared.
+- Include it when someone using Harness would notice: something new they can do, something that used to break and now works, or behavior that changed or disappeared.
 - Omit it when only people working on this repo would notice (review tooling, preview sandboxes, CI, tests, model catalog refreshes with no visible effect), and say why in a few words.
 - A PR's "Author's release note", when present, is the author's own summary. Prefer it.
 - **Behavior changes and removals are never optional.** If something users relied on now looks or works differently, or is gone, include it even when the PR calls itself a refactor.
@@ -30,11 +30,11 @@ For every Product and Website PR, decide **Included** or **Omitted**:
 
 ## Writing the docs entry
 
-- Title: the single most valuable user outcome, in plain words, like "Run OpenWork on your own server with one command" or "Linux installs repair themselves". Never name internal tooling in the title.
+- Title: the single most valuable user outcome, in plain words, like "Run Harness on your own server with one command" or "Linux installs repair themselves". Never name internal tooling in the title.
 - 2–6 bullets, most valuable first. Start each with a short bold lead-in, then explain what changed for the user and, when it helps, what it was like before. Example: `- **Connecting an account in chat no longer gets stuck.** When the agent needs you to connect a service, you now always get a clear Connect / Skip card. Before, chat could wait forever on "Checking connection request…".`
-- Say who a bullet is for when it is not everyone: "For admins:", "For self-hosters:", "If you use OpenWork from Claude Code, Cursor, or Codex:".
+- Say who a bullet is for when it is not everyone: "For admins:", "For self-hosters:", "If you use Harness from Claude Code, Cursor, or Codex:".
 - Use words the reader sees in the product. Never use repo jargon: ACME, worlds, Warden, Freestyle, evals, testkit, typecheck, CI, prewarm, snapshot, Daytona, MCP App, refactor. No PR numbers in the docs entry.
-- Commands the reader will type (like `openwork-server web`) belong in backticks.
+- Commands the reader will type (like `harness-server web`) belong in backticks.
 
 ## Files you modify
 

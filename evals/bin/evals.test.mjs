@@ -25,12 +25,12 @@ import {
 import { discoverWorlds, selectWorlds, planWorlds } from "../scripts/world-plan.ts";
 import { unmetNeeds } from "../packages/env/src/needs.ts";
 
-const webSource = `import { spec } from "@openwork/testkit";
+const webSource = `import { spec } from "@harness/testkit";
 const test = spec.world(arrange, { resources: { surfaces: ["appWeb"], services: ["mock"] } });
 test("CONT-01 streams", async () => {}); test("SWITCH-10 switches", async () => {});`;
 
 test("AST selection isolates aliased worlds from curried legacy registrations and static prefixes", () => {
-  const source = `import { spec as journey, test as legacy } from "@openwork/testkit";
+  const source = `import { spec as journey, test as legacy } from "@harness/testkit";
     const browser = journey.world(browserWorld, { resources: { surfaces: ["appWeb"], services: ["mock"] } });
     const alias = browser;
     alias("SWITCH-10 switches", async () => {});
@@ -65,7 +65,7 @@ test("suite ancestry and each/for formatted titles stay conservatively selected"
     'test.for([{ group: "Group" }])("$group leaf", async () => {});',
     'test.each`group | value\n${"Group"} | ${1}`("$group leaf", async () => {});',
   ]) {
-    const source = `import { test } from "@openwork/testkit"; ${registration}`;
+    const source = `import { test } from "@harness/testkit"; ${registration}`;
     const worlds = discoverWorlds("group.ts", source);
     assert.equal(worlds[0].binding, "test", registration);
     assert.equal(selectWorlds(worlds, "^Group").length, 1, registration);
@@ -78,7 +78,7 @@ test("suite ancestry and each/for formatted titles stay conservatively selected"
 });
 
 test("grandfathered dynamic options stay unknown while explicit malformed resources fail", () => {
-  const sourceWith = options => `import { spec } from "@openwork/testkit";
+  const sourceWith = options => `import { spec } from "@harness/testkit";
     const test = spec.world(arrange, ${options}); test("legacy", async () => {});`;
   for (const options of ['options', 'getOptions()', '{ ...options }', '{ timeout, ...options }', '{ [key]: value }', '{ resources: { surfaces: ["appWeb"], services: [] }, ...options }']) {
     const source = sourceWith(options);
@@ -96,28 +96,28 @@ test("grandfathered dynamic options stay unknown while explicit malformed resour
 
 test("consentVarsFromSource extracts, deduplicates, and sorts only opt-in variables", () => {
   const source = `
-    needs({ optIn: ["OPENWORK_EVAL_ZETA", 'OPENWORK_EVAL_ALPHA'] });
+    needs({ optIn: ["HARNESS_EVAL_ZETA", 'HARNESS_EVAL_ALPHA'] });
     const requirements = {
       optIn: [
-        "OPENWORK_EVAL_MULTI",
-        "OPENWORK_EVAL_ALPHA",
+        "HARNESS_EVAL_MULTI",
+        "HARNESS_EVAL_ALPHA",
       ],
     };
-    process.env.OPENWORK_EVAL_DIRECT === "1";
-    process.env.OPENWORK_EVAL_DAYTONA === "1";
-    needs({ optIn: ["OPENWORK_EVAL_CHROME_HEADLESS"] });
-    process.env.OPENWORK_EVAL_TRIMMED?.trim() === "1";
-    process.env.OPENWORK_EVAL_MODEL?.trim() || "";
-    process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
+    process.env.HARNESS_EVAL_DIRECT === "1";
+    process.env.HARNESS_EVAL_DAYTONA === "1";
+    needs({ optIn: ["HARNESS_EVAL_CHROME_HEADLESS"] });
+    process.env.HARNESS_EVAL_TRIMMED?.trim() === "1";
+    process.env.HARNESS_EVAL_MODEL?.trim() || "";
+    process.env.HARNESS_EVAL_DEN_API_URL?.trim();
     process.env.UNRELATED === "1";
   `;
 
   assert.deepEqual(consentVarsFromSource(source), [
-    "OPENWORK_EVAL_ALPHA",
-    "OPENWORK_EVAL_DIRECT",
-    "OPENWORK_EVAL_MULTI",
-    "OPENWORK_EVAL_TRIMMED",
-    "OPENWORK_EVAL_ZETA",
+    "HARNESS_EVAL_ALPHA",
+    "HARNESS_EVAL_DIRECT",
+    "HARNESS_EVAL_MULTI",
+    "HARNESS_EVAL_TRIMMED",
+    "HARNESS_EVAL_ZETA",
   ]);
 });
 
@@ -186,11 +186,11 @@ test("resolveRefAlignment only inspects Daytona placement and compares the runne
   assert.equal(resolveRefAlignment("attached", {}, fakeGit().exec, "/repo"), null);
 
   const pinned = fakeGit();
-  const aligned = resolveRefAlignment("daytona", { OPENWORK_EVAL_REF: RUNNER_SHA.toUpperCase() }, pinned.exec, "/repo");
+  const aligned = resolveRefAlignment("daytona", { HARNESS_EVAL_REF: RUNNER_SHA.toUpperCase() }, pinned.exec, "/repo");
   assert.deepEqual(aligned, { sandboxRef: RUNNER_SHA.toUpperCase(), sandboxSha: RUNNER_SHA, runnerSha: RUNNER_SHA, runnerBranch: "e2e/feature", mismatch: false });
   assert.ok(!pinned.calls.some((call) => call[1] === "ls-remote"), "immutable refs never hit the network");
-  assert.equal(resolveRefAlignment("daytona", { OPENWORK_EVAL_REF: RUNNER_SHA.slice(0, 9) }, fakeGit().exec, "/repo").mismatch, false);
-  assert.equal(resolveRefAlignment("daytona", { OPENWORK_EVAL_REF: DEV_SHA }, fakeGit().exec, "/repo").mismatch, true);
+  assert.equal(resolveRefAlignment("daytona", { HARNESS_EVAL_REF: RUNNER_SHA.slice(0, 9) }, fakeGit().exec, "/repo").mismatch, false);
+  assert.equal(resolveRefAlignment("daytona", { HARNESS_EVAL_REF: DEV_SHA }, fakeGit().exec, "/repo").mismatch, true);
 
   const branch = fakeGit(`${DEV_SHA}\trefs/heads/dev\n3333333333333333333333333333333333333333\trefs/tags/dev\n`);
   const drifted = resolveRefAlignment("daytona", {}, branch.exec, "/repo");
@@ -198,7 +198,7 @@ test("resolveRefAlignment only inspects Daytona placement and compares the runne
   assert.deepEqual(branch.calls.at(-1), ["git", "ls-remote", "--quiet", "origin", "dev"]);
   assert.equal(resolveRefAlignment("daytona", { GITHUB_SHA: RUNNER_SHA }, fakeGit().exec, "/repo").mismatch, false);
 
-  const unresolved = resolveRefAlignment("daytona", { OPENWORK_EVAL_REF: "missing-branch" }, fakeGit("").exec, "/repo");
+  const unresolved = resolveRefAlignment("daytona", { HARNESS_EVAL_REF: "missing-branch" }, fakeGit("").exec, "/repo");
   assert.equal(unresolved.sandboxSha, "");
   assert.equal(unresolved.mismatch, null);
 });
@@ -216,13 +216,13 @@ test("ref alignment renders a placement label and a warning only when the runner
   assert.equal(refAlignmentWarning(null), null);
   assert.equal(refAlignmentWarning(aligned), null);
   assert.match(refAlignmentWarning(drifted), /^runner HEAD 111111111 \(e2e\/feature\) differs from the ref the Daytona sandbox builds: dev \(222222222\)\./);
-  assert.match(refAlignmentWarning(drifted), /OPENWORK_EVAL_REF=\$\(git rev-parse HEAD\)/);
+  assert.match(refAlignmentWarning(drifted), /HARNESS_EVAL_REF=\$\(git rev-parse HEAD\)/);
   assert.match(refAlignmentWarning(unresolved), /^could not resolve sandbox ref missing-branch against origin.*runner HEAD 111111111\.$/);
 
   assert.equal(strictRefRequested({}, {}), false);
   assert.equal(strictRefRequested({ strictRef: true }, {}), true);
-  assert.equal(strictRefRequested({}, { OPENWORK_EVAL_STRICT_REF: "1" }), true);
-  assert.equal(strictRefRequested({}, { OPENWORK_EVAL_STRICT_REF: "0" }), false);
+  assert.equal(strictRefRequested({}, { HARNESS_EVAL_STRICT_REF: "1" }), true);
+  assert.equal(strictRefRequested({}, { HARNESS_EVAL_STRICT_REF: "0" }), false);
 });
 
 test("registered cases validate file and effective engine/surface before placement", () => {
@@ -241,7 +241,7 @@ test("registered cases validate file and effective engine/surface before placeme
     /conflicts with declared world surfaces/,
   );
   assert.throws(
-    () => resolveExecutionSelection(parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]), [markdown], { OPENWORK_EVAL_ENGINE: "future" }),
+    () => resolveExecutionSelection(parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]), [markdown], { HARNESS_EVAL_ENGINE: "future" }),
     /Invalid effective engine/,
   );
 });
@@ -251,22 +251,22 @@ test("explicit live cases consent to paid OpenAI, validate v1/web and keep local
   const source = await readFile(file, "utf8");
   for (const id of ["CONT-01-live", "CONT-01-live-history"]) {
     const options = parseArgs(["live-stream-continuity", "--local", "--engine", "v1", "--surface", "web", "--case", id]);
-    const env = { OPENAI_API_KEY: "fixture-not-a-provider-key", OPENWORK_WORLD_PLACE: "daytona", OPENWORK_EVAL_DAYTONA: "1" };
+    const env = { OPENAI_API_KEY: "fixture-not-a-provider-key", HARNESS_WORLD_PLACE: "daytona", HARNESS_EVAL_DAYTONA: "1" };
     const child = buildChildEnvironment(options, [file], [source], env, () => { throw new Error("local must not probe Daytona"); });
     assert.equal(child.placement, "local");
     assert.equal(child.engine, "v1");
     assert.equal(child.surface, "web");
-    assert.equal(child.env.OPENWORK_EVAL_LIVE_OPENAI, "1");
-    assert.equal(env.OPENWORK_EVAL_LIVE_OPENAI, undefined);
+    assert.equal(child.env.HARNESS_EVAL_LIVE_OPENAI, "1");
+    assert.equal(env.HARNESS_EVAL_LIVE_OPENAI, undefined);
     assert.deepEqual(child.plan.surfaces, ["appWeb"]);
     assert.deepEqual(child.plan.services, []);
-    const requirements = { placement: "local", optIn: ["OPENWORK_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] };
+    const requirements = { placement: "local", optIn: ["HARNESS_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] };
     assert.deepEqual(unmetNeeds(requirements, child.env), []);
     const missingKey = buildChildEnvironment(options, [file], [source], {}, () => false);
     assert.equal(missingKey.env.OPENAI_API_KEY, undefined);
     assert.deepEqual(unmetNeeds(requirements, missingKey.env), ["set OPENAI_API_KEY"]);
-    const disabled = buildChildEnvironment(options, [file], [source], { ...env, OPENWORK_EVAL_LIVE_OPENAI: "0" }, () => false);
-    assert.deepEqual(unmetNeeds(requirements, disabled.env), ["set OPENWORK_EVAL_LIVE_OPENAI=1"]);
+    const disabled = buildChildEnvironment(options, [file], [source], { ...env, HARNESS_EVAL_LIVE_OPENAI: "0" }, () => false);
+    assert.deepEqual(unmetNeeds(requirements, disabled.env), ["set HARNESS_EVAL_LIVE_OPENAI=1"]);
     assert.throws(() => resolveExecutionSelection(
       parseArgs(["live-stream-continuity", "--engine", "v2", "--case", id]), [file], {}, [source],
     ), /does not support engine v2/);
@@ -283,7 +283,7 @@ test("whole-file and multi-file selection never infer paid consent from source o
   const live = new URL("../specs/live-stream-continuity.e2e.test.ts", import.meta.url).pathname;
   const mock = new URL("../specs/streamed-markdown-answer.e2e.test.ts", import.meta.url).pathname;
   const [liveSource, mockSource] = await Promise.all([readFile(live, "utf8"), readFile(mock, "utf8")]);
-  assert.doesNotMatch(mockSource, /OPENWORK_EVAL_LIVE_OPENAI|CONT-01-live/);
+  assert.doesNotMatch(mockSource, /HARNESS_EVAL_LIVE_OPENAI|CONT-01-live/);
   for (const engine of ["v1", "v2"]) {
     for (const files of [[live], [mock], [mock, live]]) {
       const sources = files.map(file => file === live ? liveSource : mockSource);
@@ -291,17 +291,17 @@ test("whole-file and multi-file selection never infer paid consent from source o
         { OPENAI_API_KEY: "fixture-not-a-provider-key" }, () => true);
       assert.equal(child.engine, engine);
       assert.equal(child.placement, "daytona");
-      assert.equal(child.env.OPENWORK_EVAL_LIVE_OPENAI, undefined);
-      assert(!child.consented.includes("OPENWORK_EVAL_LIVE_OPENAI"));
-      assert.deepEqual(unmetNeeds({ placement: "local", optIn: ["OPENWORK_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] }, child.env), [
-        "set OPENWORK_EVAL_LIVE_OPENAI=1", "use local placement without OPENWORK_EVAL_DEN_API_URL",
+      assert.equal(child.env.HARNESS_EVAL_LIVE_OPENAI, undefined);
+      assert(!child.consented.includes("HARNESS_EVAL_LIVE_OPENAI"));
+      assert.deepEqual(unmetNeeds({ placement: "local", optIn: ["HARNESS_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] }, child.env), [
+        "set HARNESS_EVAL_LIVE_OPENAI=1", "use local placement without HARNESS_EVAL_DEN_API_URL",
       ]);
     }
   }
   const explicit = buildChildEnvironment(parseArgs(["live-stream-continuity", "--local", "--engine", "v1"]), [live], [liveSource], {
-    OPENAI_API_KEY: "fixture-not-a-provider-key", OPENWORK_EVAL_LIVE_OPENAI: "1",
+    OPENAI_API_KEY: "fixture-not-a-provider-key", HARNESS_EVAL_LIVE_OPENAI: "1",
   }, () => false);
-  assert.deepEqual(unmetNeeds({ placement: "local", optIn: ["OPENWORK_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] }, explicit.env), []);
+  assert.deepEqual(unmetNeeds({ placement: "local", optIn: ["HARNESS_EVAL_LIVE_OPENAI"], env: ["OPENAI_API_KEY"] }, explicit.env), []);
 });
 
 test("registered cases derive fixed web from source regardless of inherited surface", () => {
@@ -322,22 +322,22 @@ test("registered cases derive fixed web from source regardless of inherited surf
   const inheritedElectron = resolveExecutionSelection(
     parseArgs(["streamed-markdown-answer", "--case", "CONT-01"]),
     [markdown],
-    { OPENWORK_EVAL_APP_SURFACE: "electron" },
+    { HARNESS_EVAL_APP_SURFACE: "electron" },
     [webSource],
   );
 
   assert.equal(defaultMarkdown.surface, "web");
-  assert.equal(defaultMarkdown.env.OPENWORK_EVAL_APP_SURFACE, undefined);
+  assert.equal(defaultMarkdown.env.HARNESS_EVAL_APP_SURFACE, undefined);
   assert.equal(defaultSwitched.surface, "web");
-  assert.equal(defaultSwitched.env.OPENWORK_EVAL_APP_SURFACE, undefined);
+  assert.equal(defaultSwitched.env.HARNESS_EVAL_APP_SURFACE, undefined);
   assert.equal(inheritedElectron.surface, "web");
 });
 
 test("selection flags override inherited values without mutating the caller environment", () => {
   const env = {
-    OPENWORK_EVAL_ENGINE: "v2",
-    OPENWORK_ENGINE_V2_PREVIEW: "1",
-    OPENWORK_EVAL_APP_SURFACE: "electron",
+    HARNESS_EVAL_ENGINE: "v2",
+    HARNESS_ENGINE_V2_PREVIEW: "1",
+    HARNESS_EVAL_APP_SURFACE: "electron",
   };
   const before = { ...env };
   const selected = resolveExecutionSelection(
@@ -347,12 +347,12 @@ test("selection flags override inherited values without mutating the caller envi
     [webSource],
   );
   assert.deepEqual(env, before);
-  assert.equal(selected.env.OPENWORK_EVAL_ENGINE, "v1");
-  assert.equal(selected.env.OPENWORK_ENGINE_V2_PREVIEW, undefined);
-  assert.equal(selected.env.OPENWORK_EVAL_APP_SURFACE, "web");
+  assert.equal(selected.env.HARNESS_EVAL_ENGINE, "v1");
+  assert.equal(selected.env.HARNESS_ENGINE_V2_PREVIEW, undefined);
+  assert.equal(selected.env.HARNESS_EVAL_APP_SURFACE, "web");
   assert.equal(selected.env.APP_SURFACE, undefined);
-  assert.equal(selected.env.OPENWORK_EVAL_CHROME_HEADLESS, undefined);
-  assert.equal(selected.env.OPENWORK_EVAL_E2E_TESTS, "1");
+  assert.equal(selected.env.HARNESS_EVAL_CHROME_HEADLESS, undefined);
+  assert.equal(selected.env.HARNESS_EVAL_E2E_TESTS, "1");
   assert.equal(selected.testNamePattern, "^CONT-01(?:\\s|$)");
   const child = buildChildEnvironment(
     parseArgs(["streamed-markdown-answer", "--local", "--surface", "web", "--case", "CONT-01"]),
@@ -360,18 +360,18 @@ test("selection flags override inherited values without mutating the caller envi
     () => { throw new Error("local selection must not probe"); },
   );
   assert.equal(child.surface, "web");
-  assert.equal(child.env.OPENWORK_EVAL_APP_SURFACE, "web");
-  assert.equal(child.env.OPENWORK_EVAL_CHROME_HEADLESS, undefined);
+  assert.equal(child.env.HARNESS_EVAL_APP_SURFACE, "web");
+  assert.equal(child.env.HARNESS_EVAL_CHROME_HEADLESS, undefined);
   assert.deepEqual(env, before);
 });
 
 test("no selection flags preserve legacy engine and surface behavior", () => {
-  const env = { OPENWORK_EVAL_ENGINE: "v2", OPENWORK_EVAL_APP_SURFACE: "web" };
-  const selected = resolveExecutionSelection(parseArgs(["app-smoke"]), ["/repo/app-smoke.e2e.test.ts"], env, ['import { test } from "@openwork/testkit"; test("legacy", async () => {});']);
+  const env = { HARNESS_EVAL_ENGINE: "v2", HARNESS_EVAL_APP_SURFACE: "web" };
+  const selected = resolveExecutionSelection(parseArgs(["app-smoke"]), ["/repo/app-smoke.e2e.test.ts"], env, ['import { test } from "@harness/testkit"; test("legacy", async () => {});']);
   assert.equal(selected.engine, undefined);
   assert.equal(selected.surface, undefined);
   assert.equal(selected.caseId, undefined);
-  assert.deepEqual(selected.env, { ...env, OPENWORK_EVAL_E2E_TESTS: "1" });
+  assert.deepEqual(selected.env, { ...env, HARNESS_EVAL_E2E_TESTS: "1" });
 });
 
 test("--list prints exact registered cases and commands without selecting placement", () => {
@@ -395,19 +395,19 @@ test("explicit local placement removes inherited remote provisioning inputs", ()
   const options = parseArgs(["app-smoke", "--local"]);
   const resolved = resolveRunEnvironment(options, {
     PATH: "/bin",
-    OPENWORK_EVAL_DAYTONA: "1",
-    OPENWORK_EVAL_DAYTONA_SANDBOX: "desktop-sandbox",
-    OPENWORK_EVAL_DAYTONA_SANDBOX_ID: "legacy-sandbox",
-    OPENWORK_EVAL_DAYTONA_DEN_SANDBOX: "den-sandbox",
-    OPENWORK_EVAL_DAYTONA_DEN_WEB_URL: "https://3005-baked.example.test",
-    OPENWORK_EVAL_DAYTONA_DEN_API_URL: "https://8788-baked.example.test",
-    OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX: "prepared-desktop",
-    OPENWORK_EVAL_DEN_API_URL: "https://den-api.example.test",
-    OPENWORK_EVAL_DEN_WEB_URL: "https://den.example.test",
-    OPENWORK_EVAL_ENGINE: "v2",
+    HARNESS_EVAL_DAYTONA: "1",
+    HARNESS_EVAL_DAYTONA_SANDBOX: "desktop-sandbox",
+    HARNESS_EVAL_DAYTONA_SANDBOX_ID: "legacy-sandbox",
+    HARNESS_EVAL_DAYTONA_DEN_SANDBOX: "den-sandbox",
+    HARNESS_EVAL_DAYTONA_DEN_WEB_URL: "https://3005-baked.example.test",
+    HARNESS_EVAL_DAYTONA_DEN_API_URL: "https://8788-baked.example.test",
+    HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX: "prepared-desktop",
+    HARNESS_EVAL_DEN_API_URL: "https://den-api.example.test",
+    HARNESS_EVAL_DEN_WEB_URL: "https://den.example.test",
+    HARNESS_EVAL_ENGINE: "v2",
   }, () => { throw new Error("probe called"); });
 
-  assert.deepEqual(resolved, { env: { PATH: "/bin", OPENWORK_EVAL_ENGINE: "v2", OPENWORK_WORLD_PLACE: "local" }, placement: "local", reason: "--local" });
+  assert.deepEqual(resolved, { env: { PATH: "/bin", HARNESS_EVAL_ENGINE: "v2", HARNESS_WORLD_PLACE: "local" }, placement: "local", reason: "--local" });
 });
 
 test("explicit attached Den placement does not probe Daytona", () => {
@@ -415,7 +415,7 @@ test("explicit attached Den placement does not probe Daytona", () => {
     throw new Error("probe called");
   });
   assert.deepEqual(attached, {
-    env: { OPENWORK_EVAL_DEN_API_URL: "https://den.example.test" },
+    env: { HARNESS_EVAL_DEN_API_URL: "https://den.example.test" },
     placement: "attached",
     reason: "--den",
   });
@@ -423,13 +423,13 @@ test("explicit attached Den placement does not probe Daytona", () => {
 
 test("explicit Daytona placement requires an authenticated CLI", () => {
   const daytona = resolveRunEnvironment(parseArgs(["app-smoke", "--daytona"]), {
-    OPENWORK_EVAL_DEN_API_URL: "https://attached.example.test",
+    HARNESS_EVAL_DEN_API_URL: "https://attached.example.test",
   }, () => true);
   assert.deepEqual(daytona, {
     env: {
-      OPENWORK_EVAL_DEN_API_URL: "https://attached.example.test",
-      OPENWORK_EVAL_DAYTONA: "1",
-      OPENWORK_WORLD_PLACE: "daytona",
+      HARNESS_EVAL_DEN_API_URL: "https://attached.example.test",
+      HARNESS_EVAL_DAYTONA: "1",
+      HARNESS_WORLD_PLACE: "daytona",
     },
     placement: "daytona",
     reason: "--daytona",
@@ -443,27 +443,27 @@ test("explicit Daytona placement requires an authenticated CLI", () => {
 
 test("ambient Daytona placement preserves the caller environment without probing", () => {
   const ambient = {
-    OPENWORK_EVAL_DAYTONA: "1",
-    OPENWORK_EVAL_DEN_API_URL: "https://den.example.test",
-    OPENWORK_EVAL_ENGINE: "v2",
+    HARNESS_EVAL_DAYTONA: "1",
+    HARNESS_EVAL_DEN_API_URL: "https://den.example.test",
+    HARNESS_EVAL_ENGINE: "v2",
   };
   assert.deepEqual(resolveRunEnvironment(parseArgs(["app-smoke"]), ambient, () => {
     throw new Error("probe called");
   }), {
-    env: { ...ambient, OPENWORK_WORLD_PLACE: "daytona" },
+    env: { ...ambient, HARNESS_WORLD_PLACE: "daytona" },
     placement: "daytona",
-    reason: "OPENWORK_EVAL_DAYTONA=1 in environment",
+    reason: "HARNESS_EVAL_DAYTONA=1 in environment",
   });
 });
 
 test("automatic placement uses authenticated Daytona and otherwise falls back to local", () => {
   assert.deepEqual(resolveRunEnvironment(parseArgs(["app-smoke"]), { PATH: "/bin" }, () => true), {
-    env: { PATH: "/bin", OPENWORK_EVAL_DAYTONA: "1", OPENWORK_WORLD_PLACE: "daytona" },
+    env: { PATH: "/bin", HARNESS_EVAL_DAYTONA: "1", HARNESS_WORLD_PLACE: "daytona" },
     placement: "daytona",
     reason: "daytona CLI authenticated",
   });
   assert.deepEqual(resolveRunEnvironment(parseArgs(["app-smoke"]), { PATH: "/bin" }, () => false), {
-    env: { PATH: "/bin", OPENWORK_WORLD_PLACE: "local" },
+    env: { PATH: "/bin", HARNESS_WORLD_PLACE: "local" },
     placement: "local",
     reason: "daytona CLI missing or not authenticated",
   });
@@ -471,39 +471,39 @@ test("automatic placement uses authenticated Daytona and otherwise falls back to
 
 test("canonical world placement overrides conflicting inherited selectors", () => {
   const local = resolveRunEnvironment(parseArgs(["app-smoke", "--local"]), {
-    OPENWORK_WORLD_PLACE: "daytona",
-    OPENWORK_EVAL_DAYTONA: "1",
+    HARNESS_WORLD_PLACE: "daytona",
+    HARNESS_EVAL_DAYTONA: "1",
   }, () => { throw new Error("probe called"); });
   assert.deepEqual(local, {
-    env: { OPENWORK_WORLD_PLACE: "local" },
+    env: { HARNESS_WORLD_PLACE: "local" },
     placement: "local",
     reason: "--local",
   });
 
   const daytona = resolveRunEnvironment(parseArgs(["app-smoke", "--daytona"]), {
-    OPENWORK_WORLD_PLACE: "local",
+    HARNESS_WORLD_PLACE: "local",
   }, () => true);
   assert.deepEqual(daytona, {
-    env: { OPENWORK_WORLD_PLACE: "daytona", OPENWORK_EVAL_DAYTONA: "1" },
+    env: { HARNESS_WORLD_PLACE: "daytona", HARNESS_EVAL_DAYTONA: "1" },
     placement: "daytona",
     reason: "--daytona",
   });
 
   const ambientLocal = resolveRunEnvironment(parseArgs(["app-smoke"]), {
-    OPENWORK_WORLD_PLACE: "local",
-    OPENWORK_EVAL_DAYTONA: "1",
+    HARNESS_WORLD_PLACE: "local",
+    HARNESS_EVAL_DAYTONA: "1",
   }, () => { throw new Error("probe called"); });
   assert.equal(ambientLocal.placement, "local");
-  assert.equal(ambientLocal.env.OPENWORK_EVAL_DAYTONA, undefined);
+  assert.equal(ambientLocal.env.HARNESS_EVAL_DAYTONA, undefined);
 });
 
 test("final child environment cannot consent into a different placement", () => {
   const source = `
-    process.env.OPENWORK_EVAL_E2E_TESTS === "1";
-    process.env.OPENWORK_EVAL_DAYTONA === "1";
-    process.env.OPENWORK_EVAL_LEGACY_LIVE === "1";
+    process.env.HARNESS_EVAL_E2E_TESTS === "1";
+    process.env.HARNESS_EVAL_DAYTONA === "1";
+    process.env.HARNESS_EVAL_LEGACY_LIVE === "1";
   `;
-  const input = { OPENWORK_WORLD_PLACE: "daytona", OPENWORK_EVAL_DAYTONA: "1" };
+  const input = { HARNESS_WORLD_PLACE: "daytona", HARNESS_EVAL_DAYTONA: "1" };
   const local = buildChildEnvironment(
     parseArgs(["legacy", "--local"]),
     ["/repo/legacy.e2e.test.ts"],
@@ -511,10 +511,10 @@ test("final child environment cannot consent into a different placement", () => 
     input,
     () => { throw new Error("probe called"); },
   );
-  assert.deepEqual(input, { OPENWORK_WORLD_PLACE: "daytona", OPENWORK_EVAL_DAYTONA: "1" });
-  assert.equal(local.env.OPENWORK_WORLD_PLACE, "local");
-  assert.equal(local.env.OPENWORK_EVAL_DAYTONA, undefined);
-  assert.equal(local.env.OPENWORK_EVAL_LEGACY_LIVE, "1");
+  assert.deepEqual(input, { HARNESS_WORLD_PLACE: "daytona", HARNESS_EVAL_DAYTONA: "1" });
+  assert.equal(local.env.HARNESS_WORLD_PLACE, "local");
+  assert.equal(local.env.HARNESS_EVAL_DAYTONA, undefined);
+  assert.equal(local.env.HARNESS_EVAL_LEGACY_LIVE, "1");
 
   const registered = buildChildEnvironment(
     parseArgs(["live-tool-visible-after-session-switch", "--local", "--engine", "v1", "--surface", "web", "--case", "SWITCH-10"]),
@@ -523,10 +523,10 @@ test("final child environment cannot consent into a different placement", () => 
     {},
     () => { throw new Error("probe called"); },
   );
-  assert.equal(registered.env.OPENWORK_WORLD_PLACE, "local");
-  assert.equal(registered.env.OPENWORK_EVAL_DAYTONA, undefined);
-  assert.equal(registered.env.OPENWORK_EVAL_LEGACY_LIVE, undefined);
-  assert.deepEqual(registered.consented, ["OPENWORK_EVAL_E2E_TESTS"]);
+  assert.equal(registered.env.HARNESS_WORLD_PLACE, "local");
+  assert.equal(registered.env.HARNESS_EVAL_DAYTONA, undefined);
+  assert.equal(registered.env.HARNESS_EVAL_LEGACY_LIVE, undefined);
+  assert.deepEqual(registered.consented, ["HARNESS_EVAL_E2E_TESTS"]);
 });
 
 test("verdict and exit mapping covers failed, incomplete, and passed runs", () => {
@@ -612,7 +612,7 @@ test("selected-case summaries separate excluded titles and require an exact safe
 });
 
 test("worldSnapshotsSince returns only snapshots written during the run, newest first", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "openwork-world-snapshots-"));
+  const directory = await mkdtemp(join(tmpdir(), "harness-world-snapshots-"));
   try {
     await writeFile(join(directory, "old.json"), "{}\n");
     await utimes(join(directory, "old.json"), new Date(0), new Date(0));

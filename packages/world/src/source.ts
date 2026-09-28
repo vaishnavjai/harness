@@ -19,7 +19,7 @@ export const SOURCE_KINDS: readonly SourceKind[] = ["local", "sha", "release"];
 
 /** Component key that applies to every component without its own source. */
 export const DEFAULT_COMPONENT = "*";
-export const SOURCES_ENV = "OPENWORK_WORLD_SOURCES";
+export const SOURCES_ENV = "HARNESS_WORLD_SOURCES";
 
 export type WorldSources = Readonly<Record<string, WorldSource>>;
 

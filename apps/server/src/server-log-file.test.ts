@@ -35,9 +35,9 @@ function serverConfig(logFormat: ServerConfig["logFormat"] = "pretty"): ServerCo
 const tempDirs: string[] = [];
 
 function tempLogPath() {
-  const dir = mkdtempSync(join(tmpdir(), "openwork-server-log-"));
+  const dir = mkdtempSync(join(tmpdir(), "harness-server-log-"));
   tempDirs.push(dir);
-  return join(dir, "nested", "openwork-server.log");
+  return join(dir, "nested", "harness-server.log");
 }
 
 async function settled(sink: { close: () => void }) {
@@ -126,7 +126,7 @@ describe("createServerLogger file sink", () => {
     expect(record.severityText).toBe("INFO");
     expect(record.attributes["engine.rollover.reason"]).toBe("engine_reload");
     expect(record.attributes.Authorization).toBe("<redacted>");
-    expect(record.resource["service.name"]).toBe("openwork-server");
+    expect(record.resource["service.name"]).toBe("harness-server");
     expect(readFileSync(path, "utf8")).not.toContain("should-not-persist");
   });
 

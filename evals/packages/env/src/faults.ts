@@ -1,10 +1,10 @@
 import { createServer, request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { setTimeout as delay } from "node:timers/promises";
-import { allocateFreePort } from "@openwork/cdp";
-import { startFaultProxyOnSandbox } from "@openwork/hosts";
+import { allocateFreePort } from "@harness/cdp";
+import { startFaultProxyOnSandbox } from "@harness/hosts";
 import type { IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders, Server, ServerResponse } from "node:http";
-import type { DenRef } from "@openwork/behaviors";
+import type { DenRef } from "@harness/behaviors";
 import type { Place } from "./place.ts";
 
 export interface FaultRequest {
@@ -240,9 +240,9 @@ export async function faultProxy(ref: DenRef, options: FaultProxyOptions = {}): 
   const remote = await startFaultProxyOnSandbox({ sandbox: options.sandbox });
   const requests: FaultRequest[] = [];
   const control = async (path: string, init: RequestInit = {}): Promise<Response> => {
-    const response = await fetch(`${remote.url}/__openwork_faults/${path}`, {
+    const response = await fetch(`${remote.url}/__harness_faults/${path}`, {
       ...init,
-      headers: { ...init.headers, "x-openwork-fault-token": remote.token },
+      headers: { ...init.headers, "x-harness-fault-token": remote.token },
     });
     if (!response.ok) {
       const body = await response.text().catch(() => "");
@@ -285,7 +285,7 @@ export async function faultProxy(ref: DenRef, options: FaultProxyOptions = {}): 
       if (disposed) return;
       disposed = true;
       await remote.stop().catch((error: unknown) => {
-        console.error(`[openwork/testkit] Fault proxy cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+        console.error(`[harness/testkit] Fault proxy cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
       });
     },
   };

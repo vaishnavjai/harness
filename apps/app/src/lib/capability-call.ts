@@ -8,7 +8,7 @@ import type { DynamicToolUIPart } from "ai"
  */
 
 export type CapabilityCallSentence = {
-  /** Human service name, e.g. "Granola" or "OpenWork Cloud". */
+  /** Human service name, e.g. "Granola" or "Harness Cloud". */
   service: string | null
   /** Present-tense line while the call runs. */
   present: string
@@ -152,7 +152,7 @@ function skillReference(part: DynamicToolUIPart): string | null {
 }
 
 export function getConnectionStatusProbeId(part: DynamicToolUIPart): string | null {
-  if (part.toolName !== "openwork_execute_capability" && part.toolName !== "openwork-cloud_execute_capability") return null
+  if (part.toolName !== "harness_execute_capability" && part.toolName !== "harness-cloud_execute_capability") return null
   const input = parseRecord(part.input)
   return typeof input?.name === "string" ? /^mcp:([^:\s]+):\*$/.exec(input.name)?.[1] ?? null : null
 }

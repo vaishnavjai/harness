@@ -12,7 +12,7 @@ import { resolveExtensionIconSrc } from "@/react-app/design-system/extension-ico
 import { t } from "../../../../i18n";
 import { buildDenAuthUrl, readDenBootstrapConfig } from "../../../../app/lib/den";
 import { markDesktopSignInInitiated } from "../../../../app/lib/den-sign-in-intent";
-import { type OpenworkServerClient, type OpenworkServerStatus } from "../../../../app/lib/openwork-server";
+import { type HarnessServerClient, type HarnessServerStatus } from "../../../../app/lib/harness-server";
 import { getDisplaySessionTitle } from "../../../../app/lib/session-title";
 import type { BootPhase } from "../../../../app/lib/startup-boot";
 import { openDesktopUrl, openDesktopWorkspaceFile, revealDesktopItemInDir, type WorkspaceInfo } from "../../../../app/lib/desktop";
@@ -95,7 +95,7 @@ import { useCreateTab, useOpenBrowserRailPane } from "../panel/use-side-panel-ta
 import { TerminalDock } from "../terminal/terminal-dock";
 import { useActivePanelTab, usePanelTabStore, useSessionPanelState } from "../panel/panel-tab-store";
 import { useWorkspaceShellLayout } from "../../../shell/workspace-shell-layout";
-import { useControlAction, type OpenworkControlAction } from "../../../shell/control/control-provider";
+import { useControlAction, type HarnessControlAction } from "../../../shell/control/control-provider";
 import { cn } from "@/lib/utils";
 import {
   canNavigateSelectedConversationHistory,
@@ -142,7 +142,7 @@ type StatusBarOverrides = {
   showSettingsButton: boolean;
   reloadBusy: boolean;
   reloadError: string | null;
-  openWorkConnectState: SessionCloudMcpMaintenanceState;
+  harnessConnectState: SessionCloudMcpMaintenanceState;
 };
 
 export type SessionPageHistoryControls = {
@@ -197,7 +197,7 @@ export type SessionPageSidebarProps = {
 
 export type SessionPageSurfaceProps = Omit<
   SessionSurfaceProps,
-  "client" | "workspaceId" | "sessionId" | "opencodeBaseUrl" | "openworkToken" | "isControlTarget"
+  "client" | "workspaceId" | "sessionId" | "opencodeBaseUrl" | "harnessToken" | "isControlTarget"
 >;
 
 export type SessionPagePaneRuntime = {
@@ -208,9 +208,9 @@ export type SessionPagePaneRuntime = {
   workspaceType?: WorkspaceInfo["workspaceType"];
   runtimeWorkspaceId: string;
   opencodeBaseUrl: string;
-  openworkToken: string;
-  client: OpenworkServerClient;
-  environmentClient?: OpenworkServerClient | null;
+  harnessToken: string;
+  client: HarnessServerClient;
+  environmentClient?: HarnessServerClient | null;
   surface: SessionPageSurfaceProps;
 } | {
   status: "unavailable";
@@ -243,10 +243,10 @@ export type SessionPageProps = {
   opencodeBaseUrl?: string | null;
   workspaces: WorkspaceInfo[];
   clientConnected: boolean;
-  openworkServerStatus: OpenworkServerStatus;
-  openworkServerClient: OpenworkServerClient | null;
-  environmentClient?: OpenworkServerClient | null;
-  openworkServerToken?: string | null;
+  harnessServerStatus: HarnessServerStatus;
+  harnessServerClient: HarnessServerClient | null;
+  environmentClient?: HarnessServerClient | null;
+  harnessServerToken?: string | null;
   developerMode: boolean;
   headerStatus: string;
   busyHint: string | null;
@@ -353,15 +353,15 @@ function WorkbenchPaneHeader(props: {
 /** Every visible conversation owns its pending interactions, including the side pane. */
 function SplitSessionSurface({ metadataCallbacks, ...props }: SessionSurfaceProps & { metadataCallbacks?: SessionMetadataCallbacks }) {
   const client = useMemo(() => isOpencodeV2BaseUrl(props.opencodeBaseUrl)
-    ? createClientV2(props.opencodeBaseUrl, props.workspaceRoot, { token: props.openworkToken })
-    : createClient(props.opencodeBaseUrl, props.workspaceRoot, { token: props.openworkToken, mode: "openwork" }),
-  [props.opencodeBaseUrl, props.openworkToken, props.workspaceRoot]);
+    ? createClientV2(props.opencodeBaseUrl, props.workspaceRoot, { token: props.harnessToken })
+    : createClient(props.opencodeBaseUrl, props.workspaceRoot, { token: props.harnessToken, mode: "harness" }),
+  [props.opencodeBaseUrl, props.harnessToken, props.workspaceRoot]);
   const interactions = useSessionInteractions({
     client, workspaceId: props.workspaceId, sessionId: props.sessionId, workspaceRoot: props.workspaceRoot ?? "",
   });
   return <>
     <ReactSessionRuntime {...metadataCallbacks} workspaceId={props.workspaceId} sessionId={props.sessionId}
-      opencodeBaseUrl={props.opencodeBaseUrl} openworkToken={props.openworkToken} />
+      opencodeBaseUrl={props.opencodeBaseUrl} harnessToken={props.harnessToken} />
     <SessionSurface {...props} {...interactions} />
   </>;
 }
@@ -398,7 +398,7 @@ function isTrackableAccessibleTarget(target: OpenTarget) {
 
 function hiddenAccessibleTargetsStorageKey(workspaceId: string | null | undefined, sessionId: string | null | undefined) {
   if (!workspaceId || !sessionId) return null;
-  return `openwork.session.hiddenAccessibleTargets.v1:${workspaceId}:${sessionId}`;
+  return `harness.session.hiddenAccessibleTargets.v1:${workspaceId}:${sessionId}`;
 }
 
 function readHiddenAccessibleTargetIds(workspaceId: string | null | undefined, sessionId: string | null | undefined): Set<string> {
@@ -536,7 +536,7 @@ export function SessionPage(props: SessionPageProps) {
   const activeWorkbenchPane = isMobile
     ? narrowPane === "split" ? "secondary" : "primary"
     : focusedWorkbenchPane;
-  const openWorkbenchTab = useWorkbenchStore((state) => state.openTab);
+  const harnessbenchTab = useWorkbenchStore((state) => state.openTab);
   const setWorkbenchSplit = useWorkbenchStore((state) => state.setSplit);
   const focusWorkbenchPane = useWorkbenchStore((state) => state.focusPane);
   const [conversationHistory, setConversationHistory] = useState(() => (
@@ -603,7 +603,7 @@ export function SessionPage(props: SessionPageProps) {
   // conversation's tabs keep loading silently in the background.
   useEffect(() => {
     if (!isElectronRuntime()) return;
-    void (window as Window).__OPENWORK_ELECTRON__?.browser?.setVisibleSession?.(props.selectedSessionId ?? null);
+    void (window as Window).__HARNESS_ELECTRON__?.browser?.setVisibleSession?.(props.selectedSessionId ?? null);
   }, [props.selectedSessionId]);
 
   // Open the side panel of the conversation that owns a browser event. For the
@@ -625,7 +625,7 @@ export function SessionPage(props: SessionPageProps) {
   // the panel opened and doesn't render the unified panel chrome.
   useEffect(() => {
     if (!isElectronRuntime()) return;
-    const browser = (window as Window).__OPENWORK_ELECTRON__?.browser;
+    const browser = (window as Window).__HARNESS_ELECTRON__?.browser;
     if (!browser) return;
     const unsubOpen = browser.onPanelOpened?.((payload) => {
       const ownerSessionId = payload?.ownerSessionId ?? props.selectedSessionId;
@@ -678,7 +678,7 @@ export function SessionPage(props: SessionPageProps) {
   }, []);
   const createBrowserTab = useCreateTab();
   const openTargetForRuntime = useCallback((runtime: {
-    client: OpenworkServerClient | null;
+    client: HarnessServerClient | null;
     runtimeWorkspaceId: string | null;
     workspaceRoot: string;
     workspaceType?: WorkspaceInfo["workspaceType"];
@@ -693,7 +693,7 @@ export function SessionPage(props: SessionPageProps) {
           return;
         }
         const ownerSessionId = sourceSessionId ?? props.selectedSessionId ?? null;
-        const openLink = window.__OPENWORK_ELECTRON__?.browser?.openLink;
+        const openLink = window.__HARNESS_ELECTRON__?.browser?.openLink;
         if (!options?.auto && openLink) {
           openLink(url, ownerSessionId);
           return;
@@ -792,14 +792,14 @@ export function SessionPage(props: SessionPageProps) {
   }, [activePanelTab?.id, browserUrlForTarget, createBrowserTab, openOwnerSidePanel, openTab, props.selectedSessionId, setCurrentSidePanel]);
   const openTarget = useCallback((target: OpenTarget, options?: OpenTargetOptions, sourceSessionId?: string) => {
     openTargetForRuntime({
-      client: props.openworkServerClient,
+      client: props.harnessServerClient,
       runtimeWorkspaceId: props.runtimeWorkspaceId,
       workspaceRoot: props.selectedWorkspaceRoot,
       workspaceType: props.selectedWorkspaceDisplay.workspaceType,
     }, target, options, sourceSessionId);
   }, [
     openTargetForRuntime,
-    props.openworkServerClient,
+    props.harnessServerClient,
     props.runtimeWorkspaceId,
     props.selectedWorkspaceDisplay.workspaceType,
     props.selectedWorkspaceRoot,
@@ -811,7 +811,7 @@ export function SessionPage(props: SessionPageProps) {
     setCurrentSidePanel("panel");
   }, [setCurrentSidePanel]);
   const openBrowserRailPane = useOpenBrowserRailPane(sidePanelSessionKey, browserRailActive, setCurrentSidePanel);
-  const openBrowserUrlControlAction = useMemo<OpenworkControlAction>(() => ({
+  const openBrowserUrlControlAction = useMemo<HarnessControlAction>(() => ({
     id: "browser.open_url",
     label: "Open URL in built-in browser",
     description: "Open a built-in browser tab and return its tab_id and CDP handle. The tab is protected from suspension for its task lifetime until browser.release_tab declares all running and queued browser work complete.",
@@ -835,11 +835,11 @@ export function SessionPage(props: SessionPageProps) {
       // conversation on screen is never interrupted.
       const ownerSessionId = helpers.origin?.sessionId ?? props.selectedSessionId ?? null;
       openOwnerSidePanel(ownerSessionId);
-      return window.__OPENWORK_ELECTRON__?.browser?.openUrl?.(url, provider, { sessionId: ownerSessionId });
+      return window.__HARNESS_ELECTRON__?.browser?.openUrl?.(url, provider, { sessionId: ownerSessionId });
     },
   }), [openOwnerSidePanel, props.selectedSessionId]);
   useControlAction(openBrowserUrlControlAction);
-  const restoreBrowserTabControlAction = useMemo<OpenworkControlAction>(() => ({
+  const restoreBrowserTabControlAction = useMemo<HarnessControlAction>(() => ({
     id: "browser.restore_tab",
     label: "Restore browser tab",
     description: "Acquire a fresh protected CDP handle for a tab owned by this conversation. A suspended tab reloads its saved URL, not its previous document, retaining tab_id with a new target_id. A live tab keeps its document. Always use the returned handle. Protection lasts until browser.release_tab.",
@@ -850,14 +850,14 @@ export function SessionPage(props: SessionPageProps) {
     execute: async (args, helpers) => {
       const tabId = controlStringArg(args, "tabId");
       if (!tabId) return { ok: false, error: "Missing tabId." };
-      const restoreTab = window.__OPENWORK_ELECTRON__?.browser?.restoreTab;
+      const restoreTab = window.__HARNESS_ELECTRON__?.browser?.restoreTab;
       if (!restoreTab) return { ok: false, error: "Built-in browser is not available." };
       const ownerSessionId = helpers.origin?.sessionId ?? props.selectedSessionId ?? null;
       return restoreTab(tabId, ownerSessionId);
     },
   }), [props.selectedSessionId]);
   useControlAction(restoreBrowserTabControlAction);
-  const releaseBrowserTabControlAction = useMemo<OpenworkControlAction>(() => ({
+  const releaseBrowserTabControlAction = useMemo<HarnessControlAction>(() => ({
     id: "browser.release_tab",
     label: "Release browser tab",
     description: "Declare all running and queued browser work on this conversation's tab complete and remove its suspension protection. Release does not close, suspend, or invalidate the current target. The user may then manually suspend it. Before starting later browser work, call browser.restore_tab and use its returned protected handle.",
@@ -868,26 +868,26 @@ export function SessionPage(props: SessionPageProps) {
     execute: async (args, helpers) => {
       const tabId = controlStringArg(args, "tabId");
       if (!tabId) return { ok: false, error: "Missing tabId." };
-      const releaseTab = window.__OPENWORK_ELECTRON__?.browser?.releaseTab;
+      const releaseTab = window.__HARNESS_ELECTRON__?.browser?.releaseTab;
       if (!releaseTab) return { ok: false, error: "Built-in browser is not available." };
       const ownerSessionId = helpers.origin?.sessionId ?? props.selectedSessionId ?? null;
       return releaseTab(tabId, ownerSessionId);
     },
   }), [props.selectedSessionId]);
   useControlAction(releaseBrowserTabControlAction);
-  const setBrowserProxyControlAction = useMemo<OpenworkControlAction>(() => ({
+  const setBrowserProxyControlAction = useMemo<HarnessControlAction>(() => ({
     id: "browser.set_proxy",
     label: "Set built-in browser proxy",
     description: "Route all built-in browser traffic through an HTTP/SOCKS proxy (e.g. to browse from another location). Applies to every built-in browser tab until cleared. Pass an empty proxy to restore system network settings.",
     sideEffect: "mutation",
     args: [
-      { name: "proxy", type: "string", description: "Proxy URL like http://user:pass@host:8080 or socks5://host:1080, env:NAME to use the OPENWORK_BROWSER_PROXY_NAME environment variable, or empty to clear." },
+      { name: "proxy", type: "string", description: "Proxy URL like http://user:pass@host:8080 or socks5://host:1080, env:NAME to use the HARNESS_BROWSER_PROXY_NAME environment variable, or empty to clear." },
     ],
     previewArgs: { proxy: "env:DE" },
     disabled: !isElectronRuntime(),
     execute: async (args) => {
       const proxy = controlStringArg(args, "proxy") || "";
-      const setProxy = window.__OPENWORK_ELECTRON__?.browser?.setProxy;
+      const setProxy = window.__HARNESS_ELECTRON__?.browser?.setProxy;
       if (!setProxy) return { ok: false, error: "Built-in browser is not available." };
       return setProxy(proxy);
     },
@@ -950,17 +950,17 @@ export function SessionPage(props: SessionPageProps) {
       const target = accessibleTargets.find((item) => item.id === requested?.id || item.value === requested?.value);
       if (target) removeAccessibleTarget(target);
     };
-    window.addEventListener("openwork-open-accessible-target", open);
-    window.addEventListener("openwork-hide-accessible-target", hide);
+    window.addEventListener("harness-open-accessible-target", open);
+    window.addEventListener("harness-hide-accessible-target", hide);
     return () => {
-      window.removeEventListener("openwork-open-accessible-target", open);
-      window.removeEventListener("openwork-hide-accessible-target", hide);
+      window.removeEventListener("harness-open-accessible-target", open);
+      window.removeEventListener("harness-hide-accessible-target", hide);
     };
   }, [accessibleTargets, openTarget, removeAccessibleTarget]);
   useEffect(() => {
     const handler = () => setCurrentSidePanel(null);
-    window.addEventListener("openwork-close-right-pane", handler);
-    return () => window.removeEventListener("openwork-close-right-pane", handler);
+    window.addEventListener("harness-close-right-pane", handler);
+    return () => window.removeEventListener("harness-close-right-pane", handler);
   }, [setCurrentSidePanel]);
   const [showDelayedSessionLoadingState, setShowDelayedSessionLoadingState] = useState(false);
 
@@ -995,7 +995,7 @@ export function SessionPage(props: SessionPageProps) {
       splitSession?.sessionId ?? null,
     ));
   }, [
-    openWorkbenchTab,
+    harnessbenchTab,
     pendingConversationHistoryNavigation,
     props.selectedSessionId,
     props.selectedWorkspaceId,
@@ -1060,13 +1060,13 @@ export function SessionPage(props: SessionPageProps) {
 
   const reactSessionBaseUrl = props.opencodeBaseUrl?.trim() ?? "";
   const reactSessionToken =
-    props.openworkServerToken?.trim() ||
-    props.openworkServerClient?.token?.trim() ||
+    props.harnessServerToken?.trim() ||
+    props.harnessServerClient?.token?.trim() ||
     "";
   const canRenderReactSurface = Boolean(
     props.selectedSessionId &&
       props.runtimeWorkspaceId &&
-      props.openworkServerClient &&
+      props.harnessServerClient &&
       reactSessionBaseUrl &&
       reactSessionToken &&
       props.surface,
@@ -1087,7 +1087,7 @@ export function SessionPage(props: SessionPageProps) {
     }
     if (
       props.runtimeWorkspaceId
-      && props.openworkServerClient
+      && props.harnessServerClient
       && reactSessionBaseUrl
       && reactSessionToken
       && props.surface
@@ -1100,8 +1100,8 @@ export function SessionPage(props: SessionPageProps) {
         workspaceType: props.selectedWorkspaceDisplay.workspaceType,
         runtimeWorkspaceId: props.runtimeWorkspaceId,
         opencodeBaseUrl: reactSessionBaseUrl,
-        openworkToken: reactSessionToken,
-        client: props.openworkServerClient,
+        harnessToken: reactSessionToken,
+        client: props.harnessServerClient,
         environmentClient: props.environmentClient,
         surface: props.surface,
       };
@@ -1160,7 +1160,7 @@ export function SessionPage(props: SessionPageProps) {
   );
 
   const openSessionTab = useCallback((workspaceId: string, sessionId: string) => {
-    openWorkbenchTab({
+    harnessbenchTab({
       workspaceId,
       sessionId,
       title: sessionTitleForId(props.sidebar.workspaceSessionGroups, sessionId, workspaceId),
@@ -1168,7 +1168,7 @@ export function SessionPage(props: SessionPageProps) {
     });
     focusWorkbenchPane("primary");
     props.sidebar.onOpenSession(workspaceId, sessionId);
-  }, [focusWorkbenchPane, openWorkbenchTab, props.sidebar]);
+  }, [focusWorkbenchPane, harnessbenchTab, props.sidebar]);
 
   const handleOpenSessionReference = useCallback((reference: SessionReference) => {
     const workbench = useWorkbenchStore.getState();
@@ -1219,7 +1219,7 @@ export function SessionPage(props: SessionPageProps) {
     return null;
   }, [props.selectedSessionId, props.sidebar.workspaceSessionGroups]);
 
-  const focusWorkbenchSessionControlAction = useMemo<OpenworkControlAction>(() => ({
+  const focusWorkbenchSessionControlAction = useMemo<HarnessControlAction>(() => ({
     id: "workbench.session.focus",
     label: "Focus an open session",
     description: "Focus a session already visible in either split-screen pane, or reuse its existing tab without opening a duplicate.",
@@ -1230,7 +1230,7 @@ export function SessionPage(props: SessionPageProps) {
       name: "sessionId",
       type: "string",
       required: true,
-      description: "Session id from the OpenWork context resources or conversation tabs.",
+      description: "Session id from the Harness context resources or conversation tabs.",
     }],
     execute: (args) => {
       if (!args || typeof args !== "object" || !("sessionId" in args) || typeof args.sessionId !== "string") {
@@ -1359,7 +1359,7 @@ export function SessionPage(props: SessionPageProps) {
   ) : activeSidePanel === "panel" ? (
     <SidePanel
       sessionId={sidePanelSessionKey}
-      client={props.openworkServerClient}
+      client={props.harnessServerClient}
       workspaceId={props.runtimeWorkspaceId}
       workspaceRoot={props.selectedWorkspaceRoot}
       isRemoteWorkspace={props.surface?.isRemoteWorkspace ?? false}
@@ -1454,7 +1454,7 @@ export function SessionPage(props: SessionPageProps) {
           extensionsActive={props.extensionsActive}
           status={{
             clientConnected: props.clientConnected,
-            openworkServerStatus: props.openworkServerStatus,
+            harnessServerStatus: props.harnessServerStatus,
             developerMode: props.developerMode,
             showConnectionStatus: Boolean(props.selectedWorkspaceId),
             providerConnectedIds: props.providerConnectedIds,
@@ -1462,7 +1462,7 @@ export function SessionPage(props: SessionPageProps) {
             showSettingsButton: props.statusBar?.showSettingsButton,
             reloadBusy: props.statusBar?.reloadBusy,
             reloadError: props.statusBar?.reloadError,
-            openWorkConnectState: props.statusBar?.openWorkConnectState,
+            harnessConnectState: props.statusBar?.harnessConnectState,
             onSendFeedback: props.onSendFeedback,
           }}
         />
@@ -1636,8 +1636,8 @@ export function SessionPage(props: SessionPageProps) {
                   className="hidden lg:inline-flex"
                   onClick={() => {
                     try {
-                      window.localStorage.removeItem("openwork.acknowledgedProviders");
-                      window.localStorage.removeItem("openwork.orgOnboardingSeen");
+                      window.localStorage.removeItem("harness.acknowledgedProviders");
+                      window.localStorage.removeItem("harness.orgOnboardingSeen");
                     } catch {}
                   }}
                   title="Clears acknowledged providers + org onboarding so they trigger again"
@@ -1793,11 +1793,11 @@ export function SessionPage(props: SessionPageProps) {
                             // Spread `surface` first so the explicit per-workspace
                             // routing props below CAN'T be silently overridden by
                             // anything that leaks into `surface`. SessionSurface's
-                            // server target (client/workspaceId/sessionId/opencodeBaseUrl/openworkToken)
+                            // server target (client/workspaceId/sessionId/opencodeBaseUrl/harnessToken)
                             // must come from the resolved workspace endpoint passed by
                             // SessionRoute, not from anything in `surface`.
                             {...props.surface!}
-                            client={props.openworkServerClient!}
+                            client={props.harnessServerClient!}
                             environmentClient={props.environmentClient}
                             workspaceId={props.runtimeWorkspaceId!}
                             sessionId={props.selectedSessionId!}
@@ -1806,7 +1806,7 @@ export function SessionPage(props: SessionPageProps) {
                             isControlTarget={activeWorkbenchPane === "primary"}
                             chatPane={canRenderSplitSurface ? "primary" : undefined}
                             opencodeBaseUrl={reactSessionBaseUrl}
-                            openworkToken={reactSessionToken}
+                            harnessToken={reactSessionToken}
                             todos={props.todos}
                             activePermission={props.activePermission}
                             activePermissionSourceTitle={props.activePermissionSourceTitle}
@@ -1872,7 +1872,7 @@ export function SessionPage(props: SessionPageProps) {
                                     workspaceId: splitSession.workspaceId,
                                     runtimeWorkspaceId: splitPaneRuntime.runtimeWorkspaceId,
                                     opencodeBaseUrl: splitPaneRuntime.opencodeBaseUrl,
-                                    openworkToken: splitPaneRuntime.openworkToken,
+                                    harnessToken: splitPaneRuntime.harnessToken,
                                   })}
                                   client={splitPaneRuntime.client}
                                   environmentClient={splitPaneRuntime.environmentClient}
@@ -1884,7 +1884,7 @@ export function SessionPage(props: SessionPageProps) {
                                   isControlTarget={activeWorkbenchPane === "secondary"}
                                   chatPane="secondary"
                                   opencodeBaseUrl={splitPaneRuntime.opencodeBaseUrl}
-                                  openworkToken={splitPaneRuntime.openworkToken}
+                                  harnessToken={splitPaneRuntime.harnessToken}
                                   onOpenTarget={(target, options, sourceSessionId) => openTargetForRuntime({
                                     client: splitPaneRuntime.client,
                                     runtimeWorkspaceId: splitPaneRuntime.runtimeWorkspaceId,

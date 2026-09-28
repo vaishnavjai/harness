@@ -77,8 +77,8 @@ type ComposerProps = {
   modelOptions?: readonly ModelOption[];
   /** When set, the full model picker opened from here targets this session. */
   sessionId?: string;
-  openWorkModelsEntitled?: boolean;
-  openWorkModelsSyncing?: boolean;
+  harnessModelsEntitled?: boolean;
+  harnessModelsSyncing?: boolean;
   onRefreshOrganizationModels?: () => void | Promise<void>;
   onModelPickerOpenChange: (open: boolean) => void;
   onModelChange: (model: ModelRef, variant?: string | null) => void;
@@ -129,9 +129,9 @@ type ComposerProps = {
   contextControl?: ReactNode;
 };
 
-const FLUSH_PROMPT_EVENT = "openwork:flushPromptDraft";
-const FOCUS_PROMPT_EVENT = "openwork:focusPrompt";
-const DEFAULT_AGENT_NAME = "openwork";
+const FLUSH_PROMPT_EVENT = "harness:flushPromptDraft";
+const FOCUS_PROMPT_EVENT = "harness:focusPrompt";
+const DEFAULT_AGENT_NAME = "harness";
 
 function isNonDefaultAgent(agent: Agent) {
   return agent.name !== DEFAULT_AGENT_NAME;
@@ -728,7 +728,7 @@ export const ReactSessionComposer = memo(function ReactSessionComposer(props: Co
       origin: "local" as const,
     })),
     ...skills.filter((skill) =>
-      skill.origin === "openwork-connect" || !localCommandSkillNames.has(skill.name)
+      skill.origin === "harness-connect" || !localCommandSkillNames.has(skill.name)
     ),
   ];
   const connectionInventory = useMemo(
@@ -826,7 +826,7 @@ export const ReactSessionComposer = memo(function ReactSessionComposer(props: Co
     const skill = typeof input === "string"
       ? { name: input, path: "", origin: "local" as const }
       : input;
-    if (skill.origin === "openwork-connect") {
+    if (skill.origin === "harness-connect") {
       const slug = skillSlashCommandName(skill);
       const token = encodeConnectSkillToken({
         slug,
@@ -866,11 +866,11 @@ export const ReactSessionComposer = memo(function ReactSessionComposer(props: Co
   };
 
   const applyPluginFileSelection = (file: CloudImportedPluginFile) => {
-    if (file.skillOrigin === "openwork-connect") {
+    if (file.skillOrigin === "harness-connect") {
       applySkillSelection({
         name: file.skillName ?? file.title,
         path: file.path,
-        origin: "openwork-connect",
+        origin: "harness-connect",
         marketplaceName: file.marketplaceName,
         pluginName: file.pluginName,
         connectCapabilityName: file.connectCapabilityName,
@@ -1564,8 +1564,8 @@ export const ReactSessionComposer = memo(function ReactSessionComposer(props: Co
                   }}
                   disabled={props.steering}
                   sessionId={props.sessionId}
-                  openWorkModelsEntitled={props.openWorkModelsEntitled}
-                  openWorkModelsSyncing={props.openWorkModelsSyncing}
+                  harnessModelsEntitled={props.harnessModelsEntitled}
+                  harnessModelsSyncing={props.harnessModelsSyncing}
                   fallbackOptions={props.modelOptions}
                   behaviorValue={props.modelVariant}
                   behaviorLabel={props.modelVariantLabel}

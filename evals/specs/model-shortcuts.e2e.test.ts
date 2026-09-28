@@ -1,6 +1,6 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { expect } from "vitest";
-import { fastVariantId } from "@openwork/types/cloud-model-fast";
+import { fastVariantId } from "@harness/types/cloud-model-fast";
 
 import { modelShortcutsWeb } from "../worlds/model-shortcuts.ts";
 
@@ -85,7 +85,7 @@ test("a member switches models with saved keys and toggles Fast without opening 
     await user.press(`${mod}+Alt+1`);
     await user.notSee({ testId: "model-shortcut-notice" });
     await user.see({ role: "button", label: "Change model" }, { text: /^Fast witness/ });
-    const stored = await probe.storage("openwork.sessionModels.v1");
+    const stored = await probe.storage("harness.sessionModels.v1");
     const serialized = JSON.stringify(stored);
     evidence.recordAssertionEvidence("conversation model", serialized.slice(0, 300), serialized.includes(fastVariantId("high")));
     expect(serialized).toContain(world.fastModelId);
@@ -113,7 +113,7 @@ test("a member switches models with saved keys and toggles Fast without opening 
     await user.see({ testId: "model-fast-indicator" }, { text: /Fast/ });
     await user.see({ role: "button", label: "Change model" }, { text: /^Fast witness\s*· High\s*· Fast$/ });
     await user.notSee({ testId: "model-shortcut-notice" });
-    const stored = JSON.stringify(await probe.storage("openwork.sessionModels.v1"));
+    const stored = JSON.stringify(await probe.storage("harness.sessionModels.v1"));
     evidence.recordAssertionEvidence("Fast back on at High", stored.slice(0, 300), stored.includes(fastVariantId("high")));
     expect(stored).toContain(fastVariantId("high"));
     await user.screenshot();
@@ -122,12 +122,12 @@ test("a member switches models with saved keys and toggles Fast without opening 
   await step("on a model without Fast, the Fast key quietly changes nothing", async () => {
     await user.press(`${mod}+Alt+2`);
     await user.see({ role: "button", label: "Change model" }, { text: /^Reasoning witness/ });
-    const before = JSON.stringify(await probe.storage("openwork.sessionModels.v1"));
+    const before = JSON.stringify(await probe.storage("harness.sessionModels.v1"));
     await user.press(fastKey);
     await user.notSee({ testId: "model-fast-indicator" });
     await user.notSee({ testId: "model-shortcut-notice" });
     await user.see({ role: "button", label: "Change model" }, { text: /^Reasoning witness\s*· High$/ });
-    const after = JSON.stringify(await probe.storage("openwork.sessionModels.v1"));
+    const after = JSON.stringify(await probe.storage("harness.sessionModels.v1"));
     evidence.recordAssertionEvidence("model unchanged", "composer still shows Reasoning witness · High and stored selection is unchanged", before === after);
     expect(after).toBe(before);
     await user.screenshot();
@@ -137,9 +137,9 @@ test("a member switches models with saved keys and toggles Fast without opening 
     await user.press(`${mod}+Alt+9`);
     await user.notSee({ testId: "model-shortcut-notice" });
     await user.see({ role: "button", label: "Change model" }, { text: /^Reasoning witness/ });
-    const stored = JSON.stringify(await probe.storage("openwork.shortcuts.v1"));
+    const stored = JSON.stringify(await probe.storage("harness.shortcuts.v1"));
     const kept = stored.includes("sc_retired");
-    evidence.recordAssertionEvidence("retired shortcut still saved", kept ? "openwork.shortcuts.v1 still contains the Retired witness key" : stored.slice(0, 300), kept);
+    evidence.recordAssertionEvidence("retired shortcut still saved", kept ? "harness.shortcuts.v1 still contains the Retired witness key" : stored.slice(0, 300), kept);
     expect(kept).toBe(true);
     await user.screenshot();
   });

@@ -80,7 +80,7 @@ Moves session files into the artifact rail, adds richer Markdown controls, and s
 - Session files now live in the artifact rail instead of interrupting the chat transcript, with safer badge layout and responsive behavior on narrow screens.
 - Markdown can render Mermaid diagrams safely, and code blocks offer a word-wrap control for long lines.
 - Agent runs recover more reliably from idle admissions, queued follow-ups, event-stream restarts, Settings visits, and large workspace session histories.
-- OpenWork Cloud adds per-member managed-model credentials, paid browser access, desktop delivery for remote-session commands, and more reliable worker recovery.
+- Harness Cloud adds per-member managed-model credentials, paid browser access, desktop delivery for remote-session commands, and more reliable worker recovery.
 - Electron file transfers now work correctly across the remote bridge, and LiteLLM examples include synchronized model metadata.
 
 #### Lines of code changed since previous release
@@ -99,7 +99,7 @@ True
 - Moved session files into the artifact rail.
 - Added safe Mermaid rendering and code-block word wrapping.
 - Added per-member managed-model credentials.
-- Added paid OpenWork browser access and desktop remote-session delivery.
+- Added paid Harness browser access and desktop remote-session delivery.
 - Synchronized LiteLLM example model metadata.
 
 #### Major bugs resolved

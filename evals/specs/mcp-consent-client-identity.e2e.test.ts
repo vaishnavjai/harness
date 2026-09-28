@@ -1,4 +1,4 @@
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { mcpConsentClientIdentity } from "../worlds/mcp-consent-client-identity.ts";
 
 const test = spec.world(mcpConsentClientIdentity, {
@@ -70,7 +70,7 @@ test("a member sees which app is asking and where it returns before authorizing 
     await person.see({ testId: "mcp-loopback-warning" });
     await person.see({ role: "button", label: `Authorize ${world.loopback.name}` });
     await person.see({ role: "button", label: "Deny" });
-    await person.notSee({ text: /OpenWork MCP|Authorize MCP access/ });
+    await person.notSee({ text: /Harness MCP|Authorize MCP access/ });
     await person.screenshot();
   });
 

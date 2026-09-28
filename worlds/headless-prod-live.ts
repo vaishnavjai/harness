@@ -44,7 +44,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     name: HEADLESS_PROD_LIVE_NAME,
     outputs: {
       webUrl: handle.manifest.webUrl,
-      openworkUrl: handle.manifest.openworkUrl,
+      harnessUrl: handle.manifest.harnessUrl,
       workspace: handle.manifest.workspace,
       runtimeManifest: handle.manifest.runtimeManifestPath,
     },

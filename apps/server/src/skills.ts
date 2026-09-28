@@ -82,7 +82,7 @@ async function parseSkillEntry(
   try {
     content = await readFile(skillPath, "utf8");
   } catch (error) {
-    console.warn("[openwork:skills] Skipping unreadable skill file", {
+    console.warn("[harness:skills] Skipping unreadable skill file", {
       path: skillPath,
       entryName,
       scope,
@@ -104,7 +104,7 @@ async function parseSkillEntry(
     } catch {
       return null;
     }
-    console.warn("[openwork:skills] Found invalid skill frontmatter", {
+    console.warn("[harness:skills] Found invalid skill frontmatter", {
       path: skillPath,
       entryName,
       scope,
@@ -196,11 +196,11 @@ export async function listSkills(workspaceRoot: string, includeGlobal: boolean):
   }
 
   if (includeGlobal) {
-    const globalOpenWork = join(homedir(), ".config", "opencode", "skills");
+    const globalHarness = join(homedir(), ".config", "opencode", "skills");
     const globalClaude = join(homedir(), ".claude", "skills");
     const globalAgents = join(homedir(), ".agents", "skills");
     const globalAgentLegacy = join(homedir(), ".agent", "skills");
-    dirs.push({ dir: globalOpenWork, scope: "global" });
+    dirs.push({ dir: globalHarness, scope: "global" });
     dirs.push({ dir: globalClaude, scope: "global" });
     dirs.push({ dir: globalAgents, scope: "global" });
     dirs.push({ dir: globalAgentLegacy, scope: "global" });

@@ -4,7 +4,7 @@ import { SSEClientTransport, SseError } from "@modelcontextprotocol/sdk/client/s
 import { StreamableHTTPClientTransport, StreamableHTTPError } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import { CallToolResultSchema, ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { connectionActionAppResourceUri, connectionActionIntentSchema, type ConnectionActionIntent } from "@openwork/types/connection-action-app";
+import { connectionActionAppResourceUri, connectionActionIntentSchema, type ConnectionActionIntent } from "@harness/types/connection-action-app";
 import { trustedAppHostCloudEndpoint } from "./connect-mcp-server-catalog.js";
 import type { CallToolResult, Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
@@ -12,11 +12,11 @@ import {
   CONNECT_MCP_APP_HOST_CAPABILITY_HEADER,
   CONNECT_MCP_APP_HOST_NAME_PREFIX,
   connectMcpAppHostName,
-  findOpenWorkConnectMcpAppHostServer,
-  readOpenWorkConnectMcpAppHostAuthorization,
-  readOpenWorkConnectMcpAppHostAuthorizationRevision,
-  readOpenWorkConnectMcpAppHostCatalog,
-  refreshOpenWorkConnectMcpAppHostCatalog,
+  findHarnessConnectMcpAppHostServer,
+  readHarnessConnectMcpAppHostAuthorization,
+  readHarnessConnectMcpAppHostAuthorizationRevision,
+  readHarnessConnectMcpAppHostCatalog,
+  refreshHarnessConnectMcpAppHostCatalog,
   type ConnectMcpCatalogDiagnostic,
 } from "./connect-mcp-server-catalog.js";
 import type { ServerConfig } from "./types.js";
@@ -55,7 +55,7 @@ type McpAppCsp = {
 export type McpAppToolResult = CallToolResult & { hostAction?: ConnectionActionIntent };
 
 export async function supportsHostConnectionActions(serverName: string, config: Record<string, unknown>, toolName: string, resourceUri: string): Promise<boolean> {
-  if (serverName !== "openwork-cloud" && serverName !== "openwork") return false;
+  if (serverName !== "harness-cloud" && serverName !== "harness") return false;
   if (toolName !== "connection_action" || resourceUri !== connectionActionAppResourceUri) return false;
   const endpoint = remoteUrl(config);
   return endpoint !== null && endpoint.pathname === "/mcp/agent" && await trustedAppHostCloudEndpoint(config);
@@ -124,9 +124,9 @@ function staleLaunch(): McpAppHostError {
 async function launchFingerprint(input: { serverConfig: ServerConfig; workspaceId: string }, serverName: string, config: Record<string, unknown>): Promise<string> {
   const managed = await localManagedMcpAppIdentity(input.serverConfig, input.workspaceId, serverName, config.url);
   const runtimeRevisions = readRuntimeMcpConfigRevisions(input.serverConfig, input.workspaceId,
-    serverName.startsWith(CONNECT_MCP_APP_HOST_NAME_PREFIX) ? "openwork-cloud" : serverName);
+    serverName.startsWith(CONNECT_MCP_APP_HOST_NAME_PREFIX) ? "harness-cloud" : serverName);
   const privateRevision = serverName.startsWith(CONNECT_MCP_APP_HOST_NAME_PREFIX)
-    ? await readOpenWorkConnectMcpAppHostAuthorizationRevision(input.serverConfig, input.workspaceId) : null;
+    ? await readHarnessConnectMcpAppHostAuthorizationRevision(input.serverConfig, input.workspaceId) : null;
   return createHash("sha256").update(JSON.stringify({ config, managed, runtimeRevisions, privateRevision })).digest("hex");
 }
 
@@ -255,7 +255,7 @@ function resourcePresentationMeta(value: unknown): { csp: McpAppCsp; prefersBord
   if (Object.keys(permissions).length > 0 || ui.domain !== undefined) {
     throw new McpAppHostError(
       "unsupported_resource_permissions",
-      "This OpenWork host slice does not grant device permissions or dedicated sandbox origins.",
+      "This Harness host slice does not grant device permissions or dedicated sandbox origins.",
     );
   }
   return {
@@ -363,7 +363,7 @@ async function withRemoteClient<T>(
   ];
   const failures: string[] = [];
   for (const [index, createTransport] of attempts.entries()) {
-    const client = new Client({ name: "openwork-mcp-app-host", version: "1.0.0" }, clientOptions());
+    const client = new Client({ name: "harness-mcp-app-host", version: "1.0.0" }, clientOptions());
     let connected = false;
     try {
       await client.connect(createTransport());
@@ -449,7 +449,7 @@ function decodeResourceHtml(content: { text?: string; blob?: string }): { html: 
 
 function connectCatalogError(diagnostic: Exclude<ConnectMcpCatalogDiagnostic, "ready" | "empty">): McpAppHostError {
   const messages = {
-    missing_app_host_auth: "The Connect MCP App host needs a fresh private authorization. Sync OpenWork Connect and try again.",
+    missing_app_host_auth: "The Connect MCP App host needs a fresh private authorization. Sync Harness Connect and try again.",
     untrusted_origin: "The Connect MCP catalog origin is not trusted. Activate the enterprise Den origin before loading Apps.",
     invalid_catalog: "The Connect MCP catalog is invalid. Ask your administrator to check the Den catalog.",
     invalid_proxy_descriptor: "The Connect MCP catalog contains an invalid provider proxy descriptor. Ask your administrator to correct it in Den.",
@@ -466,18 +466,18 @@ async function privateConnectMcpConfig(input: {
 }): Promise<{ serverName: string; config: Record<string, unknown> } | null> {
   // Ordinary user-configured servers do not depend on Connect discovery.
   if (input.connectionId === undefined && !input.serverName?.startsWith(CONNECT_MCP_APP_HOST_NAME_PREFIX)) return null;
-  let descriptor = await findOpenWorkConnectMcpAppHostServer(
+  let descriptor = await findHarnessConnectMcpAppHostServer(
     input.serverConfig,
     input.workspaceId,
     { connectionId: input.connectionId, serverName: input.serverName },
   );
   if (!descriptor) {
-    const refreshed = await refreshOpenWorkConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
+    const refreshed = await refreshHarnessConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
     if (refreshed.diagnostic !== "ready" && refreshed.diagnostic !== "empty") {
       throw connectCatalogError(refreshed.diagnostic);
     }
     if (refreshed.status === "synced") {
-      descriptor = await findOpenWorkConnectMcpAppHostServer(
+      descriptor = await findHarnessConnectMcpAppHostServer(
         input.serverConfig,
         input.workspaceId,
         { connectionId: input.connectionId, serverName: input.serverName },
@@ -485,7 +485,7 @@ async function privateConnectMcpConfig(input: {
     }
   }
   if (!descriptor) return null;
-  const appHostAuthorization = await readOpenWorkConnectMcpAppHostAuthorization(
+  const appHostAuthorization = await readHarnessConnectMcpAppHostAuthorization(
     input.serverConfig,
     input.workspaceId,
     descriptor.url,
@@ -640,11 +640,11 @@ export async function listMcpAppCatalog(input: {
   // capability gateway. Their catalog and authorization live in the private
   // app-host store, not the workspace MCP config, and their launches resolve
   // through a connection reference (app audience only).
-  let connectCatalog = await readOpenWorkConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
+  let connectCatalog = await readHarnessConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
   if (connectCatalog.servers.length === 0) {
-    const refreshed = await refreshOpenWorkConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
+    const refreshed = await refreshHarnessConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
     if (refreshed.status === "synced") {
-      connectCatalog = await readOpenWorkConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
+      connectCatalog = await readHarnessConnectMcpAppHostCatalog(input.serverConfig, input.workspaceId);
     }
   }
   // A Connect host can also appear in the workspace MCP config under the same
@@ -685,7 +685,7 @@ export async function listMcpAppCatalog(input: {
       displayName: descriptor.name,
       connectionId: descriptor.connectionId,
     };
-    const authorization = await readOpenWorkConnectMcpAppHostAuthorization(
+    const authorization = await readHarnessConnectMcpAppHostAuthorization(
       input.serverConfig,
       input.workspaceId,
       descriptor.url,
@@ -958,7 +958,7 @@ export async function callMcpAppTool(input: {
   /** Required for conversation leases; the HTTP host checks current ownership/archive state. */
   assertSessionActive?: () => Promise<void>;
 }): Promise<McpAppToolResult> {
-  if (!input.launchId) throw new McpAppHostError("missing_launch_context", "This App has no live launch context. Update OpenWork and reopen the App before using its actions.");
+  if (!input.launchId) throw new McpAppHostError("missing_launch_context", "This App has no live launch context. Update Harness and reopen the App before using its actions.");
   const launchId = input.launchId;
   const launch = liveLaunches(input.serverConfig).get(launchId);
   const assertLive = () => {
@@ -1012,7 +1012,7 @@ export async function callMcpAppTool(input: {
       if (expectedResourceDigest !== undefined) {
         const resourceDigest = mcpAppResourceDigest({ html: resource.html, ...resourcePresentationMeta(resource.meta) });
         if (expectedResourceDigest.toLowerCase() !== launch.resourceDigest || resourceDigest !== launch.resourceDigest) {
-          throw new McpAppHostError("mcp_app_resource_changed", "The App resource changed. OpenWork stopped the refresh before calling the tool. Reload the App before refreshing again.");
+          throw new McpAppHostError("mcp_app_resource_changed", "The App resource changed. Harness stopped the refresh before calling the tool. Reload the App before refreshing again.");
         }
       }
     } catch (error) {
@@ -1047,7 +1047,7 @@ export async function callMcpAppTool(input: {
     if ((toolRequiresApproval(tool) || hostConnectionAction) && input.approved !== true) {
       throw new McpAppHostError(
         "tool_requires_approval",
-        "This MCP App tool requires user approval before OpenWork can call it.",
+        "This MCP App tool requires user approval before Harness can call it.",
       );
     }
     await currentConfig();

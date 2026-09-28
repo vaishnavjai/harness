@@ -17,7 +17,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client";
 
 import { createClient, createDesktopFetch, type FieldsResult } from "./opencode";
-import type { OpenworkSessionHistory } from "./openwork-server";
+import type { HarnessSessionHistory } from "./harness-server";
 import { isDesktopRuntime } from "./runtime-env";
 import type { OpencodeEvent } from "../types";
 import { normalizeDirectoryPath } from "../utils";
@@ -51,7 +51,7 @@ type PromptPart = {
 };
 
 function selectedSkill(part: PromptPart): Record<string, unknown> | null {
-  const selection = part.type === "text" && part.synthetic === true ? readRecord(part.metadata, "openworkSelectedSkill") : null;
+  const selection = part.type === "text" && part.synthetic === true ? readRecord(part.metadata, "harnessSelectedSkill") : null;
   // Older drafts marked remote capabilities as native attachments. Preserve
   // their Connect instruction instead of resolving them in the local registry.
   const id = readString(selection, "id");
@@ -212,7 +212,7 @@ type TaskSessionAssociations = {
   byCall: Map<string, string>;
 };
 
-const TASK_SESSION_ASSOCIATIONS_STORAGE_KEY = "openwork.v2.task-session-associations.v1";
+const TASK_SESSION_ASSOCIATIONS_STORAGE_KEY = "harness.v2.task-session-associations.v1";
 const MAX_TASK_SESSION_ASSOCIATIONS = 256;
 const taskSessionAssociationsByScope = new Map<string, Map<string, string>>();
 
@@ -385,7 +385,7 @@ function mapV2Session(value: unknown, directory: string | undefined, eventCreate
     id,
     slug: readString(source, "slug") ?? id,
     projectID: readString(source, "projectID") ?? "v2",
-    directory: readString(source, "openworkHomeDirectory") ?? readString(source, "directory") ?? readString(location, "directory") ?? directory ?? "",
+    directory: readString(source, "harnessHomeDirectory") ?? readString(source, "directory") ?? readString(location, "directory") ?? directory ?? "",
     // Keep native untitled sessions eligible for compatibility title recovery.
     title: readString(source, "title") || `New session - ${new Date(created).toISOString()}`,
     version: readString(source, "version") ?? "v2",
@@ -471,7 +471,7 @@ function toolAttachments(
 
 function toolPartMetadata(tool: string): Pick<ToolPart, "metadata"> {
   // Adapter provenance stays separate from metadata returned by the tool.
-  return tool === "execute" ? { metadata: { openworkV2CodeMode: true } } : {};
+  return tool === "execute" ? { metadata: { harnessV2CodeMode: true } } : {};
 }
 
 function toolOutput(value: unknown, result?: unknown): string {
@@ -1607,7 +1607,7 @@ function createWebFetch(auth: { token?: string }): typeof globalThis.fetch {
 
 function createV2Fetch(auth: { token?: string }): typeof globalThis.fetch {
   return isDesktopRuntime()
-    ? createDesktopFetch({ mode: "openwork", token: auth.token })
+    ? createDesktopFetch({ mode: "harness", token: auth.token })
     : createWebFetch(auth);
 }
 
@@ -1671,7 +1671,7 @@ export function createClientV2(
 ) {
   const baseUrl = opencode2BaseUrl.replace(/\/+$/, "");
   const fetchImpl = createV2Fetch(auth);
-  const compatibilityClient = createClient(baseUrl, directory, { mode: "openwork", token: auth.token });
+  const compatibilityClient = createClient(baseUrl, directory, { mode: "harness", token: auth.token });
   const taskSessions = taskSessionAssociations(baseUrl);
   const permissionSessionByRequestID = new Map<string, string>();
   const questionFormsByID = new Map<string, NonNullable<ReturnType<typeof mapV2Question>>>();
@@ -1924,7 +1924,7 @@ export function createClientV2(
     messages: async (
       parameters: SessionParameters & { limit?: number; before?: string },
       options?: RequestOptions,
-    ): Promise<FieldsResult<V2MappedMessage[]> & Pick<OpenworkSessionHistory, "pagination">> => {
+    ): Promise<FieldsResult<V2MappedMessage[]> & Pick<HarnessSessionHistory, "pagination">> => {
       const limit = parameters.limit === undefined ? undefined : Math.min(parameters.limit, 200);
       if ((parameters.limit !== undefined && (!Number.isInteger(parameters.limit) || parameters.limit <= 0))
         || (parameters.before !== undefined && limit === undefined)) {
@@ -2055,7 +2055,7 @@ export function createClientV2(
       if (!modelResult.response.ok) return failedResult(modelResult);
       if (parameters.system !== undefined) {
         const instructions = await request("PUT",
-          `/api/session/${encodeURIComponent(parameters.sessionID)}/instructions/entries/openwork-context`,
+          `/api/session/${encodeURIComponent(parameters.sessionID)}/instructions/entries/harness-context`,
           { value: parameters.system }, options?.signal);
         if (!instructions.response.ok) return failedResult(instructions);
       }

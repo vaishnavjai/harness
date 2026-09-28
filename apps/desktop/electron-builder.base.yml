@@ -10,17 +10,19 @@ files:
   - from: .electron-runtime/node_modules
     to: node_modules
 extraResources:
-  - from: .electron-runtime/openwork-sentry.json
-    to: openwork-sentry.json
   - from: ../app/dist
     to: app-dist
+  - from: .electron-runtime/harness-ui-mcp
+    to: harness-ui-mcp
+    filter:
+      - "*.mjs"
   - from: server/dist/opencode-plugins
     to: opencode-plugins
     filter:
       - "*.js"
       - "*.wasm"
   - from: ../../packages/docs
-    to: openwork-docs
+    to: harness-docs
     filter:
       - "**/*.md"
       - "**/*.mdx"
@@ -35,7 +37,7 @@ afterSign: scripts/electron-after-sign.cjs
 publish:
   - provider: github
     owner: different-ai
-    repo: openwork
+    repo: harness
     releaseType: release
 mac:
   icon: resources/icons/icon.icns
@@ -46,7 +48,7 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    NSMicrophoneUsageDescription: OpenWork uses the microphone when you allow a page to access audio input.
+    NSMicrophoneUsageDescription: Harness uses the microphone when you allow a page to access audio input.
   extraResources:
     - from: resources/sidecars
       to: sidecars
@@ -63,7 +65,7 @@ mac:
     - from: resources/helpers
       to: helpers
       filter:
-        - "OpenWork Computer Use.app/**"
+        - "Harness Computer Use.app/**"
   target:
     - dmg
     - zip

@@ -77,21 +77,21 @@ jobs:
         uses: azure/setup-helm@v4
 
       - name: Lint chart
-        run: helm lint packaging/helm/openwork-ee
+        run: helm lint packaging/helm/harness-ee
 
       - name: Render chart
-        run: helm template openwork-ee packaging/helm/openwork-ee --set ingress.enabled=true --set inference.enabled=true
+        run: helm template harness-ee packaging/helm/harness-ee --set ingress.enabled=true --set inference.enabled=true
 
       - name: Run chart tests
         run: |
-          for test in packaging/helm/openwork-ee/tests/*.sh; do
+          for test in packaging/helm/harness-ee/tests/*.sh; do
             bash "$test"
           done
 
       - name: Package chart
         if: ${{ needs.artifact-version.outputs.chart_version != '' }}
         run: |
-          helm package packaging/helm/openwork-ee \
+          helm package packaging/helm/harness-ee \
             --version "${{ needs.artifact-version.outputs.chart_version }}" \
             --app-version "${{ needs.artifact-version.outputs.chart_version }}" \
             --destination dist/charts
@@ -105,7 +105,7 @@ jobs:
 
       - name: Publish chart
         if: ${{ needs.artifact-version.outputs.publish == 'true' && needs.artifact-version.outputs.chart_version != '' }}
-        run: helm push "dist/charts/openwork-ee-${{ needs.artifact-version.outputs.chart_version }}.tgz" "oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts"
+        run: helm push "dist/charts/harness-ee-${{ needs.artifact-version.outputs.chart_version }}.tgz" "oci://${{ env.REGISTRY }}/${{ github.repository_owner }}/charts"
 
   ee-images:
     name: Build ${{ matrix.image }}
@@ -115,7 +115,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: openwork-den-api
+          - image: harness-den-api
             dockerfile: packaging/docker/Dockerfile.den
             port: 8788
             health_path: /health
@@ -124,12 +124,12 @@ jobs:
               -e DEN_DB_ENCRYPTION_KEY=ci-den-db-encryption-key-value-123456
               -e BETTER_AUTH_SECRET=ci-better-auth-secret-value-123456
               -e BETTER_AUTH_URL=http://127.0.0.1:8788
-          - image: openwork-den-web
+          - image: harness-den-web
             dockerfile: packaging/docker/Dockerfile.den-web
             port: 3005
             health_path: /api/health
             smoke_env: ""
-          - image: openwork-inference
+          - image: harness-inference
             # Stable image repository for existing Gateway deployments.
             dockerfile: packaging/docker/Dockerfile.gateway
             port: 8791
@@ -140,7 +140,7 @@ jobs:
               -e DEN_DB_ENCRYPTION_KEY=ci-den-db-encryption-key-value-123456
           # The gateway's own liveness lives at /__gw/health because /health is
           # proxied through to the user's instance.
-          - image: openwork-den-gateway
+          - image: harness-den-gateway
             dockerfile: packaging/docker/Dockerfile.den-gateway
             port: 8788
             health_path: /__gw/health
@@ -219,7 +219,7 @@ jobs:
         # Build every image except the ones whose Sentry-enabled step below owns
         # them. Stated as an exclusion so a newly added matrix entry builds by
         # default instead of silently skipping and failing the smoke step.
-        if: ${{ !((matrix.image == 'openwork-den-api' && steps.sentry_sourcemaps.outputs.den_api_upload == 'true') || (matrix.image == 'openwork-den-web' && steps.sentry_sourcemaps.outputs.den_web_upload == 'true')) }}
+        if: ${{ !((matrix.image == 'harness-den-api' && steps.sentry_sourcemaps.outputs.den_api_upload == 'true') || (matrix.image == 'harness-den-web' && steps.sentry_sourcemaps.outputs.den_web_upload == 'true')) }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -232,13 +232,13 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           build-args: |
-            ${{ matrix.image == 'openwork-den-api' && format('DEN_API_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
-            ${{ matrix.image == 'openwork-den-gateway' && format('DEN_GATEWAY_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
-            ${{ matrix.image == 'openwork-den-api' && 'DEN_UPLOAD_SENTRY_SOURCEMAPS=0' || '' }}
-            ${{ matrix.image == 'openwork-den-web' && 'DEN_WEB_UPLOAD_SENTRY_SOURCEMAPS=0' || '' }}
+            ${{ matrix.image == 'harness-den-api' && format('DEN_API_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
+            ${{ matrix.image == 'harness-den-gateway' && format('DEN_GATEWAY_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
+            ${{ matrix.image == 'harness-den-api' && 'DEN_UPLOAD_SENTRY_SOURCEMAPS=0' || '' }}
+            ${{ matrix.image == 'harness-den-web' && 'DEN_WEB_UPLOAD_SENTRY_SOURCEMAPS=0' || '' }}
 
       - name: Build and push with Sentry source-map upload
-        if: ${{ (matrix.image == 'openwork-den-api' && steps.sentry_sourcemaps.outputs.den_api_upload == 'true') || (matrix.image == 'openwork-den-web' && steps.sentry_sourcemaps.outputs.den_web_upload == 'true') }}
+        if: ${{ (matrix.image == 'harness-den-api' && steps.sentry_sourcemaps.outputs.den_api_upload == 'true') || (matrix.image == 'harness-den-web' && steps.sentry_sourcemaps.outputs.den_web_upload == 'true') }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -250,12 +250,12 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}
           build-args: |
-            ${{ matrix.image == 'openwork-den-api' && format('DEN_API_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
-            ${{ matrix.image == 'openwork-den-gateway' && format('DEN_GATEWAY_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
-            ${{ matrix.image == 'openwork-den-api' && 'DEN_UPLOAD_SENTRY_SOURCEMAPS=1' || '' }}
-            ${{ matrix.image == 'openwork-den-web' && 'DEN_WEB_UPLOAD_SENTRY_SOURCEMAPS=1' || '' }}
-            ${{ matrix.image == 'openwork-den-api' && format('DEN_SENTRY_UPLOAD_BUILD_ID={0}-{1}', github.run_id, github.run_attempt) || '' }}
-            ${{ matrix.image == 'openwork-den-web' && format('DEN_WEB_SENTRY_UPLOAD_BUILD_ID={0}-{1}', github.run_id, github.run_attempt) || '' }}
+            ${{ matrix.image == 'harness-den-api' && format('DEN_API_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
+            ${{ matrix.image == 'harness-den-gateway' && format('DEN_GATEWAY_VERSION={0}', needs.artifact-version.outputs.chart_version || github.sha) || '' }}
+            ${{ matrix.image == 'harness-den-api' && 'DEN_UPLOAD_SENTRY_SOURCEMAPS=1' || '' }}
+            ${{ matrix.image == 'harness-den-web' && 'DEN_WEB_UPLOAD_SENTRY_SOURCEMAPS=1' || '' }}
+            ${{ matrix.image == 'harness-den-api' && format('DEN_SENTRY_UPLOAD_BUILD_ID={0}-{1}', github.run_id, github.run_attempt) || '' }}
+            ${{ matrix.image == 'harness-den-web' && format('DEN_WEB_SENTRY_UPLOAD_BUILD_ID={0}-{1}', github.run_id, github.run_attempt) || '' }}
           secrets: |
             sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
             sentry_org=${{ secrets.SENTRY_ORG }}
@@ -265,7 +265,7 @@ jobs:
             sentry_dist=${{ secrets.SENTRY_DIST }}
 
       - name: Assert Den DB migration assets
-        if: ${{ github.event_name == 'pull_request' && matrix.image == 'openwork-den-api' }}
+        if: ${{ github.event_name == 'pull_request' && matrix.image == 'harness-den-api' }}
         shell: bash
         env:
           IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
@@ -287,7 +287,7 @@ jobs:
           set -euo pipefail
 
           image_tag="${IMAGE_TAGS%%$'\n'*}"
-          container_name="openwork-smoke-${{ matrix.image }}"
+          container_name="harness-smoke-${{ matrix.image }}"
           mysql_container=""
           network_name=""
 
@@ -320,9 +320,9 @@ jobs:
           }
           trap cleanup EXIT
 
-          if [ "${{ matrix.image }}" = "openwork-den-api" ]; then
-            network_name="openwork-den-api-smoke"
-            mysql_container="openwork-den-api-smoke-mysql"
+          if [ "${{ matrix.image }}" = "harness-den-api" ]; then
+            network_name="harness-den-api-smoke"
+            mysql_container="harness-den-api-smoke-mysql"
             database_url="mysql://smoke:smoke@${mysql_container}:3306/smoke"
 
             docker network create "$network_name" >/dev/null

@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { aiGatewaySpendLimits } from "../worlds/ai-gateway-spend-limits.ts";
 
 const test = spec.world(aiGatewaySpendLimits, {

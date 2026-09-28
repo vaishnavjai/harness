@@ -1,6 +1,6 @@
-import { browserScript } from "@openwork/testkit";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { newSplitPrimary } from "../worlds/chat.ts";
 
 const test = spec.world(newSplitPrimary, { timeout: 600_000 });
@@ -32,7 +32,7 @@ test("side chats keep questions, replies, and saved splits attached to their own
       && value.primaryWorkspace === workspaceId && value.secondaryWorkspace === workspaceId,
   }).catch(async (error: unknown) => {
     await user.screenshot();
-    const persisted = await probe.storage("openwork.session-splits.v1");
+    const persisted = await probe.storage("harness.session-splits.v1");
     throw new Error(`${String(error)}; saved split: ${JSON.stringify(persisted)}`);
   });
   const send = async (pane: "primary" | "secondary", text: string) => {
@@ -451,7 +451,7 @@ test("side chats keep questions, replies, and saved splits attached to their own
     await probe.eventually(ids, { within: 30_000, label: "only the explicitly deleted conversation is removed",
       until: (value) => !value.includes(primary) && value.includes(pair.secondary),
     });
-    await probe.eventually(() => probe.storage("openwork.session-splits.v1"), {
+    await probe.eventually(() => probe.storage("harness.session-splits.v1"), {
       within: 15_000, label: "the saved split no longer references the deleted conversation",
       until: (value) => isRecord(value) && !JSON.stringify(value).includes(primary),
     });

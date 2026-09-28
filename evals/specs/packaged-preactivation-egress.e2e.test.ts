@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
-import type { Probe } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
+import type { Probe } from "@harness/testkit";
 import {
   SUBMITTED_WORKSPACE_ADDRESS,
   packagedActivatedEgressWorld,
@@ -12,7 +12,7 @@ import type { EgressRequest } from "../worlds/packaged-preactivation-egress.ts";
  * An enterprise install must not talk to anyone before the person tells it
  * which organization it belongs to. Until the workspace address is submitted
  * the only server the app could reach is a build default — the hosted
- * runtime-config probe at app.openworklabs.com — plus product analytics and
+ * runtime-config probe at app.harness.invalid — plus product analytics and
  * Cloud inventory, none of which the organization chose or can see. The
  * renderer made those requests above the activation gate on every fresh boot.
  *
@@ -52,7 +52,7 @@ async function requireEnterpriseFlavor(world: { flavor: () => Promise<string | n
     until: (value) => value !== null,
   });
   if (flavor !== "enterprise") {
-    throw new Error(`Activation gates only the enterprise flavor; OPENWORK_EVAL_ELECTRON_BINARY points at a ${flavor ?? "unknown"} build`);
+    throw new Error(`Activation gates only the enterprise flavor; HARNESS_EVAL_ELECTRON_BINARY points at a ${flavor ?? "unknown"} build`);
   }
 }
 
@@ -90,7 +90,7 @@ preactivation("an unactivated enterprise install makes no request outside loopba
   // becomes known. A pasted sign-in link names that server and finishes in
   // the app itself, so the exchange contacts the submitted host and nothing
   // else — and the witness proves it sees renderer traffic at all.
-  const signInLink = `openwork://den-auth?grant=eval-grant-refused-by-witness&denBaseUrl=${encodeURIComponent(SUBMITTED_WORKSPACE_ADDRESS)}`;
+  const signInLink = `harness://den-auth?grant=eval-grant-refused-by-witness&denBaseUrl=${encodeURIComponent(SUBMITTED_WORKSPACE_ADDRESS)}`;
   await user.type({ testId: "organization-server-input" }, signInLink);
   await user.click({ testId: "organization-server-continue" });
   await user.see({ text: `Connect this app to ${SUBMITTED_WORKSPACE_ADDRESS}?` });

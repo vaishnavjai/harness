@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { plusMenuWeb } from "../worlds/composer-plus-menu.ts";
 
 const test = spec.world(plusMenuWeb, {

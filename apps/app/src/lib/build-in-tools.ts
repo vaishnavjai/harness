@@ -377,9 +377,9 @@ export function isTaskToolPart(part: ToolUIPart | DynamicToolUIPart): part is Ta
 
 /**
  * The sub-agent session a task tool call runs in. Forwarded from the engine's
- * task metadata by session sync (`callProviderMetadata.openwork.childSessionId`).
+ * task metadata by session sync (`callProviderMetadata.harness.childSessionId`).
  */
 export function taskChildSessionId(part: TaskToolPart): string | null {
-  const value = part.callProviderMetadata?.openwork?.childSessionId;
+  const value = part.callProviderMetadata?.harness?.childSessionId;
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }

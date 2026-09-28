@@ -31,7 +31,7 @@ export type DashboardMcpAppEntry = {
   autoLaunch?: boolean;
 };
 
-const CONSENT_STORAGE_PREFIX = "openwork.react.dashboardGrantedConsent.v1";
+const CONSENT_STORAGE_PREFIX = "harness.react.dashboardGrantedConsent.v1";
 
 export type GrantedTileConsent = {
   launchApproved?: boolean;

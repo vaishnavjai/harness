@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { copyFileSync, cpSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, readdirSync, rmSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepareServerConstants } from "./prepare-server-constants.mjs";
@@ -12,7 +12,6 @@ const electronHelperDir = resolve(desktopRoot, "resources", "helpers");
 const electronRoot = resolve(desktopRoot, "electron");
 const packagedServerRoot = resolve(desktopRoot, "server");
 const packagedRuntimeRoot = resolve(desktopRoot, ".electron-runtime", "node_modules");
-const sentryBuildConfigPath = resolve(desktopRoot, ".electron-runtime", "openwork-sentry.json");
 
 const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const nodeCmd = process.execPath;
@@ -33,37 +32,32 @@ function run(command, args, cwd, env) {
   }
 }
 
-function writeSentryBuildConfig() {
-  const dsn = process.env.OPENWORK_DESKTOP_SENTRY_DSN?.trim() ?? "";
-  const tracesSampleRateRaw = process.env.OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE?.trim() ?? "";
-  const tracesSampleRate = tracesSampleRateRaw ? Number(tracesSampleRateRaw) : 0.01;
-  const config = {
-    dsn: dsn || null,
-    tracesSampleRate: Number.isFinite(tracesSampleRate) && tracesSampleRate >= 0 && tracesSampleRate <= 1
-      ? tracesSampleRate
-      : 0.01,
-  };
-  writeFileSync(sentryBuildConfigPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
-}
-
 run(nodeCmd, [resolve(__dirname, "prepare-sidecar.mjs"), "--force", "--outdir", electronSidecarDir], desktopRoot);
 run(nodeCmd, [resolve(__dirname, "prepare-computer-use-helper.mjs"), "--force", "--outdir", electronHelperDir], desktopRoot);
 run(nodeCmd, [resolve(__dirname, "prepare-runtime-node-modules.mjs"), "--outdir", packagedRuntimeRoot], desktopRoot);
-writeSentryBuildConfig();
+// Ship the UI-control MCP as one self-contained file so packaged builds run
+// it on Electron's Node instead of resolving a package name through npx.
+run(process.platform === "win32" ? "bun.exe" : "bun", [
+  "build",
+  resolve(repoRoot, "packages", "harness-ui-mcp", "index.mjs"),
+  "--target", "node",
+  "--format", "esm",
+  "--outfile", resolve(desktopRoot, ".electron-runtime", "harness-ui-mcp", "harness-ui-mcp.mjs"),
+], repoRoot);
 // Build the server TS → JS so Electron can import it in-process
 // CI already compiles this exact checkout in the required build job.
 if (!process.argv.includes("--server-built")) {
-  run(pnpmCmd, ["--filter", "openwork-server", "build"], repoRoot);
+  run(pnpmCmd, ["--filter", "@harness/server", "build"], repoRoot);
 }
-// automation-runner.mjs imports @openwork/headless-threads through its
+// automation-runner.mjs imports @harness/headless-threads through its
 // published "default" export (dist/index.js); build it so plain-node
 // consumers resolve it in packaged layouts.
-run(pnpmCmd, ["--filter", "@openwork/headless-threads", "build"], repoRoot);
-// OPENWORK_ELECTRON_BUILD tells Vite to emit relative asset paths so
+run(pnpmCmd, ["--filter", "@harness/headless-threads", "build"], repoRoot);
+// HARNESS_ELECTRON_BUILD tells Vite to emit relative asset paths so
 // index.html resolves /assets/* correctly when loaded via file:// from
 // inside the packaged .app bundle.
-run(pnpmCmd, ["--filter", "@openwork/app", "build"], repoRoot, {
-  OPENWORK_ELECTRON_BUILD: "1",
+run(pnpmCmd, ["--filter", "@harness/app", "build"], repoRoot, {
+  HARNESS_ELECTRON_BUILD: "1",
 });
 // Relocate repository constants for every compiled server module, including v2.
 const serverDistDir = resolve(repoRoot, "apps", "server", "dist");

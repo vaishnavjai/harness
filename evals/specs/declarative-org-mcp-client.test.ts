@@ -4,7 +4,7 @@ import { request } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "vitest";
-import { denFetch, localMysqlIsRunning, localRedisIsRunning, mcpMock, needs, server, test } from "@openwork/testkit";
+import { denFetch, localMysqlIsRunning, localRedisIsRunning, mcpMock, needs, server, test } from "@harness/testkit";
 import { declarativeClientProxy, record, text } from "./fixtures/declarative-client-proxy.ts";
 import type { ClientRequest } from "./fixtures/declarative-client-proxy.ts";
 
@@ -98,7 +98,7 @@ test.skipIf(!mysql || !redis)(title, { timeout: 300_000 }, async ({ place, evide
   const org = rows(record(orgs.body).orgs).find((entry) => entry.name === name);
   if (!org) throw new Error("Isolated organization missing");
   const minted = await denFetch(den.admin, "/v1/api-keys", {
-    method: "POST", headers: { authorization: `Bearer ${den.admin.token}`, "x-openwork-org-id": text(org.id) },
+    method: "POST", headers: { authorization: `Bearer ${den.admin.token}`, "x-harness-org-id": text(org.id) },
     body: JSON.stringify({ name: "Declarative CLI witness" }),
   });
   expect(minted.response.status).toBe(201);

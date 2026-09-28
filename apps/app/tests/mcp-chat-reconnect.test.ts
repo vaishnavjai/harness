@@ -74,7 +74,7 @@ describe("chat MCP reconnect completion", () => {
       isScopeCurrent: () => false,
       timeoutMs: 10,
       intervalMs: 1,
-    })).rejects.toThrow("active OpenWork Cloud account changed")
+    })).rejects.toThrow("active Harness Cloud account changed")
   })
 
   test("times out without claiming a stale connected account was repaired", async () => {
@@ -99,7 +99,7 @@ const request: ChatConnectionDecisionRequest = {
 }
 const messages: UIMessage[] = [
   { id: "user-1", role: "user", parts: [{ type: "text", text: "Read the calendar" }] },
-  { id: "assistant-1", role: "assistant", parts: [{ type: "dynamic-tool", toolName: "openwork-cloud_execute_capability", toolCallId: "call-1", state: "input-available", input: {} }] },
+  { id: "assistant-1", role: "assistant", parts: [{ type: "dynamic-tool", toolName: "harness-cloud_execute_capability", toolCallId: "call-1", state: "input-available", input: {} }] },
 ]
 
 test("decision requires the exact current user turn, session, principal and tool call", () => {
@@ -122,9 +122,9 @@ const questionItem = {
 const nativeQuestion = { id: "question-1", sessionID: "session-1", tool: { messageID: "assistant-question", callID: "question-call" }, questions: [questionItem] }
 const blockedPayload = {
   schemaVersion: "1", connectionId: "connection-1", connectionName: "Research Vault", state: "needs_connection", actor: "member", message: "Sign-in required",
-  action: { type: "connect", label: "Connect", surface: "openwork_your_connections" },
+  action: { type: "connect", label: "Connect", surface: "harness_your_connections" },
 }
-function nativeMessages(output: unknown = blockedPayload, toolName = "openwork_execute_capability"): UIMessage[] {
+function nativeMessages(output: unknown = blockedPayload, toolName = "harness_execute_capability"): UIMessage[] {
   return [
     messages[0],
     { id: "assistant-result", role: "assistant", parts: [{ type: "dynamic-tool", toolName, toolCallId: "call-1", state: "output-available", input: {}, output }] },
@@ -173,7 +173,7 @@ test("question text alone cannot authorize historical, foreign, admin or ambiguo
   expect(bindQuestion(nativeQuestion, nativeMessages({ ...blockedPayload, actor: "organization_admin" }))).toBeNull()
   expect(bindQuestion(nativeQuestion, nativeMessages({ ...blockedPayload, state: "connected" }))).toBeNull()
   expect(bindQuestion(nativeQuestion, [...nativeMessages(), { id: "new-user", role: "user", parts: [] }])).toBeNull()
-  const other: UIMessage = { id: "other-result", role: "assistant", parts: [{ type: "dynamic-tool", toolName: "openwork_execute_capability", toolCallId: "other-call", state: "output-available", input: {}, output: { ...blockedPayload, connectionId: "connection-2" } }] }
+  const other: UIMessage = { id: "other-result", role: "assistant", parts: [{ type: "dynamic-tool", toolName: "harness_execute_capability", toolCallId: "other-call", state: "output-available", input: {}, output: { ...blockedPayload, connectionId: "connection-2" } }] }
   expect(bindQuestion(nativeQuestion, [...nativeMessages(), other])).toBeNull()
   expect(bindQuestion(nativeQuestion, nativeMessages({ connectionAction: blockedPayload, connectionStatus: { ...blockedPayload, connectionId: "other" } }))).toBeNull()
 })
@@ -195,7 +195,7 @@ test("v2 question source part ID resolves to the UI call ID only in the owning m
     state: { status: "running", input: { questions: [questionItem] }, time: { start: 1 } },
   })
   if (!part) throw new Error("Question part missing")
-  expect(part.callProviderMetadata?.openwork?.sourcePartId).toBe("source-question")
+  expect(part.callProviderMetadata?.harness?.sourcePartId).toBe("source-question")
   const transcript: UIMessage[] = [...nativeMessages().slice(0, 2), { id: "assistant-question", role: "assistant", parts: [part] }]
   const question = { ...nativeQuestion, tool: { callID: "source-question", messageID: "assistant-question" } }
   expect(bindQuestion(question, transcript)?.questionToolCallId).toBe("ui-question")
@@ -212,10 +212,10 @@ test("v2 question source part ID resolves to the UI call ID only in the owning m
 const stripeStatus = {
   name: "mcp:emc_01kxh1ns3cesjax0x2zz6ekvxm:*", kind: "connection_status", status: "needs_connection",
   connectionStatus: {
-    version: 1, kind: "connection_action", source: "openwork-cloud", layer: "downstream_provider",
+    version: 1, kind: "connection_action", source: "harness-cloud", layer: "downstream_provider",
     connectionId: "emc_01kxh1ns3cesjax0x2zz6ekvxm", connectionName: "Stripe", authType: "oauth", credentialMode: "per_member",
     state: "needs_connection", errorCode: "not_connected", message: "You haven't connected your Stripe account yet.", actor: "member",
-    action: { type: "connect", label: "Connect Stripe", surface: "openwork_your_connections", retry: "search_capabilities", url: "https://app.openworklabs.com/x" },
+    action: { type: "connect", label: "Connect Stripe", surface: "harness_your_connections", retry: "search_capabilities", url: "https://app.harness.invalid/x" },
   },
 }
 const stripeQuestionItem = {
@@ -229,7 +229,7 @@ const stripeQuestion = {
 }
 function discovery(toolCallId: string, query: string, matches: unknown[]): UIMessage["parts"][number] {
   return {
-    type: "dynamic-tool", toolName: "openwork-cloud_search_capabilities", toolCallId, state: "output-available",
+    type: "dynamic-tool", toolName: "harness-cloud_search_capabilities", toolCallId, state: "output-available",
     input: { query, type: "mcp", limit: 10 }, output: { matches },
   }
 }
@@ -241,7 +241,7 @@ function stripeTranscript(extraDiscovery: UIMessage["parts"] = []): UIMessage[] 
       discovery("call_stripe_2", "Stripe revenue by week", [stripeStatus]),
       discovery("call_granola", "meeting notes", [{ name: "mcp:emc_granola:list_notes", kind: "mcp", description: "Granola notes" }]),
       ...extraDiscovery,
-      { type: "dynamic-tool", toolName: "openwork_context", toolCallId: "call_context", state: "output-available", input: {}, output: { screen: "session" } },
+      { type: "dynamic-tool", toolName: "harness_context", toolCallId: "call_context", state: "output-available", input: {}, output: { screen: "session" } },
       { type: "dynamic-tool", toolName: "question", toolCallId: stripeQuestionCallId, state: "input-available", input: { questions: [stripeQuestionItem] } },
     ] },
   ]

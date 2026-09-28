@@ -1,12 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { engineParity } from "../worlds/engine-parity.ts";
 
 const test = spec.world(engineParity, { timeout: 420_000,
   resources: { surfaces: ["appWeb"], services: ["mock"] },
-  needs: { placement: "local", env: ["OPENWORK_EVAL_ENGINE"] },
+  needs: { placement: "local", env: ["HARNESS_EVAL_ENGINE"] },
 });
 function record(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -65,9 +65,9 @@ test("V2-CONTEXT-ACTIVITY: query another chat and track a background child after
     const prompt = `Read the reference from the other conversation ${randomUUID()}`;
     const answer = `Context query complete ${randomUUID()}`;
     await world.prepareTurn(prompt, answer, [
-      { tool: "openwork_context", arguments: {} },
-      { tool: "openwork_query", arguments: { id: "session.search", args: { query: sourceTitle } } },
-      { tool: "openwork_query", arguments: { id: "session.read", args: { sessionId: source.id, workspaceId } } },
+      { tool: "harness_context", arguments: {} },
+      { tool: "harness_query", arguments: { id: "session.search", args: { query: sourceTitle } } },
+      { tool: "harness_query", arguments: { id: "session.read", args: { sessionId: source.id, workspaceId } } },
     ]);
     await user.type("composer", prompt);
     await user.click("Run task");
@@ -91,7 +91,7 @@ test("V2-CONTEXT-ACTIVITY: query another chat and track a background child after
     const completionReply = "The background review is now complete.";
     const response = await fetch(`${world.mock.url}/admin/agent-workloads`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ workloads: [
       { promptMarker: prompt, latestUserTurn: true, finalReply: parentReply, steps: [{ tool: "subagent", arguments: { description: title, prompt: childPrompt, agent: "general", background: true } }] },
-      { promptMarker: activityPrompt, latestUserTurn: true, finalReply: activityReply, steps: [{ tool: "openwork_query", arguments: { id: "session.read", args: { sessionId: parentId, workspaceId, summary: true } } }] },
+      { promptMarker: activityPrompt, latestUserTurn: true, finalReply: activityReply, steps: [{ tool: "harness_query", arguments: { id: "session.read", args: { sessionId: parentId, workspaceId, summary: true } } }] },
       { promptMarker: "Background review finished.", latestUserTurn: true, steps: [], finalReply: completionReply },
       { promptMarker: childPrompt, latestUserTurn: true, steps: [], finalReply: "Background review started. Background review finished.", finalReplyChunks: ["Background review started. ", "Background review finished."], finalReplyInitiallyReleasedChunks: 1 },
     ] }) });

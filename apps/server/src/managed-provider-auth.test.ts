@@ -79,7 +79,7 @@ describe("managed provider auth delivery", () => {
 
   beforeEach(async () => {
     resetManagedProviderAuthCache();
-    dir = await mkdtemp(join(tmpdir(), "openwork-provider-auth-"));
+    dir = await mkdtemp(join(tmpdir(), "harness-provider-auth-"));
   });
 
   test("delivers a stored credential to the engine auth API", async () => {
@@ -292,8 +292,8 @@ describe("managed provider auth delivery", () => {
   });
 
   test("bounds a hung engine auth PUT and DELETE instead of waiting forever", async () => {
-    const previousTimeout = process.env.OPENWORK_PROVIDER_AUTH_TIMEOUT_MS;
-    process.env.OPENWORK_PROVIDER_AUTH_TIMEOUT_MS = "150";
+    const previousTimeout = process.env.HARNESS_PROVIDER_AUTH_TIMEOUT_MS;
+    process.env.HARNESS_PROVIDER_AUTH_TIMEOUT_MS = "150";
     try {
       const config = await makeConfig(dir);
       await seedProvider(config, { id: "anthropic", env: ["ANTHROPIC_API_KEY"] });
@@ -339,8 +339,8 @@ describe("managed provider auth delivery", () => {
       expect(JSON.stringify(errors)).not.toContain("sk-ant-rotated");
       await rm(dir, { recursive: true, force: true });
     } finally {
-      if (previousTimeout === undefined) delete process.env.OPENWORK_PROVIDER_AUTH_TIMEOUT_MS;
-      else process.env.OPENWORK_PROVIDER_AUTH_TIMEOUT_MS = previousTimeout;
+      if (previousTimeout === undefined) delete process.env.HARNESS_PROVIDER_AUTH_TIMEOUT_MS;
+      else process.env.HARNESS_PROVIDER_AUTH_TIMEOUT_MS = previousTimeout;
     }
   });
 

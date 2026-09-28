@@ -8,13 +8,13 @@ import {
   resolveUserDataPath,
 } from "./dev-profile.mjs";
 
-const PROD_APP_IDENTIFIER = "com.differentai.openwork";
-const DEV_APP_IDENTIFIER = "com.differentai.openwork.dev";
+const PROD_APP_IDENTIFIER = "com.vaishnavjai.harness";
+const DEV_APP_IDENTIFIER = "com.vaishnavjai.harness.dev";
 const APP_DATA_PATH = path.join("tmp", "appData");
 
 function resolveProfile({
   appIdentifierOverride = "",
-  appRootPath = path.join("tmp", "openwork"),
+  appRootPath = path.join("tmp", "harness"),
   devProfile = "",
   isDevMode = true,
   isPackaged = false,
@@ -40,7 +40,7 @@ function resolveProfile({
   };
 }
 
-test("unset OPENWORK_DEV_PROFILE keeps the legacy dev identifier", () => {
+test("unset HARNESS_DEV_PROFILE keeps the legacy dev identifier", () => {
   const profile = resolveProfile();
 
   assert.equal(profile.appIdentifier, DEV_APP_IDENTIFIER);
@@ -48,13 +48,13 @@ test("unset OPENWORK_DEV_PROFILE keeps the legacy dev identifier", () => {
 });
 
 test("auto dev profile is stable for one worktree and different for another", () => {
-  const firstPath = path.join("tmp", "worktrees", "openwork");
-  const secondPath = path.join("tmp", "other", "openwork");
+  const firstPath = path.join("tmp", "worktrees", "harness");
+  const secondPath = path.join("tmp", "other", "harness");
   const firstProfile = deriveAutoDevProfileName(firstPath);
 
   assert.equal(deriveAutoDevProfileName(firstPath), firstProfile);
   assert.notEqual(deriveAutoDevProfileName(secondPath), firstProfile);
-  assert.match(firstProfile, /^openwork-[a-f0-9]{10}$/);
+  assert.match(firstProfile, /^harness-[a-f0-9]{10}$/);
 });
 
 test("named dev profile is sanitized into the dev app identifier", () => {
@@ -64,14 +64,14 @@ test("named dev profile is sanitized into the dev app identifier", () => {
   assert.equal(profile.userDataPath, path.join(APP_DATA_PATH, `${DEV_APP_IDENTIFIER}.feature-profile-01`));
 });
 
-test("OPENWORK_ELECTRON_USERDATA beats OPENWORK_DEV_PROFILE for the profile directory", () => {
+test("HARNESS_ELECTRON_USERDATA beats HARNESS_DEV_PROFILE for the profile directory", () => {
   const explicitUserData = path.join("tmp", "explicit-user-data");
   const profile = resolveProfile({ devProfile: "auto", userDataOverride: explicitUserData });
 
   assert.equal(profile.userDataPath, explicitUserData);
 });
 
-test("packaged mode ignores OPENWORK_DEV_PROFILE", () => {
+test("packaged mode ignores HARNESS_DEV_PROFILE", () => {
   const profile = resolveProfile({ devProfile: "auto", isPackaged: true });
 
   assert.equal(profile.appIdentifier, DEV_APP_IDENTIFIER);

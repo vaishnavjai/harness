@@ -72,10 +72,10 @@ async function setSessionGroupSchemaVersion(dbPath: string, schemaVersion: numbe
 
 if (typeof process.versions.bun !== "string") {
   test("workspace kv getExisting uses Node SQLite without initializing storage or shared connections", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openwork-workspace-kv-node-existing-"));
-    const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
+    const root = await mkdtemp(join(tmpdir(), "harness-workspace-kv-node-existing-"));
+    const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
     const dbPath = join(root, "runtime.sqlite");
-    process.env.OPENWORK_RUNTIME_DB = dbPath;
+    process.env.HARNESS_RUNTIME_DB = dbPath;
     try {
       const config = { ...serverConfig(root), readOnly: true };
       const store = recordStore("workspace_kv_node_existing");
@@ -104,17 +104,17 @@ if (typeof process.versions.bun !== "string") {
         sqlite.close();
       }
     } finally {
-      if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-      else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
+      if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+      else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
       await rm(root, { recursive: true, force: true });
     }
   });
 
   test("workspace kv store uses Node SQLite with one shared connection per runtime DB", async () => {
-    const root = await mkdtemp(join(tmpdir(), "openwork-workspace-kv-node-"));
-    const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
+    const root = await mkdtemp(join(tmpdir(), "harness-workspace-kv-node-"));
+    const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
     const dbPath = join(root, "runtime.sqlite");
-    process.env.OPENWORK_RUNTIME_DB = dbPath;
+    process.env.HARNESS_RUNTIME_DB = dbPath;
     try {
       const config = serverConfig(root);
       const first = recordStore("workspace_kv_node_cache_one");
@@ -142,8 +142,8 @@ if (typeof process.versions.bun !== "string") {
       });
       assert.equal(await sessionGroupSchemaVersion(dbPath), 1);
     } finally {
-      if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-      else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
+      if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+      else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
       await rm(root, { recursive: true, force: true });
     }
   });

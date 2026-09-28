@@ -4,11 +4,11 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createNativeConnector, createOrgConnection, denFetch, type DenSession } from "@openwork/behaviors";
-import { localMysqlIsRunning, localRedisIsRunning, mcpMock, server, SkipError, type Place } from "@openwork/env";
-import { startMockGoogle } from "@openwork/labs";
+import { createNativeConnector, createOrgConnection, denFetch, type DenSession } from "@harness/behaviors";
+import { localMysqlIsRunning, localRedisIsRunning, mcpMock, server, SkipError, type Place } from "@harness/env";
+import { startMockGoogle } from "@harness/labs";
 import { gmailDraftModel, gmailResultObjects } from "../packages/labs/src/gmail-draft-model.ts";
-import { bootManagedOpenworkServer, close, engineBinary, isRecord, listen } from "./openwork-server-cli.ts";
+import { bootManagedHarnessServer, close, engineBinary, isRecord, listen } from "./harness-server-cli.ts";
 import constants from "../../constants.json";
 
 export const gmailAttachmentFixtures = [
@@ -61,10 +61,10 @@ interface CloudRequest {
 
 /** Owned local Den + real managed host/engine; only Google and inference are synthetic. */
 export async function gmailDraftAttachments(place: Place) {
-  if (place.kind !== "local" || process.env.OPENWORK_EVAL_DEN_API_URL) throw new SkipError("isolated local Den for loopback Gmail witnesses");
+  if (place.kind !== "local" || process.env.HARNESS_EVAL_DEN_API_URL) throw new SkipError("isolated local Den for loopback Gmail witnesses");
   if (execFileSync("bun", ["--version"], { encoding: "utf8", timeout: 10_000 }).trim() !== "1.3.14") throw new SkipError("pinned Bun 1.3.14");
   const binary = engineBinary();
-  if (!binary) throw new SkipError(`OpenCode ${constants.opencodeVersion} via OPENWORK_OPENCODE_BIN or prepared sidecar`);
+  if (!binary) throw new SkipError(`OpenCode ${constants.opencodeVersion} via HARNESS_OPENCODE_BIN or prepared sidecar`);
   const version = execFileSync(binary, ["--version"], { encoding: "utf8", timeout: 10_000 }).trim();
   if (version.replace(/^v/, "") !== constants.opencodeVersion.replace(/^v/, "")) throw new SkipError(`pinned OpenCode ${constants.opencodeVersion} (found ${version})`);
   if (!await localMysqlIsRunning() || !await localRedisIsRunning()) throw new SkipError("local MySQL and Redis; run pnpm dev:den:mysql");
@@ -210,10 +210,10 @@ export async function gmailDraftAttachments(place: Place) {
     await hostIdentity("first");
     await writeFile(join(workspace, "opencode.json"), JSON.stringify({
       permission: "allow", model: "mock/mock", small_model: "mock/mock",
-      mcp: { "openwork-cloud": { type: "remote", url: `${cloudUrl}/mcp/agent`, oauth: false, enabled: true, headers: { Authorization: `Bearer ${firstToken}` } } },
+      mcp: { "harness-cloud": { type: "remote", url: `${cloudUrl}/mcp/agent`, oauth: false, enabled: true, headers: { Authorization: `Bearer ${firstToken}` } } },
       provider: { mock: { npm: "@ai-sdk/openai-compatible", name: "Synthetic Gmail model", options: { baseURL: model.url, apiKey: "synthetic-model-key" }, models: { mock: { name: "Synthetic Gmail model", tool_call: true, limit: { context: 131_072, output: 4_096 } } } } },
     }));
-    const managed = await bootManagedOpenworkServer({ scratch, workspace, binary, configPath: config, preload: fileURLToPath(preload), token: "gmail-host-fixture", sink: () => {}, env: { OPENWORK_DATA_DIR: join(scratch, "data"), OPENWORK_DEV_MODE: "1", OPENCODE_MODELS_URL: `${model.url}/models` } });
+    const managed = await bootManagedHarnessServer({ scratch, workspace, binary, configPath: config, preload: fileURLToPath(preload), token: "gmail-host-fixture", sink: () => {}, env: { HARNESS_DATA_DIR: join(scratch, "data"), HARNESS_DEV_MODE: "1", OPENCODE_MODELS_URL: `${model.url}/models` } });
     stack.defer(() => managed.stop());
     const capability = `native:${selected.id}:postCapabilitiesGoogleWorkspaceGmailDrafts`;
     const body = { to: "review@test.example", subject: "Inventory review", body: "Please review the two attached files.", attachments: gmailAttachmentFixtures.map((file) => file.filename) };

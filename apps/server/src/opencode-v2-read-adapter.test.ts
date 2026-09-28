@@ -3,7 +3,7 @@ import { createV2ReadAdapter, readV2SessionActivity } from "./opencode-v2-read-a
 
 test("native reads preserve the home and chronological visible text across pages", async () => {
   const read = createV2ReadAdapter(async path => {
-    if (path.endsWith("/session/ses_a")) return { data: { id: "ses_a", location: { directory: "/worktree" }, openworkHomeDirectory: "/home" } };
+    if (path.endsWith("/session/ses_a")) return { data: { id: "ses_a", location: { directory: "/worktree" }, harnessHomeDirectory: "/home" } };
     if (path.includes("cursor=next")) return { data: [{ id: "old", type: "user", time: { created: 1 }, text: "first" }], cursor: { next: null } };
     return { data: [{ id: "new", type: "assistant", time: { created: 2 }, content: [{ type: "text", text: "last" }, { type: "reasoning", text: "private" }] }], cursor: { next: "next" } };
   });

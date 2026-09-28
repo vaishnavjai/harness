@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { saveWorkflow, runWorkflow } from "@openwork/behaviors";
-import { spec } from "@openwork/testkit";
+import { saveWorkflow, runWorkflow } from "@harness/behaviors";
+import { spec } from "@harness/testkit";
 import { creationPrompt, creationReply, field, record, savedAppCreation, isolatedMcpApps, isolationPrompt, isolationReply, cloudDraftRouting, draftRoutingPrompt, draftRoutingReply } from "../worlds/saved-apps.ts";
 
 const test = spec.world(savedAppCreation, { timeout: 900_000 });
@@ -153,7 +153,7 @@ isolationTest("APP-ISOLATION embedded MCP Apps isolate siblings while SDK initia
 });
 
 // The v2 engine does not expose a native archive mutation yet.
-isolationTest.skipIf(process.env.OPENWORK_EVAL_ENGINE === "v2")("APP-ARCHIVE archived conversations render Apps without actions (needs v1 archive API)", async ({ world, agent, user, probe, evidence }) => {
+isolationTest.skipIf(process.env.HARNESS_EVAL_ENGINE === "v2")("APP-ARCHIVE archived conversations render Apps without actions (needs v1 archive API)", async ({ world, agent, user, probe, evidence }) => {
   const sinceIso = new Date().toISOString();
   await agent.send(isolationPrompt);
   await user.see({ text: isolationReply }, { timeoutMs: 120_000 });
@@ -221,7 +221,7 @@ test("create, preview, save and reopen an app without changing already-open resu
   await step("create an app through the Dashboard conversation", async () => {
     await world.open("/dashboard");
     await user.click({ role: "button", label: "Add" });
-    await user.click("Create with OpenWork");
+    await user.click("Create with Harness");
     await probe.eventually(() => probe.composer(), { within: 30_000, label: "app creation prompt", until: (composer) => JSON.stringify(composer).includes("Create one live app for my dashboard in one shot.") });
     expect(creationPrompt).not.toContain(world.configObjectId);
     await user.type("composer", creationPrompt, { replace: true });
@@ -256,7 +256,7 @@ test("create, preview, save and reopen an app without changing already-open resu
   const before = await probe.api(world.den.admin, "/v1/apps");
   expect(record(before.body).items).toEqual([]);
   expect(record((await readApp(originalPath)).view).activeRevisionId).toBeNull();
-  expect(record(await world.render())["_meta"]).not.toHaveProperty("openwork/mcpApp");
+  expect(record(await world.render())["_meta"]).not.toHaveProperty("harness/mcpApp");
 
   await step("try a draft and cancel saving", async () => {
     await user.see("Save", { timeoutMs: 60_000 });
@@ -360,7 +360,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     await user.see({ text: "Make this dashboard yours" }, { timeoutMs: 30_000 });
     expect(await readApp()).toMatchObject({ onDashboard: false, view: { activeRevisionId: revisionId } });
     await user.click({ role: "button", label: "Add" });
-    await user.see("Create with OpenWork");
+    await user.see("Create with Harness");
     await user.click("Choose an existing app");
     await user.click("Add Team briefing");
     await probe.eventually(readApp, { within: 30_000, label: "personal dashboard placement restored", until: (app) => app.onDashboard === true });
@@ -381,10 +381,10 @@ test("create, preview, save and reopen an app without changing already-open resu
     const profile = await probe.api(world.den.admin, "/v1/me");
     expect(profile.response.status, profile.text).toBe(200);
     const userId = field(record(profile.body).user, "id");
-    const organizationId = await probe.storage("openwork.den.activeOrgId");
+    const organizationId = await probe.storage("harness.den.activeOrgId");
     if (typeof organizationId !== "string" || !organizationId) throw new Error("Missing dashboard organization scope");
     const scope = [world.proxy.ref.webUrl, userId, organizationId, world.proxy.ref.apiUrl];
-    const geometryKey = `openwork.react.dashboardTileCache.v1.${userId}.${organizationId}.snapshots.${encodeURIComponent(JSON.stringify(scope))}.geometry`;
+    const geometryKey = `harness.react.dashboardTileCache.v1.${userId}.${organizationId}.snapshots.${encodeURIComponent(JSON.stringify(scope))}.geometry`;
     const entryId = JSON.stringify([appId, field(saved.revision, "id"), field(saved.revision, "resourceUri")]);
     const tileSelector = `[data-personal-dashboard-app="${appId}"]`;
     const readSize = async () => {
@@ -479,7 +479,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     await user.click({ role: "button", label: "Save changes", nth: 1 });
     await user.see({ text: "Saved to your dashboard. Open it whenever you need it." }, { timeoutMs: 30_000 });
     expect(record((await readApp()).view)).toMatchObject({ activeRevisionId: optOutRevision, useInWorkflow: false });
-    expect(record((await world.render())._meta)).not.toHaveProperty("openwork/mcpApp");
+    expect(record((await world.render())._meta)).not.toHaveProperty("harness/mcpApp");
   });
   evidence.recordAssertionEvidence("Saving a new app version preserves original previews and respects workflow opt-out", "New data appeared only in the latest result, original revision and receipt remained fixed, and opting out removed automatic app selection.", true);
 
@@ -595,7 +595,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     await user.click({ role: "button", label: "Share" });
     await user.click({ role: "checkbox", label: "Private planning" });
     await user.screenshot();
-    await user.type({ label: "Teammate’s email" }, "unknown@openwork.test");
+    await user.type({ label: "Teammate’s email" }, "unknown@harness.test");
     await user.click("Share apps");
     await user.see({ text: /No teammate with that email belongs to this organization/ });
     expect((await probe.api(colleague, `/v1/apps/${appId}`)).response.status).toBe(403);
@@ -624,7 +624,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     expect(verificationUrl).not.toContain(encodeURIComponent(world.den.admin.email));
     const wrongGrant = await seed.api(colleague, "/v1/auth/desktop-handoff", { method: "POST", body: "{}" });
     expect(wrongGrant.response.status, wrongGrant.text).toBe(200);
-    const wrongLink = `openwork://den-reauth?nonce=${nonce}&grant=${field(wrongGrant.body, "grant")}`;
+    const wrongLink = `harness://den-reauth?nonce=${nonce}&grant=${field(wrongGrant.body, "grant")}`;
     await user.type({ label: "Or paste your verification link" }, wrongLink);
     await user.click("Confirm and share");
     await user.see({ text: `Sign in as ${world.den.admin.email} to confirm this share.` });
@@ -634,7 +634,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     const webProbe = probe.on(world.web);
     // Follow the address offered by the app; authentication and the returned grant are real.
     await webUser.navigate(verificationUrl);
-    await webUser.type({ label: "OpenWork email" }, world.den.admin.email);
+    await webUser.type({ label: "Harness email" }, world.den.admin.email);
     await webUser.click("Continue");
     await webUser.see({ text: "Confirm your identity to share apps" }, { timeoutMs: 90_000 });
     await webUser.type({ label: "Password" }, "wrong-password");
@@ -643,7 +643,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     expect((await probe.api(colleague, `/v1/apps/${appId}`)).response.status).toBe(403);
     await webUser.type({ label: "Password" }, world.den.admin.password, { replace: true });
     await webUser.click("Verify password");
-    await webUser.see({ text: "Return to OpenWork to finish sharing" }, { timeoutMs: 60_000 });
+    await webUser.see({ text: "Return to Harness to finish sharing" }, { timeoutMs: 60_000 });
     const verifiedLink = await webProbe.eval(() => document.querySelector<HTMLInputElement>('[aria-label="Verification link"]')?.value);
     if (typeof verifiedLink !== "string") throw new Error("Browser did not provide a verification link");
     // Use a fresh grant for the correct account so only attempt binding can
@@ -724,9 +724,9 @@ test("create, preview, save and reopen an app without changing already-open resu
     await webUser.navigate(verificationUrl);
     await webUser.type({ label: "Password" }, world.den.admin.password);
     await webUser.click("Verify password");
-    await webUser.see({ text: "Return to OpenWork to finish sharing" }, { timeoutMs: 60_000 });
-    const returned = await probe.on(world.web).eval(() => document.querySelector<HTMLAnchorElement>('a[href^="openwork://den-reauth"]')?.href);
-    if (typeof returned !== "string") throw new Error("Missing Return to OpenWork link");
+    await webUser.see({ text: "Return to Harness to finish sharing" }, { timeoutMs: 60_000 });
+    const returned = await probe.on(world.web).eval(() => document.querySelector<HTMLAnchorElement>('a[href^="harness://den-reauth"]')?.href);
+    if (typeof returned !== "string") throw new Error("Missing Return to Harness link");
     await world.returnVerification(returned);
     await user.see({ text: `Shared 1 app with ${browserRecipient.email}. They’ll appear when your teammate opens or reloads their dashboard.` }, { timeoutMs: 30_000 });
     const granted = await probe.api(browserRecipient, `/v1/apps/${appId}`);
@@ -761,7 +761,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     expect(savedView.activeRevisionId).toBe(optOutRevision);
     const appsBefore = record((await probe.api(world.den.admin, "/v1/apps")).body).items;
     const viewsBefore = record((await probe.api(world.den.admin, viewsPath)).body).items;
-    const previewNotice = "The workflow’s results have changed. Ask OpenWork to update this app to match.";
+    const previewNotice = "The workflow’s results have changed. Ask Harness to update this app to match.";
     const body = { ...saved, html: null, payload: null, previewNotice };
     try {
       await world.proxy.faults.status(`/v1/apps/${appId}`, 200, { times: 100, body });
@@ -827,7 +827,7 @@ test("create, preview, save and reopen an app without changing already-open resu
     await user.click({ role: "button", label: "Add" });
     await user.see("Choose an existing app");
     await user.screenshot();
-    await user.click("Create with OpenWork");
+    await user.click("Create with Harness");
     await probe.eventually(() => probe.composer(), { within: 30_000, label: "app creation prompt", until: (composer) => JSON.stringify(composer).includes("Create one live app for my dashboard in one shot.") });
     await user.screenshot();
   });

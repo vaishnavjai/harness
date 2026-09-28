@@ -20,7 +20,7 @@ import {
 } from "@/react-app/kernel/notification-store";
 import { useNavigate } from "react-router";
 import { requestOpenModelPicker } from "./new-providers-listener";
-import { useControlAction, type OpenworkControlAction } from "./control/control-provider";
+import { useControlAction, type HarnessControlAction } from "./control/control-provider";
 import { openNotificationCenterEvent } from "./notifications";
 import { useReloadCoordinator } from "./reload-coordinator";
 import { useShellConfig } from "./shell-config";
@@ -64,7 +64,7 @@ export function NotificationBell({ align = "end" }: { align?: "start" | "end" })
   const reloadCoordinator = useReloadCoordinator();
   const navigate = useNavigate();
 
-  const notificationsListAction = useMemo<OpenworkControlAction>(() => ({
+  const notificationsListAction = useMemo<HarnessControlAction>(() => ({
     id: "notifications.list",
     label: "List notifications",
     description: "Return the current notification center entries.",

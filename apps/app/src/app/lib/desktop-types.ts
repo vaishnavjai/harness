@@ -3,7 +3,7 @@
 // packages/types/src/desktop-ipc.ts (shared with the Electron main process);
 // this module re-exports them as the app-side import path.
 
-import type { WorkspaceWire } from "@openwork/types/workspace";
+import type { WorkspaceWire } from "@harness/types/workspace";
 
 export type {
   AppBuildInfo,
@@ -41,22 +41,22 @@ export type {
   OpencodeConfigFile,
   OpencodeExecutionEnvEntry,
   OpencodeExecutionSnapshot,
-  OpenworkDockerCleanupResult,
-  OpenworkServerInfo,
+  HarnessDockerCleanupResult,
+  HarnessServerInfo,
   UpdaterEnvironment,
   WorkspaceCreateInput,
   WorkspaceCreateRemoteInput,
   WorkspaceExportSummary,
   WorkspaceList,
-  WorkspaceOpenworkConfig,
+  WorkspaceHarnessConfig,
   WorkspaceUpdateRemoteInput,
-} from "@openwork/types/desktop-ipc";
+} from "@harness/types/desktop-ipc";
 
-// Canonical wire shape shared with openwork-server and the desktop bridge.
+// Canonical wire shape shared with harness-server and the desktop bridge.
 // Single source of truth: packages/types/src/workspace.ts.
 export type WorkspaceInfo = WorkspaceWire;
 
 // Browser tab state mirrored across the desktop IPC bridge. The shape is owned
-// by @openwork/browser-tabs (shared with the Electron main process); the
+// by @harness/browser-tabs (shared with the Electron main process); the
 // session panel store re-exports it from here.
-export type { BrowserPanelTab } from "@openwork/browser-tabs";
+export type { BrowserPanelTab } from "@harness/browser-tabs";

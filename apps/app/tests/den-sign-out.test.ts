@@ -50,7 +50,7 @@ describe("Den sign-out", () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: {
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           invokeDesktop: async (command: string, url: string) => {
             expect(command).toBe("__fetch");
             requests.push(url);
@@ -74,7 +74,7 @@ describe("Den sign-out", () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: {
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           invokeDesktop: async (command: string, url: string) => {
             expect(command).toBe("__fetch");
             requests.push(url);
@@ -85,11 +85,11 @@ describe("Den sign-out", () => {
     });
 
     await createDenClient({
-      baseUrl: "https://app.openworklabs.com",
+      baseUrl: "https://app.harness.invalid",
       token: "tok_test",
     }).signOut();
 
-    expect(requests).toEqual(["https://api.app.openworklabs.com/api/auth/sign-out"]);
+    expect(requests).toEqual(["https://api.app.harness.invalid/api/auth/sign-out"]);
   });
 
   test("keeps legacy desktop proxy API bases working for sign-out", async () => {
@@ -97,7 +97,7 @@ describe("Den sign-out", () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
       value: {
-        __OPENWORK_ELECTRON__: {
+        __HARNESS_ELECTRON__: {
           invokeDesktop: async (command: string, url: string) => {
             expect(command).toBe("__fetch");
             requests.push(url);

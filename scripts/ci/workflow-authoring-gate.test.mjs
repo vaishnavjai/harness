@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import test from "node:test"
 
 const workflow = readFileSync(new URL("../../.github/workflows/ci-tests.yml", import.meta.url), "utf8")
-const gate = workflow.slice(workflow.indexOf("  openwork-tests-required:"))
+const gate = workflow.slice(workflow.indexOf("  harness-tests-required:"))
 const script = gate.match(/        run: \|\n([\s\S]+)$/)?.[1].split("\n").map((line) => line.slice(10)).join("\n")
 assert.ok(script)
 

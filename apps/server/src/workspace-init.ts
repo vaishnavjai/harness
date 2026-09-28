@@ -7,7 +7,7 @@ import { opencodeConfigPath } from "./workspace-files.js";
 import { readJsoncFile } from "./jsonc.js";
 import type { ReloadReason, WorkspaceInfo } from "./types.js";
 
-type WorkspaceOpenworkConfig = {
+type WorkspaceHarnessConfig = {
   version: number;
   workspace?: {
     name?: string | null;
@@ -39,13 +39,13 @@ function errorStringField(error: unknown, field: "code" | "path" | "syscall"): s
 }
 
 /**
- * Build the default per-workspace openwork config metadata. The openwork
+ * Build the default per-workspace harness config metadata. The harness
  * config is now stored in the runtime DB (see
- * `seedOpenworkWorkspaceConfigIfEmpty`), not in `.opencode/openwork.json`, so
+ * `seedHarnessWorkspaceConfigIfEmpty`), not in `.opencode/harness.json`, so
  * this no longer writes a file. Exposed so the workspace-creation route can
  * seed the DB row with the same defaults.
  */
-export function defaultWorkspaceOpenworkConfig(workspaceRoot: string, preset: string): WorkspaceOpenworkConfig {
+export function defaultWorkspaceHarnessConfig(workspaceRoot: string, preset: string): WorkspaceHarnessConfig {
   return {
     version: 1,
     workspace: {
@@ -83,7 +83,7 @@ export async function ensureWorkspaceFiles(workspaceRoot: string, presetInput: s
   }
   const reloadReasons = new Set<ReloadReason>();
   if (await ensureOpencodeConfig(workspaceRoot)) reloadReasons.add("config");
-  // openwork config is seeded into the runtime DB by the caller, not written
+  // harness config is seeded into the runtime DB by the caller, not written
   // as a file here.
   void preset;
   return {

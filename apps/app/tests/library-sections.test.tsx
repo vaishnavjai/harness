@@ -88,7 +88,7 @@ async function dialogLayerCanOpen() {
 }
 const dialogLayerInert = !(await dialogLayerCanOpen());
 
-type Row = { key: string; section: "mac" | "mine" | "openwork"; taxonomy: "skill" | "plugin" | "connection" | "mcp"; name: string };
+type Row = { key: string; section: "mac" | "mine" | "harness"; taxonomy: "skill" | "plugin" | "connection" | "mcp"; name: string };
 
 function rowsFor(rows: Row[]) {
   return rows.map((row) => ({
@@ -101,7 +101,7 @@ function rowsFor(rows: Row[]) {
 }
 
 const libraryRows: Row[] = [
-  { key: "a", section: "openwork", taxonomy: "connection", name: "Google Workspace" },
+  { key: "a", section: "harness", taxonomy: "connection", name: "Google Workspace" },
   { key: "b", section: "mac", taxonomy: "skill", name: "Weekly status report" },
   { key: "c", section: "mine", taxonomy: "skill", name: "Customer briefing" },
   { key: "d", section: "mine", taxonomy: "plugin", name: "Sales call prep" },
@@ -109,24 +109,24 @@ const libraryRows: Row[] = [
 ];
 
 describe("Library sections", () => {
-  test("one list: On this computer, Added by you, then From OpenWork, each with its own caption", async () => {
+  test("one list: On this computer, Added by you, then From Harness, each with its own caption", async () => {
     const host = await mount(
       <LibraryInventory
         rows={rowsFor(libraryRows)}
         loading={false}
         layout="list"
         filter="all"
-        sectionMeta={{ mine: "2 · only you so far", openwork: "1 shared with you" }}
+        sectionMeta={{ mine: "2 · only you so far", harness: "1 shared with you" }}
       />,
     );
     const sections = [...host.querySelectorAll<HTMLElement>("[data-library-section]")];
-    expect(sections.map((section) => section.dataset.librarySection)).toEqual(["mac", "mine", "openwork"]);
+    expect(sections.map((section) => section.dataset.librarySection)).toEqual(["mac", "mine", "harness"]);
     expect(sections[0]?.textContent).toContain("On this computer");
     expect(sections[0]?.textContent).toContain("Weekly status report");
     expect(sections[0]?.textContent).toContain("Filesystem");
     expect(sections[1]?.textContent).toContain("Added by you");
     expect(sections[1]?.querySelector("[data-library-section-meta]")?.textContent).toBe("2 · only you so far");
-    expect(sections[2]?.textContent).toContain("From OpenWork");
+    expect(sections[2]?.textContent).toContain("From Harness");
     expect(sections[2]?.textContent).toContain("1 shared with you");
     expect(host.textContent).not.toContain("Ready to use");
     expect(host.querySelector('[role="tab"]')).toBeNull();
@@ -147,14 +147,14 @@ describe("Library sections", () => {
     expect(searched.textContent).toBe("empty-state");
   });
 
-  test("signed out: a sign-up banner and OpenWork connectors shown locked", async () => {
+  test("signed out: a sign-up banner and Harness connectors shown locked", async () => {
     const signUp = mock(() => {});
     const host = await mount(
       <LibraryInventory rows={rowsFor(libraryRows.filter((row) => row.section === "mac"))} loading={false} layout="list" filter="all" signedOut onSignUp={signUp} />,
     );
     expect(host.querySelector('[data-testid="library-sign-up-banner"]')?.textContent).toContain("Sign in to add skills and connectors, and to use the ones your team shares.");
     const locked = host.querySelector<HTMLElement>('[data-library-section="locked"]');
-    expect(locked?.textContent).toContain("From OpenWork · Sign in to use");
+    expect(locked?.textContent).toContain("From Harness · Sign in to use");
     expect(locked?.querySelectorAll("[data-library-locked]").length).toBeGreaterThan(0);
     expect(locked?.querySelector("button[data-library-row]")?.hasAttribute("disabled")).toBe(true);
     await act(async () => host.querySelector<HTMLButtonElement>('[data-testid="library-sign-up-banner"] button')?.click());
@@ -198,7 +198,7 @@ describe("Library sections", () => {
     expect(readExtensionLayout()).toBe("list");
     writeExtensionLayout("grid");
     expect(readExtensionLayout()).toBe("grid");
-    window.localStorage.setItem("openwork.extensions.layout", "obsolete");
+    window.localStorage.setItem("harness.extensions.layout", "obsolete");
     expect(readExtensionLayout()).toBe("list");
   });
 
@@ -239,7 +239,7 @@ describe("Library sections", () => {
   test("unavailable Cloud is distinct from a genuinely empty Library", async () => {
     const refresh = mock(() => {});
     const host = await mount(<LibraryEmptyState filter="all" searching={false} error="Inventory could not be loaded" onRefresh={refresh} onClearSearch={() => {}} />);
-    expect(host.textContent).toContain("OpenWork Cloud is unavailable");
+    expect(host.textContent).toContain("Harness Cloud is unavailable");
     expect(host.textContent).toContain("Inventory could not be loaded");
     await act(async () => host.querySelector<HTMLButtonElement>("button")?.click());
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -267,7 +267,7 @@ describe("Library sections", () => {
 
   test.each([false, true])("Library picker stays closed while unavailable (pending=%s)", async (pending) => {
     const select = mock(() => {});
-    const host = await mount(<LibraryAddControl kinds={["mcp", "skill", "plugin"]} label="Add to library" pending={pending} disabledReason={pending ? undefined : "Sign in to OpenWork Cloud"} onSelect={select} />);
+    const host = await mount(<LibraryAddControl kinds={["mcp", "skill", "plugin"]} label="Add to library" pending={pending} disabledReason={pending ? undefined : "Sign in to Harness Cloud"} onSelect={select} />);
     const button = host.querySelector<HTMLButtonElement>('button[aria-label="Add to library"]');
     await act(async () => button?.click());
     expect(document.querySelector('[data-testid="library-add-choices"]')).toBeNull();

@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
 import { connect } from "node:net";
-import { provisionDesktopSandbox, provisionWebSandbox, deleteSandboxes, daytonaSandbox } from "@openwork/hosts";
+import { provisionDesktopSandbox, provisionWebSandbox, deleteSandboxes, daytonaSandbox } from "@harness/hosts";
 import { createConnection } from "mysql2/promise";
 import type { RowDataPacket } from "mysql2";
 import { daytonaPlacement, resolveEvalRef } from "./eval-ref.ts";
-import { targetFromEnv } from "@openwork/world";
+import { targetFromEnv } from "@harness/world";
 import type {
   ChromeSurfaceOptions,
   DesktopSandbox,
@@ -12,7 +12,7 @@ import type {
   Host,
   RetainedElectronSurface,
   SurfaceHandle,
-} from "@openwork/hosts";
+} from "@harness/hosts";
 
 export const DEFAULT_MYSQL_URL = "mysql://root:password@127.0.0.1:3306";
 
@@ -67,7 +67,7 @@ async function databaseExists(mysqlUrl: URL, name: string): Promise<boolean> {
   }
 }
 
-export function ephemeralDatabaseName(prefix = "openwork_eval"): string {
+export function ephemeralDatabaseName(prefix = "harness_eval"): string {
   const timestamp = Date.now().toString(36);
   const nonce = randomBytes(6).toString("hex");
   return `${prefix}_${process.pid}_${timestamp}_${nonce}`.toLowerCase();
@@ -90,9 +90,9 @@ async function canConnect(port: number, host: string): Promise<boolean> {
 }
 
 export async function localMysqlIsRunning(): Promise<boolean> {
-  // Probe the same MySQL the run will actually use: OPENWORK_EVAL_MYSQL_URL
+  // Probe the same MySQL the run will actually use: HARNESS_EVAL_MYSQL_URL
   // overrides the default, so the probe must honor it too.
-  const url = new URL(process.env.OPENWORK_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
+  const url = new URL(process.env.HARNESS_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
   const port = url.port ? Number(url.port) : 3306;
   return canConnect(port, url.hostname || "127.0.0.1");
 }
@@ -195,8 +195,8 @@ class DaytonaPlacementHost implements Host {
     const provisionOptions = {
       ref: this.#ref,
       name,
-      ...(process.env.OPENWORK_WORLD_PREVIEW_DAYTONA === "1" ? { autoStopMinutes: 0 } : {}),
-      log: (line: string) => console.error(`[openwork/testkit] ${line}`),
+      ...(process.env.HARNESS_WORLD_PREVIEW_DAYTONA === "1" ? { autoStopMinutes: 0 } : {}),
+      log: (line: string) => console.error(`[harness/testkit] ${line}`),
     };
     const provisioned: DesktopSandbox = surface === "web"
       ? await provisionWebSandbox(provisionOptions)
@@ -234,7 +234,7 @@ class DaytonaPlacementHost implements Host {
     } catch (error) {
       if (placed.created) {
         await deleteSandboxes([placed.sandbox]).catch((cleanupError: unknown) => {
-          console.error(`[openwork/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
+          console.error(`[harness/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
         });
       }
       throw error;
@@ -267,7 +267,7 @@ class DaytonaPlacementHost implements Host {
     } catch (error) {
       if (placed.created) {
         await deleteSandboxes([placed.sandbox]).catch((cleanupError: unknown) => {
-          console.error(`[openwork/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
+          console.error(`[harness/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
         });
       }
       throw error;
@@ -283,7 +283,7 @@ class DaytonaPlacementHost implements Host {
     } catch (error) {
       if (placed.created) {
         await deleteSandboxes([placed.sandbox]).catch((cleanupError: unknown) => {
-          console.error(`[openwork/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
+          console.error(`[harness/testkit] Daytona cleanup failed: ${messageText(cleanupError)}`);
         });
       }
       throw error;
@@ -342,14 +342,14 @@ export function resolvePlace(env: NodeJS.ProcessEnv = process.env): Place {
   }
   // Den stays in its own Linux Daytona sandbox even when a release desktop
   // targets Windows. The preview recipe provisions that Windows VM separately.
-  if (target.provider === "daytona" && target.os === "windows" && env.OPENWORK_WORLD_PREVIEW_DAYTONA !== "1") {
+  if (target.provider === "daytona" && target.os === "windows" && env.HARNESS_WORLD_PREVIEW_DAYTONA !== "1") {
     throw new Error("Daytona Windows is available only for the published preview-desktop release recipe.");
   }
   if (daytonaPlacement(env)) {
     return new DaytonaPlace(
       resolveEvalRef(env),
-      env.OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX?.trim(),
+      env.HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX?.trim(),
     );
   }
-  return new LocalPlace(env.OPENWORK_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
+  return new LocalPlace(env.HARNESS_EVAL_MYSQL_URL?.trim() || DEFAULT_MYSQL_URL);
 }

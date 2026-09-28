@@ -50,11 +50,11 @@ interface RegisterFileRoutesOptions {
 }
 
 function resolveInboxDir(workspaceRoot: string): string {
-  return join(workspaceRoot, ".opencode", "openwork", "inbox");
+  return join(workspaceRoot, ".opencode", "harness", "inbox");
 }
 
 function resolveOutboxDir(workspaceRoot: string): string {
-  return join(workspaceRoot, ".opencode", "openwork", "outbox");
+  return join(workspaceRoot, ".opencode", "harness", "outbox");
 }
 
 export function normalizeWorkspaceRelativePath(input: string, options: { allowSubdirs: boolean }): string {
@@ -464,7 +464,7 @@ async function listWorkspaceCatalogEntries(workspaceRoot: string, excludeHeavyDi
     const entries = await readdir(dirPath, { withFileTypes: true }).catch((error: unknown) => {
       if (error instanceof Error && "code" in error && (error.code === "EACCES" || error.code === "EPERM")) {
         if (dirPath === rootResolved) {
-          throw new ApiError(403, "workspace_permission_denied", "OpenWork does not have permission to list this workspace folder.");
+          throw new ApiError(403, "workspace_permission_denied", "Harness does not have permission to list this workspace folder.");
         }
         skippedDirectories.push(relative(rootResolved, dirPath).replace(/\\/g, "/"));
         return [];

@@ -6,10 +6,10 @@
 import { BrowserWindow, Menu, shell } from "electron";
 import { runDetachedTask } from "./process-resilience.mjs";
 
-const NATIVE_MENU_OPEN_SETTINGS_EVENT = "openwork:native-menu:open-settings";
-const NATIVE_MENU_TOGGLE_SIDEBAR_EVENT = "openwork:native-menu:toggle-sidebar";
-const NATIVE_MENU_CHECK_UPDATES_EVENT = "openwork:native-menu:check-updates";
-const NATIVE_MENU_ZOOM_EVENT = "openwork:native-menu:zoom";
+const NATIVE_MENU_OPEN_SETTINGS_EVENT = "harness:native-menu:open-settings";
+const NATIVE_MENU_TOGGLE_SIDEBAR_EVENT = "harness:native-menu:toggle-sidebar";
+const NATIVE_MENU_CHECK_UPDATES_EVENT = "harness:native-menu:check-updates";
+const NATIVE_MENU_ZOOM_EVENT = "harness:native-menu:zoom";
 
 export function createApplicationMenu({ appName, docsUrl, getWindow, closeBrowserTab }) {
   let applicationMenuVisible = process.platform === "darwin";

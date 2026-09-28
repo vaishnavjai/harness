@@ -3,15 +3,15 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createDenClient } from "../src/app/lib/den";
 
 const originalFetch = globalThis.fetch;
-const originalElectronBridge = typeof window === "undefined" ? undefined : window.__OPENWORK_ELECTRON__;
+const originalElectronBridge = typeof window === "undefined" ? undefined : window.__HARNESS_ELECTRON__;
 
 beforeEach(() => {
-  if (typeof window !== "undefined") window.__OPENWORK_ELECTRON__ = undefined;
+  if (typeof window !== "undefined") window.__HARNESS_ELECTRON__ = undefined;
 });
 
 afterEach(() => {
   Object.defineProperty(globalThis, "fetch", { configurable: true, value: originalFetch });
-  if (typeof window !== "undefined") window.__OPENWORK_ELECTRON__ = originalElectronBridge;
+  if (typeof window !== "undefined") window.__HARNESS_ELECTRON__ = originalElectronBridge;
 });
 
 describe("Cloud workspace retry client", () => {

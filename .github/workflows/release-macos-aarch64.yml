@@ -29,7 +29,7 @@ on:
         required: false
         type: string
       release_name:
-        description: "Release title (defaults to OpenWork <tag>)"
+        description: "Release title (defaults to Harness <tag>)"
         required: false
         type: string
       release_body:
@@ -52,7 +52,7 @@ on:
         type: boolean
         default: true
       publish_npm:
-        description: "Publish openwork-server to npm if its version changed"
+        description: "Publish harness-server to npm if its version changed"
         required: false
         type: boolean
         default: true
@@ -269,19 +269,19 @@ jobs:
           if [ -n "$RELEASE_NAME_INPUT" ]; then
             RELEASE_NAME="$RELEASE_NAME_INPUT"
           else
-            RELEASE_NAME="OpenWork $TAG"
+            RELEASE_NAME="Harness $TAG"
           fi
 
           RELEASE_BODY_INPUT="${INPUT_RELEASE_BODY:-}"
           if [ -n "$RELEASE_BODY_INPUT" ]; then
             RELEASE_BODY="$RELEASE_BODY_INPUT"
           else
-            printf -v RELEASE_BODY '%s\n\nOpenWork %s desktop release.\n\n%s\n%s\n%s\n%s' \
+            printf -v RELEASE_BODY '%s\n\nHarness %s desktop release.\n\n%s\n%s\n%s\n%s' \
               "## What's new" \
               "$TAG" \
-              "- Public artifacts use the openwork-* naming convention." \
-              "- Cloud artifacts use openwork-cloud-* and require sign-in without enterprise activation." \
-              "- Enterprise artifacts use openwork-enterprise-* while retaining the standard OpenWork app identity." \
+              "- Public artifacts use the harness-* naming convention." \
+              "- Cloud artifacts use harness-cloud-* and require sign-in without enterprise activation." \
+              "- Enterprise artifacts use harness-enterprise-* while retaining the standard Harness app identity." \
               "- Public, Cloud, and enterprise Electron builds use separate updater manifests on this release."
           fi
 
@@ -339,9 +339,9 @@ jobs:
           echo "publish_npm=$publish_npm" >> "$GITHUB_OUTPUT"
           echo "publish_daytona_snapshot=$publish_daytona_snapshot" >> "$GITHUB_OUTPUT"
           {
-            echo "release_body<<__OPENWORK_RELEASE_BODY_EOF__"
+            echo "release_body<<__HARNESS_RELEASE_BODY_EOF__"
             printf '%s\n' "$RELEASE_BODY"
-            echo "__OPENWORK_RELEASE_BODY_EOF__"
+            echo "__HARNESS_RELEASE_BODY_EOF__"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create release if missing
@@ -503,8 +503,8 @@ jobs:
       # dependency closure. Without this, pnpm may "repair" the intentionally
       # partial workspace with a second all-workspace install before scripts.
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
-      OPENWORK_DESKTOP_SENTRY_DSN: ${{ secrets.OPENWORK_DESKTOP_SENTRY_DSN || vars.OPENWORK_DESKTOP_SENTRY_DSN }}
-      OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
+      HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
+      HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
 
     strategy:
       fail-fast: false
@@ -514,7 +514,7 @@ jobs:
             os_type: macos
             artifact: electron-macos-arm64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--mac --arm64"
             target_triple: aarch64-apple-darwin
@@ -522,7 +522,7 @@ jobs:
             os_type: macos
             artifact: electron-macos-x64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--mac --x64"
             target_triple: x86_64-apple-darwin
@@ -530,7 +530,7 @@ jobs:
             os_type: linux
             artifact: electron-linux-x64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--linux --x64"
             target_triple: x86_64-unknown-linux-gnu
@@ -541,7 +541,7 @@ jobs:
             os_type: linux
             artifact: electron-linux-arm64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--linux --arm64"
             target_triple: aarch64-unknown-linux-gnu
@@ -549,7 +549,7 @@ jobs:
             os_type: macos
             artifact: electron-cloud-macos-arm64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--mac --arm64"
             target_triple: aarch64-apple-darwin
@@ -557,7 +557,7 @@ jobs:
             os_type: macos
             artifact: electron-cloud-macos-x64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--mac --x64"
             target_triple: x86_64-apple-darwin
@@ -565,7 +565,7 @@ jobs:
             os_type: linux
             artifact: electron-cloud-linux-x64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--linux --x64"
             target_triple: x86_64-unknown-linux-gnu
@@ -573,7 +573,7 @@ jobs:
             os_type: linux
             artifact: electron-cloud-linux-arm64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--linux --arm64"
             target_triple: aarch64-unknown-linux-gnu
@@ -581,7 +581,7 @@ jobs:
             os_type: macos
             artifact: electron-enterprise-macos-arm64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--mac --arm64"
             target_triple: aarch64-apple-darwin
@@ -589,7 +589,7 @@ jobs:
             os_type: macos
             artifact: electron-enterprise-macos-x64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--mac --x64"
             target_triple: x86_64-apple-darwin
@@ -597,7 +597,7 @@ jobs:
             os_type: linux
             artifact: electron-enterprise-linux-x64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--linux --x64"
             target_triple: x86_64-unknown-linux-gnu
@@ -605,7 +605,7 @@ jobs:
             os_type: linux
             artifact: electron-enterprise-linux-arm64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--linux --arm64"
             target_triple: aarch64-unknown-linux-gnu
@@ -657,7 +657,7 @@ jobs:
             ${{ runner.os }}-electron-pnpm-
 
       - name: Install dependencies
-        run: pnpm --filter @openwork/desktop... --filter @openwork/app... --filter openwork-server... install --frozen-lockfile --prefer-offline
+        run: pnpm --filter @harness/desktop... --filter @harness/app... --filter @harness/server... install --frozen-lockfile --prefer-offline
 
       # The repo commits a permanent 0.0.0-dev placeholder; the release
       # version exists only as the git tag. Stamp it into the workspace so
@@ -720,7 +720,7 @@ jobs:
           # TARGET tells prepare-sidecar.mjs which architecture's opencode binary
           # to download (critical for cross-arch builds like x64 on arm64 mac).
           TARGET: ${{ matrix.target_triple }}
-        run: pnpm --filter @openwork/desktop build:electron
+        run: pnpm --filter @harness/desktop build:electron
 
       - name: Package Electron (macOS, signed + notarized)
         if: matrix.os_type == 'macos' && env.MACOS_NOTARIZE == 'true'
@@ -783,14 +783,14 @@ jobs:
       # electron-builder may still emit latest*.yml for a custom distribution.
       # Normalize each non-public feed so it cannot update into another flavor.
       - name: Normalize custom distribution updater manifests
-        if: matrix.asset_prefix != 'openwork'
+        if: matrix.asset_prefix != 'harness'
         shell: bash
         run: |
           set -euo pipefail
           cd apps/desktop/dist-electron
           shopt -s nullglob
           channel="${{ matrix.asset_prefix }}"
-          channel="${channel#openwork-}"
+          channel="${channel#harness-}"
           for manifest in latest*.yml; do
             target="${channel}${manifest#latest}"
             if [ -e "$target" ]; then
@@ -934,8 +934,8 @@ jobs:
       SIGN_WINDOWS: ${{ needs.resolve-release.outputs.sign_windows }}
       BENCHMARK_ONLY: ${{ needs.resolve-release.outputs.benchmark_only }}
       PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
-      OPENWORK_DESKTOP_SENTRY_DSN: ${{ secrets.OPENWORK_DESKTOP_SENTRY_DSN || vars.OPENWORK_DESKTOP_SENTRY_DSN }}
-      OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.OPENWORK_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
+      HARNESS_DESKTOP_SENTRY_DSN: ${{ secrets.HARNESS_DESKTOP_SENTRY_DSN || vars.HARNESS_DESKTOP_SENTRY_DSN }}
+      HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE: ${{ vars.HARNESS_DESKTOP_SENTRY_TRACES_SAMPLE_RATE || '0.01' }}
 
     strategy:
       fail-fast: false
@@ -945,7 +945,7 @@ jobs:
             os_type: windows
             artifact: electron-windows-x64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--win --x64"
             target_triple: x86_64-pc-windows-msvc
@@ -956,7 +956,7 @@ jobs:
             os_type: windows
             artifact: electron-windows-arm64
             builder_config: electron-builder.yml
-            asset_prefix: openwork
+            asset_prefix: harness
             manifest_pattern: latest*.yml
             electron_args: "--win --arm64"
             target_triple: aarch64-pc-windows-msvc
@@ -964,7 +964,7 @@ jobs:
             os_type: windows
             artifact: electron-cloud-windows-x64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--win --x64"
             target_triple: x86_64-pc-windows-msvc
@@ -972,7 +972,7 @@ jobs:
             os_type: windows
             artifact: electron-cloud-windows-arm64
             builder_config: electron-builder.cloud.yml
-            asset_prefix: openwork-cloud
+            asset_prefix: harness-cloud
             manifest_pattern: cloud*.yml
             electron_args: "--win --arm64"
             target_triple: aarch64-pc-windows-msvc
@@ -980,7 +980,7 @@ jobs:
             os_type: windows
             artifact: electron-enterprise-windows-x64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--win --x64"
             target_triple: x86_64-pc-windows-msvc
@@ -988,7 +988,7 @@ jobs:
             os_type: windows
             artifact: electron-enterprise-windows-arm64
             builder_config: electron-builder.enterprise.yml
-            asset_prefix: openwork-enterprise
+            asset_prefix: harness-enterprise
             manifest_pattern: enterprise*.yml
             electron_args: "--win --arm64"
             target_triple: aarch64-pc-windows-msvc
@@ -1103,9 +1103,13 @@ jobs:
           fi
 
   prepare-npm:
-    name: Prepare openwork-server npm package
+    name: Prepare harness-server npm package
     needs: [resolve-release, verify-release]
+    # Disabled: Harness does not publish to npm (the harness-server name and
+    # the @harness scope are not owned by this project). verify-npm-hosts and
+    # publish-npm depend on this job and are skipped with it.
     if: |
+      false &&
       always() &&
       needs.resolve-release.result == 'success' &&
       needs.verify-release.result == 'success' &&
@@ -1137,7 +1141,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
-          # Bun bundles openwork-server for Node (build:npm-bundle) before npm publish.
+          # Bun bundles harness-server for Node (build:npm-bundle) before npm publish.
           bun-version: "1.3.10"
 
       - name: Get pnpm store path
@@ -1157,7 +1161,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      # openwork-server publishes with the tag-derived version; the committed
+      # harness-server publishes with the tag-derived version; the committed
       # package.json holds the permanent 0.0.0-dev placeholder. Pre-redesign
       # tags carry real committed versions and no stamp script.
       - name: Stamp release version
@@ -1179,7 +1183,7 @@ jobs:
           set -euo pipefail
           # npm view exits non-zero for packages that don't exist yet (404).
           # Treat missing packages as "not published" so release can publish them.
-          server_current="$(npm view openwork-server version 2>/dev/null || true)"
+          server_current="$(npm view harness-server version 2>/dev/null || true)"
 
           if [ "$server_current" = "$SERVER_VERSION" ]; then
             echo "publish_server=false" >> "$GITHUB_OUTPUT"
@@ -1189,15 +1193,15 @@ jobs:
             echo "publish_any=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Prepare openwork-server
+      - name: Prepare harness-server
         if: steps.npm-versions.outputs.publish_server == 'true'
-        run: pnpm --filter openwork-server publish:npm --dry-run
+        run: pnpm --filter @harness/server publish:npm --dry-run
 
       - name: Upload npm package
         if: steps.npm-versions.outputs.publish_server == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: openwork-server-npm-${{ env.RELEASE_VERSION }}
+          name: harness-server-npm-${{ env.RELEASE_VERSION }}
           path: apps/server/dist/npm
           if-no-files-found: error
 
@@ -1245,12 +1249,12 @@ jobs:
       - name: Download npm package
         uses: actions/download-artifact@v4
         with:
-          name: openwork-server-npm-${{ needs.resolve-release.outputs.release_version }}
-          path: ${{ runner.temp }}/openwork-server-npm
+          name: harness-server-npm-${{ needs.resolve-release.outputs.release_version }}
+          path: ${{ runner.temp }}/harness-server-npm
       # Install the exact tarball that will be published, as a user would,
-      # then run `openwork-server web` on a fresh profile: first-run engine
+      # then run `harness-server web` on a fresh profile: first-run engine
       # download, web UI, API, engine plugins and session creation.
-      - name: Install the package tarball and run openwork-server web
+      - name: Install the package tarball and run harness-server web
         shell: bash
         env:
           RELEASE_VERSION: ${{ needs.resolve-release.outputs.release_version }}
@@ -1259,13 +1263,13 @@ jobs:
           packs="$RUNNER_TEMP/npm-packs"
           prefix="$RUNNER_TEMP/npm-prefix"
           mkdir -p "$packs" "$prefix"
-          (cd "$RUNNER_TEMP/openwork-server-npm" && npm pack --pack-destination "$packs")
-          npm install -g --prefix "$prefix" "$packs/openwork-server-$RELEASE_VERSION.tgz"
-          launcher="$(npm root -g --prefix "$prefix")/openwork-server/bin/openwork-server.mjs"
+          (cd "$RUNNER_TEMP/harness-server-npm" && npm pack --pack-destination "$packs")
+          npm install -g --prefix "$prefix" "$packs/harness-server-$RELEASE_VERSION.tgz"
+          launcher="$(npm root -g --prefix "$prefix")/harness-server/bin/harness-server.mjs"
           node apps/server/scripts/npm-web-smoke.mjs "$launcher" "$RELEASE_VERSION"
 
   publish-npm:
-    name: Publish openwork-server
+    name: Publish harness-server
     needs: [resolve-release, verify-release, prepare-npm, verify-npm-hosts]
     if: |
       always() &&
@@ -1290,40 +1294,40 @@ jobs:
       - name: Download npm package
         uses: actions/download-artifact@v4
         with:
-          name: openwork-server-npm-${{ env.RELEASE_VERSION }}
-          path: ${{ runner.temp }}/openwork-server-npm
+          name: harness-server-npm-${{ env.RELEASE_VERSION }}
+          path: ${{ runner.temp }}/harness-server-npm
 
       - name: Pack and verify package contents
         id: npm-pack
         shell: bash
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/openwork-server-npm"
-          chmod 755 bin/openwork-server.mjs
+          cd "$RUNNER_TEMP/harness-server-npm"
+          chmod 755 bin/harness-server.mjs
           npm pack --json --pack-destination "$RUNNER_TEMP" > "$RUNNER_TEMP/npm-pack.json"
           filename="$(node -p 'require(process.env.RUNNER_TEMP + "/npm-pack.json")[0].filename')"
           tarball="$RUNNER_TEMP/$filename"
           unpacked="$(mktemp -d)"
           tar -xzf "$tarball" -C "$unpacked"
           package="$unpacked/package"
-          test -x "$package/bin/openwork-server.mjs"
+          test -x "$package/bin/harness-server.mjs"
           test -f "$package/bin/platform.mjs"
-          test -f "$package/dist/openwork-server.mjs"
+          test -f "$package/dist/harness-server.mjs"
           test -f "$package/dist/pdfium.wasm"
-          test -f "$package/dist/opencode-plugins/openwork-extensions-preview.js"
+          test -f "$package/dist/opencode-plugins/harness-extensions-preview.js"
           test -f "$package/web/index.html"
           test ! -e "$package/dist/bin"
           test "$(node -p "require('$package/package.json').version")" = "$RELEASE_VERSION"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
-      - name: Publish openwork-server
+      - name: Publish harness-server
         shell: bash
         env:
           NPM_TARBALL: ${{ steps.npm-pack.outputs.tarball }}
         run: |
           set -euo pipefail
-          if [ "$(npm view "openwork-server@$RELEASE_VERSION" version 2>/dev/null || true)" = "$RELEASE_VERSION" ]; then
-            echo "openwork-server@$RELEASE_VERSION is already published; skipping."
+          if [ "$(npm view "harness-server@$RELEASE_VERSION" version 2>/dev/null || true)" = "$RELEASE_VERSION" ]; then
+            echo "harness-server@$RELEASE_VERSION is already published; skipping."
             exit 0
           fi
           npm publish "$NPM_TARBALL" --access public --provenance
@@ -1334,13 +1338,13 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3 4 5 6; do
             prefix="$(mktemp -d)"
-            if npm install -g --prefix "$prefix" "openwork-server@$RELEASE_VERSION" \
-              && actual="$("$prefix/bin/openwork-server" --version)" \
+            if npm install -g --prefix "$prefix" "harness-server@$RELEASE_VERSION" \
+              && actual="$("$prefix/bin/harness-server" --version)" \
               && [ "$actual" = "$RELEASE_VERSION" ]; then
-              echo "npm install -g openwork-server@$RELEASE_VERSION runs $actual"
+              echo "npm install -g harness-server@$RELEASE_VERSION runs $actual"
               exit 0
             fi
-            echo "Registry not serving openwork-server@$RELEASE_VERSION yet (attempt $attempt); retrying in 30s."
+            echo "Registry not serving harness-server@$RELEASE_VERSION yet (attempt $attempt); retrying in 30s."
             sleep 30
           done
           exit 1
@@ -1393,7 +1397,7 @@ jobs:
       - name: Publish to AUR
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          AUR_REPO: ${{ vars.AUR_REPO || 'openwork' }}
+          AUR_REPO: ${{ vars.AUR_REPO || 'harness' }}
         run: |
           set -euo pipefail
           if [ -z "${AUR_SSH_PRIVATE_KEY:-}" ]; then

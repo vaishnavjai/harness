@@ -1,5 +1,5 @@
-import { denFetch } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
+import { denFetch } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
 import type { LiteLlmHandle } from "./litellm.ts";
 
 interface ExampleProvisionerModule {
@@ -85,7 +85,7 @@ export async function liteLlmPerMemberProvider(
     headers: {
       ...auth(admin.token),
       "content-type": "application/json",
-      "x-openwork-org-id": input.orgId,
+      "x-harness-org-id": input.orgId,
     },
     body: JSON.stringify({
       name,

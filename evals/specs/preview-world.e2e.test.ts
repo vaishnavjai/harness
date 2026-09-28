@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { main, isProcessAlive, readLedger, readScriptWorldSnapshot } from "@openwork/world";
+import { main, isProcessAlive, readLedger, readScriptWorldSnapshot } from "@harness/world";
 import {
   attachSurface,
   evaluateOnSurface,
@@ -19,7 +19,7 @@ import {
   readPublishedDesktopSandboxWitness,
   retainedCrashedDesktopWitness,
   test,
-} from "@openwork/testkit";
+} from "@harness/testkit";
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -27,17 +27,17 @@ function record(value: unknown): value is Record<string, unknown> { return typeo
 
 test("app-web CLI exposes a private human browser URL and down deletes only its owned stage", { timeout: 1_500_000 }, async ({ evidence }) => {
   needs({ placement: "daytona" });
-  const ref = process.env.OPENWORK_EVAL_REF;
+  const ref = process.env.HARNESS_EVAL_REF;
   assert.match(ref ?? "", /^[a-f0-9]{40}$/);
   if (!ref) throw new Error("Reviewed pushed source SHA is required.");
-  const snapshots = await mkdtemp(join(tmpdir(), "openwork-app-web-preview-proof-"));
-  const selected = ["OPENWORK_WORLD_SNAPSHOT_DIR", "OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY", "OPENWORK_DEV_DEN_PROXY_TARGET"];
+  const snapshots = await mkdtemp(join(tmpdir(), "harness-app-web-preview-proof-"));
+  const selected = ["HARNESS_WORLD_SNAPSHOT_DIR", "HARNESS_DEV_HEADLESS_WEB_DEN_PROXY", "HARNESS_DEV_DEN_PROXY_TARGET"];
   const previous = new Map(selected.map((key) => [key, process.env[key]]));
   const restorePooled = withoutPooledSlotEnv();
   const stage = `app-web-${Date.now()}`;
   const controlStage = `${stage}-control`;
-  process.env.OPENWORK_WORLD_SNAPSHOT_DIR = snapshots;
-  process.env.OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY = "0";
+  process.env.HARNESS_WORLD_SNAPSHOT_DIR = snapshots;
+  process.env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY = "0";
   const cli = async (args: string[]): Promise<number> => {
     try {
       await exec(process.execPath, [join(root, "evals/bin/world.mjs"), ...args], { cwd: root, timeout: 660000, maxBuffer: 8 * 1024 * 1024 });
@@ -48,7 +48,7 @@ test("app-web CLI exposes a private human browser URL and down deletes only its 
     }
   };
   const up = (value: string) => cli(["up", "app-web", "--stage", value, "--place", "daytona", "--detach", "--timeout", "600000",
-    "--env", "OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY", "--", "--ref", ref]);
+    "--env", "HARNESS_DEV_HEADLESS_WEB_DEN_PROXY", "--", "--ref", ref]);
   const down = (value: string) => cli(["down", "app-web", "--stage", value]);
   const snapshot = async (value: string) => {
     const receipt = await readScriptWorldSnapshot(join(snapshots, `app-web--${value}.json`));
@@ -66,13 +66,13 @@ test("app-web CLI exposes a private human browser URL and down deletes only its 
       try { return new URL(value).hostname === "127.0.0.1"; } catch { return false; }
     };
     assert.equal(loopback(app.outputs.runtimeWebUrl), true);
-    assert.equal(loopback(app.outputs.runtimeOpenworkUrl), true);
+    assert.equal(loopback(app.outputs.runtimeHarnessUrl), true);
     assert.equal(await up(stage), 0);
     assert.equal((await snapshot(stage)).pid, app.pid);
-    process.env.OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY = "false";
+    process.env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY = "false";
     assert.equal(await up(stage), 1);
     assert.equal((await snapshot(stage)).pid, app.pid);
-    process.env.OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY = "0";
+    process.env.HARNESS_DEV_HEADLESS_WEB_DEN_PROXY = "0";
     evidence.recordAssertionEvidence("app-web uses the real CLI with exact source and invocation identity",
       "Daytona placement and pushed SHA match; the human URL is secret while process URLs remain loopback. Identical up adopts; changed selected Den configuration is rejected without replacing the process.", true);
     {
@@ -147,7 +147,7 @@ test("app-web CLI exposes a private human browser URL and down deletes only its 
 // The pooled lane exports its worker's shared Den/desktop sandboxes for a spec's
 // own seeds. Preview worlds refuse to run on borrowed infrastructure, so hide
 // those overrides from the worlds this spec launches and restore them after.
-const POOLED_SLOT_ENV = ["OPENWORK_EVAL_DEN_API_URL", "OPENWORK_EVAL_DAYTONA_DEN_SANDBOX", "OPENWORK_EVAL_DAYTONA_DESKTOP_SANDBOX", "OPENWORK_EVAL_DAYTONA_SANDBOX"] as const;
+const POOLED_SLOT_ENV = ["HARNESS_EVAL_DEN_API_URL", "HARNESS_EVAL_DAYTONA_DEN_SANDBOX", "HARNESS_EVAL_DAYTONA_DESKTOP_SANDBOX", "HARNESS_EVAL_DAYTONA_SANDBOX"] as const;
 function withoutPooledSlotEnv(): () => void {
   const saved = POOLED_SLOT_ENV.map((key) => [key, process.env[key]] as const);
   for (const key of POOLED_SLOT_ENV) delete process.env[key];
@@ -215,9 +215,9 @@ async function daytonaSandboxAutoStopInterval(identity: string): Promise<number>
 
 test("preview worlds expose Den and real Electron, preserve progress on frontend update, and tear down only their own stage", { timeout: 1_500_000 }, async ({ evidence }) => {
   needs({ placement: "daytona" });
-  const snapshots = await mkdtemp(join(tmpdir(), "openwork-preview-proof-"));
-  const previous = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-  process.env.OPENWORK_WORLD_SNAPSHOT_DIR = snapshots;
+  const snapshots = await mkdtemp(join(tmpdir(), "harness-preview-proof-"));
+  const previous = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+  process.env.HARNESS_WORLD_SNAPSHOT_DIR = snapshots;
   const restorePooledSlotEnv = withoutPooledSlotEnv();
   const stage = `proof-${Date.now()}`;
   const options = { cwd: root, worldsDirectory: join(root, "worlds"), print: (line: string) => console.error(line) };
@@ -229,14 +229,14 @@ test("preview worlds expose Den and real Electron, preserve progress on frontend
     return value;
   };
   try {
-    const pinnedRef = process.env.OPENWORK_EVAL_REF;
+    const pinnedRef = process.env.HARNESS_EVAL_REF;
     assert.ok(pinnedRef);
     try {
-      process.env.OPENWORK_EVAL_REF = "dev";
+      process.env.HARNESS_EVAL_REF = "dev";
       assert.equal(await up("preview-den", "fresh"), 1);
       assert.equal(await readScriptWorldSnapshot(join(snapshots, `preview-den--${stage}.json`)), undefined);
     } finally {
-      process.env.OPENWORK_EVAL_REF = pinnedRef;
+      process.env.HARNESS_EVAL_REF = pinnedRef;
     }
     await assert.rejects(exec("python3", [join(root, ".opencode/skills/preview-my-work/scripts/update-preview.py"), "preview-den", "--stage", stage, "--ref", "dev"], { cwd: root, timeout: 10000 }), (error: unknown) => record(error) && error.code === 2 && typeof error.stderr === "string" && error.stderr.includes("full 40-character commit SHA"));
     evidence.recordAssertionEvidence("Mutable refs are rejected before preview execution", "Launch with a branch name fails without a live receipt; the updater rejects a branch name before reading a receipt or invoking Daytona.", true);
@@ -244,15 +244,15 @@ test("preview worlds expose Den and real Electron, preserve progress on frontend
     const expectedDefaultRef = remoteDev.trim().split(/\s+/)[0];
     assert.match(expectedDefaultRef ?? "", /^[0-9a-f]{40}$/);
     try {
-      delete process.env.OPENWORK_EVAL_REF;
+      delete process.env.HARNESS_EVAL_REF;
       assert.equal(await up("preview-den", "fresh"), 0);
     } finally {
-      process.env.OPENWORK_EVAL_REF = pinnedRef;
+      process.env.HARNESS_EVAL_REF = pinnedRef;
     }
     const den = await snapshot("preview-den");
     assert.equal(den.outputs.ref, expectedDefaultRef);
     assert.equal(den.outputs.denRef, expectedDefaultRef);
-    evidence.recordAssertionEvidence("Omitting the preview ref pins remote dev", "Fresh Den launches without OPENWORK_EVAL_REF and records the remote dev commit SHA in both ref outputs.", true);
+    evidence.recordAssertionEvidence("Omitting the preview ref pins remote dev", "Fresh Den launches without HARNESS_EVAL_REF and records the remote dev commit SHA in both ref outputs.", true);
     assert.equal(den.outputs.scenario, "fresh");
     assert.equal(den.outputs.password, undefined);
     assert.equal((await fetch(den.outputs.preview)).status, 200);
@@ -300,8 +300,8 @@ test("preview worlds expose Den and real Electron, preserve progress on frontend
     const buildId = async () => (await exec("daytona", ["exec", desktop.outputs.denSandbox, "--", "cat", "/workspace/ee/apps/den-web/.next/BUILD_ID"], { timeout: 30000 })).stdout.trim();
     const previousBuild = await buildId();
     assert.ok((await (await fetch(desktop.outputs.denWeb)).text()).includes(previousBuild));
-    assert.ok(process.env.OPENWORK_EVAL_REF);
-    await exec("python3", [join(root, ".opencode/skills/preview-my-work/scripts/update-preview.py"), "preview-desktop", "--stage", stage, "--ref", process.env.OPENWORK_EVAL_REF], { cwd: root, timeout: 300000, maxBuffer: 2_000_000 });
+    assert.ok(process.env.HARNESS_EVAL_REF);
+    await exec("python3", [join(root, ".opencode/skills/preview-my-work/scripts/update-preview.py"), "preview-desktop", "--stage", stage, "--ref", process.env.HARNESS_EVAL_REF], { cwd: root, timeout: 300000, maxBuffer: 2_000_000 });
     await eventually(async () => (await fetch(desktop.outputs.denWeb)).status === 200, { within: 60000, intervalMs: 1000, label: "updated Den web responds" });
     const nextBuild = await buildId();
     assert.notEqual(nextBuild, previousBuild);
@@ -330,8 +330,8 @@ test("preview worlds expose Den and real Electron, preserve progress on frontend
     for (const name of ["preview-desktop", "preview-den"]) {
       if (await readScriptWorldSnapshot(join(snapshots, `${name}--${stage}.json`))) await down(name);
     }
-    if (previous === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previous;
+    if (previous === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previous;
     restorePooledSlotEnv();
     await rm(snapshots, { recursive: true, force: true });
   }
@@ -339,9 +339,9 @@ test("preview worlds expose Den and real Electron, preserve progress on frontend
 
 test("preview-desktop retains an exact blank published release and tears down its two owned sandboxes", { timeout: 1_500_000 }, async ({ evidence }) => {
   needs({ placement: "daytona" });
-  const snapshots = await mkdtemp(join(tmpdir(), "openwork-release-preview-proof-"));
-  const previous = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-  process.env.OPENWORK_WORLD_SNAPSHOT_DIR = snapshots;
+  const snapshots = await mkdtemp(join(tmpdir(), "harness-release-preview-proof-"));
+  const previous = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+  process.env.HARNESS_WORLD_SNAPSHOT_DIR = snapshots;
   const restorePooledSlotEnv = withoutPooledSlotEnv();
   const suffix = Date.now();
   const stage = `release-${suffix}`;
@@ -356,7 +356,7 @@ test("preview-desktop retains an exact blank published release and tears down it
     return value;
   };
   try {
-    assert.match(process.env.OPENWORK_EVAL_REF ?? "", /^[0-9a-f]{40}$/);
+    assert.match(process.env.HARNESS_EVAL_REF ?? "", /^[0-9a-f]{40}$/);
     assert.equal(await up("preview-desktop", invalidStage, ["--release", "latest", "--distribution", "enterprise", "--scenario", "blank"]), 1);
     assert.equal(await readScriptWorldSnapshot(join(snapshots, `preview-desktop--${invalidStage}.json`)), undefined);
     assert.equal((await daytonaSandboxIdentities()).some((identity) => identity.includes(invalidStage)), false);
@@ -370,7 +370,7 @@ test("preview-desktop retains an exact blank published release and tears down it
     assert.equal(release.outputs.distribution, "enterprise");
     assert.equal(release.outputs.platform, "linux");
     assert.equal(release.outputs.architecture, "x64");
-    assert.equal(release.outputs.denRef, process.env.OPENWORK_EVAL_REF);
+    assert.equal(release.outputs.denRef, process.env.HARNESS_EVAL_REF);
     assert.equal(release.outputs.startup, "cdp-responsive");
     assert.ok(release.outputs.cdp);
     assert.notEqual(release.outputs.denSandbox, release.outputs.desktopSandbox);
@@ -383,12 +383,12 @@ test("preview-desktop retains an exact blank published release and tears down it
     assert.equal((await fetch(release.outputs.preview)).status, 200);
     assert.match(await rfbHandshake(release.outputs.preview), /^RFB 003\./);
     await assert.rejects(
-      exec("python3", [join(root, ".opencode/skills/preview-my-work/scripts/update-preview.py"), "preview-desktop", "--stage", stage, "--ref", process.env.OPENWORK_EVAL_REF ?? ""], { cwd: root, timeout: 10000 }),
+      exec("python3", [join(root, ".opencode/skills/preview-my-work/scripts/update-preview.py"), "preview-desktop", "--stage", stage, "--ref", process.env.HARNESS_EVAL_REF ?? ""], { cwd: root, timeout: 10000 }),
       (error: unknown) => record(error) && error.code === 2 && typeof error.stderr === "string" && error.stderr.includes("Published release previews are immutable"),
     );
 
-    const metadataResponse = await fetch("https://api.github.com/repos/different-ai/openwork/releases/tags/v0.18.44", {
-      headers: { accept: "application/vnd.github+json", "user-agent": "openwork-release-preview-evidence" },
+    const metadataResponse = await fetch("https://api.github.com/repos/vaishnavjai/harness/releases/tags/v0.18.44", {
+      headers: { accept: "application/vnd.github+json", "user-agent": "harness-release-preview-evidence" },
     });
     assert.equal(metadataResponse.status, 200);
     const metadata: unknown = await metadataResponse.json();
@@ -403,7 +403,7 @@ test("preview-desktop retains an exact blank published release and tears down it
     }));
     assert.ok(record(rendererState) && rendererState.hash === "" && Array.isArray(rendererState.seededKeys) && rendererState.seededKeys.length === 0);
     assert.deepEqual(await readDenClientState(surface), { authTokenPresent: false, activeOrgId: null, activeOrgSlug: null, activeOrgName: null });
-    const bootstrap = `${release.outputs.profilePath}/openwork/config/desktop-bootstrap.json`;
+    const bootstrap = `${release.outputs.profilePath}/harness/config/desktop-bootstrap.json`;
     const expectedPaths: Record<string, string> = {
       HOME: `${release.outputs.profilePath}/home`,
       USERPROFILE: `${release.outputs.profilePath}/home`,
@@ -413,17 +413,17 @@ test("preview-desktop retains an exact blank published release and tears down it
       XDG_STATE_HOME: `${release.outputs.profilePath}/xdg/state`,
       APPDATA: `${release.outputs.profilePath}/windows/app-data/roaming`,
       LOCALAPPDATA: `${release.outputs.profilePath}/windows/app-data/local`,
-      OPENWORK_ELECTRON_USERDATA: `${release.outputs.profilePath}/electron-userdata`,
-      OPENWORK_DESKTOP_BOOTSTRAP_PATH: bootstrap,
-      OPENWORK_SERVER_CONFIG: `${release.outputs.profilePath}/openwork/config/server.json`,
-      OPENWORK_ENV_STORE: `${release.outputs.profilePath}/openwork/config/env.json`,
-      OPENWORK_TOKEN_STORE: `${release.outputs.profilePath}/openwork/config/tokens.json`,
-      OPENWORK_RUNTIME_DB: `${release.outputs.profilePath}/openwork/config/runtime.sqlite`,
-      OPENWORK_DATA_DIR: `${release.outputs.profilePath}/openwork/data`,
+      HARNESS_ELECTRON_USERDATA: `${release.outputs.profilePath}/electron-userdata`,
+      HARNESS_DESKTOP_BOOTSTRAP_PATH: bootstrap,
+      HARNESS_SERVER_CONFIG: `${release.outputs.profilePath}/harness/config/server.json`,
+      HARNESS_ENV_STORE: `${release.outputs.profilePath}/harness/config/env.json`,
+      HARNESS_TOKEN_STORE: `${release.outputs.profilePath}/harness/config/tokens.json`,
+      HARNESS_RUNTIME_DB: `${release.outputs.profilePath}/harness/config/runtime.sqlite`,
+      HARNESS_DATA_DIR: `${release.outputs.profilePath}/harness/data`,
       OPENCODE_CONFIG_DIR: `${release.outputs.profilePath}/opencode/config`,
       OPENCODE_DB: `${release.outputs.profilePath}/opencode/data/opencode.db`,
     };
-    const environment = { ...expectedPaths, DISPLAY: ":99", OPENWORK_DEV_MODE: "0" };
+    const environment = { ...expectedPaths, DISPLAY: ":99", HARNESS_DEV_MODE: "0" };
     const witnessOptions = {
       sandboxId: release.outputs.desktopSandbox,
       pid: release.outputs.desktopPid,
@@ -443,12 +443,12 @@ test("preview-desktop retains an exact blank published release and tears down it
     assert.equal(witness.bootstrapExists, false);
     assert.deepEqual(witness.environment, environment);
     assert.deepEqual(witness.unexpectedSensitiveEnvironmentKeys, []);
-    assert.ok(witness.protocolHandler.includes(`Exec=${release.outputs.profilePath}/launch-openwork %U`));
-    assert.ok(witness.protocolHandler.includes("MimeType=x-scheme-handler/openwork;"));
-    assert.equal(witness.defaultProtocolHandler, "openwork-release-preview.desktop");
+    assert.ok(witness.protocolHandler.includes(`Exec=${release.outputs.profilePath}/launch-harness %U`));
+    assert.ok(witness.protocolHandler.includes("MimeType=x-scheme-handler/harness;"));
+    assert.equal(witness.defaultProtocolHandler, "harness-release-preview.desktop");
     assert.deepEqual(witness.shortcutsExecutable, [true, true]);
     assert.equal(witness.handoffExitCode, 0);
-    evidence.recordAssertionEvidence("Blank means no seeded identity, activation, or workspace", "The renderer has no workspace or Den identity, no bootstrap file exists, every expected HOME/XDG/OpenWork/OpenCode path is rooted in one launch profile, credential-like and source override environment keys are absent, and xdg-open completes a benign handoff through the discoverable same-profile handler.", true);
+    evidence.recordAssertionEvidence("Blank means no seeded identity, activation, or workspace", "The renderer has no workspace or Den identity, no bootstrap file exists, every expected HOME/XDG/Harness/OpenCode path is rooted in one launch profile, credential-like and source override environment keys are absent, and xdg-open completes a benign handoff through the discoverable same-profile handler.", true);
 
     {
       await using broken = await retainedCrashedDesktopWitness(release.outputs.desktopSandbox);
@@ -458,7 +458,7 @@ test("preview-desktop retains an exact blank published release and tears down it
       assert.match(await rfbHandshake(release.outputs.preview), /^RFB 003\./);
     }
     const afterCrash = await readPublishedDesktopSandboxWitness(witnessOptions);
-    assert.equal(afterCrash.defaultProtocolHandler, "openwork-release-preview.desktop");
+    assert.equal(afterCrash.defaultProtocolHandler, "harness-release-preview.desktop");
     assert.equal(afterCrash.primaryProcessAlive, true);
     evidence.recordAssertionEvidence("An app crash retains a real viewer without a healthy label", "A real /bin/false launch is observed as crashed while the same HTTP/noVNC endpoint continues to answer and complete an RFB handshake.", true);
 
@@ -476,8 +476,8 @@ test("preview-desktop retains an exact blank published release and tears down it
     for (const [name, selectedStage] of [["preview-desktop", stage], ["preview-desktop", invalidStage], ["preview-den", controlStage]]) {
       if (await readScriptWorldSnapshot(join(snapshots, `${name}--${selectedStage}.json`))) await down(name, selectedStage);
     }
-    if (previous === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previous;
+    if (previous === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previous;
     restorePooledSlotEnv();
     await rm(snapshots, { recursive: true, force: true });
   }

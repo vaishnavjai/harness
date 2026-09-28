@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { taskActivityWeb } from "../worlds/task-activity-web.ts";
 
 const test = spec.world(taskActivityWeb, {

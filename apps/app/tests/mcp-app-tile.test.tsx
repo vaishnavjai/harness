@@ -3,12 +3,12 @@ import { afterAll, afterEach, expect, mock, spyOn, test } from "bun:test";
 import { GlobalRegistrator } from "@happy-dom/global-registrator";
 import { act, StrictMode, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createOpenworkServerClient, OpenworkServerError, type OpenworkMcpAppResource, type OpenworkMcpAppToolResult, type OpenworkServerClient } from "../src/app/lib/openwork-server";
+import { createHarnessServerClient, HarnessServerError, type HarnessMcpAppResource, type HarnessMcpAppToolResult, type HarnessServerClient } from "../src/app/lib/harness-server";
 import { resolveDashboardMcpApp } from "../src/react-app/domains/dashboard/dashboard-mcp-app-resolution";
 import { createMcpAppActions } from "../src/components/chat/mcp-app-origin";
 import type { McpAppSandboxViewProps } from "../src/components/chat/mcp-app-frame";
 import type { DashboardMcpAppEntry } from "../src/react-app/domains/dashboard/granted-dashboard-store";
-import type { GeneratedArtifactView, GeneratedArtifactViewRevision } from "@openwork/types/workflows";
+import type { GeneratedArtifactView, GeneratedArtifactViewRevision } from "@harness/types/workflows";
 import { liveGeneratedAppCacheScope, liveGeneratedAppEntry, nextViewerDayBoundary } from "../src/react-app/domains/apps/live-generated-app-model";
 import { DASHBOARD_AUTO_REFRESH_INTERVAL_MS, readDashboardTileCache, writeDashboardTileCache } from "../src/react-app/domains/dashboard/dashboard-tile-cache";
 import { flushDashboardTileCacheStorage, resetDashboardTileCacheMemory } from "../src/app/lib/dashboard-cache-storage";
@@ -60,7 +60,7 @@ mock.module("../src/react-app/domains/apps/use-apps", () => ({
 }));
 const { LiveGeneratedApp } = await import("../src/react-app/domains/apps/live-generated-app");
 const liveRevision: GeneratedArtifactViewRevision = {
-  id: "avr_fixture", artifactViewId: "arv_fixture", resourceUri: "ui://openwork/artifacts/arv_fixture/avr_fixture",
+  id: "avr_fixture", artifactViewId: "arv_fixture", resourceUri: "ui://harness/artifacts/arv_fixture/avr_fixture",
   buildStatus: "ready", sourceDigest: "source", resourceDigest: "resource", outputSchemaDigest: "output",
   csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, diagnostics: [],
   compilerName: "fixture", compilerVersion: "1", reactVersion: "19", compiledHtmlBytes: 10,
@@ -72,28 +72,28 @@ const liveView: GeneratedArtifactView = {
   createdAt: liveRevision.createdAt, updatedAt: liveRevision.createdAt,
 };
 
-const resource: OpenworkMcpAppResource = {
+const resource: HarnessMcpAppResource = {
   serverName: "fixture", toolName: "render", resourceUri: "ui://fixture/view.html", html: "<p>Fixture</p>",
   csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] }, prefersBorder: true,
 };
 const noRelease = async () => { throw new Error("No lease should be released"); };
 
-type TileCallRequest = Parameters<OpenworkServerClient["callMcpAppTool"]>[1];
+type TileCallRequest = Parameters<HarnessServerClient["callMcpAppTool"]>[1];
 
-function continuityResource(index: number): OpenworkMcpAppResource {
+function continuityResource(index: number): HarnessMcpAppResource {
   return { ...resource, launchId: `continuity-${index}`, refresh: { resourceDigest: "a".repeat(64), expiresAt: Date.now() + 30 * 60_000 } };
 }
 
 function continuityFixture(options: {
   guarded?: boolean;
   entry?: Partial<DashboardMcpAppEntry>;
-  resolve?: (index: number) => Promise<OpenworkMcpAppResource | null>;
-  call?: (request: TileCallRequest, index: number) => Promise<OpenworkMcpAppToolResult>;
+  resolve?: (index: number) => Promise<HarnessMcpAppResource | null>;
+  call?: (request: TileCallRequest, index: number) => Promise<HarnessMcpAppToolResult>;
 } = {}) {
   const resolutions: string[] = [];
   const calls: Array<{ workspaceId: string; request: TileCallRequest }> = [];
   const released: string[] = [];
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async workspaceId => {
       resolutions.push(workspaceId);
       return { app: options.resolve ? await options.resolve(resolutions.length)
@@ -117,11 +117,11 @@ function continuityFixture(options: {
 }
 
 async function mountContinuityTile(fixture: ReturnType<typeof continuityFixture>, initial: {
-  client?: OpenworkServerClient | null;
+  client?: HarnessServerClient | null;
   workspaceId?: string;
   entry?: DashboardMcpAppEntry;
   cacheScopeKey?: string;
-  fallbackEndpoints?: Array<{ client: OpenworkServerClient; workspaceId: string }>;
+  fallbackEndpoints?: Array<{ client: HarnessServerClient; workspaceId: string }>;
   strict?: boolean;
 } = {}) {
   const previousAct = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
@@ -138,7 +138,7 @@ async function mountContinuityTile(fixture: ReturnType<typeof continuityFixture>
   let autoLaunchDisabled = 0;
   const render = async (next: Partial<typeof settings> = {}) => {
     settings = { ...settings, ...next };
-    const tile = <WorkspaceProvider client={null} openworkServerClient={settings.client} workspaceId={settings.workspaceId} selectedWorkspaceRoot="/fixture">
+    const tile = <WorkspaceProvider client={null} harnessServerClient={settings.client} workspaceId={settings.workspaceId} selectedWorkspaceRoot="/fixture">
       <McpAppTile entry={settings.entry} cacheScopeKey={settings.cacheScopeKey} fallbackEndpoints={settings.fallbackEndpoints}
         onAutoLaunchDisabled={() => { autoLaunchDisabled++; }} />
     </WorkspaceProvider>;
@@ -178,15 +178,15 @@ test("live generated actions share refresh state without remounting the menu or 
   let resolutions = 0;
   const pending = Promise.withResolvers<{ content: [] }>();
   const released: string[] = [];
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
-    resolveMcpApp: async () => ({ app: { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `actions-${++resolutions}` } }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
+    resolveMcpApp: async () => ({ app: { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `actions-${++resolutions}` } }),
     callMcpAppTool: async () => ++launches === 1 ? { content: [] } : pending.promise,
     releaseMcpApp: async (_workspace, id) => { released.push(id); return { released: true }; },
   };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
   const render = async () => {
-    await act(async () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+    await act(async () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
       <LiveGeneratedApp view={liveView} revision={liveRevision} renderActions={({ onRefresh, refreshing, badge }) =>
         <div data-custom-actions><button aria-label="Custom refresh" onClick={onRefresh} disabled={refreshing}>Refresh</button>{badge}</div>} />
     </WorkspaceProvider>));
@@ -231,7 +231,7 @@ test("live generated actions share refresh state without remounting the menu or 
 test.each([false, true])("recovers or stops after three discovery attempts (exhausted: %j)", async (exhausted) => {
   let attempts = 0;
   const waits: number[] = [];
-  const failure = new OpenworkServerError(503, "mcp_unreachable", "starting");
+  const failure = new HarnessServerError(503, "mcp_unreachable", "starting");
   const endpoint = {
     workspaceId: "workspace-1",
     client: { releaseMcpApp: noRelease, resolveMcpApp: async () => {
@@ -252,7 +252,7 @@ test.each([false, true])("recovers or stops after three discovery attempts (exha
 
 test("tries another workspace before waiting and never retries deterministic failures", async () => {
   let attempts = 0;
-  const failure = new OpenworkServerError(422, "tool_resource_mismatch", "resource moved");
+  const failure = new HarnessServerError(422, "tool_resource_mismatch", "resource moved");
   const first = { workspaceId: "first", client: { releaseMcpApp: noRelease, resolveMcpApp: async () => { attempts += 1; throw failure; } } };
   const second = { workspaceId: "second", client: { releaseMcpApp: noRelease, resolveMcpApp: async () => ({ app: resource }) } };
   const options = {
@@ -264,7 +264,7 @@ test("tries another workspace before waiting and never retries deterministic fai
   expect(attempts).toBe(2);
   let transientAttempts = 0;
   const transient = { workspaceId: "transient", client: { releaseMcpApp: noRelease, resolveMcpApp: async () => {
-    if (++transientAttempts < 3) throw new OpenworkServerError(503, "mcp_unreachable", "starting");
+    if (++transientAttempts < 3) throw new HarnessServerError(503, "mcp_unreachable", "starting");
     return { app: resource };
   } } };
   expect(await resolveDashboardMcpApp({ ...options, endpoints: [transient, first], wait: async () => {} })).toEqual({ endpoint: transient, app: resource });
@@ -310,7 +310,7 @@ test.each(["resolve", "wait"])("stops discovery and releases late leases when ow
   const endpoint = { workspaceId: "owner", client: {
     resolveMcpApp: async () => {
       attempts += 1;
-      if (phase === "wait") throw new OpenworkServerError(503, "server_unavailable", "starting");
+      if (phase === "wait") throw new HarnessServerError(503, "server_unavailable", "starting");
       active = false;
       return { app: { ...resource, launchId: "late-lease" } };
     },
@@ -335,13 +335,13 @@ test.each(["manual", "automatic", "background-refresh", "forbidden", "repeated",
   let providerActions = 0;
   let finishChallenge: (() => void) | undefined;
   const challenge = new Promise<void>(resolve => { finishChallenge = resolve; });
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async () => ({ app: { ...resource, launchId: "launch-fixture" } }),
     callMcpAppTool: async (workspaceId, request) => {
       calls.push({ workspaceId, request });
-      if (mode === "forbidden") throw new OpenworkServerError(403, "tool_denied", "Forbidden");
+      if (mode === "forbidden") throw new HarnessServerError(403, "tool_denied", "Forbidden");
       if (!request.approved) await challenge;
-      if (mode === "repeated" || !request.approved) throw new OpenworkServerError(422, "tool_requires_approval", "Approval required");
+      if (mode === "repeated" || !request.approved) throw new HarnessServerError(422, "tool_requires_approval", "Approval required");
       providerActions += 1;
       return { content: [] };
     },
@@ -357,7 +357,7 @@ test.each(["manual", "automatic", "background-refresh", "forbidden", "repeated",
   let mounted = true;
   let connected = true;
   let scope = "approval-cache";
-  const render = () => root.render(<WorkspaceProvider client={null} openworkServerClient={connected ? client : null} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = () => root.render(<WorkspaceProvider client={null} harnessServerClient={connected ? client : null} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={entry} cacheScopeKey={scope}
       onApprovedLaunch={() => { approvedLaunches++; }}
       onAutoLaunchDisabled={() => { autoLaunchDisabled++; }}
@@ -477,12 +477,12 @@ test("a mounted tile retains its lease across fallback refreshes, but releases o
   let resolutions = 0;
   let finishFirstResolution: (() => void) | undefined;
   const firstResolution = new Promise<void>(resolve => { finishFirstResolution = resolve; });
-  const primary: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://primary.invalid" }),
+  const primary: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://primary.invalid" }),
     resolveMcpApp: async (_workspace, _tool, launch) => {
       expect(launch?.arguments).toEqual({});
       return { app: null };
     } };
-  const owner: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://owner.invalid" }),
+  const owner: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://owner.invalid" }),
     resolveMcpApp: async (_workspace, _tool, launch, context) => {
       expect(launch?.arguments).toEqual({});
       expect(context).toEqual({ sessionId: null, readOnly: false });
@@ -504,7 +504,7 @@ test("a mounted tile retains its lease across fallback refreshes, but releases o
       return { released: leases.delete(launchId) };
     },
   };
-  const unrelated: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://unrelated.invalid" }),
+  const unrelated: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://unrelated.invalid" }),
     resolveMcpApp: async () => { throw new Error("Must not relaunch through an unrelated workspace"); } };
   const entry: DashboardMcpAppEntry = { kind: "mcp", id: "tile", serverName: "fixture", toolName: "render",
     projectedToolName: "fixture_render", resourceUri: resource.resourceUri, title: "Fixture", autoLaunch: true,
@@ -513,7 +513,7 @@ test("a mounted tile retains its lease across fallback refreshes, but releases o
   document.body.append(container);
   const root = createRoot(container);
   const render = async (includeOwner = true, includeUnrelated = false) => {
-    await act(async () => root.render(<WorkspaceProvider client={null} openworkServerClient={primary} workspaceId="primary" selectedWorkspaceRoot="/fixture">
+    await act(async () => root.render(<WorkspaceProvider client={null} harnessServerClient={primary} workspaceId="primary" selectedWorkspaceRoot="/fixture">
       <McpAppTile entry={entry} cacheScopeKey="fixture-cache" fallbackEndpoints={[
         ...(includeOwner ? [{ client: owner, workspaceId: "owner-workspace" }] : []),
         ...(includeUnrelated ? [{ client: unrelated, workspaceId: "unrelated-workspace" }] : []),
@@ -571,11 +571,11 @@ test.each(["sandbox", "refresh", "teardown"])("healthy tiles retain height and r
   let resolutions = 0;
   let launches = 0;
   let failRefresh = false;
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async () => ({ app: { ...resource, launchId: `compact-${++resolutions}` } }),
     callMcpAppTool: async () => {
       launches++;
-      if (failRefresh) throw new OpenworkServerError(503, "server_unavailable", "Refresh temporarily unavailable");
+      if (failRefresh) throw new HarnessServerError(503, "server_unavailable", "Refresh temporarily unavailable");
       return { content: [] };
     },
     releaseMcpApp: async (_workspace, id) => { released.push(id); return { released: true }; },
@@ -587,7 +587,7 @@ test.each(["sandbox", "refresh", "teardown"])("healthy tiles retain height and r
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
   const render = async () => {
-    await act(async () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+    await act(async () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
       <McpAppTile entry={entry} cacheScopeKey={`compact-cache-${mode}`} />
     </WorkspaceProvider>));
   };
@@ -682,23 +682,23 @@ test.each(["sandbox", "refresh", "teardown"])("healthy tiles retain height and r
 test.each(["result", "transport", "metadata", "text"])("live setup failures render a native connection card and evict the last good result (%s)", async (failureMode) => {
   const previousAct = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
-  const liveResource = { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_fixture" };
+  const liveResource = { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_fixture" };
   let needsSetup = false;
   let calls = 0;
   const connection = {
     schemaVersion: "1", connectionId: "emc_fixture", connectionName: "Calendar", state: "needs_connection",
-    actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "openwork_your_connections" },
+    actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "harness_your_connections" },
   };
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async (_workspace, name) => {
-      expect(name).toBe("openwork-cloud_run_artifact_arv_fixture");
+      expect(name).toBe("harness-cloud_run_artifact_arv_fixture");
       return { app: { ...liveResource, launchId: "live-lease" } };
     },
     callMcpAppTool: async (_workspace, request) => {
       calls++;
       expect(request.name).toBe("run_artifact_arv_fixture");
       expect(request.arguments).toEqual({ timeZone: "Asia/Tokyo" });
-      if (needsSetup && failureMode === "transport") throw new OpenworkServerError(403, "connection_required", "Connect your calendar", { connectionAction: connection });
+      if (needsSetup && failureMode === "transport") throw new HarnessServerError(403, "connection_required", "Connect your calendar", { connectionAction: connection });
       if (needsSetup && failureMode === "metadata") return { isError: true, content: [], _meta: { connectionAction: connection } };
       if (needsSetup && failureMode === "text") return { isError: true, content: [{ type: "text", text: JSON.stringify({ connectionAction: connection }) }], structuredContent: { status: "blocked" } };
       return needsSetup ? { isError: true, content: [], structuredContent: { connectionAction: connection } } : { content: [] };
@@ -706,12 +706,12 @@ test.each(["result", "transport", "metadata", "text"])("live setup failures rend
     releaseMcpApp: async () => ({ released: true }),
   };
   const entry: DashboardMcpAppEntry = { kind: "mcp", id: "live-setup", title: "Fixture", serverName: liveResource.serverName,
-    toolName: liveResource.toolName, projectedToolName: `openwork-cloud_${liveResource.toolName}`, resourceUri: liveResource.resourceUri,
+    toolName: liveResource.toolName, projectedToolName: `harness-cloud_${liveResource.toolName}`, resourceUri: liveResource.resourceUri,
     autoLaunch: true, launchArguments: { timeZone: "Asia/Tokyo" } };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+    await act(async () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
       <McpAppTile entry={entry} cacheScopeKey="live-setup-scope" />
     </WorkspaceProvider>));
     expect(container.querySelector("[data-sandbox-view]")).not.toBeNull();
@@ -739,22 +739,22 @@ test.each(["result", "connection"])("switching viewers never exposes the prior v
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
   const pending = Promise.withResolvers<{ content: Array<Record<string, unknown>> }>();
   let calls = 0;
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
-    resolveMcpApp: async () => ({ app: { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_scope", launchId: "scoped-lease" } }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
+    resolveMcpApp: async () => ({ app: { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_scope", launchId: "scoped-lease" } }),
     callMcpAppTool: async () => {
       if (++calls !== 1) return pending.promise;
       return initialState === "result" ? { content: [] } : { isError: true, content: [], structuredContent: { connectionAction: {
         schemaVersion: "1", connectionId: "emc_scope", connectionName: "Calendar", state: "needs_connection",
-        actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "openwork_your_connections" },
+        actor: "member", message: "Connect your calendar", action: { type: "connect", label: "Connect", surface: "harness_your_connections" },
       } } };
     },
     releaseMcpApp: async () => ({ released: true }),
   };
-  const entry: DashboardMcpAppEntry = { kind: "mcp", id: "viewer-scope", title: "Fixture", serverName: "openwork-cloud",
-    toolName: "run_artifact_arv_scope", projectedToolName: "openwork-cloud_run_artifact_arv_scope", resourceUri: resource.resourceUri, autoLaunch: true };
+  const entry: DashboardMcpAppEntry = { kind: "mcp", id: "viewer-scope", title: "Fixture", serverName: "harness-cloud",
+    toolName: "run_artifact_arv_scope", projectedToolName: "harness-cloud_run_artifact_arv_scope", resourceUri: resource.resourceUri, autoLaunch: true };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
-  const render = (scope: string) => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = (scope: string) => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={entry} cacheScopeKey={scope} />
   </WorkspaceProvider>);
   try {
@@ -782,7 +782,7 @@ test.each(["pending", "ready"])("equivalent launch input survives dashboard rere
   const released: string[] = [];
   let calls = 0;
   let resolutions = 0;
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async () => ({ app: { ...resource, launchId: `stable-${++resolutions}` } }),
     callMcpAppTool: async () => { calls++; return pending.promise; },
     releaseMcpApp: async (_workspace, id) => { released.push(id); return { released: true }; },
@@ -794,7 +794,7 @@ test.each(["pending", "ready"])("equivalent launch input survives dashboard rere
   const input = () => ++renderCount % 2
     ? { timeZone: "Asia/Tokyo", filters: { limit: 3, sources: ["primary", "secondary"] } }
     : { filters: { sources: ["primary", "secondary"], limit: 3 }, timeZone: "Asia/Tokyo" };
-  const render = () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={{ kind: "mcp", id: "stable-input", title: "Fixture", serverName: resource.serverName,
       toolName: resource.toolName, projectedToolName: "fixture_render", resourceUri: resource.resourceUri,
       autoLaunch: true, launchArguments: input() }} cacheScopeKey={scope}
@@ -837,15 +837,15 @@ test.each(["pending", "ready"])("changed arguments with the same tile ID retire 
   const requests: unknown[] = [];
   const released: string[] = [];
   let resolutions = 0;
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
-    resolveMcpApp: async () => ({ app: { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `changed-${++resolutions}` } }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
+    resolveMcpApp: async () => ({ app: { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `changed-${++resolutions}` } }),
     callMcpAppTool: async (_workspace, request) => { requests.push(request.arguments); return requests.length === 1 ? first.promise : second.promise; },
     releaseMcpApp: async (_workspace, id) => { released.push(id); return { released: true }; },
   };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
   const scope = `changed-input-${phase}`;
-  const render = (timeZone: string) => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = (timeZone: string) => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={{ ...liveGeneratedAppEntry(liveView, liveRevision, timeZone), id: "same-id" }} cacheScopeKey={scope} />
   </WorkspaceProvider>);
   try {
@@ -872,7 +872,7 @@ test.each(["requiresApproval", "launchApproved"])("same-ID argument changes neve
   const previousAct = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
   const requests: unknown[] = [];
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async () => ({ app: { ...resource, launchId: "manual-input" } }),
     callMcpAppTool: async (_workspace, request) => { requests.push(request.arguments); return { content: [] }; },
     releaseMcpApp: async () => ({ released: true }),
@@ -880,7 +880,7 @@ test.each(["requiresApproval", "launchApproved"])("same-ID argument changes neve
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
   const scope = `manual-input-${policy}`;
-  const render = (query: string) => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = (query: string) => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={{ kind: "mcp", id: "same-manual-id", title: "Fixture", serverName: resource.serverName,
       toolName: resource.toolName, projectedToolName: "fixture_render", resourceUri: resource.resourceUri,
       autoLaunch: true, requiresApproval: policy === "requiresApproval", launchApproved: policy === "launchApproved", launchArguments: { query } }} cacheScopeKey={scope} />
@@ -983,18 +983,18 @@ test.each(["success", "failure"])("generated dashboard refresh is bounded across
   let calls = 0;
   let resolutions = 0;
   let failing = outcome === "failure";
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
-    resolveMcpApp: async () => ({ app: { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `timed-${++resolutions}` } }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
+    resolveMcpApp: async () => ({ app: { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `timed-${++resolutions}` } }),
     callMcpAppTool: async () => {
       if (++calls === 2) return pending.promise;
-      if (calls > 2 && failing) throw new OpenworkServerError(503, "server_unavailable", "Temporary failure");
+      if (calls > 2 && failing) throw new HarnessServerError(503, "server_unavailable", "Temporary failure");
       return { content: [] };
     },
     releaseMcpApp: async () => ({ released: true }),
   };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
-  const render = () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <LiveGeneratedApp view={{ ...liveView }} revision={{ ...liveRevision }} fallbackEndpoints={[{ client, workspaceId: "fixture" }]} />
   </WorkspaceProvider>);
   const focus = () => { window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); };
@@ -1022,7 +1022,7 @@ test.each(["success", "failure"])("generated dashboard refresh is bounded across
     expect(calls).toBe(2);
     await act(async () => {
       if (outcome === "success") pending.resolve({ content: [] });
-      else pending.reject(new OpenworkServerError(503, "server_unavailable", "Temporary failure"));
+      else pending.reject(new HarnessServerError(503, "server_unavailable", "Temporary failure"));
     });
     expect(container.querySelector("[data-sandbox-view]")).not.toBeNull();
     for (let i = 0; i < 5; i++) await act(async () => focus());
@@ -1063,8 +1063,8 @@ test.each(["timer", "focus"])("generated day rollover via %s and caller changes 
   let resolutions = 0;
   const released: string[] = [];
   const inputs: unknown[] = [];
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
-    resolveMcpApp: async () => ({ app: { ...resource, serverName: "openwork-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `day-${++resolutions}` } }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
+    resolveMcpApp: async () => ({ app: { ...resource, serverName: "harness-cloud", toolName: "run_artifact_arv_fixture", resourceUri: liveRevision.resourceUri, launchId: `day-${++resolutions}` } }),
     callMcpAppTool: async (_workspace, request) => {
       inputs.push(request.arguments);
       if (++calls === 1) return first.promise;
@@ -1075,7 +1075,7 @@ test.each(["timer", "focus"])("generated day rollover via %s and caller changes 
   };
   const container = document.body.appendChild(document.createElement("div"));
   const root = createRoot(container);
-  const render = () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <LiveGeneratedApp view={{ ...liveView }} revision={{ ...liveRevision }} />
   </WorkspaceProvider>);
   try {
@@ -1137,7 +1137,7 @@ test("reopening a tile paints caller-scoped cached data while refreshing and ret
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
   const pending = Promise.withResolvers<{ content: Array<Record<string, unknown>> }>();
   let calls = 0;
-  const client: OpenworkServerClient = { ...createOpenworkServerClient({ baseUrl: "http://fixture.invalid" }),
+  const client: HarnessServerClient = { ...createHarnessServerClient({ baseUrl: "http://fixture.invalid" }),
     resolveMcpApp: async () => ({ app: { ...resource, launchId: "cache-lease" } }),
     callMcpAppTool: async () => ++calls === 1 ? { content: [] } : pending.promise,
     releaseMcpApp: async () => ({ released: true }),
@@ -1146,7 +1146,7 @@ test("reopening a tile paints caller-scoped cached data while refreshing and ret
     toolName: resource.toolName, projectedToolName: "fixture_render", resourceUri: resource.resourceUri, autoLaunch: true };
   const container = document.body.appendChild(document.createElement("div"));
   let root = createRoot(container);
-  const render = () => root.render(<WorkspaceProvider client={null} openworkServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
+  const render = () => root.render(<WorkspaceProvider client={null} harnessServerClient={client} workspaceId="fixture" selectedWorkspaceRoot="/fixture">
     <McpAppTile entry={entry} cacheScopeKey="cache-reopen-scope" />
   </WorkspaceProvider>);
   try {
@@ -1159,7 +1159,7 @@ test("reopening a tile paints caller-scoped cached data while refreshing and ret
     expect(container.querySelector("[data-sandbox-view]")).not.toBeNull();
     expect(sandboxView?.origin.readOnly).toBe(true);
     expect((await compactRefreshItem(container)).getAttribute("aria-disabled")).toBe("true");
-    await act(async () => pending.reject(new OpenworkServerError(503, "server_unavailable", "Try again later")));
+    await act(async () => pending.reject(new HarnessServerError(503, "server_unavailable", "Try again later")));
     expect(container.querySelector("[data-sandbox-view]")).not.toBeNull();
     expect(container.querySelector('[data-dashboard-cache-state="failed"]')).not.toBeNull();
   } finally {
@@ -1203,7 +1203,7 @@ test.each([false, true])("guarded refresh delivers changed data through one live
 });
 
 test.each([true, false])("transient refresh failure retains last-good content, actions and geometry (guarded: %j)", async guarded => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ guarded, call: async (_request, index) => index === 1
     ? { content: [{ type: "text", text: "last-good" }] } : pending.promise });
   const host = await mountContinuityTile(fixture);
@@ -1237,7 +1237,7 @@ test.each([true, false])("transient refresh failure retains last-good content, a
 });
 
 test("a legacy refresh keeps the old frame during network work and replaces it once on success", async () => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ guarded: false, call: async (_request, index) => index === 1
     ? { content: [{ type: "text", text: "old" }] } : pending.promise });
   const host = await mountContinuityTile(fixture);
@@ -1265,12 +1265,12 @@ test("a legacy refresh keeps the old frame during network work and replaces it o
 });
 
 test.each(["mcp_app_resource_changed", "mcp_app_refresh_denied"])("a typed %s retires the old document before one controlled fresh launch", async code => {
-  const nextResource = Promise.withResolvers<OpenworkMcpAppResource>();
+  const nextResource = Promise.withResolvers<HarnessMcpAppResource>();
   let dispatches = 0;
   const fixture = continuityFixture({
     resolve: async index => index === 1 ? continuityResource(index) : nextResource.promise,
     call: async request => {
-      if (request.expectedResourceDigest) throw new OpenworkServerError(422, code, "Refresh stopped before dispatch");
+      if (request.expectedResourceDigest) throw new HarnessServerError(422, code, "Refresh stopped before dispatch");
       dispatches++;
       return { content: [{ type: "text", text: `dispatch-${dispatches}` }] };
     },
@@ -1309,8 +1309,8 @@ test("a guarded fallback never escalates a read refresh into an approved write",
   const fixture = continuityFixture({
     resolve: async index => index === 1 ? continuityResource(index) : { ...resource, launchId: `continuity-${index}` },
     call: async (request, index) => {
-      if (request.expectedResourceDigest) throw new OpenworkServerError(422, "mcp_app_refresh_denied", "Read-only refresh denied");
-      if (index > 1) throw new OpenworkServerError(422, "tool_requires_approval", "Approval required");
+      if (request.expectedResourceDigest) throw new HarnessServerError(422, "mcp_app_refresh_denied", "Read-only refresh denied");
+      if (index > 1) throw new HarnessServerError(422, "tool_requires_approval", "Approval required");
       dispatches++;
       return { content: [] };
     },
@@ -1379,7 +1379,7 @@ test.each(["stale", "401", "403", "connection", "resource_read_failed", "resourc
     const status = failure === "401" || failure === "403" ? Number(failure) : 422;
     const code = failure === "stale" ? "stale_launch_context" : failure === "connection" ? "connection_required"
       : status === 422 ? failure : "forbidden";
-    throw new OpenworkServerError(status, code, "Refresh rejected");
+    throw new HarnessServerError(status, code, "Refresh rejected");
   } });
   const host = await mountContinuityTile(fixture);
   try {
@@ -1417,7 +1417,7 @@ test("an expired advertised lease takes the normal fresh-launch path, never a gu
 test("duplicate focus and visibility signals share one guarded refresh admission", async () => {
   let now = Date.now();
   const clock = spyOn(Date, "now").mockImplementation(() => now);
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ call: async (_request, index) => index === 1 ? { content: [] } : pending.promise });
   const scheduled = spyOn(launchScheduler, "scheduleDashboardLaunch");
   const host = await mountContinuityTile(fixture);
@@ -1445,7 +1445,7 @@ test.each(["requiresApproval", "launchApproved", "organization"])("manual and ad
   const fixture = continuityFixture({
     entry: { requiresApproval: policy !== "launchApproved", launchApproved: policy === "launchApproved", organizationAutoLaunch: policy === "organization" },
     call: async request => {
-      if (!request.approved) throw new OpenworkServerError(422, "tool_requires_approval", "Approval required");
+      if (!request.approved) throw new HarnessServerError(422, "tool_requires_approval", "Approval required");
       dispatches++;
       return { content: [] };
     },
@@ -1481,8 +1481,8 @@ test("an organization-approved read omits its approval override when using the a
 });
 
 test.each(["endpoint", "policy", "scope", "unmount"])("pending guarded results and document callbacks cannot outlive %s invalidation", async change => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
-  const nextScope = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
+  const nextScope = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ call: async (_request, index) => index === 1
     ? { content: [{ type: "text", text: "first-scope" }] } : index === 2 ? pending.promise : nextScope.promise });
   const host = await mountContinuityTile(fixture);
@@ -1520,7 +1520,7 @@ test.each(["endpoint", "policy", "scope", "unmount"])("pending guarded results a
 });
 
 test.each(["workspace", "resource", "input"])("cached data with a mismatched %s never mounts or gains lease authority", async mismatch => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ call: async () => pending.promise });
   writeDashboardTileCache("continuity-scope", fixture.entry.id, {
     argumentsSignature: JSON.stringify(mismatch === "input" ? { query: "other" } : fixture.entry.launchArguments),
@@ -1549,7 +1549,7 @@ test.each([undefined, 560])("loading reserves geometry until document readiness,
       recordHeight: (height: number) => { recorded.push(height); } };
   });
   automaticallyReady = false;
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ call: async () => pending.promise });
   const host = await mountContinuityTile(fixture);
   try {
@@ -1589,7 +1589,7 @@ test("geometry records the actual fallback owner and separates changed input ide
     return { ref, initialHeight: 420, reservedHeight: 460, recordHeight: (height: number) => { heights.push({ workspaceId, height }); } };
   });
   const fixture = continuityFixture();
-  const primary: OpenworkServerClient = { ...fixture.client, resolveMcpApp: async () => ({ app: null }) };
+  const primary: HarnessServerClient = { ...fixture.client, resolveMcpApp: async () => ({ app: null }) };
   const host = await mountContinuityTile(fixture, { client: primary, workspaceId: "primary", fallbackEndpoints: [{ client: fixture.client, workspaceId: "owner" }] });
   try {
     const originalId = identities.at(-1)?.entryId;
@@ -1638,7 +1638,7 @@ test("a bridge failure before onReady removes the overlay and requires a new doc
 });
 
 test("network admission is shared, queued manual launches abort safely, and priority follows the stable tile", async () => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const first = continuityFixture({ entry: { id: "slot-one" }, call: async () => pending.promise });
   const second = continuityFixture({ entry: { id: "slot-two" }, call: async () => pending.promise });
   const queued = continuityFixture({ entry: { id: "slot-three", requiresApproval: true } });
@@ -1676,7 +1676,7 @@ test("network admission is shared, queued manual launches abort safely, and prio
 });
 
 test("changed captured input retires the old document before exposing the new input", async () => {
-  const pending = Promise.withResolvers<OpenworkMcpAppToolResult>();
+  const pending = Promise.withResolvers<HarnessMcpAppToolResult>();
   const fixture = continuityFixture({ call: async (_request, index) => index === 1 ? { content: [] } : pending.promise });
   const host = await mountContinuityTile(fixture);
   try {

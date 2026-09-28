@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   coverage:
-    if: github.repository == 'different-ai/openwork'
+    if: github.repository == 'vaishnavjai/harness'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

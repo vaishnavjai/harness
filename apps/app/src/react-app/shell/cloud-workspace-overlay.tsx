@@ -4,13 +4,13 @@ import { AlertTriangle, ArrowUpRight } from "lucide-react";
 import { LazyMotion, domMax, m } from "motion/react";
 
 import { clearDenSession, createDenClient, DenApiError, readDenSettings, type DenCloudInstanceUpdateDeferral } from "@/app/lib/den";
-import { isOpenworkGatewayRuntime } from "@/app/lib/gateway-runtime";
+import { isHarnessGatewayRuntime } from "@/app/lib/gateway-runtime";
 import { denSettingsChangedEvent } from "@/app/lib/den-session-events";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useDenAuth } from "@/react-app/domains/cloud/den-auth-provider";
-import { denWebBillingUrl } from "@/react-app/domains/cloud/openwork-web-access-gate";
+import { denWebBillingUrl } from "@/react-app/domains/cloud/harness-web-access-gate";
 import { useSessionActivityStore } from "@/react-app/domains/session/status/session-activity-store";
 import { usePlatform } from "@/react-app/kernel/platform";
 import { WorkspaceStartupStatus } from "./workspace-startup-status";
@@ -164,7 +164,7 @@ export function CloudWorkspaceStatusProvider(props: { children: ReactNode }) {
   const lastLoggedFailureReference = useRef<string | null>(null);
   const lastLoggedRequestFailure = useRef<string | null>(null);
   const retryInFlight = useRef<Promise<void> | null>(null);
-  const gatewayMode = isOpenworkGatewayRuntime();
+  const gatewayMode = isHarnessGatewayRuntime();
   const settingsSnapshot = useSyncExternalStore(
     subscribeToDenSettings,
     readDenSettingsSnapshot,
@@ -199,7 +199,7 @@ export function CloudWorkspaceStatusProvider(props: { children: ReactNode }) {
         console.error("[cloud-workspace] sandbox startup failed", cloudWorkspaceFailureLogFields(next.failure));
       }
     } catch (error) {
-      if (error instanceof DenApiError && error.code === "openwork_web_access_required") {
+      if (error instanceof DenApiError && error.code === "harness_web_access_required") {
         setAccessRequired(true);
         setRequestFailed(false);
         return;
@@ -435,7 +435,7 @@ export function CloudWorkspaceBootTakeover(props: { decision: CloudWorkspaceMain
                     size="sm"
                     onClick={() => platform.openLink(denWebBillingUrl(readDenSettings().baseUrl))}
                   >
-                    Get OpenWork Web
+                    Get Harness Web
                     <ArrowUpRight className="size-4" aria-hidden="true" />
                   </Button>
                   <Button type="button" size="sm" variant="outline" onClick={() => void cloudWorkspace.refresh()}>

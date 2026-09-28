@@ -19,7 +19,7 @@ function api(path, paginate = false) {
 }
 
 async function main() {
-  const repo = process.env.GITHUB_REPOSITORY ?? "different-ai/openwork";
+  const repo = process.env.GITHUB_REPOSITORY ?? "vaishnavjai/harness";
   const prefix = `repos/${repo}`;
   // Reading default-setup settings needs Administration permission, unavailable
   // to GITHUB_TOKEN. Use the successful baseline uploads that PRs must match.

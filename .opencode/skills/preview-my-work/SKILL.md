@@ -1,6 +1,6 @@
 ---
 name: preview-my-work
-description: Boot, reopen, update, or reset OpenWork PR previews. Discover script worlds, use configurable app-web locally or through a private Daytona browser URL, or choose isolated Den/Electron presets for hands-on testing.
+description: Boot, reopen, update, or reset Harness PR previews. Discover script worlds, use configurable app-web locally or through a private Daytona browser URL, or choose isolated Den/Electron presets for hands-on testing.
 ---
 
 # Preview my work
@@ -36,7 +36,7 @@ for that team with the API's canonical restricted policy values, or `workspace`
 for a signed-in desktop workspace without pre-added tools. Fresh desktop is a
 true first launch: the harness adds no workspace and does not sign into Den.
 Because the preview's own Den is configured through a bootstrap file, the app
-behaves like a bootstrapped install and skips the public-download "OpenWork
+behaves like a bootstrapped install and skips the public-download "Harness
 Chat" starter workspace, so the sidebar shows no workspaces. No model credentials are seeded.
 Do not describe these fixtures as capable of live model/provider requests.
 
@@ -54,7 +54,7 @@ its API-published SHA-256 digest inside the VM before installation.
 
 ## Saved web evidence checkpoints
 
-Checkpoint images appear in the PR's normal **OpenWork Evidence** report (specs
+Checkpoint images appear in the PR's normal **Harness Evidence** report (specs
 tagged `checkpoints` run with `--checkpoints` in CI's protected checkpoint lane).
 Pictures with a saved world offer **Open from here** below the image and in its
 viewer, then **Enter saved browser**. Both places share the same copy; **New copy**
@@ -69,7 +69,7 @@ promise restoration of a live connection to an external model provider.
 To run the opt-in proof from the requested branch:
 
 ```sh
-pnpm --filter @openwork/review-app build
+pnpm --filter @harness/review-app build
 pnpm evals:e2e web-checkpoint-fork --local --engine v1 --surface web --checkpoints
 ```
 
@@ -109,17 +109,17 @@ An existing Den proxy is an explicit, nonsecret environment selection, not a
 generic `--env KEY` **before** the script-argument separator:
 
 ```sh
-OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY=1 \
-OPENWORK_DEV_DEN_PROXY_TARGET=https://app.openworklabs.com \
+HARNESS_DEV_HEADLESS_WEB_DEN_PROXY=1 \
+HARNESS_DEV_DEN_PROXY_TARGET=https://app.harness.invalid \
 pnpm world up app-web --place daytona --stage pr-1234 --detach --timeout 600000 \
-  --env OPENWORK_DEV_HEADLESS_WEB_DEN_PROXY --env OPENWORK_DEV_DEN_PROXY_TARGET \
+  --env HARNESS_DEV_HEADLESS_WEB_DEN_PROXY --env HARNESS_DEV_DEN_PROXY_TARGET \
   -- --ref <full-pushed-sha>
 ```
 
 Without those selections app-web ignores ambient proxy settings and stays
 Cloud-off. Only these two app keys are accepted; the target must be a nonsecret
 HTTP(S) origin, selected together with an enabled proxy. Remote app-web initially
-allows only `https://app.openworklabs.com`; other targets fail before provisioning.
+allows only `https://app.harness.invalid`; other targets fail before provisioning.
 Local app-web allows custom HTTP(S) origins, including loopback. Direct script
 execution without the CLI selection marker stays Cloud-off.
 Generic invocation identity fingerprints the selected nonsecret values
@@ -132,14 +132,14 @@ source changes require a new stage or down before up, across local worlds.
 
 The app-web `webUrl` is a secret, port-bound signed hostname. Reveal it only in a
 private terminal and open it directly; never put it in evidence or PR text.
-Loopback `runtimeWebUrl`/`runtimeOpenworkUrl` are process diagnostics, not human
+Loopback `runtimeWebUrl`/`runtimeHarnessUrl` are process diagnostics, not human
 browser links. Source SHA and placement are explicit outputs. Private HTTP,
 assets and WebSocket access must pass the launch checks; failures delete the
 owned sandbox, never fall back to public exposure. The source dev proxy preserves
 client bearer auth and never injects host auth. Builds and production preview
 servers do not enable this proxy. Checked-out source receives only the non-secret
 preview host suffix for Vite allowedHosts, never the signed origin. HMR derives
-its host and protocol from the browser location; `/api/openwork` resolves against
+its host and protocol from the browser location; `/api/harness` resolves against
 that same origin in the browser. Signed URLs stay in the trusted launcher,
 witness and private outputs.
 
@@ -179,13 +179,13 @@ recorded scenario and ref before adopting it. A stage is not a git ref.
 Use reviewed repository code: previews execute that ref’s build scripts. Do not
 load production credentials or attach shared secrets volumes. Push the intended
 commit and use its full 40-character SHA so Daytona can fetch it. When
-`OPENWORK_EVAL_REF` is omitted, launch resolves remote `origin/dev` once to a
+`HARNESS_EVAL_REF` is omitted, launch resolves remote `origin/dev` once to a
 full SHA, prints it, and records it in the world outputs. This assumes `dev`
 is the reviewed baseline. Explicit launch refs and update refs still reject
 mutable branch names. To preview a specific commit:
 
 ```sh
-OPENWORK_EVAL_REF=<pushed-sha> infisical run --silent --env dev -- pnpm world up preview-den --stage pr-1234 --place daytona --detach --timeout 600000 -- --scenario fresh --lifetime 120
+HARNESS_EVAL_REF=<pushed-sha> infisical run --silent --env dev -- pnpm world up preview-den --stage pr-1234 --place daytona --detach --timeout 600000 -- --scenario fresh --lifetime 120
 ```
 
 Substitute `preview-desktop` and the desired scenario as needed. The existing
@@ -201,7 +201,7 @@ pnpm world up preview-desktop --stage pr-1234-win --place daytona --os windows -
 pnpm world outputs preview-desktop --stage pr-1234-win --reveal
 ```
 
-`OPENWORK_EVAL_REF` pins only the independently provisioned Den source; omit
+`HARNESS_EVAL_REF` pins only the independently provisioned Den source; omit
 it to use the current remote `dev` commit, independently of the desktop version.
 The world driver and release installer run from the local checkout's HEAD, and
 the desktop sandbox uses the snapshot's inherited display/browser helpers.

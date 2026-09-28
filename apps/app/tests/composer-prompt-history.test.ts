@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { TextPart } from "@opencode-ai/sdk/v2/client";
 import type { UIMessage } from "ai";
-import type { OpenworkSessionMessage, OpenworkSessionSnapshot } from "../src/app/lib/openwork-server";
+import type { HarnessSessionMessage, HarnessSessionSnapshot } from "../src/app/lib/harness-server";
 import type { ComposerPart } from "../src/app/types";
 import { draftToParts } from "../src/react-app/domains/session/sync/draft-parts";
 import { textPartToUIPart } from "../src/react-app/domains/session/sync/usechat-adapter";
@@ -13,7 +13,7 @@ import {
   resolveRenderedSessionSnapshot,
 } from "../src/react-app/domains/session/surface/session-render-state";
 
-function message(id: string, text: string, created = 1): OpenworkSessionMessage {
+function message(id: string, text: string, created = 1): HarnessSessionMessage {
   return {
     info: {
       id, sessionID: "session-a", role: "user", time: { created },
@@ -23,7 +23,7 @@ function message(id: string, text: string, created = 1): OpenworkSessionMessage 
   };
 }
 
-function snapshot(messages: OpenworkSessionMessage[]): OpenworkSessionSnapshot {
+function snapshot(messages: HarnessSessionMessage[]): HarnessSessionSnapshot {
   return {
     session: {
       id: "session-a", slug: "history", projectID: "project-a", directory: "/fixture",
@@ -33,7 +33,7 @@ function snapshot(messages: OpenworkSessionMessage[]): OpenworkSessionSnapshot {
   };
 }
 
-function history(stored: OpenworkSessionSnapshot | null, live: UIMessage[] = []) {
+function history(stored: HarnessSessionSnapshot | null, live: UIMessage[] = []) {
   return deriveComposerHistory(deriveRenderedSessionMessages({ snapshot: stored, transcriptState: live }));
 }
 
@@ -169,14 +169,14 @@ test("legacy slash labels and native commands are excluded rather than replayed 
 
 test("invalid or mismatched token metadata cannot turn a label into a recalled skill; hidden metadata stays hidden", () => {
   const token = encodeConnectSkillToken({ slug: "compact", name: "Compact", marketplace: "Team", capability: "skill:compact" });
-  for (const metadata of [{ openworkComposerToken: "[connect-skill incomplete]" }, { openworkComposerToken: token }, { openworkComposerToken: 42 }]) {
+  for (const metadata of [{ harnessComposerToken: "[connect-skill incomplete]" }, { harnessComposerToken: token }, { harnessComposerToken: 42 }]) {
     const stored = message("invalid", "/different");
     stored.parts = [{ id: "invalid", sessionID: "session-a", messageID: "invalid", type: "text", text: "/different", metadata }];
     expect(history(snapshot([stored]))).toEqual([]);
   }
   for (const flags of [{ synthetic: true }, { ignored: true }]) {
     const stored = message("hidden", "");
-    const part = { id: "hidden", sessionID: "session-a", messageID: "hidden", type: "text", text: "/compact", metadata: { openworkComposerToken: token }, ...flags } satisfies TextPart;
+    const part = { id: "hidden", sessionID: "session-a", messageID: "hidden", type: "text", text: "/compact", metadata: { harnessComposerToken: token }, ...flags } satisfies TextPart;
     stored.parts = [part];
     expect(history(snapshot([stored]))).toEqual([]);
     expect(textPartToUIPart(part)).toBeNull();

@@ -24,7 +24,7 @@ const provider: GatewayConnectProvider = {
 test("Settings > AI providers renders a skipped member_auth_required gateway provider as a Connect row", () => {
   const html = renderToStaticMarkup(<GatewayConnectRow provider={provider} busy={false} onConnect={() => undefined} />);
   expect(html).toContain("Member Vertex");
-  expect(html).toContain("via OpenWork Gateway");
+  expect(html).toContain("via Harness Gateway");
   expect(html).toContain("Sign in to Member Vertex to use it");
   expect(html).toContain("Connect");
   expect(html).not.toContain('disabled=""');

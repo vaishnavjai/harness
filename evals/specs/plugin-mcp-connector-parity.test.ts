@@ -1,16 +1,16 @@
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
-import { queryDenDatabase } from "@openwork/env";
-import { localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@openwork/testkit";
+import { denFetch } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
+import { queryDenDatabase } from "@harness/env";
+import { localMysqlIsRunning, localRedisIsRunning, needs, server, test } from "@harness/testkit";
 import {
   denLibraryPluginCreateRequest,
   emptyLibraryMcpConnectionForm,
 } from "../../apps/app/src/react-app/domains/settings/library";
 
-const daytona = process.env.OPENWORK_EVAL_DAYTONA?.trim() === "1";
-const attached = Boolean(process.env.OPENWORK_EVAL_DEN_API_URL?.trim());
+const daytona = process.env.HARNESS_EVAL_DAYTONA?.trim() === "1";
+const attached = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
 const mysqlOpen = daytona || attached || await localMysqlIsRunning();
 const redisOpen = daytona || attached || await localRedisIsRunning();
 const title = !mysqlOpen
@@ -24,7 +24,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function orgHeaders(session: DenSession, orgId: string): Record<string, string> {
-  return { authorization: `Bearer ${session.token}`, "x-openwork-org-id": orgId };
+  return { authorization: `Bearer ${session.token}`, "x-harness-org-id": orgId };
 }
 
 async function organizationId(admin: DenSession, organizationName: string): Promise<string> {
@@ -246,7 +246,7 @@ test("persisted GitHub bindings preserve desktop readiness without allowing new 
   async function mcpRequest(method: string, params: Record<string, unknown>, bearerToken: string) {
     const response = await fetch(`${den.ref.apiUrl}/mcp/agent`, {
       method: "POST", signal: AbortSignal.timeout(30_000),
-      headers: { authorization: `Bearer ${bearerToken}`, accept: "application/json, text/event-stream", "content-type": "application/json", "x-openwork-mcp-client-capabilities": "mcp-app-host-v1" },
+      headers: { authorization: `Bearer ${bearerToken}`, accept: "application/json, text/event-stream", "content-type": "application/json", "x-harness-mcp-client-capabilities": "mcp-app-host-v1" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     });
     const text = await response.text();
@@ -259,7 +259,7 @@ test("persisted GitHub bindings preserve desktop readiness without allowing new 
   }
 
   async function desktopServerIndex() {
-    const result = await mcpRequest("resources/read", { uri: "openwork://connect/mcp-servers/index.json" }, token);
+    const result = await mcpRequest("resources/read", { uri: "harness://connect/mcp-servers/index.json" }, token);
     if (!Array.isArray(result.contents)) throw new Error("Missing MCP index");
     const content = result.contents[0];
     if (!isRecord(content) || typeof content.text !== "string") throw new Error("Missing MCP index content");
@@ -310,7 +310,7 @@ test("persisted GitHub bindings preserve desktop readiness without allowing new 
     });
     const executed = await callTool("execute_capability", { name: skill.name });
     if (requiredAuthType === "oauth") {
-      expect(executed).toMatchObject({ status: "needs_admin_setup", action: { surface: "openwork_organization_connections" } });
+      expect(executed).toMatchObject({ status: "needs_admin_setup", action: { surface: "harness_organization_connections" } });
       expect(executed.content).toBeUndefined();
     } else {
       expect(executed.content).toBe(skillSource);
@@ -348,11 +348,11 @@ test("persisted GitHub bindings preserve desktop readiness without allowing new 
   const signinMatches = Array.isArray(signinSearch.matches) ? signinSearch.matches.filter(isRecord) : [];
   expect(signinMatches.find((entry) => entry.name === skill.name)).toMatchObject({
     status: "needs_connection",
-    action: { surface: "openwork_your_connections" },
+    action: { surface: "harness_your_connections" },
     mcpRequirements: [{ connectionId, state: "needs_connection", connectedForMe: false }],
   });
   const blocked = await callTool("execute_capability", { name: skill.name });
-  expect(blocked).toMatchObject({ status: "needs_admin_setup", action: { surface: "openwork_organization_connections" } });
+  expect(blocked).toMatchObject({ status: "needs_admin_setup", action: { surface: "harness_organization_connections" } });
   expect(blocked.content).toBeUndefined();
   evidence.recordAssertionEvidence(
     "Legacy OAuth desktop sign-in readiness does not authorize execution",
@@ -381,7 +381,7 @@ test("persisted GitHub bindings preserve desktop readiness without allowing new 
     mcpRequirements: [{ connectionId, state: "ready", connectedForMe: true }],
   });
   const credentialedBlocked = await callTool("execute_capability", { name: skill.name });
-  expect(credentialedBlocked).toMatchObject({ status: "needs_admin_setup", action: { surface: "openwork_organization_connections" } });
+  expect(credentialedBlocked).toMatchObject({ status: "needs_admin_setup", action: { surface: "harness_organization_connections" } });
   expect(credentialedBlocked.content).toBeUndefined();
   evidence.recordAssertionEvidence(
     "Legacy OAuth credentials preserve readiness and search without bypassing mandatory-client execution",

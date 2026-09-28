@@ -1,12 +1,12 @@
-import { allocateFreePort, browserScript, clickAt, evaluate, hoverAt, reload, type Point, type Surface, typeText, waitForLocated } from "@openwork/cdp";
+import { allocateFreePort, browserScript, clickAt, evaluate, hoverAt, reload, type Point, type Surface, typeText, waitForLocated } from "@harness/cdp";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { mkdir, realpath, rm, symlink } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { engineSessionProbe, observeSidebarExpansion, readAvailableModels, selectModel, waitFor } from "@openwork/behaviors";
-import { resolveEvalEngine, SkipError } from "@openwork/env";
-import type { Place, Seed } from "@openwork/env";
-import { daytonaSandbox, defaultDaytonaExec, desktop as launchDesktop, execInSandbox, startMockOnSandbox } from "@openwork/hosts";
-import { startMockMcp } from "@openwork/labs";
+import { engineSessionProbe, observeSidebarExpansion, readAvailableModels, selectModel, waitFor } from "@harness/behaviors";
+import { resolveEvalEngine, SkipError } from "@harness/env";
+import type { Place, Seed } from "@harness/env";
+import { daytonaSandbox, defaultDaytonaExec, desktop as launchDesktop, execInSandbox, startMockOnSandbox } from "@harness/hosts";
+import { startMockMcp } from "@harness/labs";
 import { configureProvider } from "./chat.ts";
 
 const stormProviderId = "active-session-storm-mock";
@@ -92,7 +92,7 @@ async function observeInstantRenderer(
         && style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0;
     };
     const surfaceRoot = () => {
-      if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId) return null;
+      if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId) return null;
       const sessionlessRoute = `#/workspace/${workspaceId}/session`;
       if (location.hash === sessionlessRoute) {
         const heading = [...document.querySelectorAll<HTMLElement>("h2")]
@@ -258,14 +258,14 @@ async function instantBoundaryController(app: Surface, workspaceId: string) {
   const endpoint = app.client.webSocketDebuggerUrl;
   if (!endpoint) throw new Error("Instant-send boundary observer requires the desktop CDP endpoint");
   const runtime = await evaluate(app.client, async () => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     return {
       baseUrl: info?.running && info.baseUrl ? String(info.baseUrl) : "",
       rendererOrigin: window.location.origin,
     };
   }, { awaitPromise: true });
   const { baseUrl, rendererOrigin } = runtime;
-  if (typeof baseUrl !== "string" || !baseUrl) throw new Error("OpenWork server URL was unavailable to the boundary observer");
+  if (typeof baseUrl !== "string" || !baseUrl) throw new Error("Harness server URL was unavailable to the boundary observer");
   const origin = new URL(baseUrl).origin;
   const encodedWorkspaceId = encodeURIComponent(workspaceId);
   const sessionBases = ["workspace", "w"].map((mount) => `/${mount}/${encodedWorkspaceId}/opencode/session`);
@@ -503,16 +503,16 @@ async function additionalWorkspace(
   app: Awaited<ReturnType<Seed["desktop"]>>,
   path: string,
 ): Promise<ShellWorkspace> {
-  const previous = await seed.evalIn(app, () => (localStorage.getItem("openwork.react.activeWorkspace") ?? ""));
+  const previous = await seed.evalIn(app, () => (localStorage.getItem("harness.react.activeWorkspace") ?? ""));
   // TODO(primitive): seed.workspace should always create the requested additional workspace.
-  const result = await seed.evalIn(app, browserScript((path) => window.__openworkControl.execute("workspace.create", { path }), [path]), { awaitPromise: true, timeoutMs: 120_000 });
+  const result = await seed.evalIn(app, browserScript((path) => window.__harnessControl.execute("workspace.create", { path }), [path]), { awaitPromise: true, timeoutMs: 120_000 });
   if (!isRecord(result) || result.ok !== true) throw new Error(`Could not create workspace ${path}: ${JSON.stringify(result)}`);
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     const state = await seed.evalIn(app, () => (({
-      workspaceId: localStorage.getItem("openwork.react.activeWorkspace") ?? "",
+      workspaceId: localStorage.getItem("harness.react.activeWorkspace") ?? "",
       route: window.location.hash,
-      ready: Boolean(window.__openworkControl),
+      ready: Boolean(window.__harnessControl),
     })));
     if (isRecord(state)
       && typeof state.workspaceId === "string"
@@ -542,7 +542,7 @@ async function configureWorkspaceProvider(
 ): Promise<void> {
   // TODO(primitive): seed.configureWorkspaceProvider should configure and reload a workspace model without raw renderer evaluation.
   const result = await seed.evalIn(app, browserScript(async (workspaceIds, smallModel, allowTools, providerId, modelId, modelName, baseUrl, defaultModel) => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     if (!info?.running || !info.baseUrl) return { error: "local_server_unavailable" };
     const root = String(info.baseUrl).replace(/\/+$/, "");
     const headers = {
@@ -581,18 +581,18 @@ async function configureWorkspaceProvider(
       });
       outcomes.push({ workspaceId, stage: "reload", status: reload.status, text: reload.ok ? "ok" : (await reload.text()).slice(0, 300) });
     }
-    const raw = localStorage.getItem("openwork.preferences");
+    const raw = localStorage.getItem("harness.preferences");
     let preferences: Record<string, unknown> = {};
     try { preferences = raw ? JSON.parse(raw) : {}; } catch { preferences = {}; }
     if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) preferences = {};
-    localStorage.setItem("openwork.preferences", JSON.stringify({
+    localStorage.setItem("harness.preferences", JSON.stringify({
       ...preferences,
       defaultModel: { providerID: providerId, modelID: modelId },
       modelVariant: null,
       providerStepCleaned: true,
     }));
-    localStorage.setItem("openwork.defaultModel", defaultModel);
-    for (const workspaceId of workspaceIds) localStorage.removeItem("openwork.sessionModels." + workspaceId);
+    localStorage.setItem("harness.defaultModel", defaultModel);
+    for (const workspaceId of workspaceIds) localStorage.removeItem("harness.sessionModels." + workspaceId);
     return { outcomes };
   }, [
       [...workspaceIds],
@@ -652,20 +652,20 @@ export async function sidebarExpansion(seed: Seed, mode: "workspace" | "group" |
   ]);
   // Persist real group state and manual order before reload; no component/store imports.
   await seed.evalIn(app, browserScript(async (workspaceId, groups, assignments, ids) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info?.baseUrl) throw new Error("Sidebar seed needs the local server");
     const response = await fetch(`${info.baseUrl.replace(/\/+$/, "")}/workspace/${encodeURIComponent(workspaceId)}/session-groups`, {
       method: "PUT", headers: { Authorization: `Bearer ${info.ownerToken ?? info.clientToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ state: { groups, assignments } }), signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) throw new Error(`Sidebar group seed failed: ${response.status}`);
-    localStorage.setItem("openwork.react.sessionManagement", JSON.stringify({ state: {
+    localStorage.setItem("harness.react.sessionManagement", JSON.stringify({ state: {
       pinnedIds: [], unreadIds: [], orderByWorkspace: { [workspaceId]: ids },
       groupsByWorkspace: { [workspaceId]: { groups, assignments, collapsedGroupIds: [] } },
     }, version: 0 }));
   }, [workspace.workspaceId, groups, assignments, [...sessions.map(session => session.sessionId), neighbor.sessionId]]));
   await app.client.send("Page.reload");
-  await waitFor(app, () => Boolean(document.querySelector('[data-sidebar-session-id]')) && Boolean(window.__openworkControl), {
+  await waitFor(app, () => Boolean(document.querySelector('[data-sidebar-session-id]')) && Boolean(window.__harnessControl), {
     timeoutMs: 60_000, label: "sidebar expansion fixture reloaded",
   });
   const observation = await observeSidebarExpansion(app);
@@ -675,15 +675,15 @@ export async function sidebarExpansion(seed: Seed, mode: "workspace" | "group" |
 export async function sidebarWorkspaceTitles(seed: Seed) {
   const runId = Date.now().toString(36);
   const shortName = `Yonder-${runId}`;
-  const longName = `openwork-workspace-title-that-keeps-going-past-the-sidebar-${runId}`;
+  const longName = `harness-workspace-title-that-keeps-going-past-the-sidebar-${runId}`;
   const app = await seed.desktop({ name: "sidebar-workspace-title-fit" });
   const shortWorkspace = await seed.workspace(app, `/tmp/${shortName}`);
   return { app, shortName, longName, shortWorkspace };
 }
 
 export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) {
-  if (place.kind !== "local") throw new SkipError("local renderer performance contract (OPENWORK_WORLD_PLACE=local and --local)");
-  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 instant-send contract (OPENWORK_EVAL_ENGINE=v1)");
+  if (place.kind !== "local") throw new SkipError("local renderer performance contract (HARNESS_WORLD_PLACE=local and --local)");
+  if (resolveEvalEngine() !== "v1") throw new SkipError("native v1 instant-send contract (HARNESS_EVAL_ENGINE=v1)");
   const providerId = "new-task-mock";
   const modelId = "new-task-model";
   const nonce = `${Date.now().toString(36)}-${process.pid}`;
@@ -713,13 +713,13 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
   await using setup = new AsyncDisposableStack();
   const mock = setup.use(await startMockMcp({ port: await allocateFreePort(), agentWorkloads: workloads }));
   const app = await seed.desktop({ name: "workspace-new-task", model: `${providerId}/${modelId}` });
-  const workspacePath = seed.tmpPath(`openwork-workspace-new-task-long-name-${Date.now()}`);
+  const workspacePath = seed.tmpPath(`harness-workspace-new-task-long-name-${Date.now()}`);
   const workspace = await seed.workspace(app, workspacePath, { create: true });
   await configureWorkspaceProvider(seed, app, [workspace.workspaceId], {
     providerId, modelId, modelName: "New task model", baseUrl: `${mock.url}/v1`,
   });
   await reload(app, { timeoutMs: 60_000 });
-  await waitFor(app, () => Boolean(window.__openworkControl?.listActions()
+  await waitFor(app, () => Boolean(window.__harnessControl?.listActions()
     .some((entry) => entry.id === "session.model_picker.open" && entry.disabled === false)), {
     timeoutMs: 60_000,
     label: "reloaded renderer model picker is interactive",
@@ -731,7 +731,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
   if (!unrelated || !existing) throw new Error("Instant-send world did not create both real v1 sessions.");
 
   const serverInfo = await seed.evalIn(app, async () => {
-    const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
     return info?.running && info.baseUrl
       ? { baseUrl: String(info.baseUrl), token: String(info.ownerToken ?? info.clientToken ?? "") }
       : null;
@@ -816,7 +816,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
     ]);
   }
   await waitFor(app, browserScript((marker, reply, workspaceId, sessionId) => {
-    if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId
+    if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId
       || location.hash !== `#/workspace/${workspaceId}/session/${sessionId}`) return false;
     const pane = document.querySelector<HTMLElement>('[data-workbench-pane="primary"]');
     const surface = [...(pane?.querySelectorAll<HTMLElement>("[data-session-surface-id]") ?? [])]
@@ -871,7 +871,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
       let serverInfoError: string | null = null;
       try {
         currentServerInfo = await seed.evalIn(app, async () => {
-          const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
+          const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
           if (!info?.running || !info.baseUrl) return null;
           return {
             baseUrl: String(info.baseUrl),
@@ -1078,7 +1078,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
     };
   }, [sessionId, role, marker]));
   const rendererDiagnostic = (expectedSessionId: string | null) => seed.evalIn(app, browserScript((expectedWorkspaceId, expectedSessionId) => {
-    const composer = window.__openwork?.slice("composer") ?? null;
+    const composer = window.__harness?.slice("composer") ?? null;
     const ownerWorkspaceId: unknown = composer ? Reflect.get(composer, "workspaceId") : null;
     const ownerSessionId: unknown = composer ? Reflect.get(composer, "sessionId") : null;
     return {
@@ -1116,7 +1116,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
         && rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight
         && style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0;
     };
-    if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId) {
+    if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId) {
       return { rootKind: "", focused: false, editable: false, text: "" };
     }
     let root: HTMLElement | null = null;
@@ -1311,7 +1311,7 @@ export async function workspaceNewTask(seed: Seed, { place }: { place: Place }) 
           && rect.right > 0 && rect.bottom > 0 && rect.left < innerWidth && rect.top < innerHeight
           && style.display !== "none" && style.visibility !== "hidden" && Number(style.opacity) > 0;
       };
-      if ((localStorage.getItem("openwork.react.activeWorkspace") ?? "") !== workspaceId) {
+      if ((localStorage.getItem("harness.react.activeWorkspace") ?? "") !== workspaceId) {
         return { ready: false, rootKind: "", composerText: "", focusedEditor: false, buttonFound: false, buttonDisabled: null, buttonHit: false };
       }
       let root: HTMLElement | null = null;
@@ -1401,10 +1401,10 @@ export async function pinnedSessions(seed: Seed) {
   const [candidate, neighbor] = await seed.sessions(app, ["Candidate session", "Neighbor session"]);
   if (!candidate || !neighbor) throw new Error("Pinned world did not create both sessions.");
 
-  // TODO(primitive): probe.context should expose the OpenWork context snapshot.
+  // TODO(primitive): probe.context should expose the Harness context snapshot.
   async function context(): Promise<{ pinnedSessionIds: string[]; pinnedResourceRefs: string[] }> {
     const value = await seed.evalIn(app, () => {
-      const c = window.__openworkControl?.context?.();
+      const c = window.__harnessControl?.context?.();
       return {
         pinnedSessionIds: c?.conversations?.pinnedSessionIds ?? null,
         pinnedResourceRefs: (c?.resources ?? [])
@@ -1417,7 +1417,7 @@ export async function pinnedSessions(seed: Seed) {
       || !value.pinnedSessionIds.every((id) => typeof id === "string")
       || !Array.isArray(value.pinnedResourceRefs)
       || !value.pinnedResourceRefs.every((ref) => typeof ref === "string")) {
-      throw new Error(`OpenWork context pin state was malformed: ${JSON.stringify(value)}`);
+      throw new Error(`Harness context pin state was malformed: ${JSON.stringify(value)}`);
     }
     return {
       pinnedSessionIds: value.pinnedSessionIds,
@@ -1461,7 +1461,7 @@ export async function commandPaletteSearch(seed: Seed) {
       },
     },
   });
-  await waitFor(app, () => Boolean(window.__openworkControl), {
+  await waitFor(app, () => Boolean(window.__harnessControl), {
     timeoutMs: 60_000,
     label: "reloaded app-web command palette is interactive",
   });
@@ -1473,7 +1473,7 @@ export async function commandPaletteSearch(seed: Seed) {
     location: () => seed.evalIn(app, () => window.location.pathname),
     runtimeFacts: () => seed.evalIn(app, () => ({
       browser: navigator.userAgent,
-      electronBridge: Boolean(window.__OPENWORK_ELECTRON__),
+      electronBridge: Boolean(window.__HARNESS_ELECTRON__),
     })),
   };
 }
@@ -1496,8 +1496,8 @@ type ArchiveMainState = {
 };
 
 async function archiveMainControl(command: ArchiveControl): Promise<ArchiveMainState> {
-  const response = await window.__OPENWORK_ELECTRON__.invokeDesktop("__fetch",
-    "http://127.0.0.1/__openwork_archive_test_control", {
+  const response = await window.__HARNESS_ELECTRON__.invokeDesktop("__fetch",
+    "http://127.0.0.1/__harness_archive_test_control", {
       method: "POST", body: JSON.stringify(command), timeoutMs: 25_000,
     });
   if (response.status !== 200) throw new Error("Archive main-fetch bootstrap is unavailable");
@@ -1558,17 +1558,17 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
   };
   await setHeld(true);
   const stamp = `${Date.now()}-${process.pid}`;
-  const workspaceA = await seed.workspace(app, `/tmp/openwork-session-archive-${stamp}-a`);
-  const workspaceBName = `openwork-session-archive-${stamp}-b`;
+  const workspaceA = await seed.workspace(app, `/tmp/harness-session-archive-${stamp}-a`);
+  const workspaceBName = `harness-session-archive-${stamp}-b`;
   const workspaceB = await additionalWorkspace(seed, app, `/tmp/${workspaceBName}`);
   await configureWorkspaceProvider(seed, app, [workspaceA.workspaceId, workspaceB.workspaceId], {
     providerId, modelId, modelName: "Archive fixture model", baseUrl: `${mock.url}/v1`, allowTools: true,
   });
-  // OpenWork's runtime config drops command/model keys. In v1.18.18 the native
+  // Harness's runtime config drops command/model keys. In v1.18.18 the native
   // workspace PATCH also writes config.json, which its project loader ignores.
   // Use the native global config in this desktop's isolated profile instead.
   const commandSetup = await seed.evalIn(app, browserScript(async (workspaceId, model) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
     const base = `${info.baseUrl.replace(/\/+$/, "")}/workspace/${workspaceId}/opencode`;
     const headers = { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken), "Content-Type": "application/json" };
@@ -1603,7 +1603,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
   // Seed each owning engine once; UI task creation can race route changes and create extra sessions.
   async function createSession(workspaceId: string, title: string, parentID?: string): Promise<ShellSession & { workspaceId: string }> {
     const result = await seed.evalIn(app, browserScript(async (workspaceId, title, parentID) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
       const response = await fetch(info.baseUrl.replace(/\/+$/, "") + "/workspace/" + encodeURIComponent(workspaceId) + "/opencode/session", {
         method: "POST", headers: { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken), "Content-Type": "application/json" },
@@ -1648,7 +1648,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
     let lastState: unknown = null;
     while (Date.now() < deadline) {
       lastState = await seed.evalIn(app, browserScript((previousTimeOrigin, workspaceId, sessions) => {
-        const route = window.__openwork?.slice?.("route");
+        const route = window.__harness?.slice?.("route");
         const rows = sessions.map((session) => {
           const row = document.querySelector('[data-sidebar-workspace-id="' + session.workspaceId + '"] [data-sidebar-session-id="' + session.sessionId + '"]');
           return {
@@ -1659,7 +1659,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
         });
         return {
           hash: location.hash, selectedWorkspaceId: route?.selectedWorkspaceId, rows,
-          ready: performance.timeOrigin !== previousTimeOrigin && Boolean(window.__openworkControl)
+          ready: performance.timeOrigin !== previousTimeOrigin && Boolean(window.__harnessControl)
             && route?.selectedWorkspaceId === workspaceId
             && !route.workspaces.find(workspace => workspace.id === workspaceId)?.loading
             && location.hash === "#/workspace/" + encodeURIComponent(workspaceId) + "/session"
@@ -1678,7 +1678,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
   }
 
   const upstreamOrigin = await seed.evalIn(app, async () => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
     return new URL(info.baseUrl).origin;
   });
@@ -1863,7 +1863,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
 
   async function facts() {
     const result = await seed.evalIn(app, browserScript(async (workspaceIds) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
       const headers = { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken) };
       const sessions = [];
@@ -1883,8 +1883,8 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
         requests: window.__archiveNetwork.requests,
         surfaces: [...document.querySelectorAll("[data-session-surface-id]")].map(el => el.getAttribute("data-session-surface-id")),
         activeRows: [...document.querySelectorAll("[data-sidebar-workspace-id] [data-sidebar-session-id]")].map(el => el.getAttribute("data-sidebar-session-id")),
-        tabs: window.__openworkControl.context().conversations.tabs.map(tab => tab.sessionId),
-        memory: JSON.parse(localStorage.getItem("openwork.react.sessionByWorkspace") ?? "{}"),
+        tabs: window.__harnessControl.context().conversations.tabs.map(tab => tab.sessionId),
+        memory: JSON.parse(localStorage.getItem("harness.react.sessionByWorkspace") ?? "{}"),
       };
     }, [[workspaceA.workspaceId, workspaceB.workspaceId]]), { timeoutMs: 30_000 });
     if (!isRecord(result) || !Array.isArray(result.sessions) || !Array.isArray(result.requests)
@@ -1947,7 +1947,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
     resize: (width: number, height: number) => app.client.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false }),
     networkFault,
     faultObservation: () => seed.evalIn(app, browserScript(async (workspaceIds) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
       const root = info.baseUrl.replace(/\/+$/, "");
       const results = [];
@@ -1957,7 +1957,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
           const options = { headers: { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken) }, signal: AbortSignal.timeout(10000) };
           const [actual, observed, main] = await Promise.all([
             window.__archiveNetwork.original(url, options), fetch(url, options),
-            window.__OPENWORK_ELECTRON__.invokeDesktop("__fetch", url, { method: "GET", headers: options.headers, timeoutMs: 10000 }),
+            window.__HARNESS_ELECTRON__.invokeDesktop("__fetch", url, { method: "GET", headers: options.headers, timeoutMs: 10000 }),
           ]);
           if (!actual.ok || !observed.ok || main.status < 200 || main.status >= 300) throw new Error(`Fault observation failed for ${endpoint}`);
           const actualBody = await actual.json();
@@ -1971,15 +1971,15 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
       const renderer = await seed.evalIn(app, () => ({
         hash: location.hash,
         fault: { mode: window.__archiveNetwork.mode, sessionId: window.__archiveNetwork.sessionId, workspaceId: window.__archiveNetwork.workspaceId, held: window.__archiveNetwork.release !== null },
-        composer: window.__openwork?.slice("composer"),
-        events: window.__openwork?.events(80),
-        drafts: localStorage.getItem("openwork.session-drafts.v2"),
+        composer: window.__harness?.slice("composer"),
+        events: window.__harness?.events(80),
+        drafts: localStorage.getItem("harness.session-drafts.v2"),
         surfaces: [...document.querySelectorAll<HTMLElement>("[data-session-surface-id]")].map(surface => ({
           sessionId: surface.dataset.sessionSurfaceId,
           text: surface.innerText.slice(-6000),
           draft: surface.querySelector<HTMLElement>('[data-lexical-editor="true"]')?.innerText,
         })),
-        actions: window.__openworkControl.listActions().filter(action => action.id.startsWith("composer.")).map(action => ({ id: action.id, disabled: action.disabled })),
+        actions: window.__harnessControl.listActions().filter(action => action.id.startsWith("composer.")).map(action => ({ id: action.id, disabled: action.disabled })),
         requests: window.__archiveNetwork.requests,
       }));
       const main = await mainControl({ action: "state" });
@@ -1989,7 +1989,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
     },
     surfaceReady: (sessionId: string) => seed.evalIn(app, browserScript((sessionId) => {
       const surface = document.querySelector<HTMLElement>(`[data-session-surface-id="${sessionId}"]`);
-      const snapshot = window.__openwork?.slice("composer")?.snapshotQuery;
+      const snapshot = window.__harness?.slice("composer")?.snapshotQuery;
       return Boolean(surface?.getClientRects().length && surface.querySelector('[data-lexical-editor="true"][contenteditable="true"]'))
         && snapshot?.intendedSessionId === sessionId && snapshot.currentSnapshotId === sessionId;
     }, [sessionId])),
@@ -1999,7 +1999,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
         && toast.getAnimations({ subtree: true }).every(animation => animation.playState !== "running");
     }),
     dispatchUnrelatedPrompt: (session: { workspaceId: string; sessionId: string }) => seed.evalIn(app, browserScript(async (session, providerID, modelID) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
       const response = await fetch(`${info.baseUrl.replace(/\/+$/, "")}/workspace/${session.workspaceId}/opencode/session/${session.sessionId}/prompt_async`, {
         method: "POST", headers: { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken), "Content-Type": "application/json" },
@@ -2026,7 +2026,7 @@ export async function archiveActiveSessions(seed: Seed, { place }: { place: Plac
     releaseRun: () => setHeld(false),
     holdRun: () => setHeld(true),
     transcript: (session: { workspaceId: string; sessionId: string }) => seed.evalIn(app, browserScript(async (workspaceId, sessionId) => {
-      const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+      const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
       if (!info.running || !info.baseUrl) throw new Error("Archive engine is unavailable");
       const response = await window.__archiveNetwork.original(info.baseUrl.replace(/\/+$/, "") + "/workspace/" + workspaceId + "/opencode/session/" + sessionId + "/message", {
         headers: { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken) }, signal: AbortSignal.timeout(15000),
@@ -2050,8 +2050,8 @@ export async function archiveSessions(seed: Seed) {
 /**
  * Archive in a workspace the desktop stores by a linked path. The folder does
  * not exist when the workspace is added, so the desktop keeps the path as
- * given (`<root>/link/OpenWork Chat`) while the engine resolves it and stamps
- * every session with the real path (`<root>/real/OpenWork Chat`) — the shape a
+ * given (`<root>/link/Harness Chat`) while the engine resolves it and stamps
+ * every session with the real path (`<root>/real/Harness Chat`) — the shape a
  * fresh macOS profile has under `/var` -> `/private/var`.
  */
 export async function archiveSessionsInLinkedWorkspace(seed: Seed) {
@@ -2073,22 +2073,22 @@ export async function archiveSessionsInLinkedWorkspace(seed: Seed) {
     await symlink(real, link);
     resolvedReal = await realpath(real);
   }
-  const world = await archiveWorld(seed, app, `${link}/OpenWork Chat`, ["Split pane conversation", "Other pane"], { create: true });
+  const world = await archiveWorld(seed, app, `${link}/Harness Chat`, ["Split pane conversation", "Other pane"], { create: true });
   return {
     ...world,
-    realWorkspacePath: `${resolvedReal}/OpenWork Chat`,
+    realWorkspacePath: `${resolvedReal}/Harness Chat`,
     /** The path the desktop persisted for the workspace, exactly as it will address the engine. */
     storedWorkspacePath: async () => {
       const value = await seed.evalIn(app, browserScript((workspaceId) =>
-        window.__openwork?.slice?.("route")?.workspaces?.find(item => item.id === workspaceId)?.path ?? null, [world.workspace.workspaceId]));
+        window.__harness?.slice?.("route")?.workspaces?.find(item => item.id === workspaceId)?.path ?? null, [world.workspace.workspaceId]));
       if (typeof value !== "string") throw new Error(`Stored workspace path was malformed: ${JSON.stringify(value)}`);
       return value;
     },
     /** The directory the engine stamped on each session, read through the workspace mount. */
     engineDirectories: async (): Promise<Record<string, string>> => {
       const value = await seed.evalIn(app, browserScript(async (workspaceId) => {
-        const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
-        if (!info?.running || !info.baseUrl) throw new Error("OpenWork server is unavailable");
+        const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
+        if (!info?.running || !info.baseUrl) throw new Error("Harness server is unavailable");
         const response = await fetch(`${String(info.baseUrl).replace(/\/+$/, "")}/workspace/${encodeURIComponent(workspaceId)}/opencode/session?limit=200`, {
           headers: { Authorization: "Bearer " + String(info.ownerToken ?? info.clientToken ?? "") }, signal: AbortSignal.timeout(15000),
         });
@@ -2104,7 +2104,7 @@ export async function archiveSessionsInLinkedWorkspace(seed: Seed) {
       return Object.fromEntries(Object.entries(value).map(([id, directory]) => [id, String(directory)]));
     },
     splitFacts: () => seed.evalIn(app, () => {
-      const layout = window.__openworkControl?.context?.()?.conversations?.layout;
+      const layout = window.__harnessControl?.context?.()?.conversations?.layout;
       return {
         primarySessionId: (layout?.kind === "split" ? layout.primarySessionId : undefined) ?? (layout?.kind === "single" ? layout.sessionId : undefined) ?? "",
         secondarySessionId: (layout?.kind === "split" ? layout.secondarySessionId : undefined) ?? "",
@@ -2136,13 +2136,13 @@ async function archiveWorld(seed: Seed, app: Surface, workspacePath: string, tit
 
   /**
    * OpenCode's own `time.archived` stamp per session id (0 when active), read
-   * through the workspace-scoped OpenWork server mount the desktop uses.
+   * through the workspace-scoped Harness server mount the desktop uses.
    */
   // TODO(primitive): probe.sessions should expose the workspace's native session list.
   async function archivedAt(): Promise<Record<string, number>> {
     const value = await seed.evalIn(app, browserScript(async (workspaceId, engine) => {
-      const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
-      if (!info?.running || !info.baseUrl) throw new Error("OpenWork server is unavailable");
+      const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
+      if (!info?.running || !info.baseUrl) throw new Error("Harness server is unavailable");
       const response = await fetch(
         String(info.baseUrl).replace(/\/+$/, "") + "/workspace/" + encodeURIComponent(workspaceId) + (engine === "v2" ? "/opencode2/api/session?limit=200" : "/opencode/session?limit=200"),
         {
@@ -2208,8 +2208,8 @@ async function archiveWorld(seed: Seed, app: Surface, workspacePath: string, tit
   return { app, engine, workspace, workspacePath, candidate, neighbor, archivedAt, sidebar, undoToastSettled,
     // The rename UI rejects blank input; arrange persisted legacy titles through the native API.
     setCandidateTitle: (title: string) => seed.evalIn(app, browserScript(async (workspaceId, sessionId, title) => {
-      const info = await window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo");
-      if (!info?.running || !info.baseUrl) throw new Error("OpenWork server is unavailable");
+      const info = await window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo");
+      if (!info?.running || !info.baseUrl) throw new Error("Harness server is unavailable");
       const response = await fetch(`${info.baseUrl.replace(/\/+$/, "")}/workspace/${encodeURIComponent(workspaceId)}/opencode/session/${encodeURIComponent(sessionId)}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${info.ownerToken ?? info.clientToken ?? ""}`, "Content-Type": "application/json" },
@@ -2237,8 +2237,8 @@ async function archiveWorld(seed: Seed, app: Surface, workspacePath: string, tit
       };
     }),
     // Native desktop menus are OS widgets, observed through the development bridge.
-    nativeMenu: () => seed.evalIn(app, () => window.__OPENWORK_ELECTRON__.contextMenu.inspect(), { awaitPromise: true }),
-    dismissMenu: () => seed.evalIn(app, () => window.__OPENWORK_ELECTRON__.contextMenu.dismiss(), { awaitPromise: true }),
+    nativeMenu: () => seed.evalIn(app, () => window.__HARNESS_ELECTRON__.contextMenu.inspect(), { awaitPromise: true }),
+    dismissMenu: () => seed.evalIn(app, () => window.__HARNESS_ELECTRON__.contextMenu.dismiss(), { awaitPromise: true }),
     mutationRequests: () => seed.evalIn(app, () => window.__archiveAvailabilityRequests),
   };
 }
@@ -2335,12 +2335,12 @@ export async function externalSessionVisibility(seed: Seed) {
     timeoutMs: 30_000,
     label: "model picker backdrop dismissed before sidebar interaction",
   });
-  const rawServerInfo = await seed.evalIn(app, () => (window.__OPENWORK_ELECTRON__?.invokeDesktop?.("openworkServerInfo")), {
+  const rawServerInfo = await seed.evalIn(app, () => (window.__HARNESS_ELECTRON__?.invokeDesktop?.("harnessServerInfo")), {
     awaitPromise: true,
     timeoutMs: 30_000,
   });
   if (!isRecord(rawServerInfo) || typeof rawServerInfo.baseUrl !== "string") {
-    throw new Error(`OpenWork server info was unavailable: ${JSON.stringify(rawServerInfo)}`);
+    throw new Error(`Harness server info was unavailable: ${JSON.stringify(rawServerInfo)}`);
   }
   const serverUrl = new URL(rawServerInfo.baseUrl);
   const serverToken = typeof rawServerInfo.ownerToken === "string"
@@ -2348,13 +2348,13 @@ export async function externalSessionVisibility(seed: Seed) {
     : typeof rawServerInfo.clientToken === "string"
       ? rawServerInfo.clientToken
       : "";
-  if (!serverToken) throw new Error("OpenWork server info did not include a token.");
+  if (!serverToken) throw new Error("Harness server info did not include a token.");
   let externalServerUrl = serverUrl.origin;
   if (app.handle.hostKind === "daytona") {
     const sandboxId = app.handle.sandboxId?.trim();
     if (!sandboxId) throw new Error("Daytona desktop did not expose its sandbox id.");
     await using previewHost = daytonaSandbox(sandboxId);
-    if (!previewHost.previewUrl) throw new Error("Daytona host cannot expose the OpenWork server port.");
+    if (!previewHost.previewUrl) throw new Error("Daytona host cannot expose the Harness server port.");
     externalServerUrl = await previewHost.previewUrl(Number(serverUrl.port));
   }
   return {
@@ -2559,7 +2559,7 @@ export async function externalSessionVisibility(seed: Seed) {
     // TODO(primitive): probe.route should expose the sidebar's per-workspace session lists.
     async route(): Promise<SidebarRouteFacts> {
       return parseSidebarRouteFacts(await seed.evalIn(app, () => {
-        const route = window.__openwork?.slice?.("route");
+        const route = window.__harness?.slice?.("route");
         if (!route) return null;
         return {
           selectedWorkspaceId: String(route.selectedWorkspaceId ?? ""),
@@ -2578,7 +2578,7 @@ export async function externalSessionVisibility(seed: Seed) {
     },
     /**
      * Creates a session the way another client would: straight against the
-     * OpenWork server's workspace mount, never through the desktop's UI state.
+     * Harness server's workspace mount, never through the desktop's UI state.
      */
     // TODO(primitive): seed.externalSession should create a session on the server without touching the renderer.
     async createSessionOutsideWindow(workspaceId: string, title: string, requestedDirectory?: string): Promise<string> {
@@ -2624,12 +2624,12 @@ export async function externalSessionVisibility(seed: Seed) {
 export async function crossWorkspaceSessions(seed: Seed) {
   const runId = `${Date.now().toString(36)}-${process.pid}`;
   const app = await seed.desktop({ name: "cross-workspace-split-view" });
-  const workspaceA = await seed.workspace(app, `/tmp/openwork-cross-workspace-split-${runId}-a`);
+  const workspaceA = await seed.workspace(app, `/tmp/harness-cross-workspace-split-${runId}-a`);
   const [primary, sameWorkspacePeer] = await seed.sessions(app, [
     `Primary workspace anchor ${runId}`,
     `Primary workspace peer ${runId}`,
   ]);
-  const workspaceB = await additionalWorkspace(seed, app, `/tmp/openwork-cross-workspace-split-${runId}-b`);
+  const workspaceB = await additionalWorkspace(seed, app, `/tmp/harness-cross-workspace-split-${runId}-b`);
   const [crossWorkspacePeer] = await seed.sessions(app, [`Secondary workspace peer ${runId}`]);
   if (!primary || !sameWorkspacePeer || !crossWorkspacePeer) throw new Error("Split world did not create all sessions.");
   return {
@@ -2644,8 +2644,8 @@ export async function crossWorkspaceSessions(seed: Seed) {
 
 export async function settingsRuntime(seed: Seed) {
   const stamp = Date.now();
-  const firstName = `openwork-session-settings-a-${stamp}`;
-  const secondName = `openwork-session-settings-b-${stamp}`;
+  const firstName = `harness-session-settings-a-${stamp}`;
+  const secondName = `harness-session-settings-b-${stamp}`;
   const app = await seed.desktop({ name: "session-switch-settings-runtime" });
   const firstWorkspace = await seed.workspace(app, `/tmp/${firstName}`);
   const secondWorkspace = await additionalWorkspace(seed, app, `/tmp/${secondName}`);
@@ -2680,18 +2680,18 @@ export async function rendererCrash(seed: Seed) {
   return { app };
 }
 
-export async function renderCycle(seed: Seed, { place }: { place: import("@openwork/env").Place }) {
+export async function renderCycle(seed: Seed, { place }: { place: import("@harness/env").Place }) {
   // TODO(primitive): seed.desktop should accept environment overrides for instrumented renderer launches.
   const app = await launchDesktop({
     name: "desktop-render-cycle-stability",
     host: place.host(),
-    env: { VITE_OPENWORK_PROFILER: "1" },
+    env: { VITE_HARNESS_PROFILER: "1" },
   });
   const workspacePath = seed.tmpPath("desktop-render-cycle");
   await mkdir(workspacePath, { recursive: true });
   // TODO(primitive): seed.storage should arrange persisted renderer preferences without raw evaluation.
   await seed.evalIn(app, () => {
-    localStorage.setItem("openwork.debug.profilerOverlay", "1");
+    localStorage.setItem("harness.debug.profilerOverlay", "1");
     location.reload();
     return true;
   }).catch(() => undefined);
@@ -2809,9 +2809,9 @@ export async function titleFailure(seed: Seed) {
 }
 
 function stormMinutes(): number {
-  const value = Number(process.env.OPENWORK_EVAL_ACTIVE_SESSION_STORM_MINUTES ?? "2");
+  const value = Number(process.env.HARNESS_EVAL_ACTIVE_SESSION_STORM_MINUTES ?? "2");
   if (!Number.isFinite(value) || value < 1 || value > 5) {
-    throw new Error("OPENWORK_EVAL_ACTIVE_SESSION_STORM_MINUTES must be a number from 1 through 5.");
+    throw new Error("HARNESS_EVAL_ACTIVE_SESSION_STORM_MINUTES must be a number from 1 through 5.");
   }
   return value;
 }
@@ -2826,7 +2826,7 @@ export async function activeSessionStorm(seed: Seed) {
   const slowToolMs = Math.round(stormMinutes() * 60_000);
   const plans = Array.from({ length: 3 }, (_, offset) => {
     const index = offset + 1;
-    const path = `/tmp/openwork-active-session-storm-${runId}-w${index}`;
+    const path = `/tmp/harness-active-session-storm-${runId}-w${index}`;
     const marker = `STORM-W${index}-${runId}`;
     return {
       index,
@@ -2863,7 +2863,7 @@ export async function activeSessionStorm(seed: Seed) {
   const app = await seed.desktop({
     den,
     as: "member",
-    profileDir: process.env.OPENWORK_EVAL_ACTIVE_SESSION_STORM_PROFILE_DIR?.trim(),
+    profileDir: process.env.HARNESS_EVAL_ACTIVE_SESSION_STORM_PROFILE_DIR?.trim(),
   });
   const seededPlans: StormPlan[] = [];
   for (const plan of plans) {
@@ -2883,8 +2883,8 @@ export async function activeSessionStorm(seed: Seed) {
   await seed.evalIn(app, () => { location.reload(); return true; }).catch(() => undefined);
   const reloadDeadline = Date.now() + 60_000;
   while (Date.now() < reloadDeadline) {
-    const ready = await seed.evalIn(app, () => (Boolean(window.__openworkControl)
-      && Boolean((localStorage.getItem("openwork.den.authToken") ?? "").trim())))
+    const ready = await seed.evalIn(app, () => (Boolean(window.__harnessControl)
+      && Boolean((localStorage.getItem("harness.den.authToken") ?? "").trim())))
       .catch(() => false);
     if (ready === true) break;
     await new Promise((resolve) => setTimeout(resolve, 250));

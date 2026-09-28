@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 
-import type { OpenworkSessionHistory } from "../../../../app/lib/openwork-server";
+import type { HarnessSessionHistory } from "../../../../app/lib/harness-server";
 import { mergeSnapshotAndLiveMessages } from "../sync/message-merge";
 import { applyRevertCursor } from "../sync/transcript-reconcile";
 import { snapshotToUIMessages } from "../sync/usechat-adapter";
@@ -9,8 +9,8 @@ import { parseSlashCommandInvocation } from "./composer/slash-command";
 
 export function resolveRenderedSessionSnapshot(input: {
   sessionId: string;
-  currentSnapshot: OpenworkSessionHistory | null | undefined;
-  cachedRendered: { sessionId: string; snapshot: OpenworkSessionHistory } | null | undefined;
+  currentSnapshot: HarnessSessionHistory | null | undefined;
+  cachedRendered: { sessionId: string; snapshot: HarnessSessionHistory } | null | undefined;
 }) {
   if (input.currentSnapshot?.session.id === input.sessionId) {
     return input.currentSnapshot;
@@ -29,9 +29,9 @@ export type LatestSessionHistory = {
   source: UIMessage[];
 };
 
-const historyProjections = new WeakMap<OpenworkSessionHistory["messages"], UIMessage[]>();
+const historyProjections = new WeakMap<HarnessSessionHistory["messages"], UIMessage[]>();
 
-export function projectHistoryRead(snapshot: OpenworkSessionHistory) {
+export function projectHistoryRead(snapshot: HarnessSessionHistory) {
   let projected = historyProjections.get(snapshot.messages);
   if (!projected) {
     const messages = snapshot.messages.every(({ info }) => Number.isFinite(info.time?.created))
@@ -161,7 +161,7 @@ export function applyHistorySourceChanges(history: LatestSessionHistory, source:
 
 export function deriveRenderedSessionMessages(input: {
   transcriptState: UIMessage[] | null | undefined;
-  snapshot: OpenworkSessionHistory | null | undefined;
+  snapshot: HarnessSessionHistory | null | undefined;
   historyComplete?: boolean;
   latestHistory?: LatestSessionHistory | null;
 }) {

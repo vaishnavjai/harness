@@ -9,8 +9,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import type { DenSession } from "@openwork/behaviors";
+import { denFetch } from "@harness/behaviors";
+import type { DenSession } from "@harness/behaviors";
 import {
   eventually,
   localMysqlIsRunning,
@@ -19,8 +19,8 @@ import {
   server,
   SkipError,
   test,
-} from "@openwork/testkit";
-import { bootServer, close, listen, stopChild } from "../worlds/openwork-server-cli.ts";
+} from "@harness/testkit";
+import { bootServer, close, listen, stopChild } from "../worlds/harness-server-cli.ts";
 
 /**
  * Inference gateway, org provider route (plan §3 #1–#4, §5.2):
@@ -34,7 +34,7 @@ import { bootServer, close, listen, stopChild } from "../worlds/openwork-server-
  * reaches it through `settings.upstreamBaseUrl` plus the operator's exact-origin
  * INFERENCE_EGRESS_ALLOWED_ORIGINS in BOTH processes. Den and inference share
  * one ephemeral MySQL database. Run co-located on a workstation or inside an
- * existing Daytona sandbox (OPENWORK_WORLD_PLACE=local, no attached Den URL).
+ * existing Daytona sandbox (HARNESS_WORLD_PLACE=local, no attached Den URL).
  * Host-driven Daytona server() does not expose a DB handle or place this HTTP
  * witness remotely; it is a fixture gap, not missing Daytona authentication.
  */
@@ -43,7 +43,7 @@ const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const REQUEST_TIMEOUT_MS = 30_000;
 const INFERENCE_BOOT_TIMEOUT_MS = 120_000;
 const LOG_ROW_TIMEOUT_MS = 15_000;
-// Mirrors the constant @openwork/testkit hands den-api (packages/env/src/den.ts).
+// Mirrors the constant @harness/testkit hands den-api (packages/env/src/den.ts).
 // Encrypted columns (credential secrets, ow_gw_ keys) only decrypt when both
 // services use the same key; a mismatch surfaces as 502 provider_credential_invalid.
 const DEN_DB_ENCRYPTION_KEY = "local-dev-db-encryption-key-please-change-1234567890";
@@ -55,7 +55,7 @@ const UPSTREAM_OUTPUT_TOKENS = 42;
 const UPSTREAM_REQUEST_ID = "req_fake_anthropic_0001";
 
 const execFileAsync = promisify(execFile);
-const OPENCODE_BIN = process.env.OPENWORK_EVAL_OPENCODE_BIN?.trim()
+const OPENCODE_BIN = process.env.HARNESS_EVAL_OPENCODE_BIN?.trim()
   || join(REPO_ROOT, "apps/desktop/resources/sidecars", process.platform === "win32" ? "opencode.exe" : "opencode");
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,7 +67,7 @@ function auth(session: DenSession): Record<string, string> {
 }
 
 function orgHeaders(session: DenSession, orgId: string): Record<string, string> {
-  return { ...auth(session), "x-openwork-org-id": orgId };
+  return { ...auth(session), "x-harness-org-id": orgId };
 }
 
 function stringAt(record: Record<string, unknown> | null, key: string): string {
@@ -197,7 +197,7 @@ async function startInferenceApp(input: { port: number; databaseUrl: string; all
     env: {
       ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GATEWAY_") && !key.startsWith("INFERENCE_"))),
       NODE_ENV: "test",
-      OPENWORK_DEV_MODE: "1",
+      HARNESS_DEV_MODE: "1",
       NODE_OPTIONS: "--conditions=development",
       GATEWAY_PORT: String(input.port),
       GATEWAY_ENABLED: "true",
@@ -356,7 +356,7 @@ async function gatewayMessages(input: { gatewayBaseUrl: string; apiKey: string; 
   } catch {
     // streaming bodies are not JSON
   }
-  return { status: response.status, text, errorCode, requestId: response.headers.get("x-openwork-request-id") ?? "" };
+  return { status: response.status, text, errorCode, requestId: response.headers.get("x-harness-request-id") ?? "" };
 }
 
 function headersContain(requests: UpstreamRequestRecord[], needle: string): boolean {
@@ -384,16 +384,16 @@ async function nativeAdapterCall(input: {
     PATH: process.env.PATH, HOME: root,
     XDG_CACHE_HOME: join(root, "cache"), XDG_CONFIG_HOME: join(root, "config"),
     XDG_DATA_HOME: join(root, "data"), XDG_STATE_HOME: join(root, "state"),
-    OPENWORK_DATA_DIR: root, OPENWORK_RUNTIME_DB: join(root, "runtime.sqlite"),
-    OPENWORK_ENV_STORE: join(root, "env.json"), OPENWORK_TOKEN_STORE: join(root, "tokens.json"),
-    OPENWORK_MANAGE_OPENCODE: "1", OPENWORK_OPENCODE_BIN: OPENCODE_BIN,
-    OPENWORK_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000",
+    HARNESS_DATA_DIR: root, HARNESS_RUNTIME_DB: join(root, "runtime.sqlite"),
+    HARNESS_ENV_STORE: join(root, "env.json"), HARNESS_TOKEN_STORE: join(root, "tokens.json"),
+    HARNESS_MANAGE_OPENCODE: "1", HARNESS_OPENCODE_BIN: OPENCODE_BIN,
+    HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS: "3600000",
     OPENCODE_DISABLE_AUTOUPDATE: "1", OPENCODE_DISABLE_MODELS_FETCH: "1",
     OPENCODE_CONFIG_CONTENT: JSON.stringify({ share: "disabled", permission: { "*": "deny" } }),
   }, token, root, (chunk) => { logs = `${logs}${chunk}`.slice(-16000); });
   try {
     const base = await booted.listening;
-    const hostHeaders = { "x-openwork-host-token": `${token}-host`, "content-type": "application/json" };
+    const hostHeaders = { "x-harness-host-token": `${token}-host`, "content-type": "application/json" };
     const clientHeaders = { authorization: `Bearer ${token}`, "content-type": "application/json" };
     const request = async (path: string, method = "GET", body?: unknown, headers: Record<string, string> = hostHeaders) => {
       const response = await fetch(`${base}${path}`, {
@@ -477,12 +477,12 @@ for (const providerId of ["google", "anthropic"]) {
     const api = `${upstream.baseUrl}/${google ? "v1beta" : "v1"}`;
     const config = { npm: `@ai-sdk/${providerId}`, env, api, options: { baseURL: api } };
     const apiKeys = Object.fromEntries(env.map((name) => [name, key]));
-    const summary = { id, providerId, source: "openwork_gateway", name: `Managed native ${providerId}`, credentialStatus: "ready",
+    const summary = { id, providerId, source: "harness_gateway", name: `Managed native ${providerId}`, credentialStatus: "ready",
       providerConfig: config, models: [{ id: modelAlias, name: modelId, upstreamModelId: modelId, modelGroupId, modelGroupName: "Fixture models", credentialSetId, credentialSetName: "Fixture credentials", config: { id: modelAlias, limit: { context: 1000000, output: 8192 } } }] };
     const denRequests: string[] = [];
     const den = createServer((request, response) => {
       response.setHeader("content-type", "application/json");
-      if (request.headers.authorization !== `Bearer ${token}` || request.headers["x-openwork-legacy-org-id"] !== orgId) {
+      if (request.headers.authorization !== `Bearer ${token}` || request.headers["x-harness-legacy-org-id"] !== orgId) {
         response.writeHead(401); response.end("{}"); return;
       }
       denRequests.push(request.url ?? "");
@@ -513,8 +513,8 @@ for (const providerId of ["google", "anthropic"]) {
 
 test("an org inference provider routes native member requests with the org credential and finalizes write-ahead usage", { timeout: 600_000 }, async ({ evidence, place }) => {
   needs({ commands: ["pnpm", "bun", OPENCODE_BIN] });
-  if (place.kind !== "local" || process.env.OPENWORK_EVAL_DEN_API_URL?.trim()) {
-    throw new SkipError("co-located Den, inference, upstream and scratch MySQL required; run this spec inside the prepared Daytona sandbox with OPENWORK_WORLD_PLACE=local and no OPENWORK_EVAL_DEN_API_URL (host-driven remote DB/upstream fixture not implemented)");
+  if (place.kind !== "local" || process.env.HARNESS_EVAL_DEN_API_URL?.trim()) {
+    throw new SkipError("co-located Den, inference, upstream and scratch MySQL required; run this spec inside the prepared Daytona sandbox with HARNESS_WORLD_PLACE=local and no HARNESS_EVAL_DEN_API_URL (host-driven remote DB/upstream fixture not implemented)");
   }
   if (!await localMysqlIsRunning()) throw new SkipError("MySQL on 127.0.0.1:3306");
   const runId = `${Date.now().toString(36)}${process.pid.toString(36)}`;
@@ -528,7 +528,7 @@ test("an org inference provider routes native member requests with the org crede
     place,
     web: false,
     env: {
-      NODE_ENV: "test", OPENWORK_DEV_MODE: "1", DB_MODE: "mysql",
+      NODE_ENV: "test", HARNESS_DEV_MODE: "1", DB_MODE: "mysql",
       GATEWAY_ENABLED: "true",
       GATEWAY_PROXY_BASE_URL: gatewayOrigin,
       GATEWAY_PUBLIC_BASE_URL: gatewayOrigin,
@@ -541,7 +541,7 @@ test("an org inference provider routes native member requests with the org crede
     },
   });
   const databaseUrl = den.database?.url;
-  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/openwork_eval_")) throw new Error("An isolated testkit scratch database is required.");
+  if (!databaseUrl || !new URL(databaseUrl).pathname.startsWith("/harness_eval_")) throw new Error("An isolated testkit scratch database is required.");
   const granted = den.members.granted;
   const outsider = den.members.outsider;
   if (!granted || !outsider) throw new Error("The local Den did not provision both members.");
@@ -567,7 +567,7 @@ test("an org inference provider routes native member requests with the org crede
   const createdConfig = isRecord(scoped.body.providerConfig) ? scoped.body.providerConfig : null;
   const createdOptions = createdConfig && isRecord(createdConfig.options) ? createdConfig.options : null;
   expect(scoped.id.startsWith("ipr_")).toBe(true);
-  expect(scoped.body.source).toBe("openwork_gateway");
+  expect(scoped.body.source).toBe("harness_gateway");
   expect(scoped.body.credentialStatus).toBe("org_credential_missing");
   expect(scoped.body.models).toEqual([]);
   expect(stringAt(createdConfig, "api")).toBe(scopedGatewayUrl);
@@ -576,7 +576,7 @@ test("an org inference provider routes native member requests with the org crede
   evidence.recordAssertionEvidence(
     "An admin creates a gateway provider whose config points at the gateway and never echoes the upstream key",
     `POST /v1/inference-providers returned 201 for ${scoped.id} (source=${String(scoped.body.source)}, credentialStatus=${String(scoped.body.credentialStatus)}); providerConfig.api and options.baseURL were ${scopedGatewayUrl}; the response text did not contain the upstream secret.`,
-    scoped.body.source === "openwork_gateway"
+    scoped.body.source === "harness_gateway"
       && stringAt(createdConfig, "api") === scopedGatewayUrl
       && stringAt(createdOptions, "baseURL") === scopedGatewayUrl
       && !scoped.text.includes(FAKE_UPSTREAM_KEY),
@@ -715,7 +715,7 @@ test("an org inference provider routes native member requests with the org crede
   expect(createdConfig?.env).toEqual(grantedEnv);
   expect(grantedConnect.text.includes(FAKE_UPSTREAM_KEY)).toBe(false);
   evidence.recordAssertionEvidence(
-    "The granted member receives the gateway URL and an OpenWork inference key, never the org's upstream key",
+    "The granted member receives the gateway URL and a Harness inference key, never the org's upstream key",
     `GET /connect returned HTTP ${grantedConnect.status} with options.baseURL=${stringAt(grantedOptions, "baseURL")}, apiKey prefix ${grantedKey.slice(0, GATEWAY_KEY_PREFIX.length)}, apiKeys[${envName}] equal to apiKey, and no upstream secret in the body.`,
     grantedConnect.status === 200
       && stringAt(grantedOptions, "baseURL") === scopedGatewayUrl
@@ -736,7 +736,7 @@ test("an org inference provider routes native member requests with the org crede
   let pendingId = "";
   try {
     await eventually(() => upstream.requests.length === 1, { within: 10_000, intervalMs: 50, label: "upstream reached while response held" });
-    const pendingRows = await queryDenDatabase(databaseUrl, "SELECT id, organization_id, org_membership_id, openwork_request_id, completed_at, status, usage_source, cost_micro_usd FROM gateway_request_logs WHERE gateway_provider_id = ?", [scoped.id]);
+    const pendingRows = await queryDenDatabase(databaseUrl, "SELECT id, organization_id, org_membership_id, harness_request_id, completed_at, status, usage_source, cost_micro_usd FROM gateway_request_logs WHERE gateway_provider_id = ?", [scoped.id]);
     expect(pendingRows).toHaveLength(1);
     const pending = pendingRows.filter(isRecord)[0];
     if (!pending) throw new Error("Upstream was reached before the write-ahead row existed.");
@@ -744,7 +744,7 @@ test("an org inference provider routes native member requests with the org crede
     expect(pendingId).not.toBe("");
     expect(pending.organization_id).toBe(orgId);
     expect(pending.org_membership_id).toBe(grantedMemberId);
-    expect(pending.openwork_request_id).toBe(upstream.requests[0]?.headers["x-openwork-request-id"]);
+    expect(pending.harness_request_id).toBe(upstream.requests[0]?.headers["x-harness-request-id"]);
     expect(pending.completed_at).toBeNull();
     expect(pending.status).toBeNull();
     expect(pending.usage_source).toBe("missing");
@@ -769,13 +769,13 @@ test("an org inference provider routes native member requests with the org crede
   expect(forwarded.headers["x-api-key"]).toBe(FAKE_UPSTREAM_KEY);
   expect(forwarded.headers.authorization).toBeUndefined();
   expect(forwarded.headers["anthropic-version"]).toBe("2023-06-01");
-  expect(forwarded.headers["x-openwork-request-id"]).toBe(relayed.requestId);
+  expect(forwarded.headers["x-harness-request-id"]).toBe(relayed.requestId);
   expect(headersContain(upstream.requests, GATEWAY_KEY_PREFIX)).toBe(false);
   expect(forwarded.body.includes(GATEWAY_KEY_PREFIX)).toBe(false);
   const forwardedBody: unknown = JSON.parse(forwarded.body);
   expect(isRecord(forwardedBody) ? forwardedBody.model : null).toBe(modelId);
   evidence.recordAssertionEvidence(
-    "The gateway forwards to the org's upstream with the org credential and without the member's OpenWork key",
+    "The gateway forwards to the org's upstream with the org credential and without the member's Harness key",
     `POST ${scopedGatewayUrl}/messages returned HTTP ${relayed.status} and streamed the upstream SSE; the fake upstream saw exactly one ${forwarded.method} ${forwarded.path} with x-api-key equal to the org secret, no authorization header, anthropic-version preserved, and no ow_gw_ value in any header or the body.`,
     relayed.status === 200
       && forwarded.headers["x-api-key"] === FAKE_UPSTREAM_KEY
@@ -787,7 +787,7 @@ test("an org inference provider routes native member requests with the org crede
   const logRows = await eventually(
     () => queryDenDatabase(
       databaseUrl,
-      "SELECT id, organization_id, completed_at, cost_micro_usd, metadata, route, protocol, outcome, status, stream, usage_source, input_tokens, output_tokens, total_tokens, requested_model, upstream_model, upstream_host, upstream_path, upstream_provider_id, upstream_request_id, openwork_request_id, org_membership_id, gateway_provider_id FROM gateway_request_logs WHERE gateway_provider_id = ?",
+      "SELECT id, organization_id, completed_at, cost_micro_usd, metadata, route, protocol, outcome, status, stream, usage_source, input_tokens, output_tokens, total_tokens, requested_model, upstream_model, upstream_host, upstream_path, upstream_provider_id, upstream_request_id, harness_request_id, org_membership_id, gateway_provider_id FROM gateway_request_logs WHERE gateway_provider_id = ?",
       [scoped.id],
     ),
     { within: LOG_ROW_TIMEOUT_MS, intervalMs: 500, label: `completed gateway_request_logs row for ${scoped.id}`, until: (rows) => rows.some((row) => isRecord(row) && row.completed_at != null) },
@@ -820,7 +820,7 @@ test("an org inference provider routes native member requests with the org crede
   expect(logRow.upstream_host).toBe("127.0.0.1");
   expect(logRow.upstream_path).toBe("/v1/messages");
   expect(logRow.upstream_request_id).toBe(UPSTREAM_REQUEST_ID);
-  expect(logRow.openwork_request_id).toBe(relayed.requestId);
+  expect(logRow.harness_request_id).toBe(relayed.requestId);
   expect(logRow.org_membership_id).toBe(grantedMemberId);
   evidence.recordAssertionEvidence(
     "One write-ahead row is finalized with the route, protocol, member, stream usage and catalog cost",
@@ -954,7 +954,7 @@ test("an org inference provider routes native member requests with the org crede
     expect(sdkRequest.path.includes(key)).toBe(false);
     expect(sdkRequest.body.includes(key)).toBe(false);
     expect(url.searchParams.has("key")).toBe(false);
-    expect(sdkRequest.headers["x-openwork-request-id"]).toBeTruthy();
+    expect(sdkRequest.headers["x-harness-request-id"]).toBeTruthy();
     if (native.protocol === "google_generate_content") {
       expect(url.searchParams.get("alt")).toBe("sse");
       expect(sdkRequest.headers["x-api-key"]).toBeUndefined();
@@ -963,8 +963,8 @@ test("an org inference provider routes native member requests with the org crede
       expect(sdkRequest.headers["x-goog-api-key"]).toBeUndefined();
     }
     const sdkRows = await eventually(() => queryDenDatabase(databaseUrl,
-      "SELECT organization_id, org_membership_id, gateway_provider_id, protocol, outcome, status, usage_source, input_tokens, output_tokens, cost_micro_usd, completed_at FROM gateway_request_logs WHERE openwork_request_id = ?",
-      [sdkRequest.headers["x-openwork-request-id"]]),
+      "SELECT organization_id, org_membership_id, gateway_provider_id, protocol, outcome, status, usage_source, input_tokens, output_tokens, cost_micro_usd, completed_at FROM gateway_request_logs WHERE harness_request_id = ?",
+      [sdkRequest.headers["x-harness-request-id"]]),
     { within: LOG_ROW_TIMEOUT_MS, intervalMs: 500, label: `${native.npm} finalized usage`, until: (rows) => rows.some((row) => isRecord(row) && row.completed_at != null) });
     expect(sdkRows).toHaveLength(1);
     const row = sdkRows.filter(isRecord)[0];

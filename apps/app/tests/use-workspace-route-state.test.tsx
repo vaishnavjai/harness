@@ -25,7 +25,7 @@ const defaultWorkspaces: RouteWorkspace[] = [
   { id: "ws_2", name: "Two", displayNameResolved: "Two", workspaceType: "local", path: "/tmp/ws_2" },
   {
     id: "rem_remote", name: "Remote", displayNameResolved: "Remote", workspaceType: "remote",
-    remoteType: "openwork", path: "/tmp/remote", baseUrl: "http://remote.invalid", openworkToken: "remote-token",
+    remoteType: "harness", path: "/tmp/remote", baseUrl: "http://remote.invalid", harnessToken: "remote-token",
   },
 ];
 let workspaces = defaultWorkspaces;
@@ -80,11 +80,11 @@ mock.module("@/app/lib/opencode-v2-adapter", () => ({
   },
 }));
 
-const serverModule = await import("../src/app/lib/openwork-server");
-const createServerClient = serverModule.createOpenworkServerClient;
-mock.module("@/app/lib/openwork-server", () => ({
+const serverModule = await import("../src/app/lib/harness-server");
+const createServerClient = serverModule.createHarnessServerClient;
+mock.module("@/app/lib/harness-server", () => ({
   ...serverModule,
-  createOpenworkServerClient: (options: Parameters<typeof createServerClient>[0]) => ({
+  createHarnessServerClient: (options: Parameters<typeof createServerClient>[0]) => ({
     ...createServerClient(options),
     listWorkspaces: async () => ({ items: workspaces, activeId: "ws_1" }),
     activateWorkspace: async () => undefined,
@@ -92,7 +92,7 @@ mock.module("@/app/lib/openwork-server", () => ({
       const remoteStatus = remoteStatuses.get(options.baseUrl);
       if (remoteStatus) return remoteStatus.promise;
       if (options.baseUrl === "http://remote.invalid") {
-        throw new serverModule.OpenworkServerError(404, "not_found", "Legacy worker");
+        throw new serverModule.HarnessServerError(404, "not_found", "Legacy worker");
       }
       return localStatus.promise;
     },
@@ -108,8 +108,8 @@ mock.module("@/react-app/shell/route-workspaces", () => ({
     return response.promise;
   },
 }));
-mock.module("@/react-app/shell/openwork-connection", () => ({
-  resolveOpenworkConnection: async () => ({
+mock.module("@/react-app/shell/harness-connection", () => ({
+  resolveHarnessConnection: async () => ({
     normalizedBaseUrl: connection.baseUrl, resolvedToken: connection.token, resolvedHostToken: "", hostInfo: null,
   }),
 }));
@@ -311,7 +311,7 @@ for (const v2 of [false, true]) {
   test(`${engine} Settings return still hydrates the selected session after its inventory fails`, async () => {
     const { inventory, hydration } = await returnFromSettings(v2);
     await act(async () => {
-      inventory.response.reject(new serverModule.OpenworkServerError(400, "invalid_response", "Invalid inventory response"));
+      inventory.response.reject(new serverModule.HarnessServerError(400, "invalid_response", "Invalid inventory response"));
     });
     expect(route().sessionsByWorkspaceId.ws_1).toEqual([]);
     expect(route().retryingWorkspaceIds).not.toContain("ws_1");
@@ -334,7 +334,7 @@ for (const v2 of [false, true]) {
       const tokenBefore = route().selectedWorkspaceServerToken;
       await act(async () => {
         if (refresh === "Den") dispatchDenSettingsChanged(unchangedDenSettings);
-        else window.dispatchEvent(new Event("openwork-server-settings-changed"));
+        else window.dispatchEvent(new Event("harness-server-settings-changed"));
       });
       expect(route().opencodeBaseUrl).toBe(endpointBefore);
       expect(route().selectedWorkspaceServerToken).toBe(tokenBefore);
@@ -443,7 +443,7 @@ for (const staleCompletesFirst of [true, false]) {
     const stale = initial.filter((request) => request.workspaceId === "ws_1");
 
     localStatus = deferred();
-    await act(async () => { window.dispatchEvent(new Event("openwork-server-settings-changed")); });
+    await act(async () => { window.dispatchEvent(new Event("harness-server-settings-changed")); });
     await publishRouting(true);
     const fresh = requests.filter((request) => request.engine === "v2");
     // The delayed list cannot block v2, and the already-loaded, unselected inventory refreshes too.
@@ -552,7 +552,7 @@ test("a late routing-status response cannot switch inventories back to the old e
   await mount();
   const staleStatus = localStatus;
   localStatus = deferred();
-  await act(async () => { window.dispatchEvent(new Event("openwork-server-settings-changed")); });
+  await act(async () => { window.dispatchEvent(new Event("harness-server-settings-changed")); });
   await publishRouting(true);
   await act(async () => { staleStatus.resolve({ enabled: false, chatRouting: false }); });
   expect(route().opencodeBaseUrl.endsWith("/opencode2")).toBe(true);
@@ -573,7 +573,7 @@ test("returning from remote B to remote A waits for fresh routing while retainin
   await act(async () => {
     route().setWorkspaces((current) => [...current, {
       id: "rem_b", name: "B", displayNameResolved: "B", workspaceType: "remote",
-      remoteType: "openwork", path: "/tmp/b", baseUrl: "http://remote-b.invalid", openworkToken: "remote-b-token",
+      remoteType: "harness", path: "/tmp/b", baseUrl: "http://remote-b.invalid", harnessToken: "remote-b-token",
     }]);
   });
 
@@ -603,7 +603,7 @@ test("editing an unselected remote endpoint refreshes it without accepting the o
   if (!stale) throw new Error("Expected remote inventory load");
   await act(async () => {
     route().setWorkspaces((current) => current.map((workspace) => workspace.id === "rem_remote"
-      ? { ...workspace, baseUrl: "http://remote-new.invalid", openworkToken: "remote-token-2" }
+      ? { ...workspace, baseUrl: "http://remote-new.invalid", harnessToken: "remote-token-2" }
       : workspace));
   });
   const fresh = requests.find((request) => request.endpoint.baseUrl === "http://remote-new.invalid");

@@ -1,4 +1,4 @@
-import type { Seed } from "@openwork/env";
+import type { Seed } from "@harness/env";
 import { isRecord, records } from "./library.ts";
 
 /** The witness MCP App every tile in this world launches: one tool, required `jql` input. */

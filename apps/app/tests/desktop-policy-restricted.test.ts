@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { MCP_QUICK_CONNECT, getMcpServerName, isBuiltInOpenWorkExtension } from "../src/app/constants";
-import { createOpenworkServerClient } from "../src/app/lib/openwork-server";
-import { createOpenworkServerStore } from "../src/react-app/domains/connections/openwork-server-store";
+import { MCP_QUICK_CONNECT, getMcpServerName, isBuiltInHarnessExtension } from "../src/app/constants";
+import { createHarnessServerClient } from "../src/app/lib/harness-server";
+import { createHarnessServerStore } from "../src/react-app/domains/connections/harness-server-store";
 import { createConnectionsStore } from "../src/react-app/domains/connections/store";
 import { createExtensionsStore } from "../src/react-app/domains/settings/state/extensions-store";
 
@@ -15,7 +15,7 @@ import {
   normalizeDesktopPolicyDocument,
   resolveDesktopPolicyDocumentWrite,
   resolveTeamAccessCapabilities,
-} from "@openwork/types/den/desktop-policies";
+} from "@harness/types/den/desktop-policies";
 import {
   SETTINGS_TAB_WITHOUT_CONTROL,
   checkDesktopAppRestriction,
@@ -191,7 +191,7 @@ describe("desktop extension mutation boundaries", () => {
     const errors: string[] = [];
     const checkDesktopAppRestriction: DesktopAppRestrictionChecker = ({ restriction }) =>
       restriction === "allowBuiltInExtensions" ? builtInsBlocked : blocked;
-    const server = createOpenworkServerStore({
+    const server = createHarnessServerStore({
       startupPreference: () => "server",
       documentVisible: () => true,
       developerMode: () => false,
@@ -208,7 +208,7 @@ describe("desktop extension mutation boundaries", () => {
       throw new Error("Mutation boundary reached");
     };
     const client = {
-      ...createOpenworkServerClient({ baseUrl: "http://127.0.0.1:1" }),
+      ...createHarnessServerClient({ baseUrl: "http://127.0.0.1:1" }),
       addPlugin: recordWrite,
       removePlugin: recordWrite,
       upsertSkill: recordWrite,
@@ -220,7 +220,7 @@ describe("desktop extension mutation boundaries", () => {
       setMcpEnabled: recordWrite,
     };
     const getSnapshot: typeof server.getSnapshot = () => ({
-      ...server.getSnapshot(), openworkServerStatus: "connected", openworkServerClient: client,
+      ...server.getSnapshot(), harnessServerStatus: "connected", harnessServerClient: client,
     });
     const options = {
       checkDesktopAppRestriction,
@@ -229,7 +229,7 @@ describe("desktop extension mutation boundaries", () => {
       selectedWorkspaceId: () => "policy-workspace",
       selectedWorkspaceRoot: () => "/tmp/policy",
       workspaceType: (): "local" | "remote" => "remote",
-      openworkServer: { ...server, getSnapshot },
+      harnessServer: { ...server, getSnapshot },
       runtimeWorkspaceId: () => "policy-workspace",
     };
     const extensions = createExtensionsStore({
@@ -308,7 +308,7 @@ describe("desktop extension mutation boundaries", () => {
 
   test("built-in configuration obeys its own permission while custom installation is blocked", async () => {
     const f = fixture();
-    const builtIn = MCP_QUICK_CONNECT.find(isBuiltInOpenWorkExtension);
+    const builtIn = MCP_QUICK_CONNECT.find(isBuiltInHarnessExtension);
     if (!builtIn) throw new Error("Expected a built-in MCP in the catalog");
     f.restrict(true);
     await f.connections.setMcpEnabled(getMcpServerName(builtIn), true);

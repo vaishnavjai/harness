@@ -47,7 +47,7 @@ function desktopFake(diskUse = "40%"):
       return { stdout: "", stderr: "already started", code: 1 };
     }
     if (args[0] === "snapshot") {
-      return { stdout: JSON.stringify([{ name: "openwork-eval-vnc", id: "snapshot-123" }]), stderr: "", code: 0 };
+      return { stdout: JSON.stringify([{ name: "harness-eval-vnc", id: "snapshot-123" }]), stderr: "", code: 0 };
     }
     if (args[0] !== "exec") return { stdout: "", stderr: "", code: 0 };
 
@@ -66,7 +66,7 @@ function desktopFake(diskUse = "40%"):
     if (script.includes("json/version")) return { stdout: '{"Browser":"Chrome/144"}', stderr: "", code: 0 };
     if (script.includes("%{http_code}")) return { stdout: "200", stderr: "", code: 0 };
     if (script.includes("install.py")) {
-      return { stdout: "OPENWORK_RELEASE_BINARY=/workspace/.openwork-daytona/releases/enterprise-0.18.44/app/openwork-enterprise\n", stderr: "", code: 0 };
+      return { stdout: "HARNESS_RELEASE_BINARY=/workspace/.harness-daytona/releases/enterprise-0.18.44/app/harness-enterprise\n", stderr: "", code: 0 };
     }
     return { stdout: "", stderr: "", code: 0 };
   };
@@ -95,9 +95,9 @@ test("connector E2E test env rendering and parsing round-trip the provision cont
   assert.deepEqual(parseConnectorE2eTestEnv(content), facts);
   assert.match(content, /^# provisioned for org-connector-two-members — generated .*; ref=feat\/eval-connector-two-members$/m);
   assert.match(content, /^# provision-created=den,desktop-a$/m);
-  assert.match(content, /OPENWORK_EVAL_MODEL=big-pickle/);
-  const missingApi = content.split("\n").filter((line) => !line.startsWith("OPENWORK_EVAL_DEN_API_URL=")).join("\n");
-  assert.throws(() => parseConnectorE2eTestEnv(missingApi), /OPENWORK_EVAL_DEN_API_URL/);
+  assert.match(content, /HARNESS_EVAL_MODEL=big-pickle/);
+  const missingApi = content.split("\n").filter((line) => !line.startsWith("HARNESS_EVAL_DEN_API_URL=")).join("\n");
+  assert.throws(() => parseConnectorE2eTestEnv(missingApi), /HARNESS_EVAL_DEN_API_URL/);
 });
 
 test("Den extra env is carried as base64 KEY=VALUE lines and refuses unsafe names", () => {
@@ -116,7 +116,7 @@ test("server sandbox names are unique within the same CI process and second", ()
   const first = serverSandboxName();
   const second = serverSandboxName();
 
-  assert.match(first, new RegExp(`^openwork-server-\\d{8}-\\d{6}-${process.pid}-[0-9a-f]{8}$`));
+  assert.match(first, new RegExp(`^harness-server-\\d{8}-\\d{6}-${process.pid}-[0-9a-f]{8}$`));
   assert.notEqual(first, second);
 });
 
@@ -124,7 +124,7 @@ test("desktop sandbox names stay unique when parallel workers use the same surfa
   const first = desktopSandboxName("testkit admin");
   const second = desktopSandboxName("testkit admin");
 
-  assert.match(first, new RegExp(`^openwork-connector-testkit-admin-\\d{8}-\\d{6}-${process.pid}-[0-9a-f]{8}$`));
+  assert.match(first, new RegExp(`^harness-connector-testkit-admin-\\d{8}-\\d{6}-${process.pid}-[0-9a-f]{8}$`));
   assert.notEqual(first, second);
 });
 
@@ -175,7 +175,7 @@ test("provisionWebSandbox prepares owned and borrowed source without desktop gat
     for (const required of ["git status", "git fetch", "pnpm install --frozen-lockfile", "source-receipt.json", "df -P /workspace"]) {
       assert(scripts.includes(required), `web provisioning must retain ${required}`);
     }
-    for (const forbidden of ["start-daytona-vnc", "Xvfb", "xdg-open", "electron", "warmup", "vite-prewarm", "dev:ui", "rm -", "pkill", "/tmp/openwork-", "/profiles"]) {
+    for (const forbidden of ["start-daytona-vnc", "Xvfb", "xdg-open", "electron", "warmup", "vite-prewarm", "dev:ui", "rm -", "pkill", "/tmp/harness-", "/profiles"]) {
       assert(!scripts.includes(forbidden), `web provisioning must not run ${forbidden}`);
     }
     assert(!calls.some((call) => call.args[0] === "delete"));
@@ -418,7 +418,7 @@ test("provisionDesktopSandbox resolves the snapshot id and creates with connecto
 
 test("published desktop provisioning resolves exact GitHub metadata and skips every source build gate", async () => {
   const digest = `sha256:${"a".repeat(64)}`;
-  const assetName = "openwork-enterprise-linux-x64-0.18.44.tar.gz";
+  const assetName = "harness-enterprise-linux-x64-0.18.44.tar.gz";
   const metadata = {
     tag_name: "v0.18.44",
     draft: false,
@@ -427,7 +427,7 @@ test("published desktop provisioning resolves exact GitHub metadata and skips ev
       state: "uploaded",
       size: 123,
       digest,
-      browser_download_url: `https://github.com/different-ai/openwork/releases/download/v0.18.44/${assetName}`,
+      browser_download_url: `https://github.com/vaishnavjai/harness/releases/download/v0.18.44/${assetName}`,
     }],
   };
   const releaseFetch: typeof fetch = async () => new Response(JSON.stringify(metadata), { status: 200 });
@@ -448,7 +448,7 @@ test("published desktop provisioning resolves exact GitHub metadata and skips ev
 
   assert.equal(result.release?.digest, digest);
   assert.equal(result.source, undefined);
-  assert.equal(result.release?.binaryPath, "/workspace/.openwork-daytona/releases/enterprise-0.18.44/app/openwork-enterprise");
+  assert.equal(result.release?.binaryPath, "/workspace/.harness-daytona/releases/enterprise-0.18.44/app/harness-enterprise");
   const create = calls.find((call) => call.args[0] === "create");
   assert(create);
   assert.equal(create.args[create.args.indexOf("--auto-stop") + 1], "0");
@@ -456,7 +456,7 @@ test("published desktop provisioning resolves exact GitHub metadata and skips ev
   assert.match(remote, /install\.py/);
   assert.match(remote, /start-daytona-vnc/);
   assert.match(remote, /xdg-open-proof/);
-  assert.match(remote, /openwork-enterprise-linux-x64-0\.18\.44\.tar\.gz/);
+  assert.match(remote, /harness-enterprise-linux-x64-0\.18\.44\.tar\.gz/);
   for (const forbidden of ["git fetch", "pnpm install", "warmup-electron", "vite-prewarm", "dev:electron"]) {
     assert(!remote.includes(forbidden), `release provisioning must not run ${forbidden}`);
   }
@@ -464,7 +464,7 @@ test("published desktop provisioning resolves exact GitHub metadata and skips ev
 });
 
 test("published desktop install rejects an invalid digest before extracting or returning an executable", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-release-digest-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-release-digest-"));
   const archive = join(root, "source.tar.gz");
   const fakeBin = join(root, "bin");
   const fakeCurl = join(fakeBin, "curl");
@@ -474,7 +474,7 @@ import tarfile
 import sys
 payload = b"#!/bin/sh\\nexit 0\\n"
 with tarfile.open(sys.argv[1], "w:gz") as bundle:
-    binary = tarfile.TarInfo("openwork-enterprise")
+    binary = tarfile.TarInfo("harness-enterprise")
     binary.size = len(payload)
     bundle.addfile(binary, io.BytesIO(payload))
 `;
@@ -500,9 +500,9 @@ cp "$FAKE_RELEASE_ARCHIVE" "$output"
     const install = publishedDesktopReleaseInstallCommand({
       version: "0.18.44",
       distribution: "enterprise",
-      assetName: "openwork-enterprise-linux-x64-0.18.44.tar.gz",
-      binaryName: "openwork-enterprise",
-      browserDownloadUrl: "https://example.test/openwork-enterprise-linux-x64-0.18.44.tar.gz",
+      assetName: "harness-enterprise-linux-x64-0.18.44.tar.gz",
+      binaryName: "harness-enterprise",
+      browserDownloadUrl: "https://example.test/harness-enterprise-linux-x64-0.18.44.tar.gz",
       digest: `sha256:${"0".repeat(64)}`,
       size: archiveStat.size,
     }, join(root, "install"));
@@ -518,7 +518,7 @@ cp "$FAKE_RELEASE_ARCHIVE" "$output"
       (error: unknown) => {
         assert(error instanceof Error);
         assert.match(error.message, /Published release SHA-256 mismatch/);
-        if ("stdout" in error) assert.doesNotMatch(String(error.stdout), /OPENWORK_RELEASE_BINARY=/);
+        if ("stdout" in error) assert.doesNotMatch(String(error.stdout), /HARNESS_RELEASE_BINARY=/);
         return true;
       },
     );
@@ -558,7 +558,7 @@ test("published desktop metadata and shared secrets are rejected before sandbox 
 });
 
 test("a failed published release install deletes its partially allocated sandbox", async () => {
-  const assetName = "openwork-enterprise-linux-x64-0.18.44.tar.gz";
+  const assetName = "harness-enterprise-linux-x64-0.18.44.tar.gz";
   const releaseFetch: typeof fetch = async () => new Response(JSON.stringify({
     tag_name: "v0.18.44",
     draft: false,
@@ -567,7 +567,7 @@ test("a failed published release install deletes its partially allocated sandbox
       state: "uploaded",
       size: 123,
       digest: `sha256:${"a".repeat(64)}`,
-      browser_download_url: `https://github.com/different-ai/openwork/releases/download/v0.18.44/${assetName}`,
+      browser_download_url: `https://github.com/vaishnavjai/harness/releases/download/v0.18.44/${assetName}`,
     }],
   }), { status: 200 });
   const base = desktopFake();
@@ -597,7 +597,7 @@ test("a failed published release install deletes its partially allocated sandbox
 });
 
 test("published release allocation and readiness failures clean up only newly owned sandboxes", async () => {
-  const assetName = "openwork-enterprise-linux-x64-0.18.44.tar.gz";
+  const assetName = "harness-enterprise-linux-x64-0.18.44.tar.gz";
   const releaseFetch: typeof fetch = async () => new Response(JSON.stringify({
     tag_name: "v0.18.44",
     draft: false,
@@ -606,7 +606,7 @@ test("published release allocation and readiness failures clean up only newly ow
       state: "uploaded",
       size: 123,
       digest: `sha256:${"a".repeat(64)}`,
-      browser_download_url: `https://github.com/different-ai/openwork/releases/download/v0.18.44/${assetName}`,
+      browser_download_url: `https://github.com/vaishnavjai/harness/releases/download/v0.18.44/${assetName}`,
     }],
   }), { status: 200 });
 
@@ -615,7 +615,7 @@ test("published release allocation and readiness failures clean up only newly ow
     const exec: DaytonaExec = async (args, opts) => {
       calls.push({ args: [...args], opts });
       if (args[0] === "snapshot") {
-        return { stdout: JSON.stringify([{ name: "openwork-eval-vnc", id: "snapshot-123" }]), stderr: "", code: 0 };
+        return { stdout: JSON.stringify([{ name: "harness-eval-vnc", id: "snapshot-123" }]), stderr: "", code: 0 };
       }
       if (args[0] === "create") {
         return failure === "create"
@@ -666,7 +666,7 @@ test("published release allocation and readiness failures clean up only newly ow
 });
 
 test("published desktop archive installer rejects traversal and escaping links", async () => {
-  const root = await mkdtemp(join(tmpdir(), "openwork-release-archive-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-release-archive-"));
   const archive = join(root, "malicious.tar.gz");
   const extract = join(root, "extract");
   const createArchive = `
@@ -677,7 +677,7 @@ with tarfile.open(sys.argv[1], "w:gz") as bundle:
     traversal = tarfile.TarInfo("../escaped")
     traversal.size = 1
     bundle.addfile(traversal, io.BytesIO(b"x"))
-    link = tarfile.TarInfo("openwork-enterprise")
+    link = tarfile.TarInfo("harness-enterprise")
     link.type = tarfile.SYMTYPE
     link.linkname = "../../outside"
     bundle.addfile(link)
@@ -687,7 +687,7 @@ with tarfile.open(sys.argv[1], "w:gz") as bundle:
     const archiveBytes = await readFile(archive);
     const digest = createHash("sha256").update(archiveBytes).digest("hex");
     await assert.rejects(
-      execFileAsync("python3", ["-c", DESKTOP_RELEASE_ARCHIVE_INSTALLER, archive, extract, "openwork-enterprise", digest, String(archiveBytes.byteLength)]),
+      execFileAsync("python3", ["-c", DESKTOP_RELEASE_ARCHIVE_INSTALLER, archive, extract, "harness-enterprise", digest, String(archiveBytes.byteLength)]),
       (error: unknown) => {
         assert(error instanceof Error);
         assert("stderr" in error);
@@ -712,7 +712,7 @@ test("rendered values are shell-quoted, because the env file is meant to be sour
     created: [],
   });
 
-  assert(content.includes(`OPENWORK_EVAL_DAYTONA_SANDBOX_A='$(touch /tmp/pwned); echo it'"'"'s-here'`));
+  assert(content.includes(`HARNESS_EVAL_DAYTONA_SANDBOX_A='$(touch /tmp/pwned); echo it'"'"'s-here'`));
   assert.equal(parseConnectorE2eTestEnv(content).sandboxA, nasty);
 });
 
@@ -745,7 +745,7 @@ test("the eval secrets volume is mounted only when explicitly asked for", async 
   await provisionDesktopSandbox({ ref: "dev", name: "b", secrets: true, exec, log: () => undefined });
 
   const create = calls.find((call) => call.args[0] === "create");
-  assert(create?.args.includes("openwork-eval-secrets:/daytona-secrets"));
+  assert(create?.args.includes("harness-eval-secrets:/daytona-secrets"));
 });
 
 test("provisionDesktopSandbox fails the disk gate above 85 percent", async () => {
@@ -819,16 +819,16 @@ test("startFaultProxyOnSandbox uploads and detaches the proxy after resolving it
   assert.match(proxy.token, /^[0-9a-f]{32}$/);
   assert.deepEqual(calls[0]?.args, ["preview-url", "den-1", "-p", "3985", "--expires", "86400"]);
   const scripts = calls.filter((call) => call.args[0] === "exec").map((call) => call.args[3]?.slice(10, -1) ?? "");
-  assert.match(scripts[0] ?? "", /pkill -f openwork-fault-proxy/);
-  assert.match(scripts[1] ?? "", /^printf %s [A-Za-z0-9+/=]+ \| base64 -d > \/tmp\/openwork-fault-proxy\.mjs$/);
+  assert.match(scripts[0] ?? "", /pkill -f harness-fault-proxy/);
+  assert.match(scripts[1] ?? "", /^printf %s [A-Za-z0-9+/=]+ \| base64 -d > \/tmp\/harness-fault-proxy\.mjs$/);
   assert(!scripts[1]?.includes("'"));
   assert.match(scripts[2] ?? "", /start_new_session=True/);
   assert.match(scripts[2] ?? "", /UPSTREAM=http:\/\/127\.0\.0\.1:3005/);
-  assert.match(scripts[2] ?? "", /node \/tmp\/openwork-fault-proxy\.mjs/);
+  assert.match(scripts[2] ?? "", /node \/tmp\/harness-fault-proxy\.mjs/);
   assertRemoteCommandsAreSingleArgument(calls);
 
   await proxy.stop();
-  assert.match(calls.at(-1)?.args[3] ?? "", /pkill -f openwork-fault-proxy\.mjs/);
+  assert.match(calls.at(-1)?.args[3] ?? "", /pkill -f harness-fault-proxy\.mjs/);
 });
 
 test("startScriptOnSandbox uploads a witness, detaches it with its env, and waits for loopback health", async () => {
@@ -854,13 +854,13 @@ test("startScriptOnSandbox uploads a witness, detaches it with its env, and wait
   assert.match(detach, new RegExp(`"ACME_UPSTREAM_KEY":"${encode("k e'y")}"`));
   assert.match(detach, new RegExp(`"PORT":"${encode("3990")}"`));
   assert(!detach.includes("k e'y"), "secrets never appear in clear text on the remote command line");
-  assert.match(detach, /\["node", "\/tmp\/openwork-acme-upstream-[0-9a-f]{16}\.mjs"\], cwd="\/workspace", env=env/);
-  assert.match(detach, /\/tmp\/openwork-acme-upstream\.log/);
+  assert.match(detach, /\["node", "\/tmp\/harness-acme-upstream-[0-9a-f]{16}\.mjs"\], cwd="\/workspace", env=env/);
+  assert.match(detach, /\/tmp\/harness-acme-upstream\.log/);
   assert.match(scripts.at(-1) ?? "", /curl -s -o \/dev\/null -w %\{http_code\} http:\/\/127\.0\.0\.1:3990\/health \|\| true/);
   assertRemoteCommandsAreSingleArgument(calls);
 
   await witness.stop();
-  assert.match(calls.at(-1)?.args[3] ?? "", /pkill -f \[\/\]tmp\/openwork-acme-upstream-[0-9a-f]{16}\.mjs \|\| true; rm -f \/tmp\/openwork-acme-upstream-/);
+  assert.match(calls.at(-1)?.args[3] ?? "", /pkill -f \[\/\]tmp\/harness-acme-upstream-[0-9a-f]{16}\.mjs \|\| true; rm -f \/tmp\/harness-acme-upstream-/);
 });
 
 test("startScriptOnSandbox rejects unsafe labels, ports and env names before touching the sandbox", async () => {

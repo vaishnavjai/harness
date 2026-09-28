@@ -1,13 +1,13 @@
 import { setTimeout as delay } from "node:timers/promises";
-import type { Surface } from "@openwork/cdp";
-import { parseEvidenceCheckpoint } from "@openwork/freestyle/checkpoint-schema";
-import { checkpointCapability, type CheckpointCapability } from "@openwork/env";
+import type { Surface } from "@harness/cdp";
+import { parseEvidenceCheckpoint } from "@harness/freestyle/checkpoint-schema";
+import { checkpointCapability, type CheckpointCapability } from "@harness/env";
 import { currentTestEvidence } from "./ambient.ts";
 import { captureFrame, type ScreenshotArtifact } from "./screenshot.ts";
 
-// Defined in @openwork/env so worlds can advertise it without depending on the test kit.
-export { checkpointCapability } from "@openwork/env";
-export type { CheckpointCapability, CheckpointCapture } from "@openwork/env";
+// Defined in @harness/env so worlds can advertise it without depending on the test kit.
+export { checkpointCapability } from "@harness/env";
+export type { CheckpointCapability, CheckpointCapture } from "@harness/env";
 
 function isCapability(value: unknown): value is CheckpointCapability {
   return typeof value === "object" && value !== null
@@ -48,14 +48,14 @@ export async function takeCheckpoint(surface: Surface, capability: CheckpointCap
     const checkpoint = parseEvidenceCheckpoint(started.checkpoint);
     if (checkpoint.imageHash !== before.hash) throw new Error("the checkpoint does not match its image");
     started.saved.catch((error: unknown) => {
-      console.warn(`[openwork/test-evidence] Checkpoint ${checkpoint.id} failed to save (${error instanceof Error ? error.message : "unknown error"}); its image is kept.`);
+      console.warn(`[harness/test-evidence] Checkpoint ${checkpoint.id} failed to save (${error instanceof Error ? error.message : "unknown error"}); its image is kept.`);
     });
     await pause(options.holdMs ?? CHECKPOINT_HOLD_MS);
     const after = await captureFrame(surface);
     const still = after.route === before.route && after.visibleText === before.visibleText;
     artifact = { ...before, checkpoint, checkpointMatch: still ? "exact" : "approximate" };
   } catch (error) {
-    console.warn(`[openwork/test-evidence] Checkpoint skipped: ${error instanceof Error ? error.message : "unknown error"}. The screenshot is kept and the test continues.`);
+    console.warn(`[harness/test-evidence] Checkpoint skipped: ${error instanceof Error ? error.message : "unknown error"}. The screenshot is kept and the test continues.`);
     artifact = { ...before, checkpointError: "Checkpoint unavailable; screenshot retained." };
   }
   currentTestEvidence()?.recordScreenshot(artifact, { caption: options.caption });

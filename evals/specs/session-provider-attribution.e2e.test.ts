@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { sessionProviderAttribution } from "../worlds/session-provider-attribution.ts";
 
 const test = spec.world(sessionProviderAttribution, {

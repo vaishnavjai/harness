@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
-import { denFetch } from "@openwork/behaviors";
-import { queryDenDatabase } from "@openwork/env";
-import { mcpMock, needs, server, test } from "@openwork/testkit";
+import { denFetch } from "@harness/behaviors";
+import { queryDenDatabase } from "@harness/env";
+import { mcpMock, needs, server, test } from "@harness/testkit";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -45,7 +45,7 @@ test("gateway discovery preserves setup intent and execution scopes", { timeout:
   expect(orgs.response.status).toBe(200);
   const orgId = rows(record(orgs.body).orgs).find(org => org.name === orgName)?.id;
   expect(typeof orgId).toBe("string");
-  const headers = { authorization: `Bearer ${den.admin.token}`, "x-openwork-org-id": String(orgId) };
+  const headers = { authorization: `Bearer ${den.admin.token}`, "x-harness-org-id": String(orgId) };
   const created = await denFetch(den.admin, "/v1/mcp-connections/by-key/search-intent-notes", {
     method: "PUT", headers,
     body: JSON.stringify({ name: "Notes Search Fixture", url: den.mocks.connector.mcpUrl, authType: "oauth", credentialMode: "per_member", access: { orgWide: true } }),
@@ -90,7 +90,7 @@ test("gateway discovery preserves setup intent and execution scopes", { timeout:
   expect(record(explicit.payload.connectionAction).connectionId).toBe(connectionId);
   expect(explicit.payload.connectorCatalog).toBeUndefined();
   expect(explicit.payload.connectors).toBeUndefined();
-  expect(explicit.result._meta).toMatchObject({ "openwork/mcpApp": { toolName: "connection_action", arguments: { connectionId } } });
+  expect(explicit.result._meta).toMatchObject({ "harness/mcpApp": { toolName: "connection_action", arguments: { connectionId } } });
   evidence.recordAssertionEvidence("Blocked connection discovery stays informational until explicit connect intent", "The same blocked Notes connection appeared in both real gateway searches. Default discovery returned neither action nor catalog nor UI metadata; intent connect returned that connection's action and no unrelated catalog.", true);
 
   const slackQuiet = await search({ query: "slack" });

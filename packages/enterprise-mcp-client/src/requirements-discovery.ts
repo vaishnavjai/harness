@@ -219,7 +219,7 @@ export async function discoverConnectionRequirements(
   let client: Client | undefined
   try {
     client = new Client(
-      { name: "OpenWork requirements discovery", version: "1.0.0" },
+      { name: "Harness requirements discovery", version: "1.0.0" },
       { capabilities: {}, versionNegotiation: { mode: "auto" } },
     )
     const transport = new StreamableHTTPClientTransport(serverUrl, { fetch })

@@ -83,7 +83,7 @@ function hasFixtureText(text, marker) {
 }
 
 function hasBuiltInBrowserPrompt(promptText) {
-  return ["built-in openwork browser", "openwork browser", "example.com"]
+  return ["built-in harness browser", "harness browser", "example.com"]
     .some((marker) => hasFixtureText(promptText, marker));
 }
 
@@ -121,7 +121,7 @@ let sawBuiltInBrowserPrompt = false;
 const mockSockets = new Set();
 
 try {
-  tmpdir = await mkdtemp(path.join(os.tmpdir(), "openwork-browser-entry-"));
+  tmpdir = await mkdtemp(path.join(os.tmpdir(), "harness-browser-entry-"));
 
   const templateUrl = new URL("../src/app/data/commands/browser-setup.md", import.meta.url);
   const template = await readFile(templateUrl, "utf8");
@@ -172,7 +172,7 @@ try {
           writeSse(
             res,
             createTextStream(
-              "Using the built-in OpenWork Browser to open example.com and read the page title.",
+              "Using the built-in Harness Browser to open example.com and read the page title.",
             ),
           );
         } else {
@@ -231,7 +231,7 @@ try {
   let sessionId;
 
   await step("session.create", async () => {
-    const session = await client.session.create({ title: "OpenWork browser-entry test" });
+    const session = await client.session.create({ title: "Harness browser-entry test" });
     sessionId = session.id;
     assert.ok(sessionId);
     return { id: session.id };
@@ -248,7 +248,7 @@ try {
   });
 
   await step("assert.built-in-browser-quickstart", async () => {
-    assert.equal(sawBuiltInBrowserPrompt, true, "Expected browser quickstart prompt to use the built-in OpenWork Browser");
+    assert.equal(sawBuiltInBrowserPrompt, true, "Expected browser quickstart prompt to use the built-in Harness Browser");
     return { sawBuiltInBrowserPrompt };
   });
 

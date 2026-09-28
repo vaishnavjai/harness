@@ -107,7 +107,7 @@ export function gatewayDayLogs(input: {
       reasoning_tokens: missing ? null : sequence % 100,
       usage_source: missing ? "missing" : stream ? "stream" : "json",
       cost_micro_usd: inputTokens === null || outputTokens === null || sequence % 41 === 0 ? null : inputTokens * 3 + outputTokens * 15,
-      openwork_request_id: createDenTypeId("request"),
+      harness_request_id: createDenTypeId("request"),
       started_at: startedAt,
       first_byte_at: new Date(Math.min(now.getTime(), startedAt.getTime() + 100)),
       completed_at: new Date(Math.min(now.getTime(), startedAt.getTime() + latency)),
@@ -139,9 +139,9 @@ export async function seedGatewayAccessDemo(admin: DenSession, databaseUrl: stri
   const database = new URL(databaseUrl);
   const loopback = (url: URL) => ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   if (database.protocol !== "mysql:" || !loopback(database) || database.search || database.hash
-    || !/^\/openwork_eval_[a-z0-9_]+$/.test(database.pathname)
+    || !/^\/harness_eval_[a-z0-9_]+$/.test(database.pathname)
     || !admin.email.endsWith("@acme.test")) {
-    throw new Error("Access fixtures require an isolated loopback openwork_eval_ database and synthetic owner.");
+    throw new Error("Access fixtures require an isolated loopback harness_eval_ database and synthetic owner.");
   }
   for (const address of [admin.apiUrl, admin.webUrl]) {
     const url = new URL(address);
@@ -329,7 +329,7 @@ export async function seedGatewayAccessDemo(admin: DenSession, databaseUrl: stri
 }
 
 export async function seedGatewayUsage(den: Den) {
-  if (den.placement?.kind !== "local" || !den.database || !/^openwork_eval_[a-z0-9_]+$/.test(den.database.name)) {
+  if (den.placement?.kind !== "local" || !den.database || !/^harness_eval_[a-z0-9_]+$/.test(den.database.name)) {
     throw new Error("Gateway fixtures require the world-owned ephemeral local Den database.");
   }
   const databaseUrl = den.database.url;

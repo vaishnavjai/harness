@@ -259,17 +259,17 @@ describe("deriveOpenTargets", () => {
 
   it("extracts PowerPoint decks from assistant artifact summaries", () => {
     const targets = deriveOpenTargets([
-      message("msg_1", "assistant", "Updated file: decks/openwork-vertebrae-deck.pptx"),
+      message("msg_1", "assistant", "Updated file: decks/harness-vertebrae-deck.pptx"),
     ]);
-    const deck = targets.find((target) => target.value === "decks/openwork-vertebrae-deck.pptx");
+    const deck = targets.find((target) => target.value === "decks/harness-vertebrae-deck.pptx");
 
     expect(deck).toMatchObject({ preview: "slides", confidence: 65 });
     expect(deck ? isCollectibleArtifactTarget({ ...deck, exists: true }) : false).toBe(true);
   });
 
-  it("extracts artifact paths from OpenWork extension call metadata", () => {
+  it("extracts artifact paths from Harness extension call metadata", () => {
     const targets = deriveOpenTargets([
-      toolMessage("msg_tool", "openwork_extension_call", {
+      toolMessage("msg_tool", "harness_extension_call", {
         extensionId: "openai-image-generation",
         action: "image_generate",
       }, {

@@ -10,7 +10,7 @@ import {
   backgroundTabEmulationCommands,
   createBrowserTabRegistry,
   foregroundTabEmulationCommands,
-} from "@openwork/browser-tabs";
+} from "@harness/browser-tabs";
 import { runDetachedTask } from "./process-resilience.mjs";
 import { openExternalUrl } from "./open-external.mjs";
 import { BrowserTaskError, createBrowserTaskHost } from "./browser-task.mjs";
@@ -18,7 +18,7 @@ import { createWebMcpBroker } from "./webmcp-host.mjs";
 import { createWebMcpFramePolicy } from "./webmcp-policy.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BROWSER_SESSION_PARTITION = "persist:openwork-browser";
+const BROWSER_SESSION_PARTITION = "persist:harness-browser";
 const BROWSER_DEFAULT_URL = "about:blank";
 // URL a user-initiated new tab (the "+" button / opening the browser panel)
 // lands on. The agent's programmatic path keeps BROWSER_DEFAULT_URL.
@@ -490,7 +490,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
     try {
       if (request.source === "link") {
         request.items = [
-          { type: "item", id: "open-builtin", label: "Open in OpenWork" },
+          { type: "item", id: "open-builtin", label: "Open in Harness" },
           { type: "item", id: "open-external", label: "Open in external browser" },
           { type: "separator" },
           { type: "item", id: "copy-url", label: "Copy Link Address" },
@@ -566,7 +566,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
     const raw = String(input ?? "").trim();
     const envMatch = raw.match(/^env:([A-Za-z0-9_]+)$/i);
     if (!envMatch) return raw;
-    const key = `OPENWORK_BROWSER_PROXY_${envMatch[1].toUpperCase()}`;
+    const key = `HARNESS_BROWSER_PROXY_${envMatch[1].toUpperCase()}`;
     const value = String(process.env[key] ?? "").trim();
     if (!value) throw new Error(`No proxy configured: set the ${key} environment variable to a proxy URL.`);
     return value;
@@ -732,9 +732,9 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
     // Check synchronously before creating a WebContentsView, including pending
     // opens, popups, transcript links and the tab-strip button.
     if (browserTabs.size >= MAX_BROWSER_TABS) {
-      throw new BrowserTaskError("tab_limit", `OpenWork has ${MAX_BROWSER_TABS} browser tabs open. Close an unused browser tab in any conversation, then try again.`);
+      throw new BrowserTaskError("tab_limit", `Harness has ${MAX_BROWSER_TABS} browser tabs open. Close an unused browser tab in any conversation, then try again.`);
     }
-    if (!restoreTabId && registry.size() >= 100) throw new Error("OpenWork has 100 saved browser tabs. Close an unused tab, then try again.");
+    if (!restoreTabId && registry.size() >= 100) throw new Error("Harness has 100 saved browser tabs. Close an unused tab, then try again.");
     installBrowserSessionHooks();
     ensureWebMcpFramePolicy();
     const tabId = restoreTabId ?? createBrowserTabId();
@@ -757,7 +757,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       finishSuspension: null,
       webMcpRevision: 0,
       documentGeneration: 0,
-      /** @type {import("@openwork/browser-tabs").BrowserPanelTab["loadError"]} */
+      /** @type {import("@harness/browser-tabs").BrowserPanelTab["loadError"]} */
       loadError: null,
       webMcpToolCount: 0,
       webMcpTools: [],
@@ -812,9 +812,9 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       // data: loads are internal plumbing (CDP target-marker pages), not
       // user-visible navigations — don't surface the panel for them.
       if (target === "about:blank" || target.startsWith("data:")) return;
-      // Intercept openwork:// deep links (e.g. den-auth handoff grants) so
+      // Intercept harness:// deep links (e.g. den-auth handoff grants) so
       // in-app browser auth works without the system protocol handler.
-      if (target.startsWith("openwork://") || target.startsWith("openwork-dev://")) {
+      if (target.startsWith("harness://") || target.startsWith("harness-dev://")) {
         if (typeof onDeepLink === "function") {
           onDeepLink([target]);
         }
@@ -848,7 +848,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
         registry.select(tabId);
         sendBrowserState();
       }
-      sendToRenderer("openwork:browser:panel-opened", { ownerSessionId: registry.ownerOf(tabId) });
+      sendToRenderer("harness:browser:panel-opened", { ownerSessionId: registry.ownerOf(tabId) });
     });
     view.webContents.on("did-navigate", () => {
       // Only a main-frame commit replaces the document. Aborts and downloads
@@ -896,7 +896,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       // Explicit opens select their page in the owner's unified panel. Later
       // navigations may keep that panel open, but must not displace an artifact
       // the user selected while a page was loading or refreshing itself.
-      sendToRenderer("openwork:browser:panel-opened", {
+      sendToRenderer("harness:browser:panel-opened", {
         ownerSessionId: registry.ownerOf(tabId),
         tab: browserTabToPanelTab(tabId, tab),
       });
@@ -946,7 +946,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
   // page for the agent driving it: lay out at a real viewport, accept typing as
   // a focused page, and paint so CDP screenshots work. Park it in a never-shown
   // window: detached views stop painting, and every child of the main window's
-  // contentView paints above OpenWork, regardless of its child index or bounds.
+  // contentView paints above Harness, regardless of its child index or bounds.
   // Moving the same view preserves the document and CDP target.
   function enterBackgroundMode(tab) {
     // A task's blank consent tab has no document to paint or observe. Attaching
@@ -1145,7 +1145,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       }
     }
     if (removed && !removed.ownerHasTabs) {
-      sendToRenderer("openwork:browser:panel-closed", { ownerSessionId: removed.tab.ownerSessionId });
+      sendToRenderer("harness:browser:panel-closed", { ownerSessionId: removed.tab.ownerSessionId });
     }
     try {
       if (tab && !tab.view.webContents.isDestroyed()) tab.view.webContents.close({ waitForBeforeUnload: false });
@@ -1401,7 +1401,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
   }
 
   function sendBrowserState() {
-    sendToRenderer("openwork:browser:state", browserStatePayload());
+    sendToRenderer("harness:browser:state", browserStatePayload());
   }
 
   /**
@@ -1464,7 +1464,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
   }
 
   function registerIpc(ipcMain) {
-    ipcMain.on("openwork:browser:shortcut-focus", (event, tabId) => {
+    ipcMain.on("harness:browser:shortcut-focus", (event, tabId) => {
       const contents = window()?.webContents;
       if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) return;
       setShortcutFocus(tabId);
@@ -1476,38 +1476,38 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       if (tabId && registry.ownerOf(tabId) !== registry.visibleSessionId()) throw new Error("Select this conversation first.");
       taskHost.manualNavigation(tabId);
     }
-    ipcMain.handle("openwork:browser:show", (_event, bounds, sessionId) => (
+    ipcMain.handle("harness:browser:show", (_event, bounds, sessionId) => (
       attachBrowserView(bounds, sessionId === undefined ? {} : { sessionId: normalizeSessionId(sessionId) })
     ));
-    ipcMain.handle("openwork:browser:hide", (_event, options) => hideBrowserView(options?.preserveShortcutFocus === true));
-    ipcMain.handle("openwork:browser:setVisibleSession", (_event, sessionId) => setVisibleSession(normalizeSessionId(sessionId)));
-    ipcMain.handle("openwork:browser:openUrl", (_event, url, provider, options) => (
+    ipcMain.handle("harness:browser:hide", (_event, options) => hideBrowserView(options?.preserveShortcutFocus === true));
+    ipcMain.handle("harness:browser:setVisibleSession", (_event, sessionId) => setVisibleSession(normalizeSessionId(sessionId)));
+    ipcMain.handle("harness:browser:openUrl", (_event, url, provider, options) => (
       openBrowserUrlForAutomation(url, provider, {
         ownerSessionId: normalizeSessionId(options && typeof options === "object" ? options.sessionId : null),
       })
     ));
-    ipcMain.handle("openwork:browser:navigate", (event, url) => {
+    ipcMain.handle("harness:browser:navigate", (event, url) => {
       authorizeManualNavigation(event);
       getActiveWebContents(); // Reject navigation while suspension is pending.
       const view = getActiveBrowserView()
         ?? createBrowserTab("about:blank", { select: true, ownerSessionId: registry.visibleSessionId() }).view;
       runDetachedTask("navigate browser tab", () => view.webContents.loadURL(normalizeBrowserUrl(url)));
     });
-    ipcMain.handle("openwork:browser:back", (event) => {
+    ipcMain.handle("harness:browser:back", (event) => {
       authorizeManualNavigation(event);
       const webContents = getActiveWebContents();
       if (webContents?.canGoBack()) webContents.goBack();
     });
-    ipcMain.handle("openwork:browser:forward", (event) => {
+    ipcMain.handle("harness:browser:forward", (event) => {
       authorizeManualNavigation(event);
       const webContents = getActiveWebContents();
       if (webContents?.canGoForward()) webContents.goForward();
     });
-    ipcMain.handle("openwork:browser:reload", (event) => {
+    ipcMain.handle("harness:browser:reload", (event) => {
       authorizeManualNavigation(event);
       getActiveWebContents()?.reload();
     });
-    ipcMain.handle("openwork:browser:bounds", (_event, bounds) => {
+    ipcMain.handle("harness:browser:bounds", (_event, bounds) => {
       if (!acceptBrowserBounds(bounds)) return false;
       const view = getActiveBrowserView();
       if (view && browserViewVisible) {
@@ -1515,7 +1515,7 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       }
       return true;
     });
-    ipcMain.handle("openwork:browser:state", () => ({
+    ipcMain.handle("harness:browser:state", () => ({
       ...browserStatePayload(),
       nativeViews: browserNativeViews(),
       tabLimit: MAX_BROWSER_TABS,
@@ -1523,19 +1523,19 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       backgroundWindowVisible: Boolean(backgroundWindow && !backgroundWindow.isDestroyed() && backgroundWindow.isVisible()),
       visibleWindowCount: BrowserWindow.getAllWindows().filter((host) => host.isVisible()).length,
     }));
-    ipcMain.handle("openwork:browser:createTab", (_event, url, sessionId) => {
+    ipcMain.handle("harness:browser:createTab", (_event, url, sessionId) => {
       const target = typeof url === "string" && url.trim() ? url : BROWSER_NEW_TAB_URL;
       const ownerSessionId = sessionId === undefined ? registry.visibleSessionId() : normalizeSessionId(sessionId);
       const tab = createBrowserTab(target, { select: true, ownerSessionId });
       return { tabId: tab.tabId };
     });
-    ipcMain.handle("openwork:browser:closeTab", (_event, tabId) => closeUserBrowserTab(tabId == null ? undefined : String(tabId)));
-    ipcMain.handle("openwork:browser:suspendTab", (_event, tabId) => suspendBrowserTab(tabId));
-    ipcMain.handle("openwork:browser:restoreTab", async (_event, tabId, sessionId) => {
+    ipcMain.handle("harness:browser:closeTab", (_event, tabId) => closeUserBrowserTab(tabId == null ? undefined : String(tabId)));
+    ipcMain.handle("harness:browser:suspendTab", (_event, tabId) => suspendBrowserTab(tabId));
+    ipcMain.handle("harness:browser:restoreTab", async (_event, tabId, sessionId) => {
       requireTabOwner(tabId, sessionId);
       return (await restoreBrowserTab(tabId, true)).handle;
     });
-    ipcMain.handle("openwork:browser:releaseTab", (_event, tabId, sessionId) => {
+    ipcMain.handle("harness:browser:releaseTab", (_event, tabId, sessionId) => {
       requireTabOwner(tabId, sessionId);
       const tab = browserTabs.get(tabId);
       if (tab?.operation || tab?.suspending) throw new Error("Browser tab is busy.");
@@ -1543,55 +1543,55 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       sendBrowserState();
       return { tabId, released: true };
     });
-    ipcMain.handle("openwork:browser:closeAllTabs", () => closeAllBrowserTabs());
-    ipcMain.handle("openwork:browser:closeSessionTabs", (_event, sessionId) => closeSessionBrowserTabs(sessionId));
-    ipcMain.handle("openwork:browser:selectTab", async (_event, tabId) => {
+    ipcMain.handle("harness:browser:closeAllTabs", () => closeAllBrowserTabs());
+    ipcMain.handle("harness:browser:closeSessionTabs", (_event, sessionId) => closeSessionBrowserTabs(sessionId));
+    ipcMain.handle("harness:browser:selectTab", async (_event, tabId) => {
       const id = String(tabId ?? "");
       if (!browserTabs.has(id) && suspendedTabs.has(id)) await restoreBrowserTab(id);
       const tab = selectBrowserTab(id);
       resetViewportEmulation(tab.view);
       return tab.tabId;
     });
-    ipcMain.handle("openwork:browser:reorderTabs", (_event, tabIds) => reorderBrowserTabs(tabIds));
-    ipcMain.handle("openwork:browser:listTabs", () => listBrowserTabs());
-    ipcMain.handle("openwork:browser:webmcpListTools", (_event, args) => taskHost.request({ sessionId: registry.visibleSessionId(), operation: "site_tools", args }));
-    ipcMain.handle("openwork:browser:webmcpExecuteTool", (_event, args) => taskHost.request({ sessionId: registry.visibleSessionId(), operation: "site_tool", args }));
-    ipcMain.handle("openwork:browser:approve", (event, tabId, approvalId, allowed) => {
+    ipcMain.handle("harness:browser:reorderTabs", (_event, tabIds) => reorderBrowserTabs(tabIds));
+    ipcMain.handle("harness:browser:listTabs", () => listBrowserTabs());
+    ipcMain.handle("harness:browser:webmcpListTools", (_event, args) => taskHost.request({ sessionId: registry.visibleSessionId(), operation: "site_tools", args }));
+    ipcMain.handle("harness:browser:webmcpExecuteTool", (_event, args) => taskHost.request({ sessionId: registry.visibleSessionId(), operation: "site_tool", args }));
+    ipcMain.handle("harness:browser:approve", (event, tabId, approvalId, allowed) => {
       if (event.sender !== window()?.webContents || event.senderFrame !== window()?.webContents.mainFrame || registry.ownerOf(tabId) !== registry.visibleSessionId()) return false;
       const pending = approvals.get(tabId);
       if (!pending || pending.id !== approvalId) return false;
       pending.finish(allowed === true); return true;
     });
-    ipcMain.handle("openwork:browser:taskControl", (event, tabId, action) => {
+    ipcMain.handle("harness:browser:taskControl", (event, tabId, action) => {
       if (event.sender !== window()?.webContents || event.senderFrame !== window()?.webContents.mainFrame || !getBrowserTab(tabId) || registry.ownerOf(tabId) !== registry.visibleSessionId()) throw new Error("Select this conversation first.");
       if (action === "resume") taskHost.resume(tabId);
       else if (action === "pause") taskHost.pause(tabId);
       else throw new Error("Unsupported browser control.");
     });
-    ipcMain.handle("openwork:webmcp:frame-policy", (event) => {
+    ipcMain.handle("harness:webmcp:frame-policy", (event) => {
       const tab = [...browserTabs.values()].find((candidate) => candidate.view.webContents === event.sender);
       if (!tab || !event.senderFrame) {
         return { allowed: false, originKeyed: false, reason: "unknown_browser_frame" };
       }
       return ensureWebMcpFramePolicy().checkFrame(event.senderFrame);
     });
-    ipcMain.handle("openwork:browser:setProxy", (_event, proxy) => setBrowserProxy(proxy));
-    ipcMain.handle("openwork:browser:getProxy", () => browserProxyState());
-    ipcMain.handle("openwork:browser:setControlEnabled", (event, enabled) => {
+    ipcMain.handle("harness:browser:setProxy", (_event, proxy) => setBrowserProxy(proxy));
+    ipcMain.handle("harness:browser:getProxy", () => browserProxyState());
+    ipcMain.handle("harness:browser:setControlEnabled", (event, enabled) => {
       if (event.sender !== window()?.webContents || event.senderFrame !== window()?.webContents.mainFrame) return false;
       browserControlEnabled = enabled === true;
       if (!browserControlEnabled) for (const tab of browserTabs.values()) taskHost.pause(tab.tabId, "Browser control disabled");
       return browserControlEnabled;
     });
-    ipcMain.handle("openwork:browser:tabContextMenu", (_event, tabId, point) => showBrowserTabContextMenu(tabId, point));
-    ipcMain.handle("openwork:browser:chooseLinkDestination", (event, id, destination) => {
+    ipcMain.handle("harness:browser:tabContextMenu", (_event, tabId, point) => showBrowserTabContextMenu(tabId, point));
+    ipcMain.handle("harness:browser:chooseLinkDestination", (event, id, destination) => {
       const contents = window()?.webContents;
       if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) return false;
       if (!linkChoiceRequest || linkChoiceRequest.id !== id) return false;
-      if (destination !== null && destination !== "openwork" && destination !== "external") return false;
+      if (destination !== null && destination !== "harness" && destination !== "external") return false;
       return linkChoiceRequest.finish(destination);
     });
-    ipcMain.on("openwork:browser:linkClick", (event, payload) => {
+    ipcMain.on("harness:browser:linkClick", (event, payload) => {
       const contents = window()?.webContents;
       if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) return;
       const url = payload?.url;
@@ -1631,27 +1631,27 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
           finish(destination) {
             if (linkChoiceRequest?.id !== id) return false;
             linkChoiceRequest = null;
-            sendToRenderer("openwork:browser:link-open-request", null);
+            sendToRenderer("harness:browser:link-open-request", null);
             if (destination === null || !isCurrent()) { cleanup(); return false; }
             open(destination === "external");
             return true;
           },
         };
-        sendToRenderer("openwork:browser:link-open-request", { id, url });
+        sendToRenderer("harness:browser:link-open-request", { id, url });
       } else {
         open(payload.external === true);
       }
     });
-    ipcMain.on("openwork:browser:linkContextMenu", (event, payload) => {
+    ipcMain.on("harness:browser:linkContextMenu", (event, payload) => {
       const mainContents = window()?.webContents;
       if (event.sender !== mainContents || event.senderFrame !== mainContents?.mainFrame) return;
       if (!payload || typeof payload !== "object") return;
       const showing = showLinkContextMenu(payload);
       runDetachedTask("show link context menu", () => showing);
     });
-    ipcMain.handle("openwork:browser:destroy", () => destroyBrowserView());
-    ipcMain.on("openwork:menu-overlay:dismiss", () => hideContextMenu());
-    ipcMain.on("openwork:webmcp:tools-changed", (event) => {
+    ipcMain.handle("harness:browser:destroy", () => destroyBrowserView());
+    ipcMain.on("harness:menu-overlay:dismiss", () => hideContextMenu());
+    ipcMain.on("harness:webmcp:tools-changed", (event) => {
       const tab = [...browserTabs.values()].find((candidate) => candidate.view.webContents === event.sender);
       if (!tab) return;
       // The page relays this after a debounce, so it routinely arrives after a

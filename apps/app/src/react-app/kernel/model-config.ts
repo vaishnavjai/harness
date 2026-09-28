@@ -13,7 +13,7 @@ import {
 } from "../../app/utils";
 import { normalizeModelBehaviorValue } from "../../app/lib/model-behavior";
 
-export const storedDefaultModelChangedEvent = "openwork.defaultModelChanged";
+export const storedDefaultModelChangedEvent = "harness.defaultModelChanged";
 
 export type SessionChoiceOverride = {
   model?: ModelRef | null;

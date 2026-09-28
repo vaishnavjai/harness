@@ -103,13 +103,13 @@ function validRecoveryArtifactIdentity(artifact) {
   } catch {
     return false;
   }
-  const prefix = `/different-ai/openwork/releases/download/v${version}/`;
+  const prefix = `/vaishnavjai/harness/releases/download/v${version}/`;
   if (url.protocol !== "https:" || url.hostname !== "github.com" || !url.pathname.startsWith(prefix)) return false;
   const assetArch = artifact.platform === "linux" && artifact.arch === "x64" ? "x86_64" : artifact.arch;
   const platformSlug = artifact.platform === "darwin" ? "mac" : artifact.platform === "win32" ? "win" : "linux";
   const fileName = path.basename(url.pathname);
   const distributionSlug = artifact.distribution === "public" ? "" : `${artifact.distribution}-`;
-  return fileName === `openwork-${distributionSlug}${platformSlug}-${assetArch}-${version}${installerExtension(artifact.platform)}`;
+  return fileName === `harness-${distributionSlug}${platformSlug}-${assetArch}-${version}${installerExtension(artifact.platform)}`;
 }
 
 export function selectRecoveryArtifact(files, { version, platform, arch, distribution }) {
@@ -124,10 +124,10 @@ export function selectRecoveryArtifact(files, { version, platform, arch, distrib
     && typeof file.sha512 === "string"
     && file.sha512.trim(),
   );
-  const baseUrl = `https://github.com/different-ai/openwork/releases/download/v${normalizedVersion}/`;
+  const baseUrl = `https://github.com/vaishnavjai/harness/releases/download/v${normalizedVersion}/`;
   for (const selected of matching) {
     const url = new URL(selected.url, baseUrl);
-    if (url.origin !== "https://github.com" || !url.pathname.startsWith(`/different-ai/openwork/releases/download/v${normalizedVersion}/`)) {
+    if (url.origin !== "https://github.com" || !url.pathname.startsWith(`/vaishnavjai/harness/releases/download/v${normalizedVersion}/`)) {
       continue;
     }
     const artifact = {

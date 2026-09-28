@@ -18,7 +18,7 @@ if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._-]*", args.stage):
 if not re.fullmatch(r"[0-9a-f]{40}", args.ref):
     parser.error("Use a reviewed, pushed full 40-character commit SHA; branch names are mutable.")
 root = Path(__file__).resolve().parents[4]
-receipt_dir = Path(os.environ.get("OPENWORK_WORLD_SNAPSHOT_DIR", root / "evals/results/.worlds/scripts"))
+receipt_dir = Path(os.environ.get("HARNESS_WORLD_SNAPSHOT_DIR", root / "evals/results/.worlds/scripts"))
 receipt = receipt_dir / f"{args.world}--{args.stage}.json"
 state = json.loads(receipt.read_text())
 if state.get("kind") != "script" or state.get("place") != "daytona" or Path(state["sourcePath"]).resolve() != root / "worlds" / f"{args.world}.ts":
@@ -49,7 +49,7 @@ if web:
             if pid is not None: raise RuntimeError("Multiple Next servers; refusing an ambiguous update")
             pid = int(proc.name)
             running = dict(item.decode().split("=", 1) for item in (proc / "environ").read_bytes().split(b"\0") if b"=" in item)
-            allowed = {"PATH", "HOME", "PNPM_HOME", "DEN_WEB_PORT", "DEN_BASE_URL", "DEN_API_BASE", "DEN_AUTH_ORIGIN", "DEN_AUTH_FALLBACK_BASE", "NEXT_PUBLIC_OPENWORK_AUTH_CALLBACK_URL", "DEN_ORG_MODE", "OPENWORK_DEV_MODE", "DEN_WEB_ALLOWED_DEV_ORIGINS"}
+            allowed = {"PATH", "HOME", "PNPM_HOME", "DEN_WEB_PORT", "DEN_BASE_URL", "DEN_API_BASE", "DEN_AUTH_ORIGIN", "DEN_AUTH_FALLBACK_BASE", "NEXT_PUBLIC_HARNESS_AUTH_CALLBACK_URL", "DEN_ORG_MODE", "HARNESS_DEV_MODE", "DEN_WEB_ALLOWED_DEV_ORIGINS"}
             env = {key: value for key, value in running.items() if key in allowed}
         except (FileNotFoundError, PermissionError): continue
     if pid is None: raise RuntimeError("No running preview web server")
@@ -61,7 +61,7 @@ install_env = {key: value for key, value in os.environ.items() if key in {"PATH"
 with open("/tmp/preview-update.log", "w") as log:
     subprocess.run(["pnpm", "install", "--frozen-lockfile"], cwd=root, env=install_env, stdout=log, stderr=subprocess.STDOUT, check=True)
     if web:
-        subprocess.run(["pnpm", "--filter", "@openwork-ee/den-web", "build"], cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+        subprocess.run(["pnpm", "--filter", "@harness-ee/den-web", "build"], cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
 if web:
     os.kill(pid, signal.SIGTERM)
     for _ in range(100):
@@ -70,7 +70,7 @@ if web:
         time.sleep(0.1)
     else: raise RuntimeError("Previous web server did not stop")
     with open("/tmp/den-web.log", "a") as log:
-        subprocess.Popen(["pnpm", "--filter", "@openwork-ee/den-web", "exec", "next", "start", "--hostname", "0.0.0.0", "--port", "3005"], cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+        subprocess.Popen(["pnpm", "--filter", "@harness-ee/den-web", "exec", "next", "start", "--hostname", "0.0.0.0", "--port", "3005"], cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
 print("Updated frontend; existing data preserved.")
 '''
 targets = [(outputs["denSandbox"], True)]

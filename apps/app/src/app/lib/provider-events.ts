@@ -6,7 +6,7 @@
  * Listeners (e.g. the global NewProvidersListener) should use this to
  * surface a notification-center entry.
  */
-export const newProvidersEvent = "openwork-new-providers-available";
+export const newProvidersEvent = "harness-new-providers-available";
 
 type ProviderCatalogScope = { baseUrl: string; directory?: string };
 const catalogListeners = new Set<(scope: ProviderCatalogScope) => void>();

@@ -79,7 +79,7 @@ const STANDARD_NOVNC_PORT = 6080;
 const STANDARD_ARTIFACTS_PORT = 8090;
 const HTTPS_URL = /https:\/\/[^\s"'<>)]+/;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const ENTERPRISE_TLS_RUNTIME_ROOT = "/tmp/openwork-enterprise-tls-runtime";
+const ENTERPRISE_TLS_RUNTIME_ROOT = "/tmp/harness-enterprise-tls-runtime";
 const MAX_ENTERPRISE_TLS_RUNTIME_SOURCE_BYTES = 64 * 1024;
 const ENTERPRISE_TLS_BASE64_CHUNK_LENGTH = 8 * 1024;
 /** Conservative ceiling for each complete Daytona argv command string. */
@@ -331,7 +331,7 @@ export function enterpriseTlsEdgeDaytonaCommands(options: EnterpriseTlsEdgeDayto
   if (new Set([candidatePort, negativePort, adminPort]).size !== 3) {
     throw new Error("Enterprise TLS edge candidate, negative, and admin ports must be distinct.");
   }
-  const manifestPath = options.manifestPath ?? "/tmp/openwork-enterprise-tls-edge.json";
+  const manifestPath = options.manifestPath ?? "/tmp/harness-enterprise-tls-edge.json";
   if (!manifestPath.startsWith("/")) throw new Error("Enterprise TLS edge manifestPath must be absolute.");
   const sources = ENTERPRISE_TLS_RUNTIME_SOURCES.map(({ local, remote }) => ({
     content: readFileSync(fileURLToPath(local)),
@@ -342,7 +342,7 @@ export function enterpriseTlsEdgeDaytonaCommands(options: EnterpriseTlsEdgeDayto
     throw new Error(`Enterprise TLS runtime source is ${sourceBytes} bytes; maximum is ${MAX_ENTERPRISE_TLS_RUNTIME_SOURCE_BYTES}.`);
   }
   const script = ENTERPRISE_TLS_RUNTIME_SOURCES[0].remote;
-  const log = "/tmp/openwork-enterprise-tls-edge.log";
+  const log = "/tmp/harness-enterprise-tls-edge.log";
   const adminToken = randomBytes(32).toString("hex");
   if (!/^[a-f0-9]{32,}$/.test(adminToken)) throw new Error("Enterprise TLS admin token must be at least 32 hex characters.");
   const remote = (command: string) => {
@@ -493,7 +493,7 @@ function parseUrlAfterLabels(output: string, labels: string[]): string | null {
 }
 
 function serverRefArg(): string | null {
-  const explicit = process.env.OPENWORK_EVAL_DAYTONA_REF?.trim() || process.env.OPENWORK_EVAL_REF?.trim() || "";
+  const explicit = process.env.HARNESS_EVAL_DAYTONA_REF?.trim() || process.env.HARNESS_EVAL_REF?.trim() || "";
   return explicit || null;
 }
 
@@ -548,7 +548,7 @@ function appendExtraEnv(assignments: Map<string, string>, env: Record<string, st
 
 function appendBlankProfileEnv(assignments: Map<string, string>, profileRoot: string, userDataDir: string): void {
   const home = `${profileRoot}/home`;
-  const config = `${profileRoot}/openwork/config`;
+  const config = `${profileRoot}/harness/config`;
   assignments.set("HOME", home);
   assignments.set("USERPROFILE", home);
   assignments.set("XDG_CONFIG_HOME", `${profileRoot}/xdg/config`);
@@ -557,16 +557,16 @@ function appendBlankProfileEnv(assignments: Map<string, string>, profileRoot: st
   assignments.set("XDG_STATE_HOME", `${profileRoot}/xdg/state`);
   assignments.set("APPDATA", `${profileRoot}/windows/app-data/roaming`);
   assignments.set("LOCALAPPDATA", `${profileRoot}/windows/app-data/local`);
-  assignments.set("OPENWORK_ELECTRON_USERDATA", userDataDir);
-  assignments.set("OPENWORK_DESKTOP_BOOTSTRAP_PATH", `${config}/desktop-bootstrap.json`);
-  assignments.set("OPENWORK_SERVER_CONFIG", `${config}/server.json`);
-  assignments.set("OPENWORK_ENV_STORE", `${config}/env.json`);
-  assignments.set("OPENWORK_TOKEN_STORE", `${config}/tokens.json`);
-  assignments.set("OPENWORK_RUNTIME_DB", `${config}/runtime.sqlite`);
-  assignments.set("OPENWORK_DATA_DIR", `${profileRoot}/openwork/data`);
+  assignments.set("HARNESS_ELECTRON_USERDATA", userDataDir);
+  assignments.set("HARNESS_DESKTOP_BOOTSTRAP_PATH", `${config}/desktop-bootstrap.json`);
+  assignments.set("HARNESS_SERVER_CONFIG", `${config}/server.json`);
+  assignments.set("HARNESS_ENV_STORE", `${config}/env.json`);
+  assignments.set("HARNESS_TOKEN_STORE", `${config}/tokens.json`);
+  assignments.set("HARNESS_RUNTIME_DB", `${config}/runtime.sqlite`);
+  assignments.set("HARNESS_DATA_DIR", `${profileRoot}/harness/data`);
   assignments.set("OPENCODE_CONFIG_DIR", `${profileRoot}/opencode/config`);
   assignments.set("OPENCODE_DB", `${profileRoot}/opencode/data/opencode.db`);
-  assignments.set("OPENWORK_ELECTRON_DISABLE_PROTOCOL_REGISTRATION", "1");
+  assignments.set("HARNESS_ELECTRON_DISABLE_PROTOCOL_REGISTRATION", "1");
 }
 
 function encodedFile(content: string): string {
@@ -583,7 +583,7 @@ export function createDaytonaHost(options: DaytonaHostOptions): DaytonaHost {
   const spawnedSurfaces = new Set<SurfaceHandle>();
 
   function requireSandbox(): string {
-    const sandbox = options.sandboxId?.trim() || process.env.OPENWORK_EVAL_DAYTONA_SANDBOX?.trim() || "";
+    const sandbox = options.sandboxId?.trim() || process.env.HARNESS_EVAL_DAYTONA_SANDBOX?.trim() || "";
     if (!sandbox) {
       throw new Error("Daytona sandbox required: create one with bash .devcontainer/test-on-daytona.sh <ref> or pass sandboxId.");
     }
@@ -611,7 +611,7 @@ export function createDaytonaHost(options: DaytonaHostOptions): DaytonaHost {
       throw new Error("Electron profileDir must not be empty.");
     }
     const callerOwnedProfile = opts.profileDir !== undefined;
-    const profileRoot = opts.profileDir ?? `/workspace/.openwork-daytona/profiles/${safeName}-${spawnStamp}`;
+    const profileRoot = opts.profileDir ?? `/workspace/.harness-daytona/profiles/${safeName}-${spawnStamp}`;
     const userDataDir = `${profileRoot}/electron-userdata`;
     const bootstrapPath = `${profileRoot}/bootstrap.json`;
     const port = await allocateSandboxPort(electronPorts, exec, sandbox);
@@ -665,22 +665,22 @@ export function createDaytonaHost(options: DaytonaHostOptions): DaytonaHost {
 
       const env = new Map<string, string>();
       if (opts.profile !== "blank") {
-        if (resolveEvalEngineValue(process.env.OPENWORK_EVAL_ENGINE) === "v2") env.set("OPENWORK_ENGINE_V2_PREVIEW", "1");
+        if (resolveEvalEngineValue(process.env.HARNESS_EVAL_ENGINE) === "v2") env.set("HARNESS_ENGINE_V2_PREVIEW", "1");
         appendExtraEnv(env, opts.env);
       }
       env.set("DAYTONA_ELECTRON_LOG", logPath);
-      env.set("OPENWORK_ELECTRON_REMOTE_DEBUG_PORT", String(port));
-      env.set("OPENWORK_ELECTRON_USERDATA", userDataDir);
-      if (opts.bootstrap) env.set("OPENWORK_DESKTOP_BOOTSTRAP_PATH", bootstrapPath);
+      env.set("HARNESS_ELECTRON_REMOTE_DEBUG_PORT", String(port));
+      env.set("HARNESS_ELECTRON_USERDATA", userDataDir);
+      if (opts.bootstrap) env.set("HARNESS_DESKTOP_BOOTSTRAP_PATH", bootstrapPath);
       let remotePid = "";
       if (binaryPath) {
         env.set("DISPLAY", ":99");
         env.set("ELECTRON_DISABLE_SANDBOX", "1");
         env.set("ELECTRON_EXTRA_LAUNCH_ARGS", "--disable-gpu --disable-dev-shm-usage --enable-unsafe-swiftshader");
-        env.set("OPENWORK_REACT_DEVTOOLS", "0");
+        env.set("HARNESS_REACT_DEVTOOLS", "0");
         if (opts.profile === "blank") {
           appendBlankProfileEnv(env, profileRoot, userDataDir);
-          env.set("OPENWORK_DEV_MODE", "0");
+          env.set("HARNESS_DEV_MODE", "0");
         }
         const vmHomeResult = await checkedExec(
           exec,
@@ -690,10 +690,10 @@ export function createDaytonaHost(options: DaytonaHostOptions): DaytonaHost {
         );
         const vmHome = vmHomeResult.stdout.trim();
         if (!vmHome.startsWith("/") || vmHome.includes("\n")) throw new Error(`Daytona VM returned an invalid home path for ${name}.`);
-        const launcherPath = `${profileRoot}/launch-openwork`;
+        const launcherPath = `${profileRoot}/launch-harness`;
         const browserLauncherPath = `${profileRoot}/launch-browser`;
-        const protocolHandlerPath = `${profileRoot}/xdg/data/applications/openwork-release-preview.desktop`;
-        const relaunchShortcutPath = `${vmHome}/Desktop/OpenWork Release ${safeName}.desktop`;
+        const protocolHandlerPath = `${profileRoot}/xdg/data/applications/harness-release-preview.desktop`;
+        const relaunchShortcutPath = `${vmHome}/Desktop/Harness Release ${safeName}.desktop`;
         const browserShortcutPath = `${vmHome}/Desktop/Browser ${safeName}.desktop`;
         const binaryArgs = [
           "--no-sandbox",
@@ -702,18 +702,18 @@ export function createDaytonaHost(options: DaytonaHostOptions): DaytonaHost {
           "--enable-unsafe-swiftshader",
           ...(opts.launchArgs ?? []),
         ];
-        const isolatedShell = `openwork_dbus="\${DBUS_SESSION_BUS_ADDRESS-}"
-openwork_xauthority="\${XAUTHORITY-}"
-for openwork_env_name in $(compgen -e); do unset "$openwork_env_name" 2>/dev/null || true; done
+        const isolatedShell = `harness_dbus="\${DBUS_SESSION_BUS_ADDRESS-}"
+harness_xauthority="\${XAUTHORITY-}"
+for harness_env_name in $(compgen -e); do unset "$harness_env_name" 2>/dev/null || true; done
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export LANG=C.UTF-8
-if [ -n "$openwork_dbus" ]; then export DBUS_SESSION_BUS_ADDRESS="$openwork_dbus"; fi
-if [ -n "$openwork_xauthority" ]; then export XAUTHORITY="$openwork_xauthority"; fi
+if [ -n "$harness_dbus" ]; then export DBUS_SESSION_BUS_ADDRESS="$harness_dbus"; fi
+if [ -n "$harness_xauthority" ]; then export XAUTHORITY="$harness_xauthority"; fi
 ${shellExport(env)}
 cd "$HOME"`;
         const launcher = `#!/usr/bin/env bash\nset -euo pipefail\n${isolatedShell}\nexec ${shellQuote(binaryPath)} ${binaryArgs.map(shellQuote).join(" ")} "$@"\n`;
         const browserLauncher = `#!/usr/bin/env bash\nset -euo pipefail\n${isolatedShell}\nBROWSER="$(command -v chromium || command -v google-chrome || command -v google-chrome-stable || true)"\nif [ -z "$BROWSER" ]; then exit 127; fi\nexec "$BROWSER" --user-data-dir=${shellQuote(`${profileRoot}/browser`)} --no-sandbox --disable-dev-shm-usage "$@"\n`;
-        const desktopEntry = `[Desktop Entry]\nType=Application\nVersion=1.0\nName=OpenWork Release\nExec=${launcherPath} %U\nTryExec=${launcherPath}\nTerminal=false\nCategories=Development;Utility;\nMimeType=x-scheme-handler/openwork;\n`;
+        const desktopEntry = `[Desktop Entry]\nType=Application\nVersion=1.0\nName=Harness Release\nExec=${launcherPath} %U\nTryExec=${launcherPath}\nTerminal=false\nCategories=Development;Utility;\nMimeType=x-scheme-handler/harness;\n`;
         const browserEntry = `[Desktop Entry]\nType=Application\nVersion=1.0\nName=Browser\nExec=${browserLauncherPath}\nTryExec=${browserLauncherPath}\nTerminal=false\nCategories=Network;WebBrowser;\n`;
         const profileDirectories = [
           userDataDir,
@@ -725,8 +725,8 @@ cd "$HOME"`;
           `${profileRoot}/xdg/state`,
           `${profileRoot}/windows/app-data/roaming`,
           `${profileRoot}/windows/app-data/local`,
-          `${profileRoot}/openwork/config`,
-          `${profileRoot}/openwork/data`,
+          `${profileRoot}/harness/config`,
+          `${profileRoot}/harness/data`,
           `${profileRoot}/opencode/config`,
           `${profileRoot}/opencode/data`,
           `${profileRoot}/browser`,
@@ -741,8 +741,8 @@ cd "$HOME"`;
           `printf %s ${encodedFile(desktopEntry)} | base64 -d > ${shellQuote(relaunchShortcutPath)}`,
           `printf %s ${encodedFile(browserEntry)} | base64 -d > ${shellQuote(browserShortcutPath)}`,
           `chmod +x ${[launcherPath, browserLauncherPath, protocolHandlerPath, relaunchShortcutPath, browserShortcutPath].map(shellQuote).join(" ")}`,
-          `${shellExport(env)} xdg-mime default openwork-release-preview.desktop x-scheme-handler/openwork`,
-          `${shellExport(env)} test "$(xdg-mime query default x-scheme-handler/openwork)" = openwork-release-preview.desktop`,
+          `${shellExport(env)} xdg-mime default harness-release-preview.desktop x-scheme-handler/harness`,
+          `${shellExport(env)} test "$(xdg-mime query default x-scheme-handler/harness)" = harness-release-preview.desktop`,
           `gio set ${shellQuote(relaunchShortcutPath)} metadata::trusted true >/dev/null 2>&1 || true`,
           `gio set ${shellQuote(browserShortcutPath)} metadata::trusted true >/dev/null 2>&1 || true`,
         ].join("; ");
@@ -759,16 +759,16 @@ cd "$HOME"`;
 import subprocess
 log = open(${JSON.stringify(logPath)}, "ab", buffering=0)
 process = subprocess.Popen([${JSON.stringify(launcherPath)}], cwd=${JSON.stringify(`${profileRoot}/home`)}, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, start_new_session=True, close_fds=True)
-print("OPENWORK_REMOTE_PID=" + str(process.pid))
+print("HARNESS_REMOTE_PID=" + str(process.pid))
 PYEOF`;
         const started = await checkedExec(exec, ["exec", sandbox, "--", `bash -lc ${shellQuote(startCommand)}`], `start Daytona packaged Electron surface ${name}`, { timeoutMs: 60_000 });
-        remotePid = started.stdout.split(/\r?\n/).find((line) => line.startsWith("OPENWORK_REMOTE_PID="))?.slice("OPENWORK_REMOTE_PID=".length).trim() ?? "";
+        remotePid = started.stdout.split(/\r?\n/).find((line) => line.startsWith("HARNESS_REMOTE_PID="))?.slice("HARNESS_REMOTE_PID=".length).trim() ?? "";
         if (!/^\d+$/.test(remotePid)) throw new Error(`Daytona packaged Electron surface ${name} did not report its remote pid.`);
         handle.meta.remotePid = remotePid;
       } else {
-        env.set("OPENWORK_WORKSPACE_DIR", "/workspace");
-        const packagedBinary = process.env.OPENWORK_EVAL_ELECTRON_BINARY?.trim();
-        if (packagedBinary) env.set("OPENWORK_EVAL_ELECTRON_BINARY", packagedBinary);
+        env.set("HARNESS_WORKSPACE_DIR", "/workspace");
+        const packagedBinary = process.env.HARNESS_EVAL_ELECTRON_BINARY?.trim();
+        if (packagedBinary) env.set("HARNESS_EVAL_ELECTRON_BINARY", packagedBinary);
         const startCommand = `set -euo pipefail; cd /workspace; ${shellExport(env)} bash /workspace/.devcontainer/start-daytona-electron.sh --detach`;
         spawnedSurfaces.add(handle);
         await checkedExec(
@@ -884,8 +884,8 @@ PYEOF`;
   }
 
   async function startDen(opts: DenServiceOptions = {}): Promise<DenServiceHandle> {
-    const apiUrl = process.env.OPENWORK_EVAL_DEN_API_URL?.trim();
-    const webUrl = process.env.OPENWORK_EVAL_DEN_WEB_URL?.trim();
+    const apiUrl = process.env.HARNESS_EVAL_DEN_API_URL?.trim();
+    const webUrl = process.env.HARNESS_EVAL_DEN_WEB_URL?.trim();
     if (apiUrl && webUrl) {
       return {
         webUrl,
@@ -896,7 +896,7 @@ PYEOF`;
     }
 
     if (!options.serverScript) {
-      throw new Error("No Den URLs in OPENWORK_EVAL_DEN_API_URL/OPENWORK_EVAL_DEN_WEB_URL. Set them, or create the server with bash .devcontainer/test-server-on-daytona.sh <ref> and rerun with serverScript enabled.");
+      throw new Error("No Den URLs in HARNESS_EVAL_DEN_API_URL/HARNESS_EVAL_DEN_WEB_URL. Set them, or create the server with bash .devcontainer/test-server-on-daytona.sh <ref> and rerun with serverScript enabled.");
     }
 
     const args = [".devcontainer/test-server-on-daytona.sh"];

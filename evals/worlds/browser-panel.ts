@@ -1,8 +1,8 @@
-import { browserScript, browserSource } from "@openwork/cdp";
-import { control, readBrowserTabMetrics } from "@openwork/behaviors";
-import { captureScreenshot, connect, debuggerUrlFor, evaluate, listTargets, navigate } from "@openwork/cdp";
-import type { AttachedSurface, CdpClient, Surface } from "@openwork/cdp";
-import { resolveEvalEngine, type Seed } from "@openwork/env";
+import { browserScript, browserSource } from "@harness/cdp";
+import { control, readBrowserTabMetrics } from "@harness/behaviors";
+import { captureScreenshot, connect, debuggerUrlFor, evaluate, listTargets, navigate } from "@harness/cdp";
+import type { AttachedSurface, CdpClient, Surface } from "@harness/cdp";
+import { resolveEvalEngine, type Seed } from "@harness/env";
 import { browserScriptValue, runBrowserHost } from "../packages/env/src/browser-task.ts";
 
 export const CAPTURE_VIEWPORT = { width: 1440, height: 900 };
@@ -142,12 +142,12 @@ function stringValue(value: unknown): string {
 
 /** Explicit human-created initial state, not an automation navigation or consent grant. */
 async function seedBrowserTab(seed: Seed, app: Surface, url: string, ownerSessionId: string | null) {
-  const { tabId } = await seed.evalIn(app, browserScript((url, ownerSessionId) => window.__OPENWORK_ELECTRON__.browser.createTab(url, ownerSessionId), [url, ownerSessionId]));
+  const { tabId } = await seed.evalIn(app, browserScript((url, ownerSessionId) => window.__HARNESS_ELECTRON__.browser.createTab(url, ownerSessionId), [url, ownerSessionId]));
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline) {
     const targets = (await listTargets(app.handle.cdpUrl)).filter((target) => target.type === "page" && target.url === url);
     if (targets.length === 1) {
-      const state = await seed.evalIn(app, () => window.__OPENWORK_ELECTRON__.browser.getState(), { awaitPromise: true });
+      const state = await seed.evalIn(app, () => window.__HARNESS_ELECTRON__.browser.getState(), { awaitPromise: true });
       const nativeTab = parseBrowserState(state).tabs.find((tab) => tab.id === tabId);
       // Target discovery can announce the destination before the native view
       // commits it. Baselines must describe the loaded page, not that transition.
@@ -160,19 +160,19 @@ async function seedBrowserTab(seed: Seed, app: Surface, url: string, ownerSessio
 
 /**
  * A page origin the app can always reach from its own host: the embedded
- * OpenWork server. Any HTTP response renders as a page in the built-in
+ * Harness server. Any HTTP response renders as a page in the built-in
  * browser; the response body is irrelevant to the viewport journey.
  */
 async function embeddedServerUrl(seed: Seed, app: Surface): Promise<string> {
-  const info = await seed.evalIn(app, () => (window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo")), { awaitPromise: true });
-  if (!isRecord(info) || info.running !== true) throw new Error("The embedded OpenWork server is not running.");
+  const info = await seed.evalIn(app, () => (window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo")), { awaitPromise: true });
+  if (!isRecord(info) || info.running !== true) throw new Error("The embedded Harness server is not running.");
   return stringField(info.baseUrl).replace(/\/+$/, "");
 }
 
 async function loginWitnessUrl(seed: Seed, app: Surface): Promise<string> {
   return stringField(await seed.evalIn(
     app,
-    () => (window.__OPENWORK_ELECTRON__.browserLogins.testWitnessUrl()),
+    () => (window.__HARNESS_ELECTRON__.browserLogins.testWitnessUrl()),
     { awaitPromise: true },
   ));
 }
@@ -226,7 +226,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
       const artifactName = "browser-handoff.md";
       const artifactText = "Keep these notes open while following the research link.";
       await seed.evalIn(app, browserScript(async (workspaceId, sessionId, url, artifactName, artifactText, fileUrl) => {
-        const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+        const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
         if (!info.baseUrl) throw new Error("Missing local server URL");
         const base = info.baseUrl.replace(/\/+$/, "") + "/workspace/" + encodeURIComponent(workspaceId);
         const headers = { Authorization: "Bearer " + (info.ownerToken ?? info.clientToken), "Content-Type": "application/json" };
@@ -240,7 +240,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
           body: JSON.stringify({ noReply: true, parts: [
             { type: "text", text: "Continue research at " + url },
             { type: "text", synthetic: true, text: "Attached workspace file: " + artifactName,
-              metadata: { openworkAttachments: [{ filename: artifactName, mime: "text/markdown", url: fileUrl }] } },
+              metadata: { harnessAttachments: [{ filename: artifactName, mime: "text/markdown", url: fileUrl }] } },
           ] }),
         });
         if (!message.ok) throw new Error("Could not seed the transcript link: " + message.status);
@@ -272,7 +272,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
       const deadline = Date.now() + 30_000;
       let routed = false;
       while (Date.now() < deadline) {
-        const actions = await seed.evalIn(app, () => (window.__openworkControl.listActions().map((action) => action.id)));
+        const actions = await seed.evalIn(app, () => (window.__harnessControl.listActions().map((action) => action.id)));
         if (Array.isArray(actions) && actions.includes("session.open")) {
           await control(app, "session.open", { sessionId });
           return;
@@ -305,7 +305,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
       const url = `${await loginWitnessUrl(seed, app)}/?login-probe=${encodeURIComponent(name)}`;
       const result = await seed.evalIn(
         app,
-        browserScript((value) => (window.__openworkControl.command(value)), [{
+        browserScript((value) => (window.__harnessControl.command(value)), [{
           id: "browser.open_url",
           args: { url, provider: "builtin" },
           origin: { sessionId: ownerSessionId },
@@ -328,12 +328,12 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
     /**
      * Open a page the way an agent in a given conversation does: the request
      * reaches the UI command bus stamped with that conversation as its origin,
-     * exactly as the OpenWork bridge stamps `openwork_execute` calls.
+     * exactly as the Harness bridge stamps `harness_execute` calls.
      */
     async openTabAs(name: string, ownerSessionId: string, url = `${origin}/?viewport-probe=${encodeURIComponent(name)}`): Promise<OpenedTab> {
       const result = await seed.evalIn(
         app,
-        browserScript((value) => (window.__openworkControl.command(value)), [{
+        browserScript((value) => (window.__harnessControl.command(value)), [{
           id: "browser.open_url",
           args: { url, provider: "builtin" },
           origin: { sessionId: ownerSessionId },
@@ -353,7 +353,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
       };
     },
 
-    /** The page origin the built-in browser can always reach: the embedded OpenWork server. */
+    /** The page origin the built-in browser can always reach: the embedded Harness server. */
     origin,
 
     /**
@@ -365,7 +365,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
       const storePath = `${directory}/cookies.sqlite`;
       const result = await seed.evalIn(
         app,
-        browserScript((value) => (window.__OPENWORK_ELECTRON__.browserLogins.writeTestStore(value)), [{ path: storePath, cookies }]),
+        browserScript((value) => (window.__HARNESS_ELECTRON__.browserLogins.writeTestStore(value)), [{ path: storePath, cookies }]),
         { awaitPromise: true, timeoutMs: 30_000 },
       );
       if (!isRecord(result)) throw new Error("The eval seam did not register a login store.");
@@ -376,7 +376,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
     async updateLoginStore(storePath: string, cookies: Array<Record<string, unknown>>): Promise<void> {
       const result = await seed.evalIn(
         app,
-        browserScript((value) => (window.__OPENWORK_ELECTRON__.browserLogins.writeTestStore(value)), [{ path: storePath, cookies }]),
+        browserScript((value) => (window.__HARNESS_ELECTRON__.browserLogins.writeTestStore(value)), [{ path: storePath, cookies }]),
         { awaitPromise: true, timeoutMs: 30_000 },
       );
       if (!isRecord(result)) throw new Error("The eval seam did not update the login store.");
@@ -401,20 +401,20 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
 
     /** Sites the built-in browser is signed in to, as Settings shows them. */
     async signedInSites(): Promise<string[]> {
-      const result = await seed.evalIn(app, () => (window.__OPENWORK_ELECTRON__.browserLogins.signedInSites()), { awaitPromise: true });
+      const result = await seed.evalIn(app, () => (window.__HARNESS_ELECTRON__.browserLogins.signedInSites()), { awaitPromise: true });
       if (!Array.isArray(result)) throw new Error("The desktop bridge did not list signed-in sites.");
       return result.map((site) => (isRecord(site) ? stringField(site.site) : "")).filter(Boolean);
     },
 
     /** Renderer-safe sync metadata, never cookie values. */
     async loginSyncState(): Promise<Record<string, unknown>> {
-      const result = await seed.evalIn(app, () => (window.__OPENWORK_ELECTRON__.browserLogins.state()), { awaitPromise: true });
+      const result = await seed.evalIn(app, () => (window.__HARNESS_ELECTRON__.browserLogins.state()), { awaitPromise: true });
       if (!isRecord(result)) throw new Error("The desktop bridge did not report browser login sync state.");
       return result;
     },
 
     async pauseLoginSync(): Promise<void> {
-      await seed.evalIn(app, () => (window.__OPENWORK_ELECTRON__.browserLogins.pause()), { awaitPromise: true });
+      await seed.evalIn(app, () => (window.__HARNESS_ELECTRON__.browserLogins.pause()), { awaitPromise: true });
     },
 
     /** What the witness page observes without exposing an HttpOnly cookie value. */
@@ -448,7 +448,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
     async readBrowserState(): Promise<BrowserState> {
       return parseBrowserState(await seed.evalIn(
         app,
-        () => (window.__OPENWORK_ELECTRON__.browser.getState()),
+        () => (window.__HARNESS_ELECTRON__.browser.getState()),
         { awaitPromise: true },
       ));
     },
@@ -545,7 +545,7 @@ export async function createBuiltinBrowserWorld(seed: Seed, env?: Record<string,
 }
 
 export async function browserLoginSyncWorld(seed: Seed) {
-  const world = await createBuiltinBrowserWorld(seed, { OPENWORK_EVAL_BROWSER_LOGIN_SYNC: "1" });
+  const world = await createBuiltinBrowserWorld(seed, { HARNESS_EVAL_BROWSER_LOGIN_SYNC: "1" });
   const loginWitnessOrigin = await loginWitnessUrl(seed, world.app);
   return {
     ...world,
@@ -556,7 +556,7 @@ export async function browserLoginSyncWorld(seed: Seed) {
 
 /** Arrange a persisted transcript link and its neighboring conversation. */
 export async function transcriptLinkWorld(seed: Seed) {
-  const world = await createBuiltinBrowserWorld(seed, { OPENWORK_DEV_MODE: "1", OPENWORK_EVAL_CAPTURE_EXTERNAL_OPENS: "1" });
+  const world = await createBuiltinBrowserWorld(seed, { HARNESS_DEV_MODE: "1", HARNESS_EVAL_CAPTURE_EXTERNAL_OPENS: "1" });
   const { app, workspace } = world;
   const profileDir = app.handle.profileDir;
   if (!profileDir) throw new Error("The link fixture desktop did not expose its isolated profile.");
@@ -568,7 +568,7 @@ export async function transcriptLinkWorld(seed: Seed) {
   const linkUrl = `${origin}/?link-context=alpha%20beta&encoded=%2Fkeep%3Fyes%3D1#thread-link`;
   const note = "Keep this note in its own conversation.";
   await seed.evalIn(app, browserScript(async (workspaceId, sessionId, note, url) => {
-    const info = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const info = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     const response = await fetch(String(info.baseUrl).replace(/\/+$/, "")
       + "/workspace/" + encodeURIComponent(workspaceId)
       + "/opencode/session/" + encodeURIComponent(sessionId) + "/message", {
@@ -599,7 +599,7 @@ export async function transcriptLinkWorld(seed: Seed) {
       const text = await runBrowserHost(app, `
         const { readFile } = await import("node:fs/promises");
         const { join } = await import("node:path");
-        try { return await readFile(join(${browserScriptValue(profileDir)}, "electron-userdata", "openwork-eval-external-opens.jsonl"), "utf8"); }
+        try { return await readFile(join(${browserScriptValue(profileDir)}, "electron-userdata", "harness-eval-external-opens.jsonl"), "utf8"); }
         catch (error) { if (error.code === "ENOENT") return ""; throw error; }
       `);
       if (typeof text !== "string") throw new Error("External-open capture did not return text.");
@@ -631,17 +631,17 @@ export async function transcriptLinkWorld(seed: Seed) {
      * OS widgets with no CDP target, so this is the only observation of them.
      */
     async nativeMenu(): Promise<NativeMenuState> {
-      return parseNativeMenuState(await evaluate(app.client, () => (window.__OPENWORK_ELECTRON__.contextMenu.inspect()), { awaitPromise: true }));
+      return parseNativeMenuState(await evaluate(app.client, () => (window.__HARNESS_ELECTRON__.contextMenu.inspect()), { awaitPromise: true }));
     },
 
     /** What the OS does when the user clicks one entry of the open popup. */
     async chooseMenuItem(id: string): Promise<boolean> {
-      return await evaluate(app.client, browserScript((id) => window.__OPENWORK_ELECTRON__.contextMenu.choose(id), [id]), { awaitPromise: true }) === true;
+      return await evaluate(app.client, browserScript((id) => window.__HARNESS_ELECTRON__.contextMenu.choose(id), [id]), { awaitPromise: true }) === true;
     },
 
     /** What the OS does when the user clicks away from or escapes the open popup. */
     async dismissMenu(): Promise<boolean> {
-      return await evaluate(app.client, () => (window.__OPENWORK_ELECTRON__.contextMenu.dismiss()), { awaitPromise: true }) === true;
+      return await evaluate(app.client, () => (window.__HARNESS_ELECTRON__.contextMenu.dismiss()), { awaitPromise: true }) === true;
     },
   };
 }
@@ -707,7 +707,7 @@ export async function builtinBrowserWorld(seed: Seed, options: { workspacePath?:
   const app = await seed.desktop({ name: "builtin-browser", env: { ELECTRON_EXTRA_LAUNCH_ARGS: "--force-color-profile=srgb" } });
   const workspace = await seed.workspace(app, options.workspacePath ?? seed.tmpPath("builtin-browser"), { create: true });
   const session = await seed.session(app, { title: "Browser project" });
-  const info = await seed.evalIn(app, () => window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo"), { awaitPromise: true });
+  const info = await seed.evalIn(app, () => window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo"), { awaitPromise: true });
   if (!info || typeof info !== "object" || !("baseUrl" in info) || typeof info.baseUrl !== "string") throw new Error("The embedded server is unavailable.");
   return { app, workspace, session, origin: info.baseUrl.replace(/\/+$/, "") };
 }

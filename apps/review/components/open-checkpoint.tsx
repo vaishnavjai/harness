@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { ReviewEvidence } from "@openwork/review";
+import type { ReviewEvidence } from "@harness/review";
 
 type ImageEvidence = Extract<ReviewEvidence, { kind: "image" }>;
 interface LaunchState {
@@ -56,8 +56,8 @@ export function CheckpointProvider({ children }: { children: ReactNode }) {
         || !("expiresAt" in value) || typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt))
         || Date.parse(value.expiresAt) <= Date.now()) throw new Error("Invalid launch");
       const url = new URL(value.url);
-      if (url.protocol !== "https:" || !/^evidence-[a-f0-9]{32}\.preview\.openwork\.software$/.test(url.hostname)
-        || url.pathname !== "/__openwork_launch" || url.username || url.password) throw new Error("Invalid viewer");
+      if (url.protocol !== "https:" || !/^evidence-[a-f0-9]{32}\.preview\.harness\.software$/.test(url.hostname)
+        || url.pathname !== "/__harness_launch" || url.username || url.password) throw new Error("Invalid viewer");
       pending.current.delete(key);
       update({ fork: { url: value.url, expiresAt: value.expiresAt }, unavailable: false });
     } catch { update({ error: "The checkpoint could not open. Try again." }); }

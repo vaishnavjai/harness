@@ -6,17 +6,17 @@ import { AppBridge, PostMessageTransport } from "@modelcontextprotocol/ext-apps/
 import type { McpUiStyles, McpUiStyleVariableKey } from "@modelcontextprotocol/ext-apps"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 
-import { connectionActionAppResourceUri, legacyConnectionActionAppResourceUri } from "@openwork/types/connection-action-app"
+import { connectionActionAppResourceUri, legacyConnectionActionAppResourceUri } from "@harness/types/connection-action-app"
 import { isConnectionDiscoveryTool } from "@/components/tools/error-attribution"
 import { AppChatArtifact } from "@/react-app/domains/apps/app-chat-artifact"
 import { createConnectionActionController, hasHostConnectionActions, standardMcpToolResult } from "./mcp-connection-action"
 import { openDesktopUrl } from "@/app/lib/desktop"
 import { mcpAppDiscoverySignature, scheduleMcpAppDiscovery } from "@/app/lib/mcp-app-discovery-scheduler"
 import {
-  OpenworkServerError,
-  type OpenworkMcpAppLaunchReference,
-  type OpenworkMcpAppResource,
-} from "@/app/lib/openwork-server"
+  HarnessServerError,
+  type HarnessMcpAppLaunchReference,
+  type HarnessMcpAppResource,
+} from "@/app/lib/harness-server"
 import { useMessageList } from "./message-list-provider"
 import { createMcpAppActions, type McpAppOrigin } from "./mcp-app-origin"
 import { cn } from "@/lib/utils"
@@ -118,11 +118,11 @@ function normalizeMcpAppHeight(height: number, minimum: number): number {
 
 function preservedResult(part: DynamicToolUIPart): PreservedMcpAppResult | null {
   if (isConnectionDiscoveryTool(part.toolName) && (!isRecord(part.input) || (part.input.intent !== "connect" && part.input.type !== "connectors"))) return null
-  const openwork = isRecord(part.callProviderMetadata?.openwork) ? part.callProviderMetadata.openwork : null
-  const result = openwork && isRecord(openwork.mcpResult)
-    ? openwork.mcpResult
-    : openwork && isRecord(openwork.mcpApp)
-      ? openwork.mcpApp
+  const harness = isRecord(part.callProviderMetadata?.harness) ? part.callProviderMetadata.harness : null
+  const result = harness && isRecord(harness.mcpResult)
+    ? harness.mcpResult
+    : harness && isRecord(harness.mcpApp)
+      ? harness.mcpApp
       : null
   if (!result || !Array.isArray(result.content)) return null
   const content = result.content.filter(isRecord) as Array<Record<string, unknown>>
@@ -139,9 +139,9 @@ export function hasPreservedMcpAppResult(part: DynamicToolUIPart): boolean {
   return preservedResult(part) !== null
 }
 
-export function gatewayMcpAppLaunch(meta: unknown): OpenworkMcpAppLaunchReference | null {
-  if (!isRecord(meta) || !isRecord(meta["openwork/mcpApp"])) return null
-  const launch = meta["openwork/mcpApp"]
+export function gatewayMcpAppLaunch(meta: unknown): HarnessMcpAppLaunchReference | null {
+  if (!isRecord(meta) || !isRecord(meta["harness/mcpApp"])) return null
+  const launch = meta["harness/mcpApp"]
   if ((launch.connectionId !== undefined && typeof launch.connectionId !== "string")
     || typeof launch.toolName !== "string"
     || typeof launch.resourceUri !== "string"
@@ -154,7 +154,7 @@ export function gatewayMcpAppLaunch(meta: unknown): OpenworkMcpAppLaunchReferenc
   }
 }
 
-export function buildMcpAppCsp(app: OpenworkMcpAppResource): string {
+export function buildMcpAppCsp(app: HarnessMcpAppResource): string {
   const resources = app.csp.resourceDomains.join(" ")
   const withResources = (source: string) => resources ? `${source} ${resources}` : source
   const sourceList = (values: string[]) => values.length ? values.join(" ") : "'none'"
@@ -177,7 +177,7 @@ function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;")
 }
 
-export function secureMcpAppHtml(app: OpenworkMcpAppResource): string {
+export function secureMcpAppHtml(app: HarnessMcpAppResource): string {
   const meta = `<meta http-equiv="Content-Security-Policy" content="${escapeAttribute(buildMcpAppCsp(app))}">`
   const html = /<html(?:\s[^>]*)?>/i.exec(app.html)
   if (html?.index !== undefined) {
@@ -249,17 +249,17 @@ function hostStyleVariables(): McpUiStyles {
 }
 
 export function isActionableMcpAppResolutionError(cause: unknown): boolean {
-  return cause instanceof OpenworkServerError && ACTIONABLE_MCP_APP_RESOLUTION_CODES.has(cause.code)
+  return cause instanceof HarnessServerError && ACTIONABLE_MCP_APP_RESOLUTION_CODES.has(cause.code)
 }
 
 function isRetiredFirstPartyConfirmation(toolName: string, result: PreservedMcpAppResult | null): boolean {
   const launch = gatewayMcpAppLaunch(result?._meta)
-  if (result?._meta?.["openwork/mcpApp"] !== undefined && !launch) return false
+  if (result?._meta?.["harness/mcpApp"] !== undefined && !launch) return false
   if (launch?.connectionId !== undefined) return false
-  if (/^(?:openwork_|openwork-cloud_)(?:create_skill|update_skill|plugin_flow)$/.test(toolName)) return true
-  return /^(?:openwork_|openwork-cloud_)execute_capability$/.test(toolName)
-    && (launch?.resourceUri === "ui://openwork/skill-created/v1/view.html"
-      || launch?.resourceUri === "ui://openwork/plugin-flow/v1/view.html")
+  if (/^(?:harness_|harness-cloud_)(?:create_skill|update_skill|plugin_flow)$/.test(toolName)) return true
+  return /^(?:harness_|harness-cloud_)execute_capability$/.test(toolName)
+    && (launch?.resourceUri === "ui://harness/skill-created/v1/view.html"
+      || launch?.resourceUri === "ui://harness/plugin-flow/v1/view.html")
 }
 
 const CHAT_MCP_APP_UNAVAILABLE_NOTICE = "Interactive view unavailable. The normal tool result is still available."
@@ -299,7 +299,7 @@ export function McpAppDiagnosticNotice({ error, notice, onRetry }: { error: McpA
 
 export type McpAppSandboxViewProps = {
   origin: McpAppOrigin
-  app: OpenworkMcpAppResource
+  app: HarnessMcpAppResource
   /** Tool name used for host diagnostics and the iframe title. */
   toolName: string
   /** Arguments the host reports to the app as its launch input. */
@@ -329,7 +329,7 @@ export type McpAppSandboxViewProps = {
  * share this exact pipeline so rendering and diagnostics stay identical.
  */
 export function McpAppSandboxView({ origin, app, toolName, inputArguments, result, connectionController, updateMode = "replace", onReady, unavailableNotice, onRequestTeardown, initialHeight, onHeightChange, presentation = "inline", onError, onRetry }: McpAppSandboxViewProps) {
-  const openworkServerClient = origin.client
+  const harnessServerClient = origin.client
   const workspaceId = origin.workspaceId
   const readOnly = origin.readOnly
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -370,7 +370,7 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
 
   useLayoutEffect(() => {
     const iframe = iframeRef.current
-    if (!iframe || !iframe.contentWindow || !openworkServerClient || !workspaceId) return
+    if (!iframe || !iframe.contentWindow || !harnessServerClient || !workspaceId) return
     let disposed = false
     const actions = createMcpAppActions(origin, app)
     let lastSizeEventAt = 0
@@ -402,30 +402,30 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
         checkpoints: [...checkpoints],
         ...(sandboxDocument ? { sandboxDocument } : {}),
       }
-      console.error(`[OpenWork MCP App] ${code}`, diagnostic)
+      console.error(`[Harness MCP App] ${code}`, diagnostic)
       setError(diagnostic)
       onErrorRef.current?.()
     }
     checkpoint("resource-resolved")
     if (!readOnly && !app.launchId) {
       fail("MCP_APP_LAUNCH_CONTEXT_MISSING", "resource-resolution", null,
-        "This App has no live launch context. Update OpenWork and reopen the App before using its actions.")
+        "This App has no live launch context. Update Harness and reopen the App before using its actions.")
       return
     }
-    const sandbox = openworkServerClient.mcpAppSandbox(app, window.location.origin)
+    const sandbox = harnessServerClient.mcpAppSandbox(app, window.location.origin)
     if (sandbox.expectedOrigin === window.location.origin) {
       fail(
         "MCP_APP_SANDBOX_ORIGIN_INVALID",
         "sandbox-proxy",
         null,
-        "The sandbox resolved to the same origin as the OpenWork host.",
+        "The sandbox resolved to the same origin as the Harness host.",
         sandbox.expectedOrigin,
       )
       return
     }
     const bridge = new AppBridge(
       null,
-      { name: "OpenWork", version: "1.0.0" },
+      { name: "Harness", version: "1.0.0" },
       readOnly ? {} : { serverTools: {}, openLinks: {} },
       {
         hostContext: {
@@ -434,7 +434,7 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
           availableDisplayModes: ["inline"],
           styles: { variables: hostStyleVariables() },
           ...(!readOnly && connectionController && hasHostConnectionActions(app)
-            ? { experimental: { "openwork/connection-actions": true } } : {}),
+            ? { experimental: { "harness/connection-actions": true } } : {}),
         },
       },
     )
@@ -446,7 +446,7 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
         await openDesktopUrl(url)
         return {}
       } catch (cause) {
-        console.error("[OpenWork MCP App] MCP_APP_OPEN_LINK_BLOCKED", {
+        console.error("[Harness MCP App] MCP_APP_OPEN_LINK_BLOCKED", {
           toolName,
           message: safeMcpAppDiagnosticMessage(cause, "The link could not be opened."),
         })
@@ -500,11 +500,11 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
     }
     if (!readOnly) bridge.oncalltool = async ({ name, arguments: args, _meta }) => {
       try {
-        const userInteraction = _meta?.["openwork/userInteraction"] === true
+        const userInteraction = _meta?.["harness/userInteraction"] === true
         if (connectionController) return await connectionController.callTool(actions, app, name, args, userInteraction)
         return standardMcpToolResult(await actions.callTool(name, args, userInteraction))
       } catch (cause) {
-        if (cause instanceof OpenworkServerError && ["missing_launch_context", "stale_launch_context", "inactive_session"].includes(cause.code)) {
+        if (cause instanceof HarnessServerError && ["missing_launch_context", "stale_launch_context", "inactive_session"].includes(cause.code)) {
           fail("MCP_APP_LAUNCH_CONTEXT_STALE", "resource-resolution", cause, "Reopen the App in its original conversation before trying again.")
         }
         throw cause
@@ -727,7 +727,7 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
       disposed = true
       stopSandbox?.()
     }
-  }, [app, replacementInput, openworkServerClient, replacementResult, toolName, workspaceId, readOnly, origin, origin.sessionId, origin.engine, presentation, updateMode, connectionController, retryAttempt])
+  }, [app, replacementInput, harnessServerClient, replacementResult, toolName, workspaceId, readOnly, origin, origin.sessionId, origin.engine, presentation, updateMode, connectionController, retryAttempt])
 
   if (error) return <McpAppDiagnosticNotice error={error} notice={unavailableNotice} onRetry={onRetry ?? (() => {
     setError(null)
@@ -754,15 +754,15 @@ export function McpAppSandboxView({ origin, app, toolName, inputArguments, resul
 }
 
 /**
- * OpenWork's own connection App is presented natively by this host (the
+ * Harness's own connection App is presented natively by this host (the
  * connection card in the transcript); the Den App remains for external hosts.
  * The retired v1 resource is never embedded either.
  */
 export function isNativeConnectionAppLaunch(part: DynamicToolUIPart): boolean {
   const result = preservedResult(part)
   const launch = gatewayMcpAppLaunch(result?._meta)
-  if (!launch) return /^(?:openwork_|openwork-cloud_)connection_action$/.test(part.toolName)
-  return /^(?:openwork_|openwork-cloud_)/.test(part.toolName) && !launch.connectionId
+  if (!launch) return /^(?:harness_|harness-cloud_)connection_action$/.test(part.toolName)
+  return /^(?:harness_|harness-cloud_)/.test(part.toolName) && !launch.connectionId
     && (launch.resourceUri === connectionActionAppResourceUri || launch.resourceUri === legacyConnectionActionAppResourceUri)
 }
 
@@ -776,7 +776,7 @@ export function McpAppFrame({ part }: { part: DynamicToolUIPart }) {
 function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
   const { mcpAppOrigin: nextOrigin, uiStateOwner, readOnly, getConnectionDecision, onMcpReconnect } = useMessageList()
   const origin = useMemo(() => nextOrigin, [nextOrigin?.client, nextOrigin?.workspaceId, nextOrigin?.sessionId, nextOrigin?.engine, nextOrigin?.readOnly])
-  const openworkServerClient = origin?.client
+  const harnessServerClient = origin?.client
   const workspaceId = origin?.workspaceId
   const nextResult = preservedResult(part)
   const nextResultSignature = mcpAppDiscoverySignature(nextResult)
@@ -790,15 +790,15 @@ function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
   const result = resultCache.current.value
   const draft = useMemo(() => {
     if (part.toolName !== "save_artifact_view" && !part.toolName.endsWith("_save_artifact_view")
-      && !/^(?:openwork_|openwork-cloud_)?preview_artifact_/.test(part.toolName)) return null
-    const reference = result?._meta?.["openwork/appDraft"]
+      && !/^(?:harness_|harness-cloud_)?preview_artifact_/.test(part.toolName)) return null
+    const reference = result?._meta?.["harness/appDraft"]
     if (!isRecord(reference) || typeof reference.appId !== "string" || typeof reference.revisionId !== "string"
       || typeof reference.title !== "string" || (reference.receiptId !== undefined && typeof reference.receiptId !== "string")) return null
     return { appId: reference.appId, revisionId: reference.revisionId, title: reference.title, receiptId: reference.receiptId }
   }, [part.toolName, result])
   const launch = useMemo(() => gatewayMcpAppLaunch(result?._meta), [result])
   const scope = uiStateOwner ?? JSON.stringify([origin?.workspaceId, origin?.sessionId])
-  const sourceConnectionId = launch?.resourceUri === "ui://openwork/connection-action/v2/view.html"
+  const sourceConnectionId = launch?.resourceUri === "ui://harness/connection-action/v2/view.html"
     && launch.toolName === "connection_action" && !launch.connectionId
     && typeof launch.arguments.connectionId === "string" ? launch.arguments.connectionId : null
   const source = useMemo<{ connectionId: string | null; sessionId: string | null }>(
@@ -814,7 +814,7 @@ function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
       connectionId: initialConnectionId, current: () => hostRef.current }) : null,
   [scope, source, part.toolCallId, initialConnectionId])
   connectionController?.observeBinding()
-  const [app, setApp] = useState<OpenworkMcpAppResource | null>(null)
+  const [app, setApp] = useState<HarnessMcpAppResource | null>(null)
   const [error, setError] = useState<McpAppDiagnostic | null>(null)
   const [resolveToken, setResolveToken] = useState(0)
   const consumedRetryToken = useRef(0)
@@ -836,13 +836,13 @@ function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
     let cancelled = false
     let launchId: string | undefined
     const release = () => {
-      if (launchId && openworkServerClient && workspaceId) {
-        void openworkServerClient.releaseMcpApp(workspaceId, launchId).catch(() => undefined)
+      if (launchId && harnessServerClient && workspaceId) {
+        void harnessServerClient.releaseMcpApp(workspaceId, launchId).catch(() => undefined)
       }
     }
     setApp(null)
     setError(null)
-    if (draft || !result || !openworkServerClient || !workspaceId || !origin) return () => { cancelled = true }
+    if (draft || !result || !harnessServerClient || !workspaceId || !origin) return () => { cancelled = true }
     const startedAt = performance.now()
     const checkpoints = ["resolve-started"]
     const manual = consumedRetryToken.current !== resolveToken
@@ -864,14 +864,14 @@ function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
           if (launch || isActionableMcpAppResolutionError(cause)) {
             const diagnostic: McpAppDiagnostic = {
               code: "MCP_APP_RESOURCE_RESOLUTION_FAILED",
-              ...(cause instanceof OpenworkServerError ? { causeCode: cause.code } : {}),
+              ...(cause instanceof HarnessServerError ? { causeCode: cause.code } : {}),
               stage: "resource-resolution",
               message: safeMcpAppDiagnosticMessage(cause, "The interactive view resource could not be resolved."),
               toolName: part.toolName,
               elapsedMs: Math.round(performance.now() - startedAt),
               checkpoints: [...checkpoints],
             }
-            console.error(`[OpenWork MCP App] ${diagnostic.code}`, diagnostic)
+            console.error(`[Harness MCP App] ${diagnostic.code}`, diagnostic)
             setError(diagnostic)
           }
         })
@@ -880,12 +880,12 @@ function EmbeddedMcpAppFrame({ part }: { part: DynamicToolUIPart }) {
       cancelDiscovery()
       release()
     }
-  }, [draft, launch, openworkServerClient, part.toolName, result, workspaceId, origin, resolution])
+  }, [draft, launch, harnessServerClient, part.toolName, result, workspaceId, origin, resolution])
 
   if (draft) return <AppChatArtifact key={`${draft.appId}:${draft.revisionId}:${draft.receiptId}`} {...draft} />
   const viewId = result?._meta?.artifactViewId
   const revisionId = result?._meta?.viewRevisionId
-  if (app && resolvedFor.current === resolution && typeof viewId === "string" && typeof revisionId === "string" && app.resourceUri === `ui://openwork/artifacts/${viewId}/views/${revisionId}/index.html`) {
+  if (app && resolvedFor.current === resolution && typeof viewId === "string" && typeof revisionId === "string" && app.resourceUri === `ui://harness/artifacts/${viewId}/views/${revisionId}/index.html`) {
     const artifact = result?.structuredContent?.artifact
     const title = typeof result?._meta?.appTitle === "string" ? result._meta.appTitle : isRecord(artifact) && typeof artifact.title === "string" ? artifact.title : "App preview"
     const receiptId = isRecord(artifact) && typeof artifact.receiptId === "string" ? artifact.receiptId : undefined

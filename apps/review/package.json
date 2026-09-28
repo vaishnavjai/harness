@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/review-app",
+  "name": "@harness/review-app",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@openwork/freestyle": "workspace:*",
-    "@openwork/review": "workspace:*",
+    "@harness/freestyle": "workspace:*",
+    "@harness/review": "workspace:*",
     "next": "16.3.3",
     "react": "catalog:",
     "react-dom": "catalog:"

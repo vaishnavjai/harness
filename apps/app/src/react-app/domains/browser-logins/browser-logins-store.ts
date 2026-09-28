@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export const BROWSER_LOGIN_SYNC_STORE_KEY = "openwork:browser-login-sync:v1";
+export const BROWSER_LOGIN_SYNC_STORE_KEY = "harness:browser-login-sync:v1";
 
 export type LoginSyncPromptOutcome = "synced" | "dismissed";
 

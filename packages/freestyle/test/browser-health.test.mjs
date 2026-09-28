@@ -3,7 +3,7 @@ import test from "node:test";
 import { verifyBrowserHandoff } from "../src/browser-health.mjs";
 
 test("browser readiness rejects a missing launcher", async () => {
-  await assert.rejects(verifyBrowserHandoff({ launcher: "/missing/openwork-test-browser" }), { code: "ENOENT" });
+  await assert.rejects(verifyBrowserHandoff({ launcher: "/missing/harness-test-browser" }), { code: "ENOENT" });
 });
 
 test("browser readiness rejects a launcher failure without waiting for the deadline", async () => {

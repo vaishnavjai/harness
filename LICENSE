@@ -1,3 +1,16 @@
+Harness
+Copyright (c) 2026-present Harness contributors
+
+Harness is a fork of OpenWork (https://github.com/different-ai/openwork).
+Harness modifications are released under the same MIT License reproduced
+below. The original OpenWork copyright and license notice is preserved
+verbatim and continues to apply to the OpenWork-derived portions. Bundled
+third-party components are listed in THIRD_PARTY_NOTICES.md.
+
+================================================================================
+Original OpenWork license
+================================================================================
+
 Copyright (c) 2026-present Different AI, Inc.
 
 Portions of this software are licensed as follows:

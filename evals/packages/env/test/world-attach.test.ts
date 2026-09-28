@@ -6,11 +6,11 @@ import { resolvePlace } from "../src/place.ts";
 
 test("resolveEvalEngine defaults to v1 and validates case-insensitive lane names", () => {
   assert.equal(resolveEvalEngine({}), "v1");
-  assert.equal(resolveEvalEngine({ OPENWORK_EVAL_ENGINE: "v1" }), "v1");
-  assert.equal(resolveEvalEngine({ OPENWORK_EVAL_ENGINE: "V2" }), "v2");
+  assert.equal(resolveEvalEngine({ HARNESS_EVAL_ENGINE: "v1" }), "v1");
+  assert.equal(resolveEvalEngine({ HARNESS_EVAL_ENGINE: "V2" }), "v2");
   assert.throws(
-    () => resolveEvalEngine({ OPENWORK_EVAL_ENGINE: "future" }),
-    /Invalid OPENWORK_EVAL_ENGINE value "future"; expected "v1" or "v2"/,
+    () => resolveEvalEngine({ HARNESS_EVAL_ENGINE: "future" }),
+    /Invalid HARNESS_EVAL_ENGINE value "future"; expected "v1" or "v2"/,
   );
 });
 

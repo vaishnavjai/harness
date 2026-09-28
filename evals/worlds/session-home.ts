@@ -1,5 +1,5 @@
-import { browserScript } from "@openwork/cdp";
-import { resolveEvalEngine, SkipError, type Seed } from "@openwork/env";
+import { browserScript } from "@harness/cdp";
+import { resolveEvalEngine, SkipError, type Seed } from "@harness/env";
 import { mkdir, realpath } from "node:fs/promises";
 import { resolveServerConfig } from "../../apps/server/src/config.ts";
 import { createV2SessionHomes } from "../../apps/server/src/opencode-v2-session-home.ts";
@@ -44,8 +44,8 @@ async function bootSessionHome(seed: Seed, mode: "stop" | "question") {
   }, "v2");
   const session = await seed.session(app, { title: "Worktree continuity" });
   const read = (path: string) => seed.evalIn(app, browserScript(async path => {
-    const response = await fetch("http://127.0.0.1:" + localStorage.getItem("openwork.server.port") + path, {
-      headers: { Authorization: "Bearer " + localStorage.getItem("openwork.server.token") },
+    const response = await fetch("http://127.0.0.1:" + localStorage.getItem("harness.server.port") + path, {
+      headers: { Authorization: "Bearer " + localStorage.getItem("harness.server.token") },
     });
     const body: unknown = await response.json();
     return { status: response.status, body };

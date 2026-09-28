@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { CopyButton } from "./copy-button";
 import { EvidenceViewer } from "./evidence-viewer";
-import { summarizeReview } from "@openwork/review";
-import type { ReviewEvidence, ReviewReport } from "@openwork/review";
+import { summarizeReview } from "@harness/review";
+import type { ReviewEvidence, ReviewReport } from "@harness/review";
 import { LaunchPreview } from "./launch-preview";
 import { CheckpointProvider } from "./open-checkpoint";
 import { StatusIcon } from "./status-icon";

@@ -12,7 +12,7 @@ if (ownedDom) GlobalRegistrator.register({ url: "http://localhost/" });
 const originalResizeObserver = globalThis.ResizeObserver;
 const actEnvironment = Reflect.get(globalThis, "IS_REACT_ACT_ENVIRONMENT");
 Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
-const storageKey = "openwork:session-scroll:v1";
+const storageKey = "harness:session-scroll:v1";
 const frames = new Map<number, FrameRequestCallback>();
 const observers: (() => void)[] = [];
 const cleanups: (() => Promise<void>)[] = [];

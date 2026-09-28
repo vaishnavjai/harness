@@ -13,7 +13,7 @@ const appResolve = {
   alias: [{ find: /^@\//, replacement: appSource }],
 };
 
-const attachedDen = Boolean(process.env.OPENWORK_EVAL_DEN_API_URL?.trim());
+const attachedDen = Boolean(process.env.HARNESS_EVAL_DEN_API_URL?.trim());
 const managedStack = parallelSuite(process.argv) && !attachedDen;
 const e2eWorkers = managedStack ? suiteWorkerCount(process.argv, process.env) : 1;
 const namedLiveSpec = process.argv.some((argument) => argument.endsWith(".live.test.ts") || argument.endsWith("/live.test.ts"));

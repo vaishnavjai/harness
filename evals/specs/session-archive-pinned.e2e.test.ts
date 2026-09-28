@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { archiveActiveSessions } from "../worlds/session-shell.ts";
 
 const test = spec.world(archiveActiveSessions, { timeout: 12 * 60_000 });

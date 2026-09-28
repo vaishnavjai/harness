@@ -1,4 +1,4 @@
-import type { Surface } from "@openwork/cdp";
+import type { Surface } from "@harness/cdp";
 import { evalIn } from "./desktop.ts";
 
 export interface ConnectorCatalogFacts {
@@ -18,7 +18,7 @@ export async function readConnectorCatalog(surface: Surface): Promise<ConnectorC
       href: row.querySelector('a')?.getAttribute('href') ?? "",
       status: row.querySelector('[data-testid^="connector-status-"]')?.textContent?.trim() ?? "",
     })),
-    chatLinks: Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="openwork://chat?"]'), link => ({
+    chatLinks: Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href^="harness://chat?"]'), link => ({
       testId: link.getAttribute('data-testid') ?? "",
       href: link.href,
     })),

@@ -52,7 +52,7 @@ True
 - Recovered dashboard sharing after identity verification and improved installed-desktop and SSO handoffs.
 - Kept Stop responsive, recovered stalled sends and interrupted managed responses, and preserved session transcript and message state.
 - Preserved attachment drafts and feedback, showed sent messages promptly, and scoped storage failures to the task that failed.
-- Stabilized browser login sync, retained tabs within bounds, released abandoned pages, and kept browser views isolated from OpenWork.
+- Stabilized browser login sync, retained tabs within bounds, released abandoned pages, and kept browser views isolated from Harness.
 
 #### Deprecated features
 False

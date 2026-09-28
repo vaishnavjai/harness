@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { AutomationRun } from "@openwork/types/automations";
+import type { AutomationRun } from "@harness/types/automations";
 import { automationRunNotice, formatAutomationTime, formatAutomationWeekdays, runStatusLabel } from "../src/react-app/domains/automations/automation-format";
 
 function receipt(overrides: Partial<AutomationRun> = {}) {
@@ -30,7 +30,7 @@ describe("Automation labels", () => {
     expect(automationRunNotice(run)).toEqual({
       variant: "default",
       title: "Run missed",
-      message: `This occurrence never started. ${message} Keep OpenWork open, signed in, and your computer awake and connected for future runs.`,
+      message: `This occurrence never started. ${message} Keep Harness open, signed in, and your computer awake and connected for future runs.`,
     });
     expect(runStatusLabel(run)).toBe("Run missed");
   });

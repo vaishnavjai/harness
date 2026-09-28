@@ -11,7 +11,7 @@ const REPO_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 
 export function defaultScriptWorldSnapshotDirectory(): string {
   return resolve(
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR
       ?? join(REPO_ROOT, "evals", "results", ".worlds", "scripts"),
   );
 }
@@ -70,9 +70,9 @@ export async function hold(options: HoldOptions = {}): Promise<void> {
   const name = options.name ?? basename(sourcePath, extname(sourcePath));
   assertWorldName(name);
   const stage = resolveStage(process.env);
-  const recipeHash = process.env.OPENWORK_WORLD_RECIPE_HASH;
-  const invocationHash = process.env.OPENWORK_WORLD_INVOCATION_HASH;
-  const place = process.env.OPENWORK_WORLD_PLACE;
+  const recipeHash = process.env.HARNESS_WORLD_RECIPE_HASH;
+  const invocationHash = process.env.HARNESS_WORLD_INVOCATION_HASH;
+  const place = process.env.HARNESS_WORLD_PLACE;
   const os = process.env[OS_ENV];
   const stagedName = receiptName(name, stage);
 

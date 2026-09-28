@@ -1,6 +1,6 @@
-import { createAndSelectWorkspace, waitFor } from "@openwork/behaviors";
-import { desktop } from "@openwork/hosts";
-import { browserScript, type Place, type Surface } from "@openwork/testkit";
+import { createAndSelectWorkspace, waitFor } from "@harness/behaviors";
+import { desktop } from "@harness/hosts";
+import { browserScript, type Place, type Surface } from "@harness/testkit";
 
 export async function setSidebarBrandTheme(app: Surface, dark: boolean) {
   const theme = dark ? "dark" : "light";

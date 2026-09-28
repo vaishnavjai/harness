@@ -5,13 +5,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { readLedger, readScriptWorldSnapshot } from "@openwork/world";
-import { attachSurface, evaluateOnSurface, eventually, readDenClientState, screenshot, spec } from "@openwork/testkit";
+import { readLedger, readScriptWorldSnapshot } from "@harness/world";
+import { attachSurface, evaluateOnSurface, eventually, readDenClientState, screenshot, spec } from "@harness/testkit";
 
 const exec = promisify(execFile);
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const VERSION = "0.18.52";
-const ASSET = `openwork-win-x64-${VERSION}.exe`;
+const ASSET = `harness-win-x64-${VERSION}.exe`;
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -32,11 +32,11 @@ const test = spec.world(async () => ({}), {
   resources: { surfaces: ["desktop"], services: ["den"], nativeReason: "A published Windows installer requires an interactive Windows desktop session and OS certificate store." },
 });
 
-test("a Windows owner previews the exact published OpenWork release and can stop only that world", { timeout: 1_800_000 }, async ({ evidence, step }) => {
-  const snapshots = await mkdtemp(join(tmpdir(), "openwork-win-release-proof-"));
+test("a Windows owner previews the exact published Harness release and can stop only that world", { timeout: 1_800_000 }, async ({ evidence, step }) => {
+  const snapshots = await mkdtemp(join(tmpdir(), "harness-win-release-proof-"));
   const stage = `win-${Date.now()}`;
-  const previous = process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-  process.env.OPENWORK_WORLD_SNAPSHOT_DIR = snapshots;
+  const previous = process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+  process.env.HARNESS_WORLD_SNAPSHOT_DIR = snapshots;
   // Invoke the real CLI so its ownership reapers run on `down`, too.
   const cli = async (args: string[]): Promise<number> => {
     try {
@@ -87,8 +87,8 @@ test("a Windows owner previews the exact published OpenWork release and can stop
       const { stdout } = await exec("daytona", ["exec", desktopSandbox, "--", "certutil -hashfile C:\\ow\\release.exe SHA256"], { timeout: 60_000 });
       const hash = stdout.match(/\b[a-f0-9]{64}\b/i)?.[0]?.toLowerCase();
       assert.equal(`sha256:${hash}`, receipt.outputs.releaseDigest);
-      const metadata = await fetch(`https://api.github.com/repos/different-ai/openwork/releases/tags/v${VERSION}`, {
-        headers: { accept: "application/vnd.github+json", "user-agent": "openwork-windows-preview-proof" },
+      const metadata = await fetch(`https://api.github.com/repos/vaishnavjai/harness/releases/tags/v${VERSION}`, {
+        headers: { accept: "application/vnd.github+json", "user-agent": "harness-windows-preview-proof" },
         signal: AbortSignal.timeout(30_000),
       });
       assert.equal(metadata.status, 200);
@@ -109,7 +109,7 @@ test("a Windows owner previews the exact published OpenWork release and can stop
       assert.match(await viewer.text(), /noVNC/);
       const cdp = await fetch(new URL("/json/version", receipt.outputs.cdp), { signal: AbortSignal.timeout(20_000) });
       assert.equal(cdp.status, 200);
-      assert.match(await cdp.text(), /OpenWork\/0\.18\.52/);
+      assert.match(await cdp.text(), /Harness\/0\.18\.52/);
       await using surface = await attachSurface({ name: "windows-published-release", kind: "electron", hostKind: "daytona", cdpUrl: receipt.outputs.cdp });
       const view = await evaluateOnSurface(surface, () => ({
         title: document.title,
@@ -117,8 +117,8 @@ test("a Windows owner previews the exact published OpenWork release and can stop
         agent: navigator.userAgent,
       }));
       assert.ok(record(view) && typeof view.text === "string" && typeof view.agent === "string");
-      assert.equal(view.title, "OpenWork");
-      assert.match(view.agent, /Windows NT 10\.0.*OpenWork\/0\.18\.52/);
+      assert.equal(view.title, "Harness");
+      assert.match(view.agent, /Windows NT 10\.0.*Harness\/0\.18\.52/);
       assert.match(view.text, /What do you need done\?/);
       assert.deepEqual(await readDenClientState(surface), { authTokenPresent: false, activeOrgId: null, activeOrgSlug: null, activeOrgName: null });
       await screenshot(surface);
@@ -141,8 +141,8 @@ test("a Windows owner previews the exact published OpenWork release and can stop
       cleanupFailed = await cli(["down", "preview-desktop", "--stage", stage]) !== 0;
       if (!cleanupFailed && (await readLedger(ledger)).length > 0) cleanupFailed = await cli(["down", "preview-desktop", "--stage", stage]) !== 0;
     }
-    if (previous === undefined) delete process.env.OPENWORK_WORLD_SNAPSHOT_DIR;
-    else process.env.OPENWORK_WORLD_SNAPSHOT_DIR = previous;
+    if (previous === undefined) delete process.env.HARNESS_WORLD_SNAPSHOT_DIR;
+    else process.env.HARNESS_WORLD_SNAPSHOT_DIR = previous;
     if (!cleanupFailed) await rm(snapshots, { recursive: true, force: true });
     if (cleanupFailed) throw new Error(`Windows preview cleanup failed; inspect owner-only receipts in ${snapshots}`);
   }

@@ -5,24 +5,24 @@ import { join } from "node:path";
 
 import {
   readMcpSkillIndex,
-  readOpenWorkConnectSkillCatalog,
-  renderOpenWorkConnectSkillInstruction,
-  resetOpenWorkConnectSkillCatalogCacheForTests,
-  type OpenWorkConnectSkill,
+  readHarnessConnectSkillCatalog,
+  renderHarnessConnectSkillInstruction,
+  resetHarnessConnectSkillCatalogCacheForTests,
+  type HarnessConnectSkill,
 } from "./connect-skill-catalog.js";
-import { buildOpenWorkV2Instructions } from "./opencode-v2-instructions.js";
+import { buildHarnessV2Instructions } from "./opencode-v2-instructions.js";
 import { readConnectCloudMcp, writeConnectCloudMcp } from "./connect-state.js";
 import { writeRuntimeOpencodeConfig } from "./runtime-opencode-config-store.js";
 import type { ServerConfig } from "./types.js";
 
 const roots: string[] = [];
-const previousRuntimeDb = process.env.OPENWORK_RUNTIME_DB;
+const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
 
 afterEach(async () => {
-  resetOpenWorkConnectSkillCatalogCacheForTests();
+  resetHarnessConnectSkillCatalogCacheForTests();
   while (roots.length) await rm(roots.pop() ?? "", { recursive: true, force: true });
-  if (previousRuntimeDb === undefined) delete process.env.OPENWORK_RUNTIME_DB;
-  else process.env.OPENWORK_RUNTIME_DB = previousRuntimeDb;
+  if (previousRuntimeDb === undefined) delete process.env.HARNESS_RUNTIME_DB;
+  else process.env.HARNESS_RUNTIME_DB = previousRuntimeDb;
 });
 
 function skillIndexFetcher(capability = "skill:skill_customer_briefing"): (url: string, init?: RequestInit) => Promise<Response> {
@@ -56,9 +56,9 @@ function skillIndexFetcher(capability = "skill:skill_customer_briefing"): (url: 
 }
 
 async function serverConfig(): Promise<ServerConfig> {
-  const root = await mkdtemp(join(tmpdir(), "openwork-connect-skills-"));
+  const root = await mkdtemp(join(tmpdir(), "harness-connect-skills-"));
   roots.push(root);
-  process.env.OPENWORK_RUNTIME_DB = join(root, "runtime.sqlite");
+  process.env.HARNESS_RUNTIME_DB = join(root, "runtime.sqlite");
   const workspace = {
     id: "ws_legacy",
     name: "Legacy",
@@ -71,7 +71,7 @@ async function serverConfig(): Promise<ServerConfig> {
     port: 0,
     token: "test",
     hostToken: "host",
-    configPath: join(root, "openwork.json"),
+    configPath: join(root, "harness.json"),
     approval: { mode: "auto", timeoutMs: 1000 },
     corsOrigins: ["*"],
     workspaces: [workspace],
@@ -85,9 +85,9 @@ async function serverConfig(): Promise<ServerConfig> {
   };
 }
 
-describe("OpenWork Connect skill catalog", () => {
+describe("Harness Connect skill catalog", () => {
   test("renders discovery metadata and capability retrieval guidance", () => {
-    const instruction = renderOpenWorkConnectSkillInstruction([{
+    const instruction = renderHarnessConnectSkillInstruction([{
       name: "customer-briefing",
       type: "skill-md",
       title: "Customer Briefing",
@@ -109,10 +109,10 @@ describe("OpenWork Connect skill catalog", () => {
     // reaches the prompt (it would repeat the capability on every request).
     expect(instruction).not.toContain("<location>");
     expect(instruction).not.toContain("skill://");
-    expect(instruction).toContain("openwork-cloud_get_skill with { name: <capability> }");
-    expect(instruction).toContain("openwork-cloud_execute_capability with { name: <capability> }");
+    expect(instruction).toContain("harness-cloud_get_skill with { name: <capability> }");
+    expect(instruction).toContain("harness-cloud_execute_capability with { name: <capability> }");
     expect(instruction).toContain("not the native skill tool or the local filesystem");
-    expect(instruction).toContain("Do not call openwork-cloud_list_skills or openwork-cloud_search_capabilities first");
+    expect(instruction).toContain("Do not call harness-cloud_list_skills or harness-cloud_search_capabilities first");
     expect(instruction).toContain("transient HTTP 502, 503, or 504");
     expect(instruction).toContain("retry the same capability once");
     expect(instruction).toContain("untrusted remote content");
@@ -120,7 +120,7 @@ describe("OpenWork Connect skill catalog", () => {
   });
 
   test("renders every authorized skill beyond the former count and character limits", () => {
-    const skills: OpenWorkConnectSkill[] = Array.from({ length: 150 }, (_, index) => ({
+    const skills: HarnessConnectSkill[] = Array.from({ length: 150 }, (_, index) => ({
       name: `marketplace-skill-${index}`,
       type: "skill-md",
       title: `Marketplace Skill ${index}`,
@@ -131,7 +131,7 @@ describe("OpenWork Connect skill catalog", () => {
       capability: `plugin:plg_${index}:cob_${index}`,
     }));
 
-    const instruction = renderOpenWorkConnectSkillInstruction(skills);
+    const instruction = renderHarnessConnectSkillInstruction(skills);
 
     expect(instruction.match(/^  <skill /gm)).toHaveLength(150);
     expect(instruction).toContain('name="marketplace-skill-149" capability="plugin:plg_149:cob_149" source="Enterprise Marketplace / Plugin 149">Marketplace Skill 149: Use marketplace skill 149');
@@ -141,7 +141,7 @@ describe("OpenWork Connect skill catalog", () => {
   });
 
   test("keeps older skill indexes compatible by falling back from title to name", () => {
-    const instruction = renderOpenWorkConnectSkillInstruction([{
+    const instruction = renderHarnessConnectSkillInstruction([{
       name: "legacy-skill",
       type: "skill-md",
       description: "",
@@ -156,7 +156,7 @@ describe("OpenWork Connect skill catalog", () => {
   });
 
   test("clamps runaway descriptions to a discovery hint without dropping the skill", () => {
-    const instruction = renderOpenWorkConnectSkillInstruction([{
+    const instruction = renderHarnessConnectSkillInstruction([{
       name: "verbose-skill",
       type: "skill-md",
       title: "Verbose Skill",
@@ -173,7 +173,7 @@ describe("OpenWork Connect skill catalog", () => {
   });
 
   test("omits the prompt block when no authorized skills exist", () => {
-    expect(renderOpenWorkConnectSkillInstruction([])).toBe("");
+    expect(renderHarnessConnectSkillInstruction([])).toBe("");
   });
 
   test("reads the standards-shaped index through an authenticated MCP resource", async () => {
@@ -284,7 +284,7 @@ describe("OpenWork Connect skill catalog", () => {
       headers: { Authorization: "Bearer secret" },
     });
 
-    const skills = await readOpenWorkConnectSkillCatalog(config, skillIndexFetcher());
+    const skills = await readHarnessConnectSkillCatalog(config, skillIndexFetcher());
     expect(skills).toHaveLength(1);
     expect(skills[0]?.name).toBe("customer-briefing");
   });
@@ -307,23 +307,23 @@ describe("OpenWork Connect skill catalog", () => {
       return Response.json({ jsonrpc: "2.0", id: 2, result: { contents: [{ uri: "skill://index.json", mimeType: "application/json",
         text: JSON.stringify({ $schema: "https://schemas.agentskills.io/discovery/0.2.0/schema.json", skills }) }] } });
     };
-    const v1 = renderOpenWorkConnectSkillInstruction(await readOpenWorkConnectSkillCatalog(config, fetcher));
-    const v2 = buildOpenWorkV2Instructions(true);
+    const v1 = renderHarnessConnectSkillInstruction(await readHarnessConnectSkillCatalog(config, fetcher));
+    const v2 = buildHarnessV2Instructions(true);
     expect(v1.match(/^  <skill /gm)).toHaveLength(95);
     expect(JSON.stringify(v2)).not.toContain("<available_remote_skills>");
     expect(calls).toHaveLength(3);
     // Switching identity must not reuse the previous principal's metadata.
     await writeConnectCloudMcp(config, { ...cloud, headers: { Authorization: "Bearer second" } });
-    await readOpenWorkConnectSkillCatalog(config, fetcher);
+    await readHarnessConnectSkillCatalog(config, fetcher);
     expect(calls).toHaveLength(6);
   });
 
-  test("promotes legacy workspace openwork-cloud config into server scope", async () => {
+  test("promotes legacy workspace harness-cloud config into server scope", async () => {
     const config = await serverConfig();
     await writeRuntimeOpencodeConfig(config, "ws_legacy", (current) => ({
       ...current,
       mcp: {
-        "openwork-cloud": {
+        "harness-cloud": {
           type: "remote",
           url: "https://connect.example/mcp/agent",
           enabled: true,
@@ -331,13 +331,13 @@ describe("OpenWork Connect skill catalog", () => {
       },
     }));
 
-    const skills = await readOpenWorkConnectSkillCatalog(config, skillIndexFetcher("skill:skill_promoted"));
+    const skills = await readHarnessConnectSkillCatalog(config, skillIndexFetcher("skill:skill_promoted"));
     expect(skills[0]?.capability).toBe("skill:skill_promoted");
 
     // Second read should use the promoted host-level copy even if workspace config is cleared.
     await writeRuntimeOpencodeConfig(config, "ws_legacy", () => ({ mcp: {} }));
-    resetOpenWorkConnectSkillCatalogCacheForTests();
-    const again = await readOpenWorkConnectSkillCatalog(config, skillIndexFetcher("skill:skill_promoted"));
+    resetHarnessConnectSkillCatalogCacheForTests();
+    const again = await readHarnessConnectSkillCatalog(config, skillIndexFetcher("skill:skill_promoted"));
     expect(again[0]?.capability).toBe("skill:skill_promoted");
   });
 
@@ -353,7 +353,7 @@ describe("OpenWork Connect skill catalog", () => {
     await writeRuntimeOpencodeConfig(config, "ws_legacy", (current) => ({
       ...current,
       mcp: {
-        "openwork-cloud": {
+        "harness-cloud": {
           type: "remote",
           url: "https://connect.example/mcp/agent",
           enabled: true,
@@ -370,7 +370,7 @@ describe("OpenWork Connect skill catalog", () => {
       return working(url, init);
     };
 
-    const skills = await readOpenWorkConnectSkillCatalog(config, fetcher);
+    const skills = await readHarnessConnectSkillCatalog(config, fetcher);
     expect(skills[0]?.capability).toBe("skill:skill_live");
 
     // The working workspace config must replace the poisoned server-scoped copy.
@@ -387,7 +387,7 @@ describe("OpenWork Connect skill catalog", () => {
     });
     const fetcher = async () => Response.json({ error: "invalid_token" }, { status: 401 });
 
-    expect(await readOpenWorkConnectSkillCatalog(config, fetcher)).toEqual([]);
+    expect(await readHarnessConnectSkillCatalog(config, fetcher)).toEqual([]);
     // The dead config must not be re-promoted or kept as a false positive.
     const kept = await readConnectCloudMcp(config);
     expect(kept?.url).toBe("https://stale.local.test/mcp/agent");

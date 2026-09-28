@@ -32,7 +32,7 @@ jobs:
         image: mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: openwork_api_contract_ci
+          MYSQL_DATABASE: harness_api_contract_ci
         ports:
           - 3306:3306
         options: >-
@@ -41,7 +41,7 @@ jobs:
           --health-timeout=5s
           --health-retries=20
     env:
-      DATABASE_URL: mysql://root:password@127.0.0.1:3306/openwork_api_contract_ci
+      DATABASE_URL: mysql://root:password@127.0.0.1:3306/harness_api_contract_ci
       DEN_DB_ENCRYPTION_KEY: local-dev-db-encryption-key-please-change-1234567890
 
     steps:
@@ -59,13 +59,13 @@ jobs:
           version: 11.4.0
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter "@openwork-ee/den-api..." --filter "@different-ai/openwork-workspace"
+        run: pnpm install --frozen-lockfile --filter "@harness-ee/den-api..." --filter "@harness/workspace"
 
       - name: Build den-api workspace dependencies
-        run: pnpm --filter @openwork-ee/den-api build:workspace-dependencies
+        run: pnpm --filter @harness-ee/den-api build:workspace-dependencies
 
       - name: Prepare the throwaway schema-export database
-        run: pnpm --filter @openwork-ee/den-db exec node --import tsx ./node_modules/drizzle-kit/bin.cjs push --force
+        run: pnpm --filter @harness-ee/den-db exec node --import tsx ./node_modules/drizzle-kit/bin.cjs push --force
         env:
           NODE_OPTIONS: --conditions=development
 

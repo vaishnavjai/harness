@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Ellipsis, ExternalLink, FolderOpen, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
-import type { OpenworkServerClient, OpenworkWorkspaceCatalogEntry } from "@/app/lib/openwork-server";
+import type { HarnessServerClient, HarnessWorkspaceCatalogEntry } from "@/app/lib/harness-server";
 import { openDesktopPath, revealDesktopItemInDir } from "@/app/lib/desktop";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +36,7 @@ const EMPTY_TRANSCRIPT_TARGETS: OpenTarget[] = [];
 type ArtifactPanelProps = {
   sessionId: string;
   tab: ArtifactPanelTab;
-  client: OpenworkServerClient | null;
+  client: HarnessServerClient | null;
   workspaceId: string | null;
   workspaceRoot: string;
   isRemoteWorkspace?: boolean;
@@ -45,7 +45,7 @@ type ArtifactPanelProps = {
 
 type ArtifactPanelViewProps = {
   sessionId: string;
-  client: OpenworkServerClient;
+  client: HarnessServerClient;
   workspaceId: string;
   workspaceRoot: string;
   isRemoteWorkspace?: boolean;
@@ -112,7 +112,7 @@ function ArtifactPanelView({ sessionId, client, workspaceId, workspaceRoot, isRe
   const canUseDesktopFileActions = target.kind === "file" && canUseDesktopWorkspaceActions;
   const workspaceName = workspaceRoot.split(/[/\\]/).filter(Boolean).pop() ?? "Workspace";
 
-  const openWorkspaceFile = (entry: { path: string; size: number; mtimeMs: number }) => {
+  const harnessspaceFile = (entry: { path: string; size: number; mtimeMs: number }) => {
     const nextTarget = openTargetFromWorkspaceFile(entry.path, { size: entry.size, updatedAt: entry.mtimeMs });
     if (!nextTarget) return;
     usePanelTabStore.getState().openTab(sessionId, {
@@ -395,13 +395,13 @@ function ArtifactPanelView({ sessionId, client, workspaceId, workspaceRoot, isRe
               workspaceId={workspaceId}
               workspaceName={workspaceName}
               selectedPath={target.value}
-              onOpenFile={openWorkspaceFile}
+              onOpenFile={harnessspaceFile}
               fileActions={[
                 { id: "download", label: "Download", run: (entry) => void downloadFile(entry.path, entry.path.split(/[/\\]/).pop() ?? entry.path) },
                 ...(canUseDesktopWorkspaceActions
                   ? [
-                    { id: "reveal", label: "Show in folder", run: (entry: OpenworkWorkspaceCatalogEntry) => void revealFile(entry.path) },
-                    { id: "open-external", label: "Open externally", run: (entry: OpenworkWorkspaceCatalogEntry) => void openFileExternally(entry.path) },
+                    { id: "reveal", label: "Show in folder", run: (entry: HarnessWorkspaceCatalogEntry) => void revealFile(entry.path) },
+                    { id: "open-external", label: "Open externally", run: (entry: HarnessWorkspaceCatalogEntry) => void openFileExternally(entry.path) },
                   ]
                   : []),
               ]}

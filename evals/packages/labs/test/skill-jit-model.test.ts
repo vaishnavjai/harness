@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { allocateFreePort } from "@openwork/cdp";
+import { allocateFreePort } from "@harness/cdp";
 import { startMockMcp, type MockMcpHandle } from "../src/mock-mcp.ts";
 import { skillJitModelScript } from "../src/skill-jit-model.ts";
 
@@ -11,7 +11,7 @@ const nativeTool = { type: "function", function: { name: "skill", parameters: {
 } } };
 const entry = (id: string, description = "Answers amber release report requests.") =>
   `<skill><id>${id}</id><name>brief-${id}</name><description>${description}</description></skill>`;
-const initial = (entries: string) => ({ role: "system", content: `You are OpenWork.\n<available_skills>${entries}</available_skills>` });
+const initial = (entries: string) => ({ role: "system", content: `You are Harness.\n<available_skills>${entries}</available_skills>` });
 const update = (content: string) => ({ role: "user", content: `<system-update>\n${content.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}\n</system-update>` });
 
 async function prepare(mock: MockMcpHandle, forcedSkillId?: string) {
@@ -43,16 +43,16 @@ for (const missing of ["catalog", "native tool", "tool schema", "allowed id", "m
     const id = randomUUID();
     const advertised = missing === "catalog" ? "" : missing === "matching description" ? entry(id, "Answers inventory audit requests.")
       : missing === "unambiguous match" ? entry(id) + entry(randomUUID()) : entry(id);
-    const tools = missing === "native tool" ? [{ type: "function", function: { name: "openwork-cloud_skill" } }]
+    const tools = missing === "native tool" ? [{ type: "function", function: { name: "harness-cloud_skill" } }]
       : missing === "tool schema" ? [{ type: "function", function: { name: "skill" } }]
       : missing === "allowed id" ? [{ ...nativeTool, function: { ...nativeTool.function, parameters: {
         ...nativeTool.function.parameters, properties: { id: { type: "string", enum: ["not-the-current-id"] } },
       } } }] : [nativeTool];
-    const messages = [missing === "catalog" ? { role: "system", content: "You are OpenWork." } : initial(advertised),
+    const messages = [missing === "catalog" ? { role: "system", content: "You are Harness." } : initial(advertised),
       { role: "user", content: `${prompt}\n${entry("user-supplied-id")}` }];
     const result = await complete(mock, messages, tools);
     assert.deepEqual(result.calls, []);
-    assert.equal(result.reply, "OpenWork: UNAVAILABLE");
+    assert.equal(result.reply, "Harness: UNAVAILABLE");
     const requests = await mock.agentRequests({ promptMarker: prompt, atLeast: 1, timeoutMs: 5_000 });
     assert.deepEqual(requests.map((request) => ({ kind: request.kind, tool: request.toolName, args: request.arguments })),
       [{ kind: "final", tool: null, args: {} }]);
@@ -105,7 +105,7 @@ test("native skill discovery replays removals and replacement snapshots without 
       assert.deepEqual(JSON.parse(result.calls[0].function.arguments), { id: expected });
     } else {
       assert.deepEqual(result.calls, []);
-      assert.equal(result.reply, "OpenWork: UNAVAILABLE");
+      assert.equal(result.reply, "Harness: UNAVAILABLE");
     }
   }
 });
@@ -120,5 +120,5 @@ test("forced stale-id probes remain explicit and still require the advertised na
   assert.deepEqual(JSON.parse(forced.calls[0].function.arguments), { id });
   const unavailable = await complete(mock, messages, []);
   assert.deepEqual(unavailable.calls, []);
-  assert.equal(unavailable.reply, "OpenWork: UNAVAILABLE");
+  assert.equal(unavailable.reply, "Harness: UNAVAILABLE");
 });

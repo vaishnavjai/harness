@@ -1,7 +1,7 @@
-import { deriveMockEnv, type MockBoot, type Place, type Seed } from "@openwork/env";
-import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@openwork/world";
+import { deriveMockEnv, type MockBoot, type Place, type Seed } from "@harness/env";
+import { readHeadlessRuntimeManifest, resolveHeadlessWorldRuntimePaths } from "@harness/world";
 import { fileURLToPath } from "node:url";
-import { startMockCloudSkills, type MockAgentRequest, type MockCloudSkillsHandle } from "@openwork/labs";
+import { startMockCloudSkills, type MockAgentRequest, type MockCloudSkillsHandle } from "@harness/labs";
 import { access, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, relative, resolve, sep } from "node:path";
@@ -12,10 +12,10 @@ import { configureProvider } from "./chat.ts";
 export const skillJitAccounts = Object.freeze({ a: "account-a", b: "account-b" });
 /** Both Cloud accounts publish a skill under this name; only the body differs per account. */
 export const skillJitCloudSkillName = "amber-release-report";
-/** The workspace-scoped skill installed through the OpenWork skills route in the native lifecycle case. */
+/** The workspace-scoped skill installed through the Harness skills route in the native lifecycle case. */
 export const skillJitWorkspaceSkillName = "release-briefing";
-/** Every native skill materialized from OpenWork Cloud is registered under this id prefix. */
-export const cloudNativeSkillIdPrefix = "openwork-cloud-";
+/** Every native skill materialized from Harness Cloud is registered under this id prefix. */
+export const cloudNativeSkillIdPrefix = "harness-cloud-";
 
 export interface NativeSkillEntry {
   id: string;
@@ -83,7 +83,7 @@ function isInside(path: string, root: string): boolean {
  * Headless app-web fixture for just-in-time skills on the native v2 engine.
  *
  * The world owns: a deterministic model witness (seed.mock) whose only tool
- * step is the native `skill` tool, an identity-scoped mock of the OpenWork
+ * step is the native `skill` tool, an identity-scoped mock of the Harness
  * Cloud `/mcp/agent` endpoint serving `skill://` resources, and typed seed-side
  * steps that persist that endpoint as the account-global Cloud MCP config for
  * one account at a time. Nothing here injects renderer prompts or evaluates
@@ -118,18 +118,18 @@ export async function skillJitWeb(seed: Seed, context: { place: Place }) {
   // owner reads use an owner bearer minted through this owned runtime's host API.
   const paths = resolveHeadlessWorldRuntimePaths(fileURLToPath(new URL("../../", import.meta.url)), app.handle.name);
   const runtime = await readHeadlessRuntimeManifest(paths.runtimeManifestPath);
-  if (!runtime || runtime.openworkUrl !== app.openworkUrl || runtime.workspace !== app.workspaceRoot) {
+  if (!runtime || runtime.harnessUrl !== app.harnessUrl || runtime.workspace !== app.workspaceRoot) {
     throw new Error("The skill fixture could not identify its owned headless runtime");
   }
-  const ownerResponse = await fetch(`${runtime.openworkUrl}/tokens`, {
-    method: "POST", headers: { "X-OpenWork-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
+  const ownerResponse = await fetch(`${runtime.harnessUrl}/tokens`, {
+    method: "POST", headers: { "X-Harness-Host-Token": runtime.hostToken, "Content-Type": "application/json" },
     body: JSON.stringify({ scope: "owner", label: "skill-jit-owner" }), signal: AbortSignal.timeout(15_000),
   });
   const owner: unknown = await ownerResponse.json();
   if (ownerResponse.status !== 201 || !isRecord(owner) || typeof owner.token !== "string") {
     throw new Error(`Could not arrange owner catalog probe: HTTP ${ownerResponse.status}`);
   }
-  const serverUrl = runtime.openworkUrl;
+  const serverUrl = runtime.harnessUrl;
   const serverToken = owner.token;
   const request = async (path: string, init: { method?: string; body?: unknown; timeoutMs?: number; token?: string } = {}) => {
     const response = await fetch(serverUrl + path, {
@@ -169,7 +169,7 @@ export async function skillJitWeb(seed: Seed, context: { place: Place }) {
   }, "v2");
   const session = await createSession(seed, app, "Amber release report");
   const nativeSkillPath = `/workspace/${encodeURIComponent(workspace.workspaceId)}/opencode2/api/skill`;
-  const cloudMcpPath = `/workspace/${encodeURIComponent(workspace.workspaceId)}/mcp/openwork-cloud`;
+  const cloudMcpPath = `/workspace/${encodeURIComponent(workspace.workspaceId)}/mcp/harness-cloud`;
   const cloudReceipt = (status: number, json: unknown): CloudReconcileReceipt => {
     const health = isRecord(json) ? json : {};
     const failures = Array.isArray(health.failures) ? health.failures : [];
@@ -276,7 +276,7 @@ export async function skillJitWeb(seed: Seed, context: { place: Place }) {
       return agentMock.agentRequests({ promptMarker: prompt, ...opts });
     },
     /** Write a raw workspace SKILL.md at a directory the skills route would never choose. */
-    /** Write a skill file straight to disk, bypassing OpenWork, in any native skill folder. */
+    /** Write a skill file straight to disk, bypassing Harness, in any native skill folder. */
     async writeWorkspaceSkillFile(directoryName: string, markdown: string, folder: ".opencode" | ".agents" | ".claude" = ".opencode"): Promise<string> {
       const directory = join(workspacePath, folder, "skills", directoryName);
       await mkdir(directory, { recursive: true });

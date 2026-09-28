@@ -5,7 +5,7 @@ description: Review a fork PR, review an external contributor PR, check DCO sign
 
 # Skill: review-a-contributor-pr
 
-Use for every PR whose head is not in `different-ai/openwork`
+Use for every PR whose head is not in `vaishnavjai/harness`
 (`isCrossRepository: true`). Fork PRs get no automatic clearance: `warden.yml`
 skips them (`head.repo.full_name == github.repository`, no secrets on fork
 heads) and `warden-clearance.yml` refuses them. Nothing enforces DCO or the
@@ -19,7 +19,7 @@ Every item must be answered explicitly in the review comment. `Blocked` on any
 item means no approval and no merge.
 
 ```bash
-export R=different-ai/openwork N=<pr-number>
+export R=vaishnavjai/harness N=<pr-number>
 gh pr view $N -R $R --json isCrossRepository,headRepositoryOwner,headRepository,headRefOid,labels,files,author \
   --jq '{fork: .isCrossRepository, head: "\(.headRepositoryOwner.login)/\(.headRepository.name)@\(.headRefOid[:10])", author: .author.login, labels: [.labels[].name], ee: [.files[].path | select(startswith("ee/"))]}'
 ```

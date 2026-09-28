@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import {
   CRASH_REPORTS_OBSERVABLE,
   DIAGNOSTIC_REPORTS_DIR,
@@ -79,7 +79,7 @@ for (const { state, stimulus } of cases) {
       expect(observed.crashReports, `macOS wrote a crash report for the ${state} install after ${stimulus}`).toEqual([]);
       evidence.recordAssertionEvidence(
         `No crash report appears in ${DIAGNOSTIC_REPORTS_DIR} for the ${state} install after ${stimulus}`,
-        observed.crashReports.length === 0 ? "no new OpenWork*.ips" : observed.crashReports.join(", "),
+        observed.crashReports.length === 0 ? "no new Harness*.ips" : observed.crashReports.join(", "),
         observed.crashReports.length === 0,
       );
     } else {

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { eventually, queryDenDatabase, test } from "@openwork/testkit";
+import { eventually, queryDenDatabase, test } from "@harness/testkit";
 import { bootAcmeWeb } from "../../worlds/acme-web.ts";
 import { ACME_MODEL, ACME_REPLY, record } from "../../worlds/lib/acme-gateway.ts";
 import { probeAcmeGateway } from "../../worlds/lib/acme-gateway-probe.ts";
-import { denFetch } from "@openwork/behaviors";
+import { denFetch } from "@harness/behaviors";
 
 test("Acme web routes a managed model through the real AI Gateway", { timeout: 600_000 }, async ({ evidence }) => {
   await using stack = new AsyncDisposableStack();
@@ -41,7 +41,7 @@ test("Acme web routes a managed model through the real AI Gateway", { timeout: 6
   });
   assert.equal(denied.status, 401);
   assert.equal(world.upstream.requests.length, before);
-  const headers = { authorization: `Bearer ${world.den.admin.token}`, "x-openwork-org-id": world.model.orgId };
+  const headers = { authorization: `Bearer ${world.den.admin.token}`, "x-harness-org-id": world.model.orgId };
   const grants = await denFetch(world.den.admin, `/v1/inference-providers/${world.model.providerId}/access-grants`, { headers });
   assert.equal(grants.response.status, 200);
   const grant = record(grants.body) && Array.isArray(grants.body.accessGrants) ? grants.body.accessGrants.find(record) : undefined;

@@ -73,7 +73,7 @@ export const MCP_APP_SANDBOX_PROXY_SCRIPT = String.raw`
   const hostOrigin = referrerOrigin || declaredHostOrigin;
   if (!hostOrigin) throw new Error("MCP App sandbox host origin is unavailable.");
   const hostTargetOrigin = hostOrigin === "null" ? "*" : hostOrigin;
-  // OpenWork delivery diagnostics are deliberately outside JSON-RPC so the
+  // Harness delivery diagnostics are deliberately outside JSON-RPC so the
   // stable MCP Apps transport never mistakes them for protocol messages.
   const notifyHost = (method, params = {}) => window.parent.postMessage({ method, params }, hostTargetOrigin);
   function interactionBootstrap() {
@@ -109,7 +109,7 @@ export const MCP_APP_SANDBOX_PROXY_SCRIPT = String.raw`
       call(post, port, { id: data.id, approved });
     });
     call(start, port);
-    sendReady({ method: "openwork/interaction-ready" }, "*", [channel.port2]);
+    sendReady({ method: "harness/interaction-ready" }, "*", [channel.port2]);
   }
   const bootstrap = "<script>(" + interactionBootstrap.toString() + ")();<\/script>";
   let resourceAssigned = false;
@@ -146,13 +146,13 @@ export const MCP_APP_SANDBOX_PROXY_SCRIPT = String.raw`
     const assignedGeneration = generation;
     const params = data.params && typeof data.params === "object" ? data.params : {};
     const meta = params._meta && typeof params._meta === "object" ? params._meta : {};
-    const request = { ...data, params: { ...params, _meta: { ...meta, "openwork/userInteraction": false } } };
+    const request = { ...data, params: { ...params, _meta: { ...meta, "harness/userInteraction": false } } };
     const id = ++nextProofId;
     const finish = (approved, forward = true) => {
       if (!pending.delete(id)) return;
       clearTimeout(timer);
       if (!forward || assignedGeneration !== generation) return;
-      request.params._meta["openwork/userInteraction"] = approved === true;
+      request.params._meta["harness/userInteraction"] = approved === true;
       window.parent.postMessage(request, hostTargetOrigin);
     };
     const timer = setTimeout(() => finish(false), 1000);
@@ -196,7 +196,7 @@ export const MCP_APP_SANDBOX_PROXY_SCRIPT = String.raw`
       return;
     }
     if (resourceAssigned && event.isTrusted && event.source === inner.contentWindow && event.origin === "null") {
-      if (event.data?.method === "openwork/interaction-ready") {
+      if (event.data?.method === "harness/interaction-ready") {
         if (handshakeReceived) return;
         handshakeReceived = true;
         if (event.ports.length !== 1) return;

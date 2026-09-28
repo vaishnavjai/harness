@@ -1,7 +1,7 @@
 // Engine reload wiring for the session route: UI-triggered engine reload,
 // reload-coordinator registration, the post-org-onboarding reload latch,
 // server reload-event polling, and desktop engine info. Extracted verbatim
-// from session-route.tsx; reload events are now typed (OpenworkReloadEvent)
+// from session-route.tsx; reload events are now typed (HarnessReloadEvent)
 // instead of `any`.
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -9,7 +9,7 @@ import { engineInfo } from "@/app/lib/desktop";
 import { isOpencodeV2BaseUrl } from "@/app/lib/opencode-v2-adapter";
 import type { EngineInfo } from "@/app/lib/desktop-types";
 import { isDesktopRuntime } from "@/app/lib/runtime-env";
-import type { OpenworkServerClient } from "@/app/lib/openwork-server";
+import type { HarnessServerClient } from "@/app/lib/harness-server";
 import type { ResolvedWorkspaceEndpoint } from "@/app/lib/workspace-endpoint";
 import { t } from "@/i18n";
 import { reloadEngineWithDesktopFallback } from "./engine-reload-escalation";
@@ -19,14 +19,14 @@ import { getReactQueryClient } from "@/react-app/infra/query-client";
 import type { RouteWorkspace } from "./route-workspaces";
 import { toast } from "@/components/ui/sonner";
 
-const reloadAfterOrgOnboardingKey = "openwork.reloadAfterOrgOnboarding";
+const reloadAfterOrgOnboardingKey = "harness.reloadAfterOrgOnboarding";
 
 function taskCreateUnavailableToastId(workspaceId: string) {
   return `opencode-unavailable:${workspaceId}`;
 }
 
 export type UseEngineReloadInput = {
-  client: OpenworkServerClient | null;
+  client: HarnessServerClient | null;
   workspaceId: string;
   opencodeBaseUrl: string;
   workspace: RouteWorkspace | null | undefined;
@@ -96,7 +96,7 @@ export function useEngineReload(input: UseEngineReloadInput) {
     }
     setEngineReloadVersion((v) => v + 1);
     try {
-      window.dispatchEvent(new CustomEvent("openwork-server-settings-changed"));
+      window.dispatchEvent(new CustomEvent("harness-server-settings-changed"));
     } catch {
       // ignore browser event dispatch failures
     }

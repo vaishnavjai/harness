@@ -44,8 +44,8 @@ test("v2 repair mirrors and reconnects the requested MCP; v1 and remote repairs 
     ensureWorkspaceReady: async () => { operations.push("ready"); },
     syncWorkspaceMcp: async () => { operations.push("sync"); },
   }, async () => { operations.push("v1-or-remote"); return { status: "ok", syncedNames: [], failures: [] }; });
-  expect((await register(config, workspace, ["openwork-cloud"])).status).toBe("ok");
-  expect(operations).toEqual(["ready", "sync", "POST /api/mcp/openwork-cloud/connect"]);
+  expect((await register(config, workspace, ["harness-cloud"])).status).toBe("ok");
+  expect(operations).toEqual(["ready", "sync", "POST /api/mcp/harness-cloud/connect"]);
   await register(config, { ...workspace, workspaceType: "remote" });
   chatRouting = false;
   await register(config, workspace);

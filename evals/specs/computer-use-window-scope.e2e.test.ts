@@ -1,10 +1,10 @@
-import { screenshot } from "@openwork/test-evidence";
-import { reload } from "@openwork/cdp";
-import { browserScript } from "@openwork/testkit";
+import { screenshot } from "@harness/test-evidence";
+import { reload } from "@harness/cdp";
+import { browserScript } from "@harness/testkit";
 import { expect } from "vitest";
-import { spec } from "@openwork/testkit";
+import { spec } from "@harness/testkit";
 import { computerUseWorld, toolState } from "../worlds/computer-use.ts";
-import { createAndSelectWorkspace, evalIn, waitFor } from "@openwork/behaviors";
+import { createAndSelectWorkspace, evalIn, waitFor } from "@harness/behaviors";
 
 // New journey: a person grants one native window and can revoke it. The helper
 // is a real stdio process; the fixture app has two independent, disposable windows.
@@ -13,7 +13,7 @@ const test = spec.world(computerUseWorld, { timeout: 180_000, needs: { platform:
 test("Computer Use respects window consent, fresh observations and the person's Stop control", async ({ world, step }) => {
   await step("Discovery exposes identities without window content or input access", async () => {
     const discovery = toolState(await world.call("computer_discover"));
-    expect(discovery.protocol).toBe("openwork.computer-use/1");
+    expect(discovery.protocol).toBe("harness.computer-use/1");
     expect(discovery.apps).toEqual(expect.arrayContaining([expect.objectContaining({ app_id: world.appId })]));
     expect(JSON.stringify(discovery)).not.toContain("Initial draft");
     const unapproved = await world.call("computer_observe", { session_id: "invented" });
@@ -268,7 +268,7 @@ test("Computer Use enables workspace tools from the desktop setup page", async (
     expect(await evalIn(app, () => ([...document.querySelectorAll("button")].some(b => /^(Enable|Reconnect) Computer Use$/.test(b.textContent.trim()))))).toBe(false);
   });
   const workspaceMcp = (body?: unknown) => evalIn(app, browserScript(async (id, body) => {
-    const server = await window.__OPENWORK_ELECTRON__.invokeDesktop("openworkServerInfo");
+    const server = await window.__HARNESS_ELECTRON__.invokeDesktop("harnessServerInfo");
     if (!server.running || !server.baseUrl || !server.clientToken) throw new Error("Isolated workspace server is not running");
     const response = await fetch(`${server.baseUrl}/workspace/${id}/mcp`, {
       method: body === null ? "GET" : "POST",
@@ -286,7 +286,7 @@ test("Computer Use enables workspace tools from the desktop setup page", async (
     return computer.config.command;
   };
   const command = await configuredCommand();
-  expect(command).toEqual(await evalIn(app, () => window.__OPENWORK_ELECTRON__.invokeDesktop("getComputerUseMcpCommand")));
+  expect(command).toEqual(await evalIn(app, () => window.__HARNESS_ELECTRON__.invokeDesktop("getComputerUseMcpCommand")));
   await using computer = await world.hostedClient(command);
   const observeWhenQuiet = async (sessionId: unknown) => {
     const deadline = Date.now() + 5_000;
@@ -299,14 +299,14 @@ test("Computer Use enables workspace tools from the desktop setup page", async (
     }
   };
   const session = await step("Main-app approval starts the selected window without a second Continue", async () => {
-    const pending = computer.call("computer_open_session", { app_id: world.appId, pid: world.appPid, mode: "control", purpose: "Use the disposable workspace from OpenWork." });
+    const pending = computer.call("computer_open_session", { app_id: world.appId, pid: world.appPid, mode: "control", purpose: "Use the disposable workspace from Harness." });
     await Promise.race([
       waitFor(app, () => Boolean(document.querySelector('select[aria-label="Window to allow"]')), { timeoutMs: 15_000 }).catch(async (error) => {
-        throw new Error(`${String(error)}; host state: ${JSON.stringify(await evalIn(app, () => window.__OPENWORK_ELECTRON__.invokeDesktop("getComputerUseState")))}`);
+        throw new Error(`${String(error)}; host state: ${JSON.stringify(await evalIn(app, () => window.__HARNESS_ELECTRON__.invokeDesktop("getComputerUseState")))}`);
       }),
       pending.then((reply) => { throw new Error(`Session ended before approval: ${JSON.stringify(toolState(reply))}`); }),
     ]);
-    await expect(computer.request("openwork/ui", { action: "approve" })).rejects.toThrow("Method not available to the agent");
+    await expect(computer.request("harness/ui", { action: "approve" })).rejects.toThrow("Method not available to the agent");
     expect(await evalIn(app, () => document.body.innerText.includes("Allow and start"))).toBe(true);
     await screenshot(app);
     await evalIn(app, () => {
@@ -322,7 +322,7 @@ test("Computer Use enables workspace tools from the desktop setup page", async (
     expect(await world.foregroundWindow()).toEqual({ title: "Workspace window" });
     return opened.session_id;
   });
-  const host = await evalIn(app, () => window.__OPENWORK_ELECTRON__.invokeDesktop("getComputerUseState"));
+  const host = await evalIn(app, () => window.__HARNESS_ELECTRON__.invokeDesktop("getComputerUseState"));
   if (!Array.isArray(host) || typeof host[0] !== "object" || host[0] === null || !("helperPid" in host[0])) throw new Error("Missing native preview owner");
   const previewPid = host[0].helperPid;
   await step("Normal work has a native preview and no persistent control dashboard", async () => {

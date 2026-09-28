@@ -36,7 +36,7 @@ import {
   deepLinkBridgeEvent,
   drainPendingDeepLinks,
 } from "../../../app/lib/deep-link-bridge";
-import { parseDenAuthDeepLink } from "../../../app/lib/openwork-links";
+import { parseDenAuthDeepLink } from "../../../app/lib/harness-links";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -179,7 +179,7 @@ function pendingServerSwitchForDeepLink(input: {
   const bootstrap = readDenBootstrapConfig();
   // An enterprise activation permanently binds the installation to the issuing
   // Den, so confirm a control-plane change even when no bootstrap file
-  // provisioned one. Otherwise any openwork://den-auth link can repoint the
+  // provisioned one. Otherwise any harness://den-auth link can repoint the
   // control plane and activate the app in a single unattended step.
   if (bootstrap.source !== "file" && !input.isEnterpriseActivation) return null;
 
@@ -229,20 +229,6 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
     setStatus(nextStatus);
   }, []);
 
-  const syncDesktopSentrySession = useCallback((nextUser: DenUser | null) => {
-    if (typeof window === "undefined" || !window.__OPENWORK_ELECTRON__) return;
-    const settings = readDenSettings();
-    const userId = nextUser?.id?.trim() ?? "";
-    const orgId = settings.activeOrgId?.trim() ?? "";
-    if (!settings.authToken?.trim() || !userId || !orgId) return;
-    void desktopBridge.desktopSentrySetSession({ userId, orgId }).catch(() => undefined);
-  }, []);
-
-  const clearDesktopSentrySession = useCallback(() => {
-    if (typeof window === "undefined" || !window.__OPENWORK_ELECTRON__) return;
-    void desktopBridge.desktopSentryClearSession().catch(() => undefined);
-  }, []);
-
   const refresh = useCallback(async () => {
     const currentRun = ++refreshTokenRef.current;
     const settings = readDenSettings();
@@ -265,7 +251,6 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
       setError(null);
       lastSignalRetryAtRef.current = null;
       updateStatus("signed_out");
-      clearDesktopSentrySession();
       return;
     }
 
@@ -316,7 +301,6 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
       lastSignalRetryAtRef.current = null;
       diagnostics?.recovered("den_session_recovered");
       updateStatus("signed_in");
-      syncDesktopSentrySession(nextUser);
     } catch (nextError) {
       if (currentRun !== refreshTokenRef.current) return;
 
@@ -328,17 +312,16 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
         verifiedCredentialRef.current = null;
         setVerifiedIdentity(null);
         lastSignalRetryAtRef.current = null;
-        clearDesktopSentrySession();
       }
 
       setError(
         nextError instanceof Error
           ? nextError.message
-          : "Failed to restore OpenWork Cloud session.",
+          : "Failed to restore Harness Cloud session.",
       );
       updateStatus(failureStatus);
     }
-  }, [clearDesktopSentrySession, syncDesktopSentrySession, updateStatus]);
+  }, [updateStatus]);
 
   useEffect(() => {
     const resetDiagnostics = () => {
@@ -365,20 +348,6 @@ export function DenAuthProvider({ children }: DenAuthProviderProps) {
       diagnosticsRef.current = null;
     };
   }, [refresh]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!window.__OPENWORK_ELECTRON__) return;
-
-    if (status === "signed_out") return clearDesktopSentrySession();
-
-    const settings = readDenSettings();
-    const userId = user?.id?.trim() ?? "";
-    const orgId = settings.activeOrgId?.trim() ?? "";
-    if (!hasRetainedDenSession(status) || !userId || !orgId || !settings.authToken?.trim()) return;
-
-    syncDesktopSentrySession(user);
-  }, [clearDesktopSentrySession, status, syncDesktopSentrySession, user, user?.id]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

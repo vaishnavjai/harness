@@ -1,5 +1,5 @@
-import { browserScript, evalIn } from "@openwork/testkit";
-import type { Surface } from "@openwork/cdp";
+import { browserScript, evalIn } from "@harness/testkit";
+import type { Surface } from "@harness/cdp";
 
 /** Simulates keyboard viewport geometry only; this is not a native iOS keyboard. */
 export async function simulateKeyboardViewport(app: Surface, height: number, top: number) {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 
 import { createDenClient, DenApiError } from "../src/app/lib/den";
-import type { GatewayProviderSummary } from "@openwork/types/den/gateway";
+import type { GatewayProviderSummary } from "@harness/types/den/gateway";
 
 const originalFetch = globalThis.fetch;
 const client = createDenClient({
@@ -14,7 +14,7 @@ const provider = {
   id: "ipr_test",
   providerId: "openai",
   name: "Team AI",
-  source: "openwork_gateway",
+  source: "harness_gateway",
   credentialMode: "per_member",
   credentialStatus: "member_auth_required",
   authUrl: null,
@@ -60,8 +60,8 @@ describe("Den accessible Gateway provider summaries", () => {
     expect(requests[0]?.url).toBe("https://api.den.example.test/v1/inference-providers?scope=usable");
     expect(requests[0]?.method).toBe("GET");
     expect(requests[0]?.headers.get("authorization")).toBe("Bearer test-token");
-    expect(requests[0]?.headers.get("x-openwork-org-id")).toBe("org_test");
-    expect(requests[0]?.headers.get("x-openwork-legacy-org-id")).toBe("org_test");
+    expect(requests[0]?.headers.get("x-harness-org-id")).toBe("org_test");
+    expect(requests[0]?.headers.get("x-harness-legacy-org-id")).toBe("org_test");
   });
 
   test("accepts an empty accessible list", async () => {
@@ -106,7 +106,7 @@ describe("Den accessible Gateway provider summaries", () => {
     { inferenceProviders: [provider, { ...provider, id: " " }] },
     { inferenceProviders: [{ ...provider, providerId: 1 }] },
     { inferenceProviders: [{ ...provider, name: null }] },
-    { inferenceProviders: [{ ...provider, source: "openwork" }] },
+    { inferenceProviders: [{ ...provider, source: "harness" }] },
   ];
   for (const [index, payload] of invalidPayloads.entries()) {
     test(`rejects invalid summary payload ${index + 1} without silently dropping rows`, async () => {

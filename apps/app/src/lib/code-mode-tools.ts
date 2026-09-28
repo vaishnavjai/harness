@@ -6,7 +6,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Project recorded calls, never infer execution by parsing the generated code. */
 export function codeModeToolCalls(part: DynamicToolUIPart): DynamicToolUIPart[] | null {
-  const codeMode = part.callProviderMetadata?.openwork?.codeMode;
+  const codeMode = part.callProviderMetadata?.harness?.codeMode;
   if (!isRecord(codeMode) || !Array.isArray(codeMode.calls)) return null;
   return codeMode.calls.flatMap((call, ordinal): DynamicToolUIPart[] => {
     if (!isRecord(call) || typeof call.tool !== "string" || !call.tool.trim()) return [];

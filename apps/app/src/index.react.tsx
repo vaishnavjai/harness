@@ -6,8 +6,7 @@ import { BrowserRouter, HashRouter } from "react-router";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { initializeDenBootstrapConfig } from "./app/lib/den";
-import { startWebErrorMonitoring } from "./app/lib/error-monitoring";
-import { getOpenWorkDeployment } from "./app/lib/openwork-deployment";
+import { getHarnessDeployment } from "./app/lib/harness-deployment";
 import { bootstrapTheme } from "./app/theme";
 import { isDesktopRuntime } from "./app/utils";
 import { initLocale } from "./i18n";
@@ -33,13 +32,12 @@ if (!root) {
 // Keep one startup promise across StrictMode renders. Rejections now reach the
 // error boundary, and pending bootstrap IPC no longer leaves an empty root.
 const startup = Promise.resolve().then(async () => {
-  startWebErrorMonitoring();
   bootstrapTheme();
   initLocale();
   startDeepLinkBridge();
   await initializeDenBootstrapConfig();
 
-  root.dataset.openworkDeployment = getOpenWorkDeployment();
+  root.dataset.harnessDeployment = getHarnessDeployment();
   const platform = createDefaultPlatform();
   setWebNotificationHandler(platform.notify);
   const queryClient = getReactQueryClient();

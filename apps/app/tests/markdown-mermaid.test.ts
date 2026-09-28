@@ -27,10 +27,10 @@ describe("Mermaid Markdown placeholders", () => {
       const highlighted = await renderHighlightedMarkdownHtml(MARKDOWN, presentation);
 
       for (const html of [fallback, highlighted]) {
-        expect(html).toContain("data-openwork-mermaid");
-        expect(html).toContain("data-openwork-mermaid-source");
-        expect(html).toContain("data-openwork-mermaid-view=\"rendered\"");
-        expect(html).toContain("data-openwork-mermaid-download");
+        expect(html).toContain("data-harness-mermaid");
+        expect(html).toContain("data-harness-mermaid-source");
+        expect(html).toContain("data-harness-mermaid-view=\"rendered\"");
+        expect(html).toContain("data-harness-mermaid-download");
         expect(html).toContain("Start[Start] --&gt; Finish[Finish]");
         expect(html).not.toContain("<svg");
       }
@@ -39,8 +39,8 @@ describe("Mermaid Markdown placeholders", () => {
 
   test("leaves non-Mermaid fences on the existing code path", () => {
     const html = renderMarkdownHtml("```ts\nconst diagram = false;\n```");
-    expect(html).toContain("data-openwork-code-block");
-    expect(html).not.toContain("data-openwork-mermaid");
+    expect(html).toContain("data-harness-code-block");
+    expect(html).not.toContain("data-harness-mermaid");
   });
 
   test("classifies standalone Mermaid source as a Markdown artifact", () => {

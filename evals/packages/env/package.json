@@ -1,5 +1,5 @@
 {
-  "name": "@openwork/env",
+  "name": "@harness/env",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -21,12 +21,12 @@
     }
   },
   "dependencies": {
-    "@openwork/behaviors": "workspace:*",
-    "@openwork/cdp": "workspace:*",
-    "@openwork/hosts": "workspace:*",
-    "@openwork/freestyle": "link:../../../packages/freestyle",
-    "@openwork/labs": "workspace:*",
-    "@openwork/world": "link:../../../packages/world",
+    "@harness/behaviors": "workspace:*",
+    "@harness/cdp": "workspace:*",
+    "@harness/hosts": "workspace:*",
+    "@harness/freestyle": "link:../../../packages/freestyle",
+    "@harness/labs": "workspace:*",
+    "@harness/world": "link:../../../packages/world",
     "mysql2": "^3.11.3"
   }
 }

@@ -145,7 +145,7 @@ export function isProcessAlive(pid: number): boolean {
 
 export function scriptWorldSnapshotDirectory(repoRoot: string): string {
   return resolve(
-    process.env.OPENWORK_WORLD_SNAPSHOT_DIR
+    process.env.HARNESS_WORLD_SNAPSHOT_DIR
       ?? join(repoRoot, "evals", "results", ".worlds", "scripts"),
   );
 }
@@ -284,19 +284,19 @@ export async function launchScriptWorld(options: LaunchScriptWorldOptions): Prom
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ...options.env,
-    OPENWORK_WORLD_SELECTED_ENV_KEYS: JSON.stringify(Object.keys(options.env ?? {}).sort()),
-    OPENWORK_WORLD_SNAPSHOT_DIR: options.snapshotDirectory,
+    HARNESS_WORLD_SELECTED_ENV_KEYS: JSON.stringify(Object.keys(options.env ?? {}).sort()),
+    HARNESS_WORLD_SNAPSHOT_DIR: options.snapshotDirectory,
     [LEDGER_ENV]: ledgerPath(options.snapshotDirectory, stagedName),
     [EVENTS_ENV]: eventPath,
   };
-  if (options.stage === undefined) delete env.OPENWORK_WORLD_STAGE;
-  else env.OPENWORK_WORLD_STAGE = options.stage;
-  if (options.recipeHash === undefined) delete env.OPENWORK_WORLD_RECIPE_HASH;
-  else env.OPENWORK_WORLD_RECIPE_HASH = options.recipeHash;
-  if (options.invocationHash === undefined) delete env.OPENWORK_WORLD_INVOCATION_HASH;
-  else env.OPENWORK_WORLD_INVOCATION_HASH = options.invocationHash;
-  if (options.place === undefined) delete env.OPENWORK_WORLD_PLACE;
-  else env.OPENWORK_WORLD_PLACE = options.place;
+  if (options.stage === undefined) delete env.HARNESS_WORLD_STAGE;
+  else env.HARNESS_WORLD_STAGE = options.stage;
+  if (options.recipeHash === undefined) delete env.HARNESS_WORLD_RECIPE_HASH;
+  else env.HARNESS_WORLD_RECIPE_HASH = options.recipeHash;
+  if (options.invocationHash === undefined) delete env.HARNESS_WORLD_INVOCATION_HASH;
+  else env.HARNESS_WORLD_INVOCATION_HASH = options.invocationHash;
+  if (options.place === undefined) delete env.HARNESS_WORLD_PLACE;
+  else env.HARNESS_WORLD_PLACE = options.place;
   if (options.os === undefined) delete env[OS_ENV];
   else env[OS_ENV] = options.os;
   // Composed inputs are CLI-owned; never inherit an un-fingerprinted recipe

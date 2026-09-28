@@ -3,9 +3,9 @@ import { FreestyleApiError } from "freestyle";
 import { ACCESS_FILE, client, execChecked, isMissing, waitForPublicAccess } from "./index.ts";
 import { parseEvidenceCheckpoint, type EvidenceCheckpoint } from "./checkpoint-schema.ts";
 
-export const EVIDENCE_KIND = "openwork-evidence-source-v1";
-export const FORK_KIND = "openwork-evidence-fork-v1";
-const root = "/opt/openwork-preview";
+export const EVIDENCE_KIND = "harness-evidence-source-v1";
+export const FORK_KIND = "harness-evidence-fork-v1";
+const root = "/opt/harness-preview";
 const manifest = `${root}/checkpoint.json`;
 export class CheckpointUnavailable extends Error {}
 export class CheckpointCapacity extends Error {}
@@ -29,15 +29,15 @@ export async function readEvidenceSession(id: string, sourceSha: string, api = c
   if (!record(value) || value.vmId !== owner.id || value.sourceSha !== sourceSha || typeof value.token !== "string" || !/^[\w-]{43}$/.test(value.token)
     || typeof value.expiresAt !== "string" || !Number.isFinite(Date.parse(value.expiresAt)) || Date.parse(value.expiresAt) <= Date.now() || !record(value.origins)
     || typeof value.origins.desktop !== "string" || typeof value.origins.cdp !== "string"
-    || !/^https:\/\/evidence-[a-f0-9]{32}\.preview\.openwork\.software$/.test(value.origins.desktop)
-    || !/^https:\/\/cdp-[a-f0-9]{32}\.preview\.openwork\.software$/.test(value.origins.cdp)) throw new Error("Invalid evidence access configuration");
-  return { id, sourceSha, url: `${value.origins.desktop}/__openwork_launch?token=${value.token}`,
-    cdpOrigin: value.origins.cdp, cookie: `__Host-openwork-preview=${value.token}`, expiresAt: value.expiresAt };
+    || !/^https:\/\/evidence-[a-f0-9]{32}\.preview\.harness\.software$/.test(value.origins.desktop)
+    || !/^https:\/\/cdp-[a-f0-9]{32}\.preview\.harness\.software$/.test(value.origins.cdp)) throw new Error("Invalid evidence access configuration");
+  return { id, sourceSha, url: `${value.origins.desktop}/__harness_launch?token=${value.token}`,
+    cdpOrigin: value.origins.cdp, cookie: `__Host-harness-preview=${value.token}`, expiresAt: value.expiresAt };
 }
 
 async function allocate(input: { snapshotId: string; slug: string; kind: string; sourceSha: string; runtimeFingerprint?: string; metadata?: Record<string, string> }, api: ReturnType<typeof client>, probe: typeof fetch = fetch) {
   const nonce = randomUUID().replaceAll("-", "");
-  const origins = { desktop: `https://evidence-${nonce}.preview.openwork.software`, cdp: `https://cdp-${nonce}.preview.openwork.software` };
+  const origins = { desktop: `https://evidence-${nonce}.preview.harness-legacy.invalid`, cdp: `https://cdp-${nonce}.preview.harness-legacy.invalid` };
   const created = await api.vms.create({
     snapshotId: input.snapshotId, slug: input.slug, ttlSeconds: 3600, idleTimeoutSeconds: 600,
     metadata: { kind: input.kind, sourceSha: input.sourceSha, ...input.metadata },
@@ -166,5 +166,5 @@ export async function deleteEvidenceVm(id: string, api = client()) {
 export async function continueEvidenceStream(id: string, api = client()) {
   const vm = await api.vms.get(id);
   if (![EVIDENCE_KIND, FORK_KIND].includes(vm.metadata.kind)) throw new Error("Not an evidence VM");
-  await execChecked(api.vms.ref(id), "node /opt/openwork-preview/evidence-control.mjs continue", 15_000);
+  await execChecked(api.vms.ref(id), "node /opt/harness-preview/evidence-control.mjs continue", 15_000);
 }

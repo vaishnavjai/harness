@@ -8,8 +8,8 @@ test("Freestyle placement passes the exact source ref to app-web", () => {
   assert.deepEqual(parseWorldArgs(["up", "app-web", "--place", "freestyle", "--", "--ref", sha]), {
     kind: "up", source: "app-web", place: "freestyle", args: ["--ref", sha],
   });
-  assert.deepEqual(parseAppWebOptions(["--ref", sha], { OPENWORK_WORLD_PLACE: "freestyle" }), {
+  assert.deepEqual(parseAppWebOptions(["--ref", sha], { HARNESS_WORLD_PLACE: "freestyle" }), {
     place: "freestyle", ref: sha, lifetimeMinutes: 120,
   });
-  assert.throws(() => parseAppWebOptions([], { OPENWORK_WORLD_PLACE: "freestyle" }), /requires/);
+  assert.throws(() => parseAppWebOptions([], { HARNESS_WORLD_PLACE: "freestyle" }), /requires/);
 });

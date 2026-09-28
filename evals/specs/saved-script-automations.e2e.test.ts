@@ -3,7 +3,7 @@ import {
   createCloudAutomation,
   createOrgConnection,
   denFetch,
-  grantOpenWorkWebAccess,
+  grantHarnessWebAccess,
   listWorkflows,
   patchAutomation,
   readAutomation,
@@ -13,11 +13,11 @@ import {
   runAutomationNow,
   runWorkflow,
   saveWorkflow,
-} from "@openwork/behaviors"
-import { needs, spec } from "@openwork/testkit"
+} from "@harness/behaviors"
+import { needs, spec } from "@harness/testkit"
 
 const requirements = {
-  optIn: ["OPENWORK_EVAL_E2E_TESTS", "OPENWORK_EVAL_SAVED_SCRIPT_AUTOMATIONS_E2E_TEST"],
+  optIn: ["HARNESS_EVAL_E2E_TESTS", "HARNESS_EVAL_SAVED_SCRIPT_AUTOMATIONS_E2E_TEST"],
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -95,10 +95,10 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
   const organizationId = String(orgRows[0]?.id ?? "")
   expect(organizationId).not.toBe("")
 
-  // Cloud Automations require OpenWork Web access for the organization. The
+  // Cloud Automations require Harness Web access for the organization. The
   // launched Den seeds this admin into the platform-admin allowlist, so the
   // spec grants the audited complimentary entitlement inline.
-  await grantOpenWorkWebAccess(
+  await grantHarnessWebAccess(
     den.admin,
     organizationId,
     "saved-script-automations spec exercises Cloud Automations",
@@ -133,7 +133,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
     method: "POST",
     headers: {
       authorization: `Bearer ${den.admin.token}`,
-      "x-openwork-org-id": organizationId,
+      "x-harness-org-id": organizationId,
     },
     body: JSON.stringify({ scopes: ["mcp:read", "mcp:write"] }),
   })
@@ -291,7 +291,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
   expect(revision?.buildStatus).toBe("ready")
   expect(revision?.resourceUri).toBeTypeOf("string")
   expect(revision?.id).toBeTypeOf("string")
-  expect(draft._meta).toEqual({ "openwork/appDraft": { appId: view.id, revisionId: revision?.id, receiptId: appResult.receiptId, title: "Briefing app" } })
+  expect(draft._meta).toEqual({ "harness/appDraft": { appId: view.id, revisionId: revision?.id, receiptId: appResult.receiptId, title: "Briefing app" } })
   expect(JSON.stringify(draft.content)).toContain("Saved immutable view revision")
   expect(view.activeRevisionId).toBeNull()
   const previewToolName = `preview_artifact_${view.id}`
@@ -307,7 +307,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
   expect(previewContent).toMatchObject({ uri: revision?.resourceUri, mimeType: "text/html;profile=mcp-app" })
   expect(previewContent?.text).toBeTypeOf("string")
   expect(previewContent?._meta).toMatchObject({ resourceDigest: revision?.resourceDigest })
-  expect(previewResource).not.toHaveProperty("_meta.openwork/appDraft")
+  expect(previewResource).not.toHaveProperty("_meta.harness/appDraft")
   const preview = await agentRpc(den.ref.apiUrl, mcpToken, "tools/call", {
     name: previewToolName,
     arguments: { receiptId: appResult.receiptId },
@@ -318,7 +318,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
     data: appResult.value,
   })
   expect(preview._meta).toMatchObject({ artifactViewId: view.id, viewRevisionId: revision?.id })
-  expect(preview).not.toHaveProperty("_meta.openwork/appDraft")
+  expect(preview).not.toHaveProperty("_meta.harness/appDraft")
   expect((await readWorkflowDetail(den.admin, appConfigObjectId)).script.latestSuccessfulSnapshot).toEqual(
     beforePreview.script.latestSuccessfulSnapshot,
   )
@@ -371,7 +371,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
     expect((await appRequest(den.admin, appPath)).body).toMatchObject({ onDashboard: true })
     evidence.recordAssertionEvidence(
       "A draft app can be saved and reopened with personal placement without running, scheduling, or granting workflow access",
-      "The real MCP builder retained exact openwork/appDraft revision and receipt metadata for released clients; modern-client suppression is independent of this backend contract. The advertised preview tool's standard UI metadata resolved to the same immutable HTML served by the explicitly requested Apps preview path. The Apps routes retained its exact revision and HTML, saved personal placement without changing workflow version or snapshots, rejected stale saves and an ungranted member, and removed/re-added only the author's card.",
+      "The real MCP builder retained exact harness/appDraft revision and receipt metadata for released clients; modern-client suppression is independent of this backend contract. The advertised preview tool's standard UI metadata resolved to the same immutable HTML served by the explicitly requested Apps preview path. The Apps routes retained its exact revision and HTML, saved personal placement without changing workflow version or snapshots, rejected stale saves and an ungranted member, and removed/re-added only the author's card.",
       true,
     )
   })
@@ -426,7 +426,7 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
     executionLocation: "cloud",
     automationId,
     automationRunId: scheduledRunId,
-    engineKind: "openwork-cloud-codemode-v1",
+    engineKind: "harness-cloud-codemode-v1",
   })
 
   const toolList = await agentRpc(den.ref.apiUrl, mcpToken, "tools/list", {})
@@ -434,16 +434,16 @@ test("an owner saves and reopens a snapshot app while unsafe external live data 
   const renderTool = tools.find((candidate) => candidate.name === "render_workflow_artifact")
   const renderToolMeta = isRecord(renderTool?._meta) ? renderTool._meta : {}
   const modernUi = isRecord(renderToolMeta.ui) ? renderToolMeta.ui : {}
-  expect(modernUi.resourceUri).toBe("ui://openwork/workflow-artifact/v1/view.html")
-  expect(renderToolMeta["ui/resourceUri"]).toBe("ui://openwork/workflow-artifact/v1/view.html")
+  expect(modernUi.resourceUri).toBe("ui://harness/workflow-artifact/v1/view.html")
+  expect(renderToolMeta["ui/resourceUri"]).toBe("ui://harness/workflow-artifact/v1/view.html")
 
   const resourceList = await agentRpc(den.ref.apiUrl, mcpToken, "resources/list", {})
   const resources = records(resourceList.resources)
-  const appResource = resources.find((candidate) => candidate.uri === "ui://openwork/workflow-artifact/v1/view.html")
+  const appResource = resources.find((candidate) => candidate.uri === "ui://harness/workflow-artifact/v1/view.html")
   expect(appResource?.mimeType).toBe("text/html;profile=mcp-app")
 
   const resourceRead = await agentRpc(den.ref.apiUrl, mcpToken, "resources/read", {
-    uri: "ui://openwork/workflow-artifact/v1/view.html",
+    uri: "ui://harness/workflow-artifact/v1/view.html",
   })
   const resourceContents = records(resourceRead.contents)
   expect(resourceContents[0]?.mimeType).toBe("text/html;profile=mcp-app")

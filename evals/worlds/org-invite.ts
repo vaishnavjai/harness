@@ -1,5 +1,5 @@
-import { denFetch, signIn, type DenSession } from "@openwork/behaviors";
-import { defaultReuseAdmin, localMysqlIsRunning, localRedisIsRunning, needs, personDefaults, queryDenDatabase, SkipError, type Seed } from "@openwork/env";
+import { denFetch, signIn, type DenSession } from "@harness/behaviors";
+import { defaultReuseAdmin, localMysqlIsRunning, localRedisIsRunning, needs, personDefaults, queryDenDatabase, SkipError, type Seed } from "@harness/env";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -33,7 +33,7 @@ export function invitationWitnesses(admin: DenSession) {
     signal: AbortSignal.timeout(15_000),
   });
   const read = async (path: string, orgId?: string) => {
-    const result = await api(path, { headers: orgId ? { "x-openwork-org-id": orgId } : {} });
+    const result = await api(path, { headers: orgId ? { "x-harness-org-id": orgId } : {} });
     if (!result.response.ok) throw new Error(`Witness ${path}: HTTP ${result.response.status} ${result.text.slice(0, 500)}`);
     return record(result.body);
   };
@@ -52,7 +52,7 @@ export function invitationWitnesses(admin: DenSession) {
     orgs: async () => rows((await read("/v1/me/orgs")).orgs),
     async invite(email: string, orgId: string, role = "member") {
       const result = await api("/v1/invitations", {
-        method: "POST", headers: { "x-openwork-org-id": orgId }, body: JSON.stringify({ email, role }),
+        method: "POST", headers: { "x-harness-org-id": orgId }, body: JSON.stringify({ email, role }),
       });
       if (!result.response.ok) throw new Error(`Create invitation: HTTP ${result.response.status} ${result.text.slice(0, 500)}`);
       const body = record(result.body);
@@ -89,7 +89,7 @@ export async function orgInvite(seed: Seed, { place }: { place: { kind: "local" 
     ...(place.kind === "daytona" ? { provision: false } : { seedProfile: "demo-org" }),
     env: {
       DEN_ORG_MODE: "multi_org", DEN_REQUIRE_EMAIL_VERIFICATION: "true",
-      DEN_SINGLE_ORG_ALLOW_PUBLIC_SIGNUP: "true", OPENWORK_DEV_MODE: "1",
+      DEN_SINGLE_ORG_ALLOW_PUBLIC_SIGNUP: "true", HARNESS_DEV_MODE: "1",
       RESEND_API_KEY: "", SMTP_HOST: "", GOOGLE_CLIENT_ID: "invite-google-client", GOOGLE_CLIENT_SECRET: "invite-google-secret",
     },
   });

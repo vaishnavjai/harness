@@ -52,7 +52,7 @@ type ProviderOAuthSession = ProviderOAuthStartResult & {
 };
 
 export const PROVIDER_LABELS: Record<string, string> = {
-  openwork: "OpenWork",
+  harness: "Harness",
   opencode: "OpenCode Zen",
   openai: "OpenAI",
   anthropic: "Anthropic",
@@ -60,7 +60,7 @@ export const PROVIDER_LABELS: Record<string, string> = {
   openrouter: "OpenRouter",
 };
 
-const OPENWORK_MODELS_PROVIDER_ID = "openwork";
+const HARNESS_MODELS_PROVIDER_ID = "harness";
 
 export type ProviderAuthModalProps = {
   open: boolean;
@@ -81,8 +81,8 @@ export type ProviderAuthModalProps = {
     code?: string,
   ) => Promise<{ connected: boolean; pending?: boolean; message?: string }>;
   onRefreshProviders?: () => Promise<unknown>;
-  showOpenWorkModelsSubscribe?: boolean;
-  onSubscribeOpenWorkModels?: () => void | Promise<void>;
+  showHarnessModelsSubscribe?: boolean;
+  onSubscribeHarnessModels?: () => void | Promise<void>;
   onClose: () => void;
 };
 
@@ -91,7 +91,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
   const isRemoteWorker = workerType === "remote";
 
   const [view, setView] = useState<
-    "list" | "method" | "api" | "oauth-code" | "oauth-auto" | "openwork-subscribe"
+    "list" | "method" | "api" | "oauth-code" | "oauth-auto" | "harness-subscribe"
   >("list");
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
@@ -205,22 +205,22 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
       })
       .sort(compareProviders);
 
-    if (props.showOpenWorkModelsSubscribe) {
-      const connectedToOpenWork = connected.has(OPENWORK_MODELS_PROVIDER_ID);
+    if (props.showHarnessModelsSubscribe) {
+      const connectedToHarness = connected.has(HARNESS_MODELS_PROVIDER_ID);
       return [
         {
-          id: OPENWORK_MODELS_PROVIDER_ID,
-          name: "OpenWork",
+          id: HARNESS_MODELS_PROVIDER_ID,
+          name: "Harness",
           methods: [{ type: "cloud", label: "Subscribe" }],
-          connected: connectedToOpenWork,
+          connected: connectedToHarness,
           env: [],
         },
-        ...nextEntries.filter((entry) => entry.id.trim().toLowerCase() !== OPENWORK_MODELS_PROVIDER_ID),
+        ...nextEntries.filter((entry) => entry.id.trim().toLowerCase() !== HARNESS_MODELS_PROVIDER_ID),
       ];
     }
 
     return nextEntries;
-  }, [isRemoteWorker, props.authMethods, props.connectedProviderIds, props.gatewayProviderIds, props.providers, props.showOpenWorkModelsSubscribe]);
+  }, [isRemoteWorker, props.authMethods, props.connectedProviderIds, props.gatewayProviderIds, props.providers, props.showHarnessModelsSubscribe]);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedProviderId) ?? null,
@@ -539,7 +539,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
     }
 
     if (method.type === "cloud") {
-      setView("openwork-subscribe");
+      setView("harness-subscribe");
       return;
     }
 
@@ -552,8 +552,8 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
     setSelectedProviderId(entry.id);
     returnProviderIdRef.current = entry.id;
 
-    if (props.showOpenWorkModelsSubscribe && entry.id.trim().toLowerCase() === OPENWORK_MODELS_PROVIDER_ID) {
-      setView("openwork-subscribe");
+    if (props.showHarnessModelsSubscribe && entry.id.trim().toLowerCase() === HARNESS_MODELS_PROVIDER_ID) {
+      setView("harness-subscribe");
       return;
     }
 
@@ -606,7 +606,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
   };
 
   const handleBack = () => {
-    if (resolvedView === "openwork-subscribe") {
+    if (resolvedView === "harness-subscribe") {
       resetState();
       return;
     }
@@ -691,15 +691,15 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
         : "Use OpenAI's device flow when the local browser callback is unreliable.";
     }
     if (method.type === "oauth") {
-      return "Continue in the browser and let OpenWork finish the connection automatically.";
+      return "Continue in the browser and let Harness finish the connection automatically.";
     }
     if (method.type === "cloud") {
-      return "Subscribe to OpenWork Models.";
+      return "Subscribe to Harness Models.";
     }
     if (isOpencodeZenProvider(entry.id)) {
       return "Sign in to OpenCode Zen with an API key to unlock paid models alongside the free tier.";
     }
-    return "Paste a secret key that OpenWork stores locally on this device.";
+    return "Paste a secret key that Harness stores locally on this device.";
   };
 
   return (
@@ -932,11 +932,11 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                 </div>
               ) : null}
 
-              {resolvedView === "openwork-subscribe" && selectedEntry ? (
+              {resolvedView === "harness-subscribe" && selectedEntry ? (
                 <div className="rounded-xl border border-blue-6/50 bg-blue-2/25 shadow-sm p-5 space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-12">OpenWork Models</div>
+                      <div className="text-sm font-medium text-gray-12">Harness Models</div>
                       <div className="text-xs text-gray-10 mt-1">
                         Frontier intelligence, hand picked for your team&apos;s most ambitious work.
                       </div>
@@ -946,7 +946,7 @@ export default function ProviderAuthModal(props: ProviderAuthModalProps) {
                     </Button>
                   </div>
                   <div className="flex items-center justify-end">
-                    <Button onClick={() => void props.onSubscribeOpenWorkModels?.()} disabled={actionDisabled}>
+                    <Button onClick={() => void props.onSubscribeHarnessModels?.()} disabled={actionDisabled}>
                       Subscribe
                     </Button>
                   </div>
