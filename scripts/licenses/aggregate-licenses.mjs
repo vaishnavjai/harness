@@ -53,11 +53,12 @@ export function npmComponentsFromListing(listing) {
       pkg.versions.forEach((version, index) => {
         const path = pkg.paths[index] ?? pkg.paths[0] ?? "";
         const texts = licenseFilesIn(path).map((file) => ({ file: relative(path, file), text: readText(file) }));
+        const declared = pkg.license || license;
         components.push({
           ecosystem: "npm",
           name: pkg.name,
           version,
-          license: pkg.license || license,
+          license: /^unknown$/i.test(declared) ? licenseFromText(texts) ?? declared : declared,
           homepage: pkg.homepage ?? null,
           texts,
         });
@@ -65,6 +66,15 @@ export function npmComponentsFromListing(listing) {
     }
   }
   return components;
+}
+
+/** A package that declares no license but ships a recognisable MIT text. */
+export function licenseFromText(texts) {
+  const text = texts.map((entry) => entry.text).join("\n");
+  if (/^\s*(The )?MIT License/i.test(text) || /Permission is hereby granted, free of charge, to any person obtaining a copy/.test(text)) {
+    return "MIT (from license text)";
+  }
+  return null;
 }
 
 /** The site-packages directory of a bundled or venv Python. */
@@ -194,6 +204,9 @@ export function bundledRuntimeComponents({ runtimeDir, electronDir, opencodeVers
       ],
     });
   }
+  if (runtimeDir && pythonComponents(runtimeDir).some((component) => component.name === "pg0-embedded")) {
+    components.push(...embeddedPostgresComponents());
+  }
   const python = runtimeDir ? join(runtimeDir, "python") : null;
   if (python && existsSync(python)) {
     const pythonLicenseFile = [
@@ -215,6 +228,83 @@ export function bundledRuntimeComponents({ runtimeDir, electronDir, opencodeVers
     });
   }
   return components;
+}
+
+const POSTGRES_LICENSE_BODY = [
+  "Permission to use, copy, modify, and distribute this software and its",
+  "documentation for any purpose, without fee, and without a written agreement",
+  "is hereby granted, provided that the above copyright notice and this",
+  "paragraph and the following two paragraphs appear in all copies.",
+  "",
+  "IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR",
+  "DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING",
+  "LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS",
+  "DOCUMENTATION, EVEN IF THE UNIVERSITY OF CALIFORNIA HAS BEEN ADVISED OF THE",
+  "POSSIBILITY OF SUCH DAMAGE.",
+  "",
+  "THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,",
+  "INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY",
+  "AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS",
+  "ON AN \"AS IS\" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO",
+  "PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.",
+].join("\n");
+
+/**
+ * pg0-embedded carries PostgreSQL and pgvector as a compressed archive that
+ * it unpacks on first start, so their license files are not on disk at build
+ * time. The texts below match what that archive installs (PostgreSQL 18.1.0
+ * built by theseus-rs/postgresql_binaries, pgvector 0.8.5).
+ */
+function embeddedPostgresComponents() {
+  const postgresCopyright = [
+    "PostgreSQL Database Management System",
+    "(also known as Postgres, formerly known as Postgres95)",
+    "",
+    "Portions Copyright (c) 1996-2025, PostgreSQL Global Development Group",
+    "",
+    "Portions Copyright (c) 1994, The Regents of the University of California",
+    "",
+    POSTGRES_LICENSE_BODY,
+  ].join("\n");
+  const theseus = [
+    "Copyright (c) 2024, Theseus",
+    "",
+    "Permission to use, copy, modify, and distribute this software and its documentation for any purpose, without fee, and without a written agreement is hereby granted, provided that the above copyright notice and this paragraph and the following two paragraphs appear in all copies.",
+    "",
+    "IN NO EVENT SHALL Theseus BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF Theseus HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.",
+    "",
+    "Theseus SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN \"AS IS\" BASIS, AND Theseus HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.",
+  ].join("\n");
+  return [
+    {
+      ecosystem: "binary",
+      name: "PostgreSQL (bundled by pg0-embedded)",
+      version: "18.1.0",
+      license: "PostgreSQL",
+      homepage: "https://www.postgresql.org/",
+      texts: [
+        { file: "COPYRIGHT", text: postgresCopyright },
+        { file: "LICENSE (postgresql_binaries packaging)", text: theseus },
+      ],
+    },
+    {
+      ecosystem: "binary",
+      name: "pgvector (bundled by pg0-embedded)",
+      version: "0.8.5",
+      license: "PostgreSQL",
+      homepage: "https://github.com/pgvector/pgvector",
+      texts: [{
+        file: "LICENSE",
+        text: [
+          "Portions Copyright (c) 1996-2025, PostgreSQL Global Development Group",
+          "",
+          "Portions Copyright (c) 1994, The Regents of the University of California",
+          "",
+          POSTGRES_LICENSE_BODY,
+        ].join("\n"),
+      }],
+    },
+  ];
 }
 
 function readRuntimePythonVersion(runtimeDir) {

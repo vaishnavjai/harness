@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   bundledRuntimeComponents,
+  licenseFromText,
   componentsNeedingReview,
   npmComponentsFromListing,
   pythonComponents,
@@ -96,4 +97,9 @@ test("the inventory is deterministic, totals licenses, and flags ones to review"
   assert.match(text, /OpenWork MIT/);
   assert.match(text, /No license file is included in this package; it declares "LGPL with exceptions"/);
   assert.deepEqual(componentsNeedingReview(components).map((c) => c.name), ["psycopg2-binary"]);
+});
+
+test("a package that declares no license is identified from an MIT text", () => {
+  assert.equal(licenseFromText([{ file: "LICENSE", text: "MIT License\n\nCopyright (c) someone" }]), "MIT (from license text)");
+  assert.equal(licenseFromText([{ file: "LICENSE", text: "All rights reserved." }]), null);
 });
