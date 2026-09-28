@@ -122,6 +122,7 @@ import {
   disconnectLocalManagedMcp,
   getLocalManagedMcpConnection,
   handleLocalManagedMcpGateway,
+  localSecretVaultKey,
   listLocalManagedMcpConnectionsSafe,
   reconcileLocalManagedMcpRuntimeEntries,
   setLocalManagedMcpEnabled,
@@ -781,7 +782,7 @@ export async function startServer(
   const uiControl = new UiControlMailbox();
   const reloadEvents = new ReloadEventStore();
   const tokens = new TokenService(config);
-  const env = new EnvService();
+  const env = new EnvService({ rootKey: () => localSecretVaultKey(config) });
   envServicesByConfig.set(config, env);
   const logger = createServerLogger(config);
   try {

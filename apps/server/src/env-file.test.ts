@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 import {
   EnvService,
+  EnvStoreLockedError,
   EnvStoreReadError,
   InvalidEnvKeyError,
   isReservedEnvKey,
@@ -14,6 +16,8 @@ import {
 describe("env-file", () => {
   let dir: string;
   let path: string;
+  const vaultKey = randomBytes(32);
+  const rootKey = async () => vaultKey;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "harness-env-"));
@@ -42,7 +46,7 @@ describe("env-file", () => {
   });
 
   test("upsertMany + list round-trips with sorted keys", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([
       { key: "ZED", value: "z" },
       { key: "ANTHROPIC_API_KEY", value: "sk-ant-abc123" },
@@ -53,7 +57,7 @@ describe("env-file", () => {
   });
 
   test("upsertMany updates existing keys in place", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     let changes = 0;
     const unsubscribe = svc.onChange(() => { changes += 1; });
     await svc.upsertMany([{ key: "FOO", value: "1" }]);
@@ -66,7 +70,7 @@ describe("env-file", () => {
   });
 
   test("concurrent upserts do not overwrite each other", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await Promise.all(
       Array.from({ length: 12 }, (_, index) =>
         svc.upsertMany([{ key: `KEY_${index}`, value: String(index) }])
@@ -80,7 +84,7 @@ describe("env-file", () => {
   });
 
   test("write failures do not mutate loaded values", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([{ key: "KEEP_ME", value: "old" }]);
 
     rmSync(path, { force: true });
@@ -93,21 +97,21 @@ describe("env-file", () => {
   });
 
   test("upsertMany rejects invalid keys with InvalidEnvKeyError", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     const promise = svc.upsertMany([{ key: "bad-key", value: "x" }]);
     await expect(promise).rejects.toBeInstanceOf(InvalidEnvKeyError);
     await expect(promise).rejects.toMatchObject({ code: "invalid_env_key" });
   });
 
   test("upsertMany rejects reserved keys", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     const promise = svc.upsertMany([{ key: "HARNESS_TOKEN", value: "x" }]);
     await expect(promise).rejects.toBeInstanceOf(InvalidEnvKeyError);
     await expect(promise).rejects.toMatchObject({ code: "reserved_env_key" });
   });
 
   test("upsertMany accepts managed voice keys but does not inject them", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([
       { key: "HARNESS_API_KEY", value: "ow_inf_test" },
       { key: "HARNESS_INFERENCE_BASE_URL", value: "https://inference.example.test" },
@@ -119,11 +123,11 @@ describe("env-file", () => {
       "HARNESS_API_KEY",
       "HARNESS_INFERENCE_BASE_URL",
     ]);
-    expect(await EnvService.readForInjection(path)).toEqual({ ANTHROPIC_API_KEY: "sk-ant" });
+    expect(await EnvService.readForInjection(path, rootKey)).toEqual({ ANTHROPIC_API_KEY: "sk-ant" });
   });
 
   test("delete returns false when the key is missing", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([{ key: "FOO", value: "x" }]);
     expect(await svc.delete("FOO")).toBe(true);
     expect(await svc.delete("FOO")).toBe(false);
@@ -131,19 +135,19 @@ describe("env-file", () => {
 
   test("persisted file has 0600 perms on POSIX", async () => {
     if (process.platform === "win32") return;
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([{ key: "FOO", value: "bar" }]);
     const mode = statSync(path).mode & 0o777;
     expect(mode).toBe(0o600);
   });
 
   test("readForInjection returns a plain key/value map", async () => {
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await svc.upsertMany([
       { key: "A", value: "1" },
       { key: "B", value: "2" },
     ]);
-    const injected = await EnvService.readForInjection(path);
+    const injected = await EnvService.readForInjection(path, rootKey);
     expect(injected).toEqual({ A: "1", B: "2" });
   });
 
@@ -162,8 +166,41 @@ describe("env-file", () => {
         ],
       }),
     );
-    const injected = await EnvService.readForInjection(path);
+    const injected = await EnvService.readForInjection(path, rootKey);
     expect(injected).toEqual({ ANTHROPIC_API_KEY: "sk-ant" });
+  });
+
+  test("the store on disk is encrypted: no key or value in the clear", async () => {
+    const svc = new EnvService({ path, rootKey });
+    await svc.upsertMany([{ key: "ANTHROPIC_API_KEY", value: "sk-ant-very-secret" }]);
+    const raw = readFileSync(path, "utf8");
+    expect(raw).not.toContain("sk-ant-very-secret");
+    expect(raw).not.toContain("ANTHROPIC_API_KEY");
+    expect(JSON.parse(raw)).toMatchObject({ schemaVersion: 2, algorithm: "aes-256-gcm" });
+    expect(await new EnvService({ path, rootKey }).list()).toEqual([
+      expect.objectContaining({ key: "ANTHROPIC_API_KEY", value: "sk-ant-very-secret" }),
+    ]);
+  });
+
+  test("a plaintext store from an older build is re-encrypted on load", async () => {
+    writeFileSync(path, JSON.stringify({ schemaVersion: 1, updatedAt: 1, variables: [{ key: "OPENAI_API_KEY", value: "sk-legacy", updatedAt: 1 }] }));
+    const svc = new EnvService({ path, rootKey });
+    expect((await svc.list()).map((entry) => entry.value)).toEqual(["sk-legacy"]);
+    expect(readFileSync(path, "utf8")).not.toContain("sk-legacy");
+    expect(await EnvService.readForInjection(path, rootKey)).toEqual({ OPENAI_API_KEY: "sk-legacy" });
+  });
+
+  test("without secure storage nothing is written in plaintext", async () => {
+    const locked = new EnvService({ path, rootKey: async () => { throw new Error("keychain unavailable"); } });
+    await expect(locked.upsertMany([{ key: "FOO", value: "bar" }])).rejects.toBeInstanceOf(EnvStoreLockedError);
+    expect(() => readFileSync(path, "utf8")).toThrow();
+    const noKey = new EnvService({ path });
+    await expect(noKey.upsertMany([{ key: "FOO", value: "bar" }])).rejects.toBeInstanceOf(EnvStoreLockedError);
+
+    await new EnvService({ path, rootKey }).upsertMany([{ key: "FOO", value: "bar" }]);
+    await expect(new EnvService({ path }).list()).rejects.toBeInstanceOf(EnvStoreLockedError);
+    expect(await EnvService.readForInjection(path)).toEqual({});
+    await expect(new EnvService({ path, rootKey: async () => randomBytes(32) }).list()).rejects.toBeInstanceOf(EnvStoreReadError);
   });
 
   test("readForInjection returns {} when the file is missing", async () => {
@@ -173,19 +210,19 @@ describe("env-file", () => {
 
   test("readForInjection returns {} on corrupted JSON", async () => {
     writeFileSync(path, "{ this is not json");
-    const injected = await EnvService.readForInjection(path);
+    const injected = await EnvService.readForInjection(path, rootKey);
     expect(injected).toEqual({});
   });
 
   test("list rejects corrupted JSON instead of treating it as empty", async () => {
     writeFileSync(path, "{ this is not json");
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await expect(svc.list()).rejects.toBeInstanceOf(EnvStoreReadError);
   });
 
   test("upsertMany does not overwrite an invalid store", async () => {
     writeFileSync(path, "{ this is not json");
-    const svc = new EnvService({ path });
+    const svc = new EnvService({ path, rootKey });
     await expect(svc.upsertMany([{ key: "SAFE", value: "new" }])).rejects.toBeInstanceOf(EnvStoreReadError);
     expect(readFileSync(path, "utf8")).toBe("{ this is not json");
   });

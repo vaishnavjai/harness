@@ -86,3 +86,30 @@ test("dev child env reconciliation preserves an inherited OPENCODE_DB override",
 
   assert.equal(processEnv.OPENCODE_DB, "/tmp/installed-production/opencode.db");
 });
+
+test("injects variables from the encrypted store the server writes, and nothing without the key", async () => {
+  const { mkdtemp, rm, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { randomBytes } = await import("node:crypto");
+  const { deriveEnvStoreKey, encryptEnvStore } = await import("@harness/paths/env-store");
+  const { loadUserEnvFile } = await import("./runtime.mjs");
+  const dir = await mkdtemp(path.join(tmpdir(), "harness-user-env-"));
+  try {
+    const file = path.join(dir, "env.json");
+    const root = randomBytes(32);
+    await writeFile(file, encryptEnvStore({
+      updatedAt: 1,
+      variables: [
+        { key: "ANTHROPIC_API_KEY", value: "sk-ant", updatedAt: 1 },
+        { key: "HARNESS_TOKEN", value: "stolen", updatedAt: 1 },
+      ],
+    }, deriveEnvStoreKey(root)));
+    const env = { HARNESS_ENV_STORE: file };
+    assert.deepEqual(await loadUserEnvFile(env, async () => root), { ANTHROPIC_API_KEY: "sk-ant" });
+    assert.deepEqual(await loadUserEnvFile(env, undefined), {});
+    assert.deepEqual(await loadUserEnvFile(env, async () => randomBytes(32)), {});
+    assert.deepEqual(await loadUserEnvFile(env, async () => { throw new Error("keychain locked"); }), {});
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

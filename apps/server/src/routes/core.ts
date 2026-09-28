@@ -9,7 +9,7 @@ import {
 import type { CloudMcpLiveStatusObserver } from "../cloud-mcp-health.js";
 import { readHarnessConnectSkillCatalog, renderHarnessConnectSkillInstruction } from "../connect-skill-catalog.js";
 import { readHarnessAutomationCatalog, renderHarnessAutomationInstruction } from "../connect-automation-catalog.js";
-import { EnvStoreReadError, InvalidEnvKeyError, isValidEnvKey, type EnvService } from "../env-file.js";
+import { EnvStoreLockedError, EnvStoreReadError, InvalidEnvKeyError, isValidEnvKey, type EnvService } from "../env-file.js";
 import { syncManagedProviderAuth, type ManagedProviderAuthResult } from "../managed-provider-auth.js";
 import { ApiError } from "../errors.js";
 import { callExperimentalExtensionAction, listExperimentalExtensionActions } from "../extensions/index.js";
@@ -378,6 +378,9 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
   });
 
   function rethrowEnvStoreReadError(error: unknown): never {
+    if (error instanceof EnvStoreLockedError) {
+      throw new ApiError(503, "env_store_secure_storage_unavailable", error.message);
+    }
     if (error instanceof EnvStoreReadError) {
       throw new ApiError(
         409,
@@ -477,7 +480,7 @@ export function registerCoreRoutes(options: RegisterCoreRoutesOptions): void {
     try {
       await env.upsertMany(entries);
     } catch (error) {
-      if (error instanceof EnvStoreReadError) {
+      if (error instanceof EnvStoreReadError || error instanceof EnvStoreLockedError) {
         rethrowEnvStoreReadError(error);
       }
       if (error instanceof InvalidEnvKeyError) {

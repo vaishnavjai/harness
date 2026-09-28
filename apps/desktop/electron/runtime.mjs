@@ -1,4 +1,4 @@
-import { randomUUID, X509Certificate } from "node:crypto";
+import { createHash, randomUUID, X509Certificate } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -15,6 +15,7 @@ import {
   harnessServerConfigPath,
   resolveWorkspaceOpencodeConfigPath,
 } from "@harness/paths";
+import { decryptEnvStore, deriveEnvStoreKey } from "@harness/paths/env-store";
 import {
   dedupeCertificates,
   resolveSystemCaBundle,
@@ -750,16 +751,26 @@ export function resolveUserEnvFilePath(env = process.env) {
 const USER_ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const USER_ENV_RESERVED_PREFIXES = ["HARNESS_", "OPENCODE_"];
 
-// Synchronous, best-effort; absent or malformed returns {}. Reserved prefixes
-// are stripped so a tampered file can never shadow HARNESS_* / OPENCODE_*.
-function loadUserEnvFile(env = process.env) {
+// Best-effort; absent, malformed or undecryptable returns {}. The store is
+// AES-256-GCM encrypted (see @harness/paths/env-store); the vault key is only
+// requested when an encrypted store exists. Reserved prefixes are stripped so
+// a tampered file can never shadow HARNESS_* / OPENCODE_*.
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @param {(() => Promise<Uint8Array>) | undefined} rootKey
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function loadUserEnvFile(env = process.env, rootKey = undefined) {
   try {
-    const raw = readFileSync(resolveUserEnvFilePath(env), "utf8");
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.variables)) return {};
+    const raw = await readFile(resolveUserEnvFilePath(env), "utf8");
+    const encrypted = JSON.parse(raw)?.schemaVersion === 2;
+    if (encrypted && !rootKey) return {};
+    const storeKey = encrypted && rootKey ? deriveEnvStoreKey(await rootKey()) : null;
+    const { variables } = decryptEnvStore(raw, storeKey);
+    /** @type {Record<string, string>} */
     const out = {};
-    for (const entry of parsed.variables) {
-      if (!entry || typeof entry !== "object") continue;
+    for (const entry of variables) {
+      if (!isPlainObject(entry)) continue;
       const { key, value } = entry;
       if (typeof key !== "string" || typeof value !== "string") continue;
       if (!USER_ENV_KEY_PATTERN.test(key)) continue;
@@ -1402,6 +1413,11 @@ export function createRuntimeManager({
 }) {
   const inheritedProcessEnv = { ...process.env };
   let injectedUserEnvKeys = new Set();
+  // The same root key the server uses for the env store: the keychain-backed
+  // vault key, or HARNESS_ENCRYPTION_KEY hashed exactly as the server does.
+  const configuredEncryptionKey = process.env.HARNESS_ENCRYPTION_KEY?.trim();
+  const userEnvStoreKey = localManagedMcpVaultKey
+    ?? (configuredEncryptionKey ? async () => createHash("sha256").update(configuredEncryptionKey).digest() : undefined);
   const engineState = createEngineState();
   const harnessServerState = createHarnessServerState();
   // Monotonic across this Electron process. Never reset with the server
@@ -1439,11 +1455,11 @@ export function createRuntimeManager({
   let systemCaPromise = null;
 
   function systemCa() {
-    systemCaPromise ??= resolveSystemCa({
+    systemCaPromise ??= loadUserEnvFile(process.env, userEnvStoreKey).then((userEnv) => resolveSystemCa({
       tlsModule: tls,
       userDataDir,
-      parentEnv: { ...loadUserEnvFile(process.env), ...process.env },
-    });
+      parentEnv: { ...userEnv, ...process.env },
+    }));
     return systemCaPromise;
   }
 
@@ -1581,7 +1597,7 @@ export function createRuntimeManager({
           XDG_CONFIG_HOME: devPaths.xdgConfigHome,
         }
       : process.env;
-    const userEnv = loadUserEnvFile(userEnvPathEnv);
+    const userEnv = await loadUserEnvFile(userEnvPathEnv, userEnvStoreKey);
     injectedUserEnvKeys = reconcileInjectedUserEnv({
       processEnv: process.env,
       inheritedEnv: inheritedProcessEnv,

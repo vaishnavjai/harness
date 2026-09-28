@@ -1,6 +1,7 @@
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
+import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { describe, expect, spyOn, test } from "bun:test";
 
@@ -136,6 +137,10 @@ async function createFixture(): Promise<Fixture> {
   };
 }
 
+// Stands in for the desktop's keychain-backed key: the env store is encrypted.
+const vaultKey = randomBytes(32);
+const testVaultKey = async () => vaultKey;
+
 async function startManaged(fixture: Fixture, name: string): Promise<EmbeddedServerHandle> {
   const workspace = join(fixture.root, `${name}-workspace`);
   await mkdir(workspace, { recursive: true });
@@ -149,6 +154,7 @@ async function startManaged(fixture: Fixture, name: string): Promise<EmbeddedSer
     manageOpencode: true,
     opencodeBin: fixture.opencodeBin,
     opencodeCwd: workspace,
+    localManagedMcpVaultKey: testVaultKey,
   });
   fixture.handles.push(handle);
   return handle;
@@ -240,7 +246,7 @@ describe("embedded server lifecycle", () => {
       const startSpy = spyOn(serverModule, "startServer").mockImplementation(async (config, options) => {
         startupConfig = config;
         await writeGlobalRuntimeOpencodeConfig(config, () => ({ provider: { [PROVIDER_ID]: PROVIDER } }));
-        await new EnvService().upsertMany([{ key: "ANTHROPIC_API_KEY", value: "synthetic-startup-key" }]);
+        await new EnvService({ rootKey: testVaultKey }).upsertMany([{ key: "ANTHROPIC_API_KEY", value: "synthetic-startup-key" }]);
         const server = await originalStartServer(config, options);
         boundServer = server;
         const url = `http://${HOST}:${server.port}`;

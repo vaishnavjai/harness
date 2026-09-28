@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 
 import { startServer } from "./server.js";
 import type { ServerConfig } from "./types.js";
@@ -21,6 +22,9 @@ const priorHarnessApiKey = process.env.HARNESS_API_KEY;
 const priorHarnessInferenceBaseUrl = process.env.HARNESS_INFERENCE_BASE_URL;
 const nativeFetch = globalThis.fetch;
 
+// The env store is encrypted under the server's vault key; restarts reuse it.
+const vaultKey = randomBytes(32);
+
 function baseConfig(): ServerConfig {
   return {
     host: "127.0.0.1",
@@ -37,11 +41,12 @@ function baseConfig(): ServerConfig {
     hostTokenSource: "cli",
     logFormat: "pretty",
     logRequests: false,
+    localManagedMcpVaultKey: async () => vaultKey,
   } as ServerConfig;
 }
 
-async function boot() {
-  const server = await startServer(baseConfig()) as Served;
+async function boot(config: ServerConfig = baseConfig()) {
+  const server = await startServer(config) as Served;
   stops.push(() => server.stop(true));
   return {
     server,
@@ -339,6 +344,25 @@ describe("env routes", () => {
       body: JSON.stringify({}),
     });
     expect(response.status).toBe(404);
+  });
+
+  test("without secure storage a secret is refused, not written in plaintext", async () => {
+    const saved = process.env.HARNESS_ENCRYPTION_KEY;
+    delete process.env.HARNESS_ENCRYPTION_KEY;
+    try {
+      const { localManagedMcpVaultKey: _key, ...withoutKey } = baseConfig();
+      const { base } = await boot(withoutKey);
+      const response = await fetch(`${base}/env`, {
+        method: "PUT",
+        headers: hostAuth(),
+        body: JSON.stringify({ key: "ANTHROPIC_API_KEY", value: "sk-ant-secret" }),
+      });
+      expect(response.status).toBe(503);
+      expect(((await response.json()) as { code: string }).code).toBe("env_store_secure_storage_unavailable");
+      expect(existsSync(process.env.HARNESS_ENV_STORE ?? "")).toBe(false);
+    } finally {
+      if (saved !== undefined) process.env.HARNESS_ENCRYPTION_KEY = saved;
+    }
   });
 
   test("values persist across server restart", async () => {

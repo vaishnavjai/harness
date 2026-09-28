@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +27,9 @@ const roots: string[] = [];
 const stops: Array<() => void | Promise<void>> = [];
 const previousRuntimeDb = process.env.HARNESS_RUNTIME_DB;
 const previousEnvStore = process.env.HARNESS_ENV_STORE;
+// The env store is encrypted; every service in a test shares one vault key.
+const envStoreKey = randomBytes(32);
+const testEnvStoreKey = async () => envStoreKey;
 const previousInterval = process.env.HARNESS_CLOUD_PROVIDER_SYNC_INTERVAL_MS;
 const previousReloadRetry = process.env.HARNESS_ENGINE_RELOAD_RETRY_MS;
 
@@ -143,6 +146,7 @@ function serverConfig(root: string, engineBaseUrl: string): ServerConfig {
     hostTokenSource: "cli",
     logFormat: "pretty",
     logRequests: false,
+    localManagedMcpVaultKey: testEnvStoreKey,
   };
 }
 
@@ -202,7 +206,7 @@ describe("cloud provider sync gateway", () => {
       } };
       await writeHarnessWorkspaceConfig(config, "ws_1", () => baseline);
       expect(await readHarnessWorkspaceConfig(config, "ws_1")).toEqual(baseline);
-      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
       await env.upsertMany([{ key: "LPR_00001_API_KEY", value: "orphan-fixture-key" }]);
       const envBefore = await env.list();
       const provider = buildProvider([{ id: "model-a", name: "Model A", config: {} }]);
@@ -265,7 +269,7 @@ describe("cloud provider sync gateway", () => {
     test(`cold cleanup retires ${ownership} providers and removes only proven Cloud credentials`, async () => {
       const root = await createRoot();
       const config = serverConfig(root, "https://engine.example.test");
-      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
       const id = "lpr_00000000000000000000000003";
       const envName = "LPR_00003_OPENAI_API_KEY";
       const provider = {
@@ -311,7 +315,7 @@ describe("cloud provider sync gateway", () => {
       offline = true;
       engineRequests.length = 0;
       const envBefore = await env.list();
-      const coldEnv = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+      const coldEnv = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
       // New config and sync objects discard both in-memory ownership caches.
       const cold = new CloudProviderSync({ config: serverConfig(root, "https://engine.example.test"), env: coldEnv,
         fetchImpl, reloadEngine: reloadedInPlace });
@@ -358,7 +362,7 @@ describe("cloud provider sync gateway", () => {
     });
     expect((await put("/den-session", "org_a")).status).toBe(204);
     await waitForLastRun(base, "applied");
-    const readEnv = () => new EnvService({ path: process.env.HARNESS_ENV_STORE }).list();
+    const readEnv = () => new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).list();
     const envBefore = await readEnv();
     const configBefore = await readFile(harnessRuntimeConfigFilePath(config), "utf8");
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeDefined();
@@ -416,7 +420,7 @@ describe("cloud provider sync gateway", () => {
         }
         return Response.json(true);
       }, { preconnect: globalThis.fetch.preconnect });
-      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+      const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
       const sync = new CloudProviderSync({ config, env, fetchImpl, engineBusy: async () => true,
         reloadEngine: async () => { reloads += 1; return reloadedInPlace(); }, intervalMs: 3_600_000 });
       stops.push(() => sync.stop());
@@ -505,7 +509,7 @@ describe("cloud provider sync gateway", () => {
       expect(denRequests.filter((path) => path.includes("llm-providers"))).toEqual(["org_old /v1/llm-providers"]);
       expect(engineRequests).toEqual(baseline);
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config))).toEqual({});
-      expect(await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).toEqual([]);
+      expect(await new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).list()).toEqual([]);
       expect((await responseRecord(await fetch(`${base}/cloud-provider-sync/status`, { headers: clientHeaders() }), "status")))
         .toMatchObject({ hasSession: false, providers: [], lastRun: null });
       expect((await put("/den-session", "org_new")).status).toBe(204);
@@ -515,7 +519,7 @@ describe("cloud provider sync gateway", () => {
         .toMatchObject({ status: expect.stringMatching(/^(applied|noop)$/) });
       expect(await runSync(base, "after-ready")).toEqual({ status: "noop" });
       expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeDefined();
-      expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list())
+      expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).list())
         .map(({ key, value }) => ({ key, value })))
         .toEqual([{ key: "TEST_PROVIDER_API_KEY", value: provider.apiKey }]);
       expect(engineRequests).toContain("PUT /auth/lpr_test");
@@ -655,7 +659,7 @@ describe("cloud provider sync gateway", () => {
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const sync = new CloudProviderSync({
       config,
       env,
@@ -731,7 +735,7 @@ describe("cloud provider sync gateway", () => {
       }
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const sync = new CloudProviderSync({
       config,
       env,
@@ -787,7 +791,7 @@ describe("cloud provider sync gateway", () => {
     }, { preconnect: globalThis.fetch.preconnect });
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }),
       fetchImpl,
       engineBusy: async () => draining,
       reloadEngine: async () => { reloads += 1; return reloadedInPlace(); },
@@ -818,7 +822,7 @@ describe("cloud provider sync gateway", () => {
     provider.apiKey = "sk-rotated-before-identity";
     expect((await sync.run("rotation")).status).toBe("applied");
     expect(sync.status().reloadPending).toBe(true);
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const before = await env.list();
     await sync.suspend();
     draining = false;
@@ -864,7 +868,7 @@ describe("cloud provider sync gateway", () => {
     stops.push(() => den.stop(true));
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }),
       reloadEngine: async () => {
         reloads += 1;
         return reloadedInPlace();
@@ -910,7 +914,7 @@ describe("cloud provider sync gateway", () => {
       models: { model: { id: "model", name: "Model" } },
     } } }));
     const sync = new CloudProviderSync({
-      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE }), reloadEngine: reloadedInPlace,
+      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }), reloadEngine: reloadedInPlace,
       fetchImpl: Object.assign(async (input: URL | RequestInfo) => {
         const { pathname } = new URL(String(input));
         if (pathname === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -942,7 +946,7 @@ describe("cloud provider sync gateway", () => {
     } }]);
     provider.providerConfig.npm = "@ai-sdk/anthropic";
     const sync = new CloudProviderSync({
-      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE }), reloadEngine: reloadedInPlace,
+      config, env: new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }), reloadEngine: reloadedInPlace,
       fetchImpl: Object.assign(async (input: URL | RequestInfo) => {
         const { pathname } = new URL(String(input));
         if (pathname === "/v1/inference-providers") return Response.json({ inferenceProviders: [] });
@@ -985,7 +989,7 @@ describe("cloud provider sync gateway", () => {
     stops.push(() => den.stop(true));
     const sync = new CloudProviderSync({
       config,
-      env: new EnvService({ path: process.env.HARNESS_ENV_STORE }),
+      env: new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }),
       reloadEngine: reloadedInPlace,
       intervalMs: 3_600_000,
     });
@@ -1112,7 +1116,7 @@ describe("cloud provider sync gateway", () => {
       }
       throw new Error(`Unexpected Den request: ${path}`);
     }, { preconnect: globalThis.fetch.preconnect });
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const newSync = () => {
       const sync = new CloudProviderSync({
         config: serverConfig(root, "https://engine.example.test"),
@@ -1486,7 +1490,7 @@ describe("cloud provider sync gateway", () => {
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
     const config = serverConfig(root, "https://engine.example.test");
-    let env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    let env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const newSync = () => {
       const sync = new CloudProviderSync({
         config: serverConfig(root, "https://engine.example.test"),
@@ -1548,7 +1552,7 @@ describe("cloud provider sync gateway", () => {
     expect(await readHarnessWorkspaceConfig(config, "__cloud_provider_ownership__"))
       .toEqual({ providerIds: [], envHashes: {} });
     sync.stop();
-    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("legacy-local-key-upgrade")).status).toBe("applied");
@@ -1557,7 +1561,7 @@ describe("cloud provider sync gateway", () => {
     await expectConnected();
 
     sync.stop();
-    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("restart-with-local-key")).status).toBe("applied");
@@ -1613,7 +1617,7 @@ describe("cloud provider sync gateway", () => {
     await env.upsertMany([{ key: credentialKey, value: localSecret }]);
     provider.apiKey = "";
     sync.stop();
-    env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     sync = newSync();
     await sync.setSession(session);
     expect((await sync.run("restart-with-locally-replaced-cloud-key")).status).toBe("applied");
@@ -1655,7 +1659,7 @@ describe("cloud provider sync gateway", () => {
       return Response.json({ error: "not_found" }, { status: 404 });
     }, { preconnect: globalThis.fetch.preconnect });
     const config = serverConfig(root, "https://engine.example.test");
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const envValues = async () => new Map((await env.list()).map((entry) => [entry.key, entry.value]));
     const session = { baseUrl: "https://den.example.test", token: "den-token", orgId: "org-env-upgrade" };
     const newSync = () => {
@@ -1759,7 +1763,7 @@ describe("cloud provider sync gateway", () => {
     // Simulate an upgrade/restart after an older process persisted the cloud
     // credential. The next sync sees the same value, performs no upsert, and
     // must still reclaim ownership so logout removes it.
-    await new EnvService({ path: process.env.HARNESS_ENV_STORE }).upsertMany([
+    await new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).upsertMany([
       { key: "TEST_PROVIDER_API_KEY", value: "sk-test-provider" },
     ]);
 
@@ -1795,7 +1799,7 @@ describe("cloud provider sync gateway", () => {
     expect((await deliverIdentity()).status).toBe(204);
     expect(await runSync(base, "policy-is-optional")).toEqual({ status: "no_session" });
     policyFailure = false;
-    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE });
+    const env = new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey });
     const envBefore = await env.list();
     const providersBefore = runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config));
     const fileBefore = await readFile(harnessRuntimeConfigFilePath(config), "utf8").catch(() => null);
@@ -1859,7 +1863,7 @@ describe("cloud provider sync gateway", () => {
     const globalModels = expectRecord(globalProvider.models, "global runtime provider models");
     expect(Object.keys(globalModels).sort()).toEqual(["model-a", "model-z"]);
     expect(expectRecord(globalModels["model-z"], "model-z runtime config").reasoning).toBe(true);
-    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).find(
+    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).list()).find(
       (entry) => entry.key === "TEST_PROVIDER_API_KEY",
     )?.value).toBe("sk-test-provider");
 
@@ -1898,7 +1902,7 @@ describe("cloud provider sync gateway", () => {
     const deleteResponse = await fetch(`${base}/den-session`, { method: "DELETE", headers: hostHeaders() });
     expect(deleteResponse.status).toBe(204);
     expect(runtimeProviderMap(await readGlobalRuntimeOpencodeConfig(config)).lpr_test).toBeUndefined();
-    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE }).list()).find(
+    expect((await new EnvService({ path: process.env.HARNESS_ENV_STORE, rootKey: testEnvStoreKey }).list()).find(
       (entry) => entry.key === "TEST_PROVIDER_API_KEY",
     )).toBeUndefined();
     const clearedStatusResponse = await fetch(`${base}/cloud-provider-sync/status`, { headers: clientHeaders() });

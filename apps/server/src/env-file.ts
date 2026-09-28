@@ -2,11 +2,15 @@ import { platform } from "node:os";
 import { chmod, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { harnessEnvStorePath } from "@harness/paths";
+import { EnvStoreLockedError, decryptEnvStore, deriveEnvStoreKey, encryptEnvStore } from "@harness/paths/env-store";
 
 import { ensureDir, exists } from "./utils.js";
 
 // User-level environment variables, persisted so the desktop shell can inject
-// them into every spawned child (OpenCode and Harness server).
+// them into every spawned child (OpenCode and Harness server). The file is
+// AES-256-GCM encrypted (see @harness/paths/env-store) under the vault key the
+// desktop keeps in the OS keychain, or HARNESS_ENCRYPTION_KEY when headless;
+// a legacy plaintext store is re-encrypted the first time a key is available.
 // Motivation: Linux GUI launches don't inherit shell env, so users set
 // ANTHROPIC_API_KEY / GCLOUD_* / GCP_* in .bashrc and hit silent auth failures.
 // Scope: user/machine, not workspace. Not synced to the cloud.
@@ -72,58 +76,78 @@ function emptyStore(): EnvStoreFile {
   return { schemaVersion: 1, updatedAt: Date.now(), variables: [] };
 }
 
+/** Supplies the 32-byte vault key; rejects when secure storage is unavailable. */
+export type EnvStoreRootKey = () => Promise<Uint8Array>;
+
+type LoadedStore = EnvStoreFile & { encrypted: boolean };
+
+async function resolveStoreKey(rootKey: EnvStoreRootKey | undefined): Promise<Buffer> {
+  if (!rootKey) throw new EnvStoreLockedError(SECURE_STORAGE_UNAVAILABLE);
+  try {
+    return deriveEnvStoreKey(await rootKey());
+  } catch {
+    throw new EnvStoreLockedError(SECURE_STORAGE_UNAVAILABLE);
+  }
+}
+
+const SECURE_STORAGE_UNAVAILABLE =
+  "Secure storage for environment variables is unavailable. Start through Harness Desktop or set HARNESS_ENCRYPTION_KEY.";
+
 async function readStore(
   path: string,
-  options: { tolerateInvalid?: boolean } = {},
-): Promise<EnvStoreFile> {
+  options: { tolerateInvalid?: boolean; rootKey?: EnvStoreRootKey } = {},
+): Promise<LoadedStore> {
+  const empty = (): LoadedStore => ({ ...emptyStore(), encrypted: true });
   if (!(await exists(path))) {
-    return emptyStore();
+    return empty();
   }
   let raw = "";
   try {
     raw = await readFile(path, "utf8");
   } catch (error) {
-    if ((error as { code?: string }).code === "ENOENT") return emptyStore();
-    if (options.tolerateInvalid) return emptyStore();
+    if ((error as { code?: string }).code === "ENOENT") return empty();
+    if (options.tolerateInvalid) return empty();
     throw new EnvStoreReadError("Environment variable store could not be read");
   }
 
-  let parsed: Partial<EnvStoreFile>;
+  let schemaVersion: unknown;
   try {
-    parsed = JSON.parse(raw) as Partial<EnvStoreFile>;
+    schemaVersion = (JSON.parse(raw) as { schemaVersion?: unknown } | null)?.schemaVersion;
   } catch {
-    if (options.tolerateInvalid) return emptyStore();
+    if (options.tolerateInvalid) return empty();
     throw new EnvStoreReadError("Environment variable store is invalid JSON");
   }
 
-  if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.variables)) {
-    if (options.tolerateInvalid) return emptyStore();
-    throw new EnvStoreReadError("Environment variable store has an invalid format");
+  let decoded: ReturnType<typeof decryptEnvStore>;
+  try {
+    const key = schemaVersion === 2 ? await resolveStoreKey(options.rootKey) : null;
+    decoded = decryptEnvStore(raw, key);
+  } catch (error) {
+    if (options.tolerateInvalid) return empty();
+    if (error instanceof EnvStoreLockedError) throw error;
+    throw new EnvStoreReadError("Environment variable store has an invalid format or could not be decrypted");
   }
 
-  const variables = parsed.variables
+  const variables = decoded.variables
     .map(parseRecord)
     .filter((entry): entry is EnvRecord => Boolean(entry));
   return {
-    schemaVersion: typeof parsed.schemaVersion === "number" ? parsed.schemaVersion : 1,
-    updatedAt: typeof parsed.updatedAt === "number" ? parsed.updatedAt : Date.now(),
+    schemaVersion: 2,
+    updatedAt: decoded.updatedAt ?? Date.now(),
     variables,
+    encrypted: decoded.encrypted,
   };
 }
 
-async function writeStore(path: string, variables: EnvRecord[]): Promise<void> {
+async function writeStore(path: string, variables: EnvRecord[], rootKey: EnvStoreRootKey | undefined): Promise<void> {
+  const key = await resolveStoreKey(rootKey);
   const dir = dirname(path);
   await ensureDir(dir);
-  const payload: EnvStoreFile = {
-    schemaVersion: 1,
-    updatedAt: Date.now(),
-    variables,
-  };
   const tempPath = join(
     dir,
     `.env.${process.pid}.${Date.now()}.${Math.random().toString(16).slice(2)}.tmp`,
   );
-  await writeFile(tempPath, JSON.stringify(payload, null, 2) + "\n", {
+  await writeFile(tempPath, encryptEnvStore({ updatedAt: Date.now(), variables }, key), {
     encoding: "utf8",
     flag: "wx",
     mode: 0o600,
@@ -166,15 +190,23 @@ export class EnvService {
     return () => { this.changeListeners.delete(listener); };
   }
 
-  constructor(options?: { path?: string }) {
+  private readonly rootKey: EnvStoreRootKey | undefined;
+
+  constructor(options?: { path?: string; rootKey?: EnvStoreRootKey }) {
     this.path = options?.path ? resolve(options.path) : resolveDefaultEnvStorePath();
+    this.rootKey = options?.rootKey;
   }
 
   private async ensureLoaded(): Promise<void> {
     if (this.loaded) return;
     if (!this.loadPromise) {
-      this.loadPromise = readStore(this.path)
-        .then((store) => {
+      this.loadPromise = readStore(this.path, { rootKey: this.rootKey })
+        .then(async (store) => {
+          if (!store.encrypted && store.variables.length) {
+            // Re-encrypt a plaintext store from an older build. Without a key
+            // it stays readable and is re-encrypted on the first write.
+            await writeStore(this.path, store.variables, this.rootKey).catch(() => undefined);
+          }
           this.variables = store.variables;
           this.loaded = true;
         })
@@ -214,7 +246,7 @@ export class EnvService {
         next.set(entry.key, { key: entry.key, value: entry.value, updatedAt: now });
       }
       const nextVariables = Array.from(next.values()).sort((a, b) => a.key.localeCompare(b.key));
-      await writeStore(this.path, nextVariables);
+      await writeStore(this.path, nextVariables, this.rootKey);
       this.variables = nextVariables;
       for (const listener of this.changeListeners) listener();
     });
@@ -226,7 +258,7 @@ export class EnvService {
       const before = this.variables.length;
       const nextVariables = this.variables.filter((entry) => entry.key !== key);
       if (nextVariables.length === before) return false;
-      await writeStore(this.path, nextVariables);
+      await writeStore(this.path, nextVariables, this.rootKey);
       this.variables = nextVariables;
       for (const listener of this.changeListeners) listener();
       return true;
@@ -235,9 +267,9 @@ export class EnvService {
 
   // Used by the Electron shell at spawn time. Keep desktop runtime injection
   // in sync on path resolution and reserved-keys policy.
-  static async readForInjection(overridePath?: string): Promise<Record<string, string>> {
+  static async readForInjection(overridePath?: string, rootKey?: EnvStoreRootKey): Promise<Record<string, string>> {
     const path = overridePath?.trim() ? resolve(overridePath.trim()) : resolveDefaultEnvStorePath();
-    const store = await readStore(path, { tolerateInvalid: true });
+    const store = await readStore(path, { tolerateInvalid: true, rootKey });
     const out: Record<string, string> = {};
     for (const entry of store.variables) {
       if (isInternalEnvKey(entry.key)) continue;
@@ -246,6 +278,8 @@ export class EnvService {
     return out;
   }
 }
+
+export { EnvStoreLockedError };
 
 export class EnvStoreReadError extends Error {
   readonly code = "invalid_env_store";
