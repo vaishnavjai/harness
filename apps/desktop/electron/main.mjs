@@ -1014,9 +1014,10 @@ if (process.platform === "darwin" && INITIAL_APP_ICON_IMAGE && !INITIAL_APP_ICON
   app.dock.setIcon(INITIAL_APP_ICON_IMAGE);
 }
 
-// Expose Chrome DevTools Protocol so the opencode-chrome-devtools plugin can
-// drive the built-in browser panel.  Use HARNESS_ELECTRON_REMOTE_DEBUG_PORT to
-// pin a specific port; otherwise probe for a free one starting at 9223.
+// Chrome DevTools Protocol lets any local process drive the app window (and,
+// through it, the desktop bridge), so a packaged build opens it only when
+// HARNESS_ELECTRON_REMOTE_DEBUG_PORT asks for it (automation and test
+// harnesses). Development builds keep probing for a free port from 9223.
 // Must resolve before app.commandLine.appendSwitch (before `ready`).
 function probePort(port) {
   return new Promise((resolve) => {
@@ -1041,14 +1042,18 @@ const explicitCdpPort = Number.parseInt(
 );
 const remoteDebugPort = Number.isFinite(explicitCdpPort) && explicitCdpPort > 0
   ? explicitCdpPort
-  : await findFreeCdpPort([9223, 9224, 9225, 9226, 9227]);
+  : app.isPackaged
+    ? 0
+    : await findFreeCdpPort([9223, 9224, 9225, 9226, 9227]);
 if (remoteDebugPort > 0) {
   app.commandLine.appendSwitch("remote-debugging-port", String(remoteDebugPort));
   app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
 }
 // Make the resolved port available to the embedded server so it flows into
-// agent instructions via ensureHarnessAgent → resolveAgentTemplate.
-process.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT = String(remoteDebugPort);
+// agent instructions via ensureHarnessAgent → resolveAgentTemplate; when
+// DevTools is closed, children learn nothing about it.
+if (remoteDebugPort > 0) process.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT = String(remoteDebugPort);
+else delete process.env.HARNESS_ELECTRON_REMOTE_DEBUG_PORT;
 if (isDevMode && !app.isPackaged) {
   const cdpAddress = remoteDebugPort > 0 ? `http://127.0.0.1:${remoteDebugPort}` : "disabled";
   console.log(`[harness] dev profile=${app.getPath("userData")} cdp=${cdpAddress}`);

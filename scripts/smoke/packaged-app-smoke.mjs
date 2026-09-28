@@ -4,7 +4,7 @@
 //
 //   - the app starts and records `app.started` in the audit log,
 //   - the Hindsight memory engine comes up and listens on 127.0.0.1 only,
-//   - every listening socket the app opens is loopback,
+//   - every listening socket the app opens is loopback, and none is DevTools,
 //   - no connection leaves the machine while it runs (proxy variables removed),
 //   - on SIGTERM the app quits and leaves no process behind,
 //   - the audit log's hash chain verifies.
@@ -261,6 +261,19 @@ async function main() {
     check("every listening socket is loopback", exposed.length === 0, {
       listeners: listeners.map((socket) => `${socket.local.address}:${socket.local.port}`),
     });
+    // No listener may speak the DevTools protocol: it would hand any local
+    // process full control of the app window.
+    const devtools = [];
+    for (const socket of listeners) {
+      try {
+        const response = await fetch(`http://127.0.0.1:${socket.local.port}/json/version`, { signal: AbortSignal.timeout(1_000) });
+        const body = await response.text();
+        if (body.includes("webSocketDebuggerUrl")) devtools.push(socket.local.port);
+      } catch {
+        // Not HTTP, or not answering: not DevTools.
+      }
+    }
+    check("no DevTools protocol port is open", devtools.length === 0, { devtoolsPorts: devtools });
     check("expected processes are running", running.some((process) => process.args.includes("harness_hindsight_launcher.py"))
       && running.some((process) => /\/sidecars\/opencode(?:-[\w-]+)?(?:\s|$)/.test(process.args)), {
       processes: running.map((process) => process.args.slice(0, 160)),
