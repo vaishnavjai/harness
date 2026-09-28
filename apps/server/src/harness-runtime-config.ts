@@ -27,6 +27,7 @@ import {
   harnessTitleRecoveryPluginPath,
   harnessAuditPluginPath,
   harnessProviderKeysPluginPath,
+  harnessMemoryPluginPath,
   harnessGatewayQuotaPluginPath,
   harnessOfficeAttachmentsPluginPath,
   harnessSpreadsheetsPluginPath,
@@ -110,6 +111,8 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
       harnessAuditPluginPath(),
       // Encrypted provider keys reach the engine in memory, never via auth.json.
       harnessProviderKeysPluginPath(),
+      // Long-term memory tools, reaching the local memory engine via the server.
+      harnessMemoryPluginPath(),
       harnessChromeDevtoolsPluginPath(),
       // Registration order is prompt order: the knowledge plugin appends the
       // operating rules first, then the extensions plugin adds app-control

@@ -40,7 +40,7 @@ import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
 import { migrateWorkspaceRuntimeConfigToEngineGlobal } from "./runtime-opencode-config-store.js";
 import { resolveOpencodeModelCatalogEnv } from "./opencode-models-url.js";
 import { ENGINE_PROVIDER_KEYS_ENV, ENGINE_PROVIDER_KEYS_SECRET } from "./provider-key-vault.js";
-import type { LocalManagedMcpVaultKeyProvider, ServerConfig } from "./types.js";
+import type { AgentMemoryProvider, LocalManagedMcpVaultKeyProvider, ServerConfig } from "./types.js";
 
 export type EmbeddedServerOptions = CliArgs & {
   /** When true, spawn a managed OpenCode child process. */
@@ -51,6 +51,8 @@ export type EmbeddedServerOptions = CliArgs & {
   opencodeCwd?: string;
   /** Secure key custody for the local managed MCP credential vault. */
   localManagedMcpVaultKey?: LocalManagedMcpVaultKeyProvider;
+  /** The agent's long-term memory (the desktop's local memory engine). */
+  agentMemory?: AgentMemoryProvider;
   resumeInterruptedTasks?: boolean;
 };
 
@@ -74,6 +76,7 @@ export type EmbeddedServerHandle = {
 export async function startEmbeddedServer(options: EmbeddedServerOptions): Promise<EmbeddedServerHandle> {
   const config = await resolveServerConfig(options);
   config.localManagedMcpVaultKey = options.localManagedMcpVaultKey;
+  config.agentMemory = options.agentMemory;
   config.resumeInterruptedTasks = options.resumeInterruptedTasks === true && options.manageOpencode === true && !config.opencodeBaseUrl;
   const logger = createServerLogger(config);
 

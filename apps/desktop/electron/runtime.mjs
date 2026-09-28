@@ -1408,6 +1408,9 @@ export function createRuntimeManager({
   desktopRoot,
   listLocalWorkspacePaths,
   localManagedMcpVaultKey,
+  // Long-term memory for the agent's memory tools; without it they report
+  // that memory is off.
+  agentMemory = undefined,
   workspaceMkdir = mkdir,
   workspacePlatform = process.platform,
 }) {
@@ -2013,6 +2016,7 @@ export function createRuntimeManager({
       opencodeBin: managedOpencode?.path ?? undefined,
       opencodeCwd: managedOpencodeWorkdir(),
       localManagedMcpVaultKey,
+      agentMemory,
     });
     inProcessServer = handle;
     harnessServerState.managedOpencodeExecution = handle.managedOpencodeExecution ?? null;

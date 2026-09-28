@@ -42,6 +42,7 @@ export const harnessPdfAttachmentsPluginPath = () => harnessPluginPath("harness-
 export const harnessTitleRecoveryPluginPath = () => harnessPluginPath("harness-title-recovery");
 export const harnessAuditPluginPath = () => harnessPluginPath("harness-audit");
 export const harnessProviderKeysPluginPath = () => harnessPluginPath("harness-provider-keys");
+export const harnessMemoryPluginPath = () => harnessPluginPath("harness-memory");
 export const harnessGatewayQuotaPluginPath = () => harnessPluginPath("harness-gateway-quota");
 export const harnessGatewayQuotaV2PluginPath = () => harnessPluginPath("harness-gateway-quota-v2");
 export const harnessContextV2PluginPath = () => harnessPluginPath("harness-context-v2");

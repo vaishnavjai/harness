@@ -105,8 +105,27 @@ export interface ServerConfig {
   logRequests: boolean;
   /** In-memory secure key custody supplied by an embedding host such as Harness Desktop. */
   localManagedMcpVaultKey?: LocalManagedMcpVaultKeyProvider;
+  /** The agent's long-term memory, supplied by an embedding host (Harness Desktop's local memory engine). */
+  agentMemory?: AgentMemoryProvider;
   /** Desktop-owned managed engines only; never enabled by remote clients. */
   resumeInterruptedTasks?: boolean;
+}
+
+/** One remembered fact returned to the agent. */
+export interface AgentMemoryHit {
+  text: string;
+  type?: string | null;
+  context?: string | null;
+  occurred_start?: string | null;
+}
+
+/**
+ * Long-term memory the agent reaches through the engine's memory tools. The
+ * host owns the memory engine and its credentials; the server only forwards.
+ */
+export interface AgentMemoryProvider {
+  recall(input: { query: string; maxTokens?: number }): Promise<AgentMemoryHit[]>;
+  retain(input: { content: string; context?: string }): Promise<unknown>;
 }
 
 export interface Capabilities {

@@ -1372,6 +1372,12 @@ const runtimeManager = createRuntimeManager({
         filePath: path.join(app.getPath("userData"), "local-managed-mcp-vault-key.bin"),
         loadSafeStorage: () => require("electron").safeStorage,
       }),
+  // The agent's memory tools reach the local memory engine (127.0.0.1) through
+  // the embedded server; the engine's bearer token stays in this process.
+  agentMemory: {
+    recall: (input) => memoryService.recall(input),
+    retain: (input) => memoryService.retain(input),
+  },
 });
 // Tamper-evident audit trail (~/.config/harness/audit.log), OS-keychain-backed
 // credentials, and the local-only Hindsight memory engine.

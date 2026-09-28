@@ -391,6 +391,8 @@ const reloadBaselineRefreshers = new WeakMap<
 /** The env store owned by a running server, for code that only holds its config. */
 const envServicesByConfig = new WeakMap<ServerConfig, EnvService>();
 
+const AGENT_MEMORY_UNAVAILABLE = "Memory is off or not running. The user can turn it on in Settings > Memory.";
+
 export function envServiceForConfig(config: ServerConfig): EnvService | null {
   return envServicesByConfig.get(config) ?? null;
 }
@@ -3195,6 +3197,57 @@ function createRoutes(
     const response = jsonResponse({ keys: await readProviderKeys(config) });
     response.headers.set("Cache-Control", "no-store");
     return response;
+  });
+
+  // The agent's long-term memory. The engine's memory tools reach the host's
+  // local memory engine through these routes with the same per-launch secret,
+  // so agent shell commands (which never hold it) cannot read or write memories.
+  addRoute(routes, "POST", "/engine/memory/recall", "none", async (ctx) => {
+    if (!isEngineProviderKeysSecret(ctx.request.headers.get(ENGINE_PROVIDER_KEYS_HEADER))) {
+      throw new ApiError(401, "unauthorized", "Engine secret required");
+    }
+    const memory = config.agentMemory;
+    if (!memory) throw new ApiError(503, "memory_unavailable", AGENT_MEMORY_UNAVAILABLE);
+    const body = await readJsonBody(ctx.request);
+    const query = isRecord(body) && typeof body.query === "string" ? body.query.trim() : "";
+    if (!query) throw new ApiError(400, "invalid_payload", "A query is required");
+    const maxTokens = isRecord(body) && typeof body.maxTokens === "number" && Number.isInteger(body.maxTokens)
+      ? Math.min(Math.max(body.maxTokens, 256), 8_192) : undefined;
+    let hits;
+    try {
+      hits = await memory.recall({ query: query.slice(0, 2_000), ...(maxTokens ? { maxTokens } : {}) });
+    } catch {
+      throw new ApiError(503, "memory_unavailable", AGENT_MEMORY_UNAVAILABLE);
+    }
+    const response = jsonResponse({
+      results: hits.slice(0, 50).map((hit) => ({
+        text: hit.text,
+        ...(hit.type ? { type: hit.type } : {}),
+        ...(hit.context ? { context: hit.context } : {}),
+        ...(hit.occurred_start ? { occurredAt: hit.occurred_start } : {}),
+      })),
+    });
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  });
+
+  addRoute(routes, "POST", "/engine/memory/retain", "none", async (ctx) => {
+    if (!isEngineProviderKeysSecret(ctx.request.headers.get(ENGINE_PROVIDER_KEYS_HEADER))) {
+      throw new ApiError(401, "unauthorized", "Engine secret required");
+    }
+    const memory = config.agentMemory;
+    if (!memory) throw new ApiError(503, "memory_unavailable", AGENT_MEMORY_UNAVAILABLE);
+    const body = await readJsonBody(ctx.request);
+    const content = isRecord(body) && typeof body.content === "string" ? body.content.trim() : "";
+    if (!content) throw new ApiError(400, "invalid_payload", "Content to remember is required");
+    if (content.length > 50_000) throw new ApiError(400, "invalid_payload", "Content to remember is limited to 50,000 characters");
+    const context = isRecord(body) && typeof body.context === "string" && body.context.trim() ? body.context.trim().slice(0, 500) : undefined;
+    try {
+      await memory.retain({ content, ...(context ? { context } : {}) });
+    } catch {
+      throw new ApiError(503, "memory_unavailable", AGENT_MEMORY_UNAVAILABLE);
+    }
+    return jsonResponse({ ok: true });
   });
 
   addRoute(routes, "GET", "/provider-keys", "client", async () => {
