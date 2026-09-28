@@ -33,6 +33,7 @@ interface FakeOptions {
   baseEnv?: NodeJS.ProcessEnv;
   hookTarget?: ProcessHookTarget;
   installExitHooks?: boolean;
+  handleSignals?: boolean;
 }
 
 async function fakeSupervisor(options: FakeOptions = {}) {
@@ -57,6 +58,7 @@ async function fakeSupervisor(options: FakeOptions = {}) {
     readyTimeoutMs: 15_000,
     stopTimeoutMs: 5_000,
     installExitHooks: options.installExitHooks ?? false,
+    ...(options.handleSignals === undefined ? {} : { handleSignals: options.handleSignals }),
     hookTarget: options.hookTarget,
   });
   cleanups.push(() => supervisor.stop());
@@ -178,6 +180,21 @@ describe("HindsightSupervisor", () => {
     // It was the only SIGINT listener, so it re-raised to preserve Node's exit.
     expect(target.killed).toEqual(["SIGINT"]);
     expect(target.listenerCount("SIGINT")).toBe(0);
+  });
+
+  test("a host that owns its signals keeps them: only the exit backstop is installed", async () => {
+    const target = new FakeHookTarget();
+    const { supervisor, pids } = await fakeSupervisor({ installExitHooks: true, handleSignals: false, hookTarget: target });
+    await supervisor.start();
+    // Electron quits gracefully on SIGTERM only while Node has no listener.
+    expect(target.listenerCount("SIGINT")).toBe(0);
+    expect(target.listenerCount("SIGTERM")).toBe(0);
+    expect(target.listenerCount("beforeExit")).toBe(1);
+    expect(target.listenerCount("exit")).toBe(1);
+    const { engine } = await pids();
+    target.emit("exit", 0);
+    expect(await waitForExit(engine, 5_000)).toBe(true);
+    expect(target.killed).toEqual([]);
   });
 
   test("the process 'exit' hook stops the engine synchronously", async () => {

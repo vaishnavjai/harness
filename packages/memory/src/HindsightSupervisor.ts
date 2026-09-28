@@ -90,6 +90,13 @@ export interface HindsightSupervisorOptions {
   logger?: MemoryLogger;
   /** Install SIGINT/SIGTERM/beforeExit/exit hooks on `hookTarget`. Default true. */
   installExitHooks?: boolean;
+  /**
+   * Also handle SIGINT/SIGTERM (stop the engine, then re-raise). Default true.
+   * A host with its own shutdown sequence, such as Electron, sets false: a Node
+   * signal listener replaces Electron's graceful quit, so the host stops the
+   * supervisor itself and only the synchronous `exit` hook stays as a backstop.
+   */
+  handleSignals?: boolean;
   hookTarget?: ProcessHookTarget;
   /** Source for the allowlisted passthrough variables. Default process.env. */
   baseEnv?: NodeJS.ProcessEnv;
@@ -145,7 +152,7 @@ export class HindsightSupervisor {
   static readonly HOST = LOOPBACK_HOST;
 
   private readonly options: Required<
-    Pick<HindsightSupervisorOptions, "allowPortFallback" | "readyTimeoutMs" | "stopTimeoutMs" | "maxRestarts" | "installExitHooks">
+    Pick<HindsightSupervisorOptions, "allowPortFallback" | "readyTimeoutMs" | "stopTimeoutMs" | "maxRestarts" | "installExitHooks" | "handleSignals">
   > &
     HindsightSupervisorOptions;
   private readonly platform: NodeJS.Platform;
@@ -175,6 +182,7 @@ export class HindsightSupervisor {
       stopTimeoutMs: 15_000,
       maxRestarts: 3,
       installExitHooks: true,
+      handleSignals: true,
       ...options,
     };
     this.platform = options.platform ?? process.platform;
@@ -469,8 +477,10 @@ export class HindsightSupervisor {
   private installHooks(): void {
     const target = this.hookTarget;
     if (!target || this.hooksInstalled) return;
-    target.on("SIGINT", this.onSignal);
-    target.on("SIGTERM", this.onSignal);
+    if (this.options.handleSignals) {
+      target.on("SIGINT", this.onSignal);
+      target.on("SIGTERM", this.onSignal);
+    }
     target.on("beforeExit", this.onBeforeExit);
     target.on("exit", this.onExit);
     this.hooksInstalled = true;
@@ -479,8 +489,10 @@ export class HindsightSupervisor {
   private removeHooks(): void {
     const target = this.hookTarget;
     if (!target || !this.hooksInstalled) return;
-    target.off("SIGINT", this.onSignal);
-    target.off("SIGTERM", this.onSignal);
+    if (this.options.handleSignals) {
+      target.off("SIGINT", this.onSignal);
+      target.off("SIGTERM", this.onSignal);
+    }
     target.off("beforeExit", this.onBeforeExit);
     target.off("exit", this.onExit);
     this.hooksInstalled = false;

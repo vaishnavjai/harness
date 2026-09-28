@@ -98,6 +98,9 @@ describe("memory service", () => {
     assert.equal(status.engine.state, "ready");
     assert.equal(created.length, 1);
     assert.equal(created[0].options.dataDir, path.join(root, "data", "hindsight"));
+    // Electron owns SIGINT/SIGTERM; the supervisor keeps only its exit backstop.
+    assert.equal(created[0].options.installExitHooks, true);
+    assert.equal(created[0].options.handleSignals, false);
     assert.equal(created[0].options.installExitHooks, true);
     assert.equal(status.llmBaseUrl, "http://127.0.0.1:11434/v1");
     assert.deepEqual(status.egressHosts, []);

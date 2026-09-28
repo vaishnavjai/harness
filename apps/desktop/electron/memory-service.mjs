@@ -137,6 +137,10 @@ export function createMemoryService({
       secrets,
       logger,
       installExitHooks: true,
+      // Electron quits gracefully on SIGINT/SIGTERM (before-quit runs this
+      // service's shutdown); a Node signal listener would replace that with
+      // an abrupt exit that orphans the other runtimes.
+      handleSignals: false,
     });
     supervisor = next;
     await next.start();
