@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "scripts": {
     "package": "node scripts/package.mjs",
-    "test:packaging": "node --test scripts/package.test.mjs scripts/licenses/aggregate-licenses.test.mjs",
+    "test:packaging": "node --test scripts/package.test.mjs scripts/licenses/aggregate-licenses.test.mjs scripts/smoke/packaged-app-smoke.test.mjs",
+    "smoke:packaged": "node scripts/smoke/packaged-app-smoke.mjs",
     "sdk:generate": "pnpm --filter @harness/sdk generate",
     "sdk:check": "pnpm --filter @harness/sdk generate:check && pnpm --filter @harness/sdk typecheck",
     "sdk:build": "pnpm --filter @harness/sdk build",

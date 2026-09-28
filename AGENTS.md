@@ -1,26 +1,31 @@
 # AGENTS.md
 
-Harness is a free, open-source desktop app (macOS, Windows, Linux) for doing
-work with AI agents on your own files — an open-source alternative to Claude
-Cowork and Codex, built on OpenCode, running any model from 50+ providers.
-Desktop mode keeps files local; cloud is optional. Three surfaces live in this
-repo:
+Harness is a local-first agent desktop (macOS, Windows, Linux), forked from
+OpenWork and built on the OpenCode engine. Agents work on the user's own files,
+keep long-term memory in an embedded Hindsight engine, and reach only the model
+endpoints the user configures (local servers such as Ollama, or hosted
+providers with the user's own keys).
 
-* **Desktop app** (`apps/`, `packages/`) — local-first agent workspace: chat on
-  files, skills, browser automation, scheduled automations, Anthropic-compatible
-  plugins.
-* **Harness MCP gateway** (`ee/apps/den-api`) — one URL
-  (`api.harness.invalid/mcp/agent`) that brings org-assigned skills, plugins,
-  and connections (Google Workspace, Microsoft 365, MCPs) into Codex, Claude
-  Code, Cursor, or any MCP client via `search_capabilities` /
-  `execute_capability`.
-* **Harness Den** (`ee/apps/den-*`) — the org control plane: provision
-  inference, manage teams and access, set desktop policies, publish skills and
-  plugins through marketplaces.
+* **Desktop app** (`apps/desktop`, `apps/app`, `apps/server`, `packages/`) —
+  chat on files, skills, browser automation, scheduled automations,
+  Anthropic-compatible plugins, memory, and the audit log.
+* **Memory engine** (`packages/memory`, `vendor/hindsight`) — Hindsight run as a
+  supervised, loopback-only child process with a bundled Python runtime.
 
-The app consumes Harness server surfaces (self-hosted or hosted) rather than
-inventing parallel behavior. Anything OpenCode can do is available in Harness,
-even before a dedicated UI exists.
+Hard rules for this fork:
+
+* No telemetry, analytics or crash reporting, and no request to a host the user
+  did not configure. New outbound hosts go in
+  `docs/enterprise/outbound-access.json` (CI checks it).
+* Secrets live in the OS keychain or an AES-256-GCM vault keyed by it — never in
+  plaintext files.
+* Agent tool runs, terminal commands and file writes are recorded in the
+  hash-chained audit log (`packages/audit`).
+* Spawn processes with argument vectors, never interpolated shell strings.
+
+The app consumes Harness server surfaces rather than inventing parallel
+behavior. Anything OpenCode can do is available in Harness, even before a
+dedicated UI exists.
 
 ## Confidentiality (hard rule — this repo is public)
 
@@ -30,7 +35,8 @@ escalate any leak instead of rewriting history.
 
 ## Coding
 
-* pnpm only, never npm/yarn. TypeScript: never `any`, typecasts, or `as` unless
+* pnpm only, never npm/yarn (`npm run package` is the one entry point that uses
+  npm: it only runs `scripts/package.mjs`, which installs through pnpm). TypeScript: never `any`, typecasts, or `as` unless
   100% necessary or instructed.
 * Prefer Tailwind, React, shadcn/ui (Base UI), TanStack Query, Zustand, Zod,
   Drizzle, Better-Auth. Reuse `@/components`; end users are non-technical.
