@@ -64,7 +64,7 @@ describe("Library connector discovery cues", () => {
     ]);
   });
 
-  test("falls back from unavailable catalog slugs to recognizable service favicons", () => {
+  test("uses bundled connector icons and never an icon CDN or favicon service", () => {
     const cues = libraryConnectorCues([
       preset("slack", "Slack", "https://mcp.slack.com/mcp"),
     ]);
@@ -72,17 +72,8 @@ describe("Library connector discovery cues", () => {
     const google = cues.find((cue) => cue.id === "google-workspace");
     const microsoft = cues.find((cue) => cue.id === "microsoft-365");
 
-    expect(slack && libraryConnectorIconUrls(slack)).toEqual([
-      "https://cdn.simpleicons.org/slack",
-      "https://www.google.com/s2/favicons?sz=64&domain=slack.com",
-    ]);
-    expect(google && libraryConnectorIconUrls(google)).toEqual([
-      "https://cdn.simpleicons.org/googleworkspace",
-      "https://www.google.com/s2/favicons?sz=64&domain=google.com",
-    ]);
-    expect(microsoft && libraryConnectorIconUrls(microsoft)).toEqual([
-      "https://cdn.simpleicons.org/microsoft365",
-      "https://www.google.com/s2/favicons?sz=64&domain=microsoft365.com",
-    ]);
+    expect(slack && libraryConnectorIconUrls(slack)).toEqual(["/ext-slack.svg"]);
+    expect(google && libraryConnectorIconUrls(google)).toEqual(["/ext-google-workspace.svg"]);
+    expect(microsoft && libraryConnectorIconUrls(microsoft)).toEqual([]);
   });
 });

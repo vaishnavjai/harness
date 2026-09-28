@@ -28,7 +28,7 @@ export function WebfetchTool({ part }: WebfetchToolProps) {
         Fetching
       </WebfetchTrigger>
       <Source href={part.input.url}>
-        <SourceTrigger showFavicon />
+        <SourceTrigger />
         <SourceContent
           title={part.input.url}
         />

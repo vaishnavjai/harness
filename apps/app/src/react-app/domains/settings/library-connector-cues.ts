@@ -5,56 +5,42 @@ export type LibraryConnectorCue = {
   id: string;
   name: string;
   iconSrc?: string;
-  iconSlug?: string;
   serviceUrl?: string;
-  faviconDomain?: string;
 };
 
 const MAX_CONNECTOR_CUES = 5;
 const FEATURED_PRESET_IDS = ["notion", "slack"] as const;
-const PRESET_ICON_SLUGS: Record<string, string> = {
-  notion: "notion",
-  slack: "slack",
-  linear: "linear",
-  stripe: "stripe",
-  sentry: "sentry",
-  granola: "granola",
-  polar: "polar",
-  exa: "exa",
-  render: "render",
+/** Connector icons bundled with the app; others show the generic glyph. */
+const PRESET_ICONS: Record<string, string> = {
+  notion: "/ext-notion.svg",
+  slack: "/ext-slack.svg",
+  linear: "/ext-linear.svg",
+  stripe: "/ext-stripe.svg",
+  sentry: "/ext-sentry.svg",
 };
 
 const HOSTED_SUITE_CUES: LibraryConnectorCue[] = [
   {
     id: "google-workspace",
     name: "Google Workspace",
-    iconSlug: "googleworkspace",
-    faviconDomain: "google.com",
+    iconSrc: "/ext-google-workspace.svg",
   },
   {
     id: "microsoft-365",
     name: "Microsoft 365",
-    iconSlug: "microsoft365",
-    faviconDomain: "microsoft365.com",
   },
 ];
 
 export function libraryConnectorIconUrls(cue: LibraryConnectorCue): string[] {
-  const primary = resolveExtensionIconUrl(cue);
-  const fallbackService = cue.faviconDomain
-    ? `https://${cue.faviconDomain}`
-    : cue.serviceUrl;
-  const serviceIcon = fallbackService
-    ? resolveExtensionIconUrl({ serviceUrl: fallbackService })
-    : undefined;
-  return [...new Set([primary, serviceIcon].filter((url): url is string => Boolean(url)))];
+  const icon = resolveExtensionIconUrl(cue);
+  return icon ? [icon] : [];
 }
 
 function cueForPreset(preset: DenExternalMcpPreset): LibraryConnectorCue {
   return {
     id: preset.presetId,
     name: preset.displayName,
-    iconSlug: PRESET_ICON_SLUGS[preset.presetId],
+    iconSrc: PRESET_ICONS[preset.presetId],
     serviceUrl: preset.url,
   };
 }

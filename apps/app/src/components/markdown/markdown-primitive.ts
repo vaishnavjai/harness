@@ -13,7 +13,6 @@ import {
 } from "@shikijs/transformers";
 import { bundledLanguages, codeToHtml } from "shiki";
 
-import { faviconUrlForHref } from "@/lib/favicon";
 
 import { markdownMath } from "./markdown-math";
 import { parseSessionReference } from "@/components/chat/session-reference";
@@ -355,12 +354,7 @@ function renderLink(profile: MarkdownProfile, href: string, title: string | null
       return `<span class="inline-flex items-stretch overflow-hidden rounded-md border border-border/60 bg-muted/40 text-xs font-medium text-foreground align-middle"><a href="${safe}" data-harness-link-href="${originalHref}"${titleAttr} target="_blank" rel="noreferrer noopener" class="inline-flex items-center gap-1 px-1.5 py-0.5 no-underline transition-colors hover:bg-muted">${fileIcon}${text}</a><button type="button" data-harness-link-chevron="${originalHref}" class="inline-flex items-center border-l border-border/60 px-1 transition-colors hover:bg-muted" aria-label="Open with">${chevron}</button></span>`;
     }
 
-    const favicon = faviconUrlForHref(href);
-    const faviconHtml = favicon
-      ? `<img src="${escapeAttribute(favicon)}" alt="" aria-hidden="true" loading="lazy" decoding="async" class="me-1 inline-block size-3.5 rounded-[3px] align-[-2px]" />`
-      : "";
-
-    return `<a href="${safe}" data-harness-link-href="${originalHref}"${titleAttr} target="_blank" rel="noreferrer noopener" class="text-indigo-10 no-underline transition-colors hover:text-indigo-8">${faviconHtml}${text}</a>`;
+    return `<a href="${safe}" data-harness-link-href="${originalHref}"${titleAttr} target="_blank" rel="noreferrer noopener" class="text-indigo-10 no-underline transition-colors hover:text-indigo-8">${text}</a>`;
   }
 
   return `<a href="${safe}"${titleAttr} target="_blank" rel="noreferrer noopener" class="text-indigo-10 no-underline transition-colors hover:text-indigo-8">${text}</a>`;

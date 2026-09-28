@@ -41,7 +41,7 @@ export function WebsearchTool({ part }: WebsearchToolProps) {
           <div className="flex flex-wrap items-center gap-2">
             {results.map((result) => (
               <Source href={result.url} key={result.url}>
-                <SourceTrigger showFavicon />
+                <SourceTrigger />
                 <SourceContent
                   title={result.title}
                   description={result.description}

@@ -124,7 +124,6 @@ import { useWorkspaceMaybe } from "@/react-app/shell/workspace-provider"
 import { formatElapsedSeconds, formatToolCallDuration } from "@/lib/tool-call-duration"
 import { collectLatestAssistantToolParts } from "@/lib/latest-assistant-tool-parts"
 import { isToolPartInFlight } from "@/lib/tool-activity"
-import { faviconUrlForHref } from "@/lib/favicon"
 import { useOpenArtifactPath } from "@/lib/artifacts"
 import { cn } from "@/lib/utils"
 import { DevProfiler } from "@/react-app/shell/dev-profiler"
@@ -695,7 +694,6 @@ function renderPlainTextWithLinks(text: string, highlightQuery: string | undefin
         </React.Fragment>
       )
     }
-    const favicon = faviconUrlForHref(url)
     nodes.push(
       <a
         key={`${keyPrefix}:url:${start}`}
@@ -704,16 +702,6 @@ function renderPlainTextWithLinks(text: string, highlightQuery: string | undefin
         rel="noreferrer noopener"
         className="text-indigo-10 transition-colors hover:text-indigo-8 break-all"
       >
-        {favicon ? (
-          <img
-            src={favicon}
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            decoding="async"
-            className="me-1 inline-block size-3.5 rounded-[3px] align-[-2px]"
-          />
-        ) : null}
         {url}
       </a>
     )

@@ -30,7 +30,7 @@ export function ProviderIcon(props: ProviderIconProps) {
   const isOpenCode = hasProviderFamily("opencode");
   const hasInlineMark = isAnthropic || isOpenAI || isOpenCode;
 
-  // Remote logos are walked in order and each failure advances one step, so a
+  // Bundled logos are walked in order and each failure advances one step, so a
   // provider only falls back to its monogram once every source is exhausted.
   const candidates = hasInlineMark
     ? []

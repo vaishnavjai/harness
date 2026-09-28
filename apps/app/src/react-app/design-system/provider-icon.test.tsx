@@ -13,48 +13,19 @@ import { ProviderIcon } from "./provider-icon";
 import { providerLogoCandidates } from "./provider-logo-src";
 
 describe("provider logo candidates", () => {
-  test("prefers Simple Icons for providers it actually publishes", () => {
-    expect(providerLogoCandidates({ providerId: "anthropic" })[0]).toBe(
-      "https://cdn.simpleicons.org/anthropic",
-    );
-    expect(providerLogoCandidates({ providerId: "google" })[0]).toBe(
-      "https://cdn.simpleicons.org/googlegemini",
-    );
+  test("uses logos bundled with the app", () => {
+    expect(providerLogoCandidates({ providerId: "openai" })).toEqual(["/ext-openai.svg"]);
+    expect(providerLogoCandidates({ providerId: "Ollama" })).toEqual(["/ext-ollama.svg"]);
   });
 
-  test("skips Simple Icons for the providers it 404s on and uses the brand favicon", () => {
-    expect(providerLogoCandidates({ providerId: "groq" })).toEqual([
-      "https://www.google.com/s2/favicons?sz=64&domain=groq.com",
-    ]);
-    expect(providerLogoCandidates({ providerId: "bedrock" })).toEqual([
-      "https://www.google.com/s2/favicons?sz=64&domain=aws.amazon.com",
-    ]);
+  test("never asks an icon CDN or favicon service about a provider", () => {
+    for (const providerId of ["anthropic", "google", "groq", "bedrock", "302.ai", "my-gateway"]) {
+      const candidates = providerLogoCandidates({ providerId, baseUrl: "https://api.together.xyz/v1" });
+      expect(candidates).toEqual([]);
+    }
   });
 
-  test("resolves a real logo for long-tail providers whose id is a domain", () => {
-    expect(providerLogoCandidates({ providerId: "302.ai" })).toEqual([
-      "https://www.google.com/s2/favicons?sz=64&domain=302.ai",
-    ]);
-  });
-
-  test("falls back to the configured base URL for custom providers", () => {
-    const candidates = providerLogoCandidates({
-      providerId: "my-gateway",
-      baseUrl: "https://api.together.xyz/v1",
-    });
-    expect(candidates).toContain("https://www.google.com/s2/favicons?sz=64&domain=together.xyz");
-  });
-
-  test("unslugs long-tail catalog ids back into their own domain", () => {
-    expect(providerLogoCandidates({ providerId: "abliteration-ai" })).toContain(
-      "https://www.google.com/s2/favicons?sz=64&domain=abliteration.ai",
-    );
-    expect(providerLogoCandidates({ providerId: "302ai" })).toContain(
-      "https://www.google.com/s2/favicons?sz=64&domain=302.ai",
-    );
-  });
-
-  test("leaves nothing to load when there is no logo source at all", () => {
+  test("returns nothing without a provider id", () => {
     expect(providerLogoCandidates({ providerId: "" })).toEqual([]);
   });
 });
@@ -66,11 +37,10 @@ describe("ProviderIcon", () => {
     expect(markup).toContain('role="img"');
   });
 
-  test("renders a real logo image for a long-tail provider instead of a monogram", () => {
-    const markup = renderToStaticMarkup(<ProviderIcon providerId="302.ai" size={20} />);
-    expect(markup).toContain("<img");
-    expect(markup).toContain("s2/favicons");
-    expect(markup).toContain("302.ai");
+  test("renders a bundled logo without any remote image lookup", () => {
+    const markup = renderToStaticMarkup(<ProviderIcon providerId="ollama" size={20} />);
+    expect(markup).toContain("ext-ollama.svg");
+    expect(markup.includes("https://")).toBe(false);
   });
 
   test("keeps the monogram only for providers with no resolvable logo", () => {

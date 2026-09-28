@@ -1380,6 +1380,7 @@ const memoryService = createMemoryService({
     : { repoRoot: path.resolve(__dirname, "../../..") },
   audit: harnessAudit,
   logger: { info: (message) => console.log(message), warn: (message) => console.warn(message) },
+  fetchImpl: (input, init) => electronNet.fetch(input, init),
 });
 const initialRunnerBootstrap = workspaceStore.readDesktopBootstrapConfigSync();
 const legacyRunnerBaseUrls = [

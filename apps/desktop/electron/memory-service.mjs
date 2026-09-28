@@ -53,7 +53,7 @@ export const MEMORY_SECRET_NAMES = Object.freeze({
  *   audit?: { event(kind: string, detail?: Record<string, string | number | boolean | null>): void },
  *   logger?: import("@harness/memory").MemoryLogger,
  *   supervisorFactory?: (options: import("@harness/memory").HindsightSupervisorOptions) => MemoryEngineSupervisor,
- *   fetchImpl?: typeof fetch,
+ *   fetchImpl: (input: string, init?: RequestInit) => Promise<Response>,
  * }} options
  */
 export function createMemoryService({
@@ -64,7 +64,7 @@ export function createMemoryService({
   audit,
   logger,
   supervisorFactory = (options) => new HindsightSupervisor(options),
-  fetchImpl = (input, init) => fetch(input, init),
+  fetchImpl,
 }) {
   /** @type {MemoryEngineSupervisor | null} */
   let supervisor = null;

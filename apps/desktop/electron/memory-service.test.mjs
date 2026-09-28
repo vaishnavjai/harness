@@ -78,6 +78,7 @@ async function service({ runtime = true } = {}) {
       : { env: {} },
     audit: { event: (kind, detail) => events.push({ kind, detail }) },
     supervisorFactory: fakeSupervisorFactory(created),
+    fetchImpl: async (url) => new Response(JSON.stringify({ models: [] }), { status: url.includes("/api/tags") ? 200 : 404 }),
   });
   return { root, memory, created, events, secretStore };
 }
@@ -123,6 +124,16 @@ describe("memory service", () => {
   test("reports a missing runtime instead of downloading one", async () => {
     const { memory } = await service({ runtime: false });
     await assert.rejects(memory.start(), /runtime is not installed/);
+  });
+
+  test("probes the local model server without sending memory", async () => {
+    const { memory } = await service();
+    assert.deepEqual(await memory.probeModelEndpoint(), {
+      reachable: true,
+      ok: true,
+      status: 200,
+      url: "http://127.0.0.1:11434/api/tags",
+    });
   });
 
   test("rejects invalid endpoint settings", async () => {
