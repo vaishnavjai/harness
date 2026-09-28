@@ -48,6 +48,18 @@ describe("resolveWithinRoot", () => {
     // symlinked parent reveals that a write would land outside.
     await expect(resolveWithinRoot(root, "link", "new-file.txt")).rejects.toThrow("Path escapes workspace root");
     await expect(resolveWithinRoot(root, "link", "deeper", "new-file.txt")).rejects.toThrow("Path escapes workspace root");
+    // A dangling link: realpath fails, but a write through it lands outside.
+    await symlink(join(outside, "not-created-yet.txt"), join(root, "dangling"));
+    await expect(resolveWithinRoot(root, "dangling")).rejects.toThrow("Path escapes workspace root");
+    await symlink(join(outside, "missing-dir"), join(root, "dangling-dir"));
+    await expect(resolveWithinRoot(root, "dangling-dir", "file.txt")).rejects.toThrow("Path escapes workspace root");
+  });
+
+  test.skipIf(process.platform === "win32")("refuses a symlink loop instead of spinning", async () => {
+    const { root } = await fixture();
+    await symlink(join(root, "loop-b"), join(root, "loop-a"));
+    await symlink(join(root, "loop-a"), join(root, "loop-b"));
+    await expect(resolveWithinRoot(root, "loop-a", "x")).rejects.toThrow();
   });
 
   test.skipIf(process.platform === "win32")("allows symlinks that stay inside the workspace", async () => {

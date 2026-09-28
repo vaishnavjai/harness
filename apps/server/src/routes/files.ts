@@ -8,6 +8,7 @@ import { FileSessionStore } from "../file-sessions.js";
 import type { ApprovalRequest, ServerConfig, TokenScope, WorkspaceInfo } from "../types.js";
 import { ensureDir, exists, shortId } from "../utils.js";
 import { addRoute, type RequestContext, type Route } from "./registry.js";
+import { isWithinRealRoot } from "../paths.js";
 
 /**
  * Build a Content-Disposition header value that is safe for Unicode filenames.
@@ -177,7 +178,7 @@ export function isSupportedWorkspaceTextFilePath(relativePath: string): boolean 
   );
 }
 
-function resolveSafeChildPath(root: string, child: string): string {
+async function resolveSafeChildPath(root: string, child: string): Promise<string> {
   const rootResolved = resolve(root);
   const candidate = resolve(rootResolved, child);
   if (candidate === rootResolved) {
@@ -185,6 +186,11 @@ function resolveSafeChildPath(root: string, child: string): string {
   }
   if (!candidate.startsWith(rootResolved + sep)) {
     throw new ApiError(400, "invalid_path", "Path traversal is not allowed");
+  }
+  // Judge by where the path really leads, too: a symlinked folder or file
+  // (even a dangling one) inside the workspace must not reach outside it.
+  if (!(await isWithinRealRoot(rootResolved, candidate))) {
+    throw new ApiError(400, "invalid_path", "Path leaves the workspace through a symbolic link");
   }
   return candidate;
 }
@@ -313,7 +319,7 @@ export async function resolveWorkspaceArtifactTargets(workspaceRoot: string, inp
       continue;
     }
     const key = `file:${relativePath.toLowerCase()}`;
-    const absPath = resolveSafeChildPath(workspaceRoot, relativePath);
+    const absPath = await resolveSafeChildPath(workspaceRoot, relativePath);
     let existsFile = false;
     let size: number | undefined;
     let updatedAt: number | undefined;
@@ -603,7 +609,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     }
     const inboxRoot = resolveInboxDir(workspace.path);
     const relativePath = decodeInboxId(ctx.params.inboxId);
-    const absPath = resolveSafeChildPath(inboxRoot, relativePath);
+    const absPath = await resolveSafeChildPath(inboxRoot, relativePath);
     if (!(await exists(absPath))) {
       throw new ApiError(404, "inbox_item_not_found", "Inbox item not found");
     }
@@ -644,7 +650,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
 
     const relativePath = normalizeWorkspaceRelativePath(requestedPath, { allowSubdirs: true });
     const inboxRoot = resolveInboxDir(workspace.path);
-    const dest = resolveSafeChildPath(inboxRoot, relativePath);
+    const dest = await resolveSafeChildPath(inboxRoot, relativePath);
     const maxBytes = resolveInboxMaxBytes();
     if (file.size > maxBytes) {
       throw new ApiError(413, "file_too_large", "File exceeds upload limit", { maxBytes, size: file.size });
@@ -693,7 +699,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     }
     const outboxRoot = resolveOutboxDir(workspace.path);
     const relativePath = decodeArtifactId(ctx.params.artifactId);
-    const absPath = resolveSafeChildPath(outboxRoot, relativePath);
+    const absPath = await resolveSafeChildPath(outboxRoot, relativePath);
     if (!(await exists(absPath))) {
       throw new ApiError(404, "artifact_not_found", "Artifact not found");
     }
@@ -803,13 +809,13 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     const approvalPaths: string[] = [];
     for (const op of operations) {
       if (typeof op?.path === "string" && op.path.trim()) {
-        approvalPaths.push(resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.path, { allowSubdirs: true })));
+        approvalPaths.push(await resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.path, { allowSubdirs: true })));
       }
       if (typeof op?.from === "string" && op.from.trim()) {
-        approvalPaths.push(resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.from, { allowSubdirs: true })));
+        approvalPaths.push(await resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.from, { allowSubdirs: true })));
       }
       if (typeof op?.to === "string" && op.to.trim()) {
-        approvalPaths.push(resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.to, { allowSubdirs: true })));
+        approvalPaths.push(await resolveSafeChildPath(workspace.path, normalizeWorkspaceRelativePath(op.to, { allowSubdirs: true })));
       }
     }
 
@@ -827,7 +833,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
       try {
         if (type === "mkdir") {
           const path = normalizeWorkspaceRelativePath(String(op.path ?? ""), { allowSubdirs: true });
-          const absPath = resolveSafeChildPath(workspace.path, path);
+          const absPath = await resolveSafeChildPath(workspace.path, path);
           await ensureDir(absPath);
           recordWorkspaceFileEvent(workspace.id, { type: "mkdir", path });
           items.push({ ok: true, type, path });
@@ -836,7 +842,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
 
         if (type === "delete") {
           const path = normalizeWorkspaceRelativePath(String(op.path ?? ""), { allowSubdirs: true });
-          const absPath = resolveSafeChildPath(workspace.path, path);
+          const absPath = await resolveSafeChildPath(workspace.path, path);
           if (!(await exists(absPath))) {
             items.push({ ok: false, type, path, code: "file_not_found", message: "Path not found" });
             continue;
@@ -850,8 +856,8 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
         if (type === "rename") {
           const from = normalizeWorkspaceRelativePath(String(op.from ?? ""), { allowSubdirs: true });
           const to = normalizeWorkspaceRelativePath(String(op.to ?? ""), { allowSubdirs: true });
-          const fromAbs = resolveSafeChildPath(workspace.path, from);
-          const toAbs = resolveSafeChildPath(workspace.path, to);
+          const fromAbs = await resolveSafeChildPath(workspace.path, from);
+          const toAbs = await resolveSafeChildPath(workspace.path, to);
           if (!(await exists(fromAbs))) {
             items.push({ ok: false, type, from, to, code: "file_not_found", message: "Source path not found" });
             continue;
@@ -882,7 +888,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
       throw new ApiError(400, "invalid_path", "Only supported text artifact files can be read inline");
     }
 
-    const absPath = resolveSafeChildPath(workspace.path, relativePath);
+    const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     if (!(await exists(absPath))) {
       throw new ApiError(404, "file_not_found", "File not found");
     }
@@ -904,7 +910,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const requested = ctx.url.searchParams.get("path") ?? "";
     const relativePath = normalizeWorkspaceRelativePath(requested, { allowSubdirs: true });
-    const absPath = resolveSafeChildPath(workspace.path, relativePath);
+    const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     if (!(await exists(absPath))) {
       return jsonResponse({ ok: true, path: relativePath, exists: false });
     }
@@ -923,7 +929,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     const workspace = await resolveWorkspace(config, ctx.params.id);
     const requested = ctx.url.searchParams.get("path") ?? "";
     const relativePath = normalizeWorkspaceRelativePath(requested, { allowSubdirs: true });
-    const absPath = resolveSafeChildPath(workspace.path, relativePath);
+    const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     if (!(await exists(absPath))) {
       throw new ApiError(404, "file_not_found", "File not found");
     }
@@ -965,7 +971,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
     const baseUpdatedAt =
       typeof baseUpdatedAtRaw === "number" && Number.isFinite(baseUpdatedAtRaw) ? baseUpdatedAtRaw : null;
     const force = body.force === true;
-    const absPath = resolveSafeChildPath(workspace.path, relativePath);
+    const absPath = await resolveSafeChildPath(workspace.path, relativePath);
     const before = (await exists(absPath)) ? await stat(absPath) : null;
     if (before && !before.isFile()) {
       throw new ApiError(400, "invalid_path", "Path must point to a file");
@@ -1028,7 +1034,7 @@ export function registerFileRoutes(options: RegisterFileRoutesOptions): void {
       typeof baseUpdatedAtRaw === "number" && Number.isFinite(baseUpdatedAtRaw) ? baseUpdatedAtRaw : null;
     const force = body.force === true;
 
-    const absPath = resolveSafeChildPath(workspace.path, relativePath);
+    const absPath = await resolveSafeChildPath(workspace.path, relativePath);
 
     const before = (await exists(absPath)) ? await stat(absPath) : null;
     if (before && !before.isFile()) {
