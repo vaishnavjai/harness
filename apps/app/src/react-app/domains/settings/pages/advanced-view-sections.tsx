@@ -811,6 +811,8 @@ export function AdvancedFeatureFlagsSection(props: AdvancedFeatureFlagsSectionPr
 export function AdvancedEngineV2PreviewSection(props: { client: HarnessServerClient | null }) {
   const engine = useOpencodeEngineControls(props.client);
   const runtimeError = engine.status?.enabled ? engine.status.lastError : undefined;
+  // Developer-only: show nothing until the server says the preview is offered.
+  if (engine.status?.available !== true) return null;
   return (
     <LayoutSection id="advanced-experimental-engine">
       <LayoutSectionHeader><LayoutSectionTitle>OpenCode engine</LayoutSectionTitle></LayoutSectionHeader>

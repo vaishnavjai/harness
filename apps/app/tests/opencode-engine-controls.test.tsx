@@ -78,3 +78,17 @@ test("history migration prevents engine switching and duplicate submits", async 
   expect(button("Migrate chats to OpenCode v2").disabled).toBe(true);
   expect(host.textContent).toContain("Migrating chats: 1 of 3");
 });
+test("the settings section stays hidden unless the server offers the developer-only preview", async () => {
+  const { AdvancedEngineV2PreviewSection } = await import("../src/react-app/domains/settings/pages/advanced-view-sections");
+  const section = <AdvancedEngineV2PreviewSection client={client as unknown as Parameters<typeof AdvancedEngineV2PreviewSection>[0]["client"]} />;
+  state.available = false;
+  await act(async () => root.render(section));
+  expect(host.textContent).toBe("");
+  expect(host.querySelector("#advanced-experimental-engine")).toBeNull();
+  state.available = true;
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  await act(async () => root.render(section));
+  expect(host.querySelector("#advanced-experimental-engine")).not.toBeNull();
+  expect(button("Migrate chats to OpenCode v2")).toBeTruthy();
+});

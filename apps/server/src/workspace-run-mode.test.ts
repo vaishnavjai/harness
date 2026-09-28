@@ -255,6 +255,12 @@ describe("runtime activity for the owning host", () => {
     const { root, origin, base, put, engineState } = await startModeServer();
     const refused = await fetch(`${origin}/experimental/engine-v2-preview`, { method: "PUT", headers, body: JSON.stringify({ chatRouting: true }) });
     expect(refused.status).toBe(403);
+    // History migration switches v2 on, so it is refused the same way and leaves v2 off.
+    const migrate = await fetch(`${origin}/experimental/engine-v2-preview/migrate`, {
+      method: "POST", headers: { "x-harness-host-token": "owt_run_mode_host", "content-type": "application/json" }, body: JSON.stringify({ confirm: true }),
+    });
+    expect(migrate.status).toBe(403);
+    expect(await (await fetch(`${origin}/experimental/engine-v2-preview/status`, { headers })).json()).toMatchObject({ available: false, enabled: false });
     process.env.HARNESS_ENGINE_V2_PREVIEW = "opt-in";
     for (const content of ['{"permission":"deny"}', '{"permission":{"*":{}}}', '{"permission":']) {
       await writeFile(opencodeConfigPath(root), content);

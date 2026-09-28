@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import {
   createEngineV2Preview,
+  EngineV2UnavailableError,
   mapRuntimeProvidersToV2Specs,
   mapRuntimeMcpToV2,
   readEngineV2PreviewState,
@@ -98,7 +99,45 @@ test("round trips enabled and chat routing state and defaults corrupt state", as
   }
 });
 
-test("persists chat routing and includes it in preview status without starting the engine", async () => {
+/** Runs a test as a developer who opted into the preview with HARNESS_ENGINE_V2_PREVIEW. */
+async function withV2PreviewOptIn(run: () => Promise<void>): Promise<void> {
+  const previous = process.env.HARNESS_ENGINE_V2_PREVIEW;
+  process.env.HARNESS_ENGINE_V2_PREVIEW = "opt-in";
+  try { await run(); }
+  finally {
+    if (previous === undefined) delete process.env.HARNESS_ENGINE_V2_PREVIEW;
+    else process.env.HARNESS_ENGINE_V2_PREVIEW = previous;
+  }
+}
+
+test("without the developer opt-in, enabling, chat routing and history migration all refuse and persist nothing", async () => {
+  const previous = process.env.HARNESS_ENGINE_V2_PREVIEW;
+  delete process.env.HARNESS_ENGINE_V2_PREVIEW;
+  const root = await mkdtemp(join(tmpdir(), "harness-engine-v2-preview-"));
+  const config = testConfig(root);
+  const create = spyOn(managedV2, "createManagedOpencodeV2Server");
+  const preview = createEngineV2Preview({ config });
+  try {
+    expect(preview.status().available).toBe(false);
+    await expect(preview.setEnabled(true)).rejects.toBeInstanceOf(EngineV2UnavailableError);
+    await expect(preview.setChatRouting(true)).rejects.toBeInstanceOf(EngineV2UnavailableError);
+    expect(() => preview.migrateHistory()).toThrow(EngineV2UnavailableError);
+    expect(preview.status()).toMatchObject({ enabled: false, chatRouting: false, running: false });
+    expect(preview.status().migration.state).toBe("idle");
+    expect(readEngineV2PreviewState(config)).toEqual({ enabled: false, chatRouting: false });
+    expect(create).not.toHaveBeenCalled();
+    // Turning the preview off stays possible without the opt-in.
+    expect((await preview.setEnabled(false)).enabled).toBe(false);
+  } finally {
+    await preview.stop();
+    create.mockRestore();
+    if (previous === undefined) delete process.env.HARNESS_ENGINE_V2_PREVIEW;
+    else process.env.HARNESS_ENGINE_V2_PREVIEW = previous;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("persists chat routing and includes it in preview status without starting the engine", () => withV2PreviewOptIn(async () => {
   const root = await mkdtemp(join(tmpdir(), "harness-engine-v2-preview-"));
   const config = testConfig(root);
   const preview = createEngineV2Preview({ config });
@@ -114,7 +153,7 @@ test("persists chat routing and includes it in preview status without starting t
     await preview.stop();
     await rm(root, { recursive: true, force: true });
   }
-});
+}));
 
 test("maps runtime provider fields and models to an OpenCode v2 spec", () => {
   expect(mapRuntimeProvidersToV2Specs({
@@ -276,7 +315,10 @@ async function withFakeSidecar(
     spyOn(runtimeConfig, "readEffectiveRuntimeOpencodeConfig").mockResolvedValue({ mcp: input.mcp ?? {} }),
   ];
   const previousBin = process.env.HARNESS_OPENCODE2_BIN;
+  const previousPreview = process.env.HARNESS_ENGINE_V2_PREVIEW;
   process.env.HARNESS_OPENCODE2_BIN = "opencode2-fixture";
+  // These tests drive the preview as a developer who opted in.
+  process.env.HARNESS_ENGINE_V2_PREVIEW = "opt-in";
   const preview = createEngineV2Preview({ config: testConfig(root), deferStart: true, waits: input.waits });
   try {
     await preview.setEnabled(true);
@@ -288,6 +330,8 @@ async function withFakeSidecar(
     for (const spy of spies) spy.mockRestore();
     if (previousBin === undefined) delete process.env.HARNESS_OPENCODE2_BIN;
     else process.env.HARNESS_OPENCODE2_BIN = previousBin;
+    if (previousPreview === undefined) delete process.env.HARNESS_ENGINE_V2_PREVIEW;
+    else process.env.HARNESS_ENGINE_V2_PREVIEW = previousPreview;
     await rm(root, { recursive: true, force: true });
   }
 }

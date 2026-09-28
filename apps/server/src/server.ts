@@ -3313,6 +3313,10 @@ function createRoutes(
     ensureWritable(config);
     const body = await readJsonBody(ctx.request);
     if (!isRecord(body) || body.confirm !== true) throw new ApiError(400, "invalid_payload", "Confirm history migration first");
+    // Migration switches v2 on, so it is gated exactly like the enable route.
+    if (!engineV2Preview.status().available) {
+      throw new ApiError(403, "engine_v2_unavailable", "The OpenCode v2 preview is not available in Harness.");
+    }
     return jsonResponse(engineV2Preview.migrateHistory());
   });
 

@@ -119,6 +119,18 @@ export function engineV2PreviewAvailable(env: NodeJS.ProcessEnv): boolean {
   return Boolean(value) && value !== "0" && value !== "off" && value !== "false";
 }
 
+/** Thrown by every path that would start OpenCode v2 while the preview is unavailable. */
+export class EngineV2UnavailableError extends Error {
+  constructor() {
+    super("The OpenCode v2 preview is not available in Harness.");
+    this.name = "EngineV2UnavailableError";
+  }
+}
+
+function assertEngineV2PreviewAvailable(): void {
+  if (!engineV2PreviewAvailable(process.env)) throw new EngineV2UnavailableError();
+}
+
 export function resolveInitialEngineV2PreviewState(
   env: NodeJS.ProcessEnv,
   persisted: EngineV2PreviewState,
@@ -692,6 +704,8 @@ export function createEngineV2Preview(options: {
   }
 
   async function start(): Promise<void> {
+    // Every start path funnels here, so no route or saved state can bypass the gate.
+    assertEngineV2PreviewAvailable();
     if (sidecar) return;
     if (startPromise) {
       await startPromise;
@@ -722,6 +736,7 @@ export function createEngineV2Preview(options: {
   }
 
   async function setEnabled(nextEnabled: boolean): Promise<EngineV2PreviewStatus> {
+    if (nextEnabled) assertEngineV2PreviewAvailable();
     if (migration.state === "running") throw new Error("Wait for history migration to finish before switching engines.");
     if (nextEnabled && enabled && running) return status();
     await writeEngineV2PreviewState(config, { enabled: nextEnabled, chatRouting });
@@ -740,6 +755,7 @@ export function createEngineV2Preview(options: {
   }
 
   async function setChatRouting(nextChatRouting: boolean): Promise<EngineV2PreviewStatus> {
+    if (nextChatRouting) assertEngineV2PreviewAvailable();
     if (migration.state === "running") throw new Error("Wait for history migration to finish before switching engines.");
     await writeEngineV2PreviewState(config, { enabled, chatRouting: nextChatRouting });
     chatRouting = nextChatRouting;
@@ -787,6 +803,8 @@ export function createEngineV2Preview(options: {
   }
 
   function migrateHistory(): EngineV2PreviewStatus {
+    // Migration enables v2 and persists that choice; it needs the same gate.
+    assertEngineV2PreviewAvailable();
     if (migration.state === "running") return status();
     migration = { state: "running", imported: 0, skipped: 0, total: 0 };
     migrationJob = (async () => {

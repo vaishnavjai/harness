@@ -166,7 +166,9 @@ test.skipIf(!enabled)(title, async ({ evidence, place }) => {
       name: "engine-v2-preview-flag",
       host: place.host(),
       ...(profileDir === undefined ? {} : { profileDir }),
-      env: binPath === undefined ? {} : { HARNESS_OPENCODE2_BIN: binPath },
+      // The preview is developer-only: opt in without starting it, so the spec
+      // still begins on v1 and flips the flag itself.
+      env: { HARNESS_ENGINE_V2_PREVIEW: "opt-in", ...(binPath === undefined ? {} : { HARNESS_OPENCODE2_BIN: binPath }) },
     });
     let workspacePath: string;
     if (place.kind === "daytona") {
