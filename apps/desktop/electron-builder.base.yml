@@ -20,6 +20,12 @@ extraResources:
   # scripts/hindsight/prepare-runtime.mjs (npm run package does this).
   - from: resources/hindsight-runtime
     to: hindsight-runtime
+  # Every bundled third-party license, aggregated by
+  # scripts/licenses/aggregate-licenses.mjs, plus Harness's own license.
+  - from: resources/licenses
+    to: licenses
+  - from: ../../LICENSE
+    to: licenses/LICENSE.harness.txt
   - from: server/dist/opencode-plugins
     to: opencode-plugins
     filter:

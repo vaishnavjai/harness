@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.0",
   "scripts": {
+    "package": "node scripts/package.mjs",
+    "test:packaging": "node --test scripts/package.test.mjs scripts/licenses/aggregate-licenses.test.mjs",
     "sdk:generate": "pnpm --filter @harness/sdk generate",
     "sdk:check": "pnpm --filter @harness/sdk generate:check && pnpm --filter @harness/sdk typecheck",
     "sdk:build": "pnpm --filter @harness/sdk build",
