@@ -32,3 +32,10 @@ export function applyBrandAppName(requestedName, dependencies) {
 
   return appName;
 }
+
+export const WINDOW_TITLE_SUFFIX = "Local Agent Desktop";
+
+/** Window chrome title, e.g. "Harness - Local Agent Desktop"; the app/dock name stays the plain app name. */
+export function mainWindowTitleFor(appName) {
+  return `${appName} - ${WINDOW_TITLE_SUFFIX}`;
+}

@@ -5,7 +5,7 @@
 pkgname=harness
 pkgver=0.0.0
 pkgrel=1 # pkgrel should change when PKGBUILD does. Standard is to change back to 1 next time. Any interger is valid.
-pkgdesc="An Open source alternative to Claude Cowork"
+pkgdesc="Local-first agent desktop with long-term memory and your own models"
 arch=('x86_64' 'aarch64')
 url="https://github.com/vaishnavjai/harness"
 license=('MIT')

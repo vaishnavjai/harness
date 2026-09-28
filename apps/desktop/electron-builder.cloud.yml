@@ -9,7 +9,7 @@ protocols:
       - harness
 publish:
   - provider: github
-    owner: different-ai
+    owner: vaishnavjai
     repo: harness
     releaseType: release
     channel: cloud

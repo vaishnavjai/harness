@@ -3,12 +3,9 @@ import { INFERENCE_MODEL_ALIASES } from "@harness/types/den/inference";
 import {
   buildDenAuthUrl,
   getDenInferenceUrl,
-  isSelfHostedControlPlane,
-  HOSTED_DEFAULT_DEN_BASE_URL,
   readDenBootstrapConfig,
   readDenSettings,
 } from "../../../app/lib/den";
-import { isDefaultControlPlaneUrl } from "../settings/cloud/control-plane-url";
 import { denSettingsChangedEvent } from "../../../app/lib/den-session-events";
 import { useSyncExternalStore } from "react";
 
@@ -22,17 +19,17 @@ export const HARNESS_MODELS_PROMO_SHOW_DELAY_MS = 4_000;
 export const HARNESS_MODELS_PROMO_VISIBLE_MS = 14_000;
 export const HARNESS_MODELS_PROMO_REPEAT_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * Harness has no hosted model offering: the Harness Models upsell (settings
+ * cards, account menu item, empty-state hint) never shows. People bring their
+ * own local or hosted models.
+ */
 export function areHarnessModelsPromosDisabled() {
-  if (/^(1|true|yes|on)$/i.test(String(import.meta.env.VITE_DISABLE_HARNESS_MODELS ?? "").trim())) {
-    return true;
-  }
-  // Harness Models are a hosted Harness Cloud offering; self-hosted
-  // deployments should never see the upsell surfaces.
-  return isSelfHostedControlPlane();
+  return true;
 }
 
-export function isHarnessModelsPromoEligibleForDenBaseUrl(baseUrl: string) {
-  return !areHarnessModelsPromosDisabled() && isDefaultControlPlaneUrl(baseUrl, HOSTED_DEFAULT_DEN_BASE_URL);
+export function isHarnessModelsPromoEligibleForDenBaseUrl(_baseUrl: string) {
+  return !areHarnessModelsPromosDisabled();
 }
 
 export function isHarnessModelsPromoEligible() {

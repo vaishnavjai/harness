@@ -237,7 +237,7 @@ function ModelEndpointSection({ status, onStatus }: { status: HarnessMemoryStatu
     onSuccess: (next, value) => {
       setApiKey("");
       onStatus(next);
-      toast.success(value ? "API key saved to your OS keychain" : "API key removed");
+      toast.success(value ? "API key saved, encrypted with your OS keychain" : "API key removed");
     },
     onError: (error) => toast.error(describeError(error)),
   });
@@ -329,7 +329,7 @@ function ModelEndpointSection({ status, onStatus }: { status: HarnessMemoryStatu
             <LayoutSectionItemHeader>
               <LayoutSectionItemTitle>API key</LayoutSectionItemTitle>
               <LayoutSectionItemDescription>
-                {status.apiKeys.llm ? "Saved in your OS keychain" : "Not set"}
+                {status.apiKeys.llm ? "Encrypted with your OS keychain" : "Not set"}
               </LayoutSectionItemDescription>
               <LayoutSectionItemHeaderActions>
                 {status.apiKeys.llm ? (

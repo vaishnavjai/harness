@@ -135,7 +135,7 @@ describe("Settings > Memory", () => {
     const view = await render(<MemoryView />);
     const text = view.container.textContent ?? "";
     expect(text).toContain("Sends memory text only to api.openai.com");
-    expect(text).toContain("Saved in your OS keychain");
+    expect(text).toContain("Encrypted with your OS keychain");
     await view.unmount();
   });
 

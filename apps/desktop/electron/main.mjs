@@ -36,7 +36,7 @@ import {
 import { createUiControlServer } from "./ui-control-server.mjs";
 import { createApplicationMenu } from "./app-menu.mjs";
 import { createNativeContextMenus } from "./context-menu.mjs";
-import { applyBrandAppName } from "./brand-app-name.mjs";
+import { applyBrandAppName, mainWindowTitleFor } from "./brand-app-name.mjs";
 import { createBrowserLoginSync } from "./browser-login-sync.mjs";
 import { createBrowserPanel } from "./browser-panel.mjs";
 import { createWorkspaceStore } from "./workspace-store.mjs";
@@ -139,10 +139,8 @@ const BLANK_SLATE_LAUNCH = resolveBlankSlateLaunch({
 });
 const APP_NAME = BLANK_SLATE_LAUNCH.appName;
 let currentDisplayAppName = APP_NAME;
-const WINDOW_TITLE_SUFFIX = "Local Agent Desktop";
-/** Window chrome title, e.g. "Harness - Local Agent Desktop"; the app/dock name stays APP_NAME. */
 function mainWindowTitle(appName = currentDisplayAppName) {
-  return `${appName} - ${WINDOW_TITLE_SUFFIX}`;
+  return mainWindowTitleFor(appName);
 }
 /** Lets brand-name updates retitle the window without dropping the suffix. */
 function titledMainWindow() {

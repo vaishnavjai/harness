@@ -49,7 +49,7 @@ describe("Electron distribution configs", () => {
     assert.equal(config.extraMetadata.harnessDistribution, "enterprise");
     assert.equal(config.protocols[0].schemes[0], "harness");
     assert.equal(config.publish[0].provider, "github");
-    assert.equal(config.publish[0].owner, "different-ai");
+    assert.equal(config.publish[0].owner, "vaishnavjai");
     assert.equal(config.publish[0].repo, "harness");
     assert.equal(config.publish[0].channel, "enterprise");
     assert.equal(

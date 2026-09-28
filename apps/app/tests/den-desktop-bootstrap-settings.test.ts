@@ -114,7 +114,7 @@ describe("desktop Den bootstrap settings", () => {
     bootstrapConfig.prepared = {
       orgId: "org_demo",
       orgName: "Different AI",
-      orgSlug: "different-ai",
+      orgSlug: "acme",
       skillId: "skill_demo",
       skillTitle: "Customer Briefing",
       skillsDir: "/tmp/skills",

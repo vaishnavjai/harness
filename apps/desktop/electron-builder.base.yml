@@ -4,6 +4,10 @@ toolsets:
   appimage: "1.0.3"
 files:
   - electron/**/*
+  # Tests and their fixtures (including throwaway test keys) never ship.
+  - "!electron/testdata/**"
+  - "!electron/**/*.test.mjs"
+  - "!electron/**/*.test.cjs"
   - server/**/*
   - "!server/dist/opencode-plugins/**"
   - package.json
@@ -46,7 +50,7 @@ afterPack: scripts/electron-after-pack.cjs
 afterSign: scripts/electron-after-sign.cjs
 publish:
   - provider: github
-    owner: different-ai
+    owner: vaishnavjai
     repo: harness
     releaseType: release
 mac:

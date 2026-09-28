@@ -9,5 +9,4 @@ vendor
 packages/agent-lab
 packages/desktop
 packages/headless
-packages/owpenbot
 packages/server

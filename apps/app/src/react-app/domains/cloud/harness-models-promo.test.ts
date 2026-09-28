@@ -20,8 +20,10 @@ afterEach(async () => {
 });
 
 describe("Harness Models promo eligibility", () => {
-  test("allows promotions on the default Den URL after normalization", () => {
-    expect(isHarnessModelsPromoEligibleForDenBaseUrl(`${HOSTED_DEFAULT_DEN_BASE_URL}/api/den/`)).toBe(true);
+  test("never promotes a hosted model offering, even on the build-default Den URL", () => {
+    expect(isHarnessModelsPromoEligibleForDenBaseUrl(`${HOSTED_DEFAULT_DEN_BASE_URL}/api/den/`)).toBe(false);
+    expect(isHarnessModelsPromoEligible()).toBe(false);
+    expect(shouldShowHarnessModelsPromo()).toBe(false);
   });
 
   test("suppresses promotions for custom configured Den URLs", async () => {

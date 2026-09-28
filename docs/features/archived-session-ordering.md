@@ -19,8 +19,7 @@ sorts archives by any particular timestamp. Complete inventory loading beyond
 Existing product documentation defined archive as non-destructive filing, but
 did not specify ordering. Internal design discussion supported a global archive,
 not a particular comparator. No explicit sorting decision was found in the
-scoped public-channel searches. Relevant design pointer:
-https://differentai.slack.com/archives/C0AJU2NQJEB/p1784806678645529
+scoped public-channel searches.
 
 ## Options and decision
 

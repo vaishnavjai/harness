@@ -1,27 +1,8 @@
-# Help Translate Harness
+# Translations
 
-We are actively looking for contributors to translate Harness to your own native language.
+The app's interface strings live in `apps/app/src/i18n/locales/`. To add a
+language, copy `en.ts` to a new locale file, translate the values (keep the
+keys), and register it in `apps/app/src/i18n/locales/index.ts`.
 
-## README translations
-
-Translated README variants live in `translated_readmes/`, so adding a new language only touches the index there plus the supported languages list in the root `README.md`.
-
-If you want to add a new README language:
-
-1. Copy `README.md` to a new file like `translated_readmes/README_<LANG>.md`.
-2. Translate the content.
-3. Add your new language link to `translated_readmes/README.md`.
-4. Add your language name to the supported languages list at the bottom of `README.md`.
-5. Open a PR.
-
-## App UI translations (i18n)
-
-You can also help translate the app UI via:
-
-- `apps/app/src/i18n/`
-
-Currently available app UI locales: English (`en`), Japanese (`ja`), Simplified Chinese (`zh`), Vietnamese (`vi`), Brazilian Portuguese (`pt-BR`), Russian (`ru`).
-
-Locale files live in `apps/app/src/i18n/locales/`.
-
-If you are unsure where to start, open an issue and mention the language you want to contribute.
+Translated READMEs are welcome too: add `docs/readme/README_<LANG>.md`
+translated from the root `README.md`, and link it from the root README.

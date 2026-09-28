@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyBrandAppName } from "./brand-app-name.mjs";
+import { applyBrandAppName, mainWindowTitleFor } from "./brand-app-name.mjs";
 
 test("updates the macOS process and Electron application name before rebuilding the native menu", () => {
   const calls = [];
@@ -66,4 +66,9 @@ test("keeps the startup fallback and branded-name limit on every platform", () =
   assert.equal(applyBrandAppName(null, dependencies), "Harness");
   assert.equal(applyBrandAppName("A".repeat(80), dependencies), "A".repeat(64));
   assert.deepEqual(appliedNames, ["Harness", "A".repeat(64)]);
+});
+
+test("the window title names the product and what it is", () => {
+  assert.equal(mainWindowTitleFor("Harness"), "Harness - Local Agent Desktop");
+  assert.equal(mainWindowTitleFor("Acme Work"), "Acme Work - Local Agent Desktop");
 });

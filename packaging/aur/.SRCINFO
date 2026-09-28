@@ -1,5 +1,5 @@
 pkgbase = harness
-	pkgdesc = An Open source alternative to Claude Cowork
+	pkgdesc = Local-first agent desktop with long-term memory and your own models
 	pkgver = 0.0.0
 	pkgrel = 1
 	url = https://github.com/vaishnavjai/harness

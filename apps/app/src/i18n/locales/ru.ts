@@ -930,7 +930,6 @@ export default {
   "settings.group_workspace": "Рабочее пространство",
   "settings.hide_titlebar": "Скрыть title bar",
   "settings.hide_titlebar_desc": "Скрыть заголовок окна. Полезно для оконной раскладки",
-  "settings.join_discord": "Присоединиться к Discord",
   "settings.language": "Язык",
   "settings.language.description": "Выберите предпочитаемый язык",
   "settings.last_error": "Последняя ошибка",
