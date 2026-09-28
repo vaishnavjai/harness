@@ -279,7 +279,27 @@ def pin_pg0_data_dir(data_dir: str) -> None:
 # --------------------------------------------------------------------------
 
 
+def close_inherited_descriptors() -> None:
+    """Close every descriptor above stdio that the parent leaked to us.
+
+    Electron's Chromium opens its DevTools listening socket without
+    close-on-exec, so it reaches every child. Holding it would keep that port
+    bound for as long as the engine runs, even after Harness has quit.
+    """
+    for fd_dir in ("/proc/self/fd", "/dev/fd"):
+        if not os.path.isdir(fd_dir):
+            continue
+        for name in os.listdir(fd_dir):
+            if name.isdigit() and int(name) > 2:
+                try:
+                    os.close(int(name))
+                except OSError:
+                    pass
+        return
+
+
 def main() -> None:
+    close_inherited_descriptors()
     host = env("HINDSIGHT_API_HOST", LOOPBACK_HOST)
     if host != LOOPBACK_HOST:
         log(f"refusing to bind {host!r}: the memory engine only listens on {LOOPBACK_HOST}")

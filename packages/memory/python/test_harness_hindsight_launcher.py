@@ -106,6 +106,44 @@ class GuardedSocketTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "disabled", result.stderr)
 
 
+class InheritedDescriptorTests(unittest.TestCase):
+    def test_closes_descriptors_the_parent_leaked(self):
+        import socket
+        import subprocess
+        import textwrap
+
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        os.set_inheritable(listener.fileno(), True)
+        script = textwrap.dedent(
+            f"""
+            import os, sys
+            sys.path.insert(0, {os.path.dirname(os.path.abspath(__file__))!r})
+            import harness_hindsight_launcher as launcher
+            before = os.path.exists("/proc/self/fd/{listener.fileno()}") or os.path.exists("/dev/fd/{listener.fileno()}")
+            launcher.close_inherited_descriptors()
+            try:
+                os.fstat({listener.fileno()})
+                after = True
+            except OSError:
+                after = False
+            print(before, after)
+            """
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                pass_fds=(listener.fileno(),),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        finally:
+            listener.close()
+        self.assertEqual(result.stdout.split(), ["True", "False"])
+
+
 class BindingTests(unittest.TestCase):
     def test_refuses_non_loopback_host(self) -> None:
         env = {**os.environ, "HINDSIGHT_API_HOST": "0.0.0.0", "HINDSIGHT_API_PORT": "8888"}

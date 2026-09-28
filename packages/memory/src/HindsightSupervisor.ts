@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { HindsightMemoryClient, type HindsightEndpointRef } from "./hindsight-client.js";
@@ -19,6 +19,12 @@ import { reapEmbeddedPostgres, signalProcessTree, type TreeSignal } from "./proc
  * - Binds 127.0.0.1 only (the launcher refuses anything else) and guards the
  *   REST API with a random per-launch bearer token, so other local programs
  *   and web pages cannot read the memory store.
+ * - The embedded Postgres uses a random per-install password (0600 file in
+ *   the data directory) instead of pg0's well-known default, and its Unix
+ *   socket lives in a 0700 folder there instead of /tmp, so another OS
+ *   account cannot open the database directly. The password does appear on
+ *   pg0's command line for the seconds `pg0 start` runs; on shared machines,
+ *   mount /proc with hidepid=2 to hide other users' arguments.
  * - The child leads its own process group (POSIX), so stop() and the exit
  *   hooks signal every descendant; the embedded Postgres, which pg_ctl
  *   daemonizes out of that group, is reaped from its postmaster.pid.
@@ -143,6 +149,9 @@ const NO_PHONE_HOME_ENV: Readonly<Record<string, string>> = {
 
 const RECENT_LOG_LINES = 200;
 const EMBEDDED_DATABASE_INSTANCE = "harness-memory";
+const EMBEDDED_DATABASE_USER = "hindsight";
+const DATABASE_PASSWORD_FILE = "database-password";
+const DATABASE_SOCKET_DIR = "run";
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -285,7 +294,37 @@ export class HindsightSupervisor {
     return fallback;
   }
 
-  private buildEnvironment(port: number, token: string): NodeJS.ProcessEnv {
+  /** Per-install database password, created once; only this OS user can read it. */
+  private async databasePassword(): Promise<string> {
+    const file = join(this.options.dataDir, DATABASE_PASSWORD_FILE);
+    const read = async () => {
+      const value = (await readFile(file, "utf8")).trim();
+      if (!/^[A-Za-z0-9_-]{32,}$/.test(value)) throw new Error(`${file} does not hold a valid database password.`);
+      return value;
+    };
+    try {
+      return await read();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    const value = randomBytes(32).toString("base64url");
+    try {
+      await writeFile(file, `${value}\n`, { mode: 0o600, flag: "wx" });
+      await chmod(file, 0o600).catch(() => undefined);
+      return value;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") return read();
+      throw error;
+    }
+  }
+
+  /** The pg0 URL: private credentials, and a Unix socket only this OS user can reach. */
+  static embeddedDatabaseUrl(password: string, socketDir: string): string {
+    const settings = new URLSearchParams({ unix_socket_directories: socketDir, unix_socket_permissions: "0700" });
+    return `pg0://${EMBEDDED_DATABASE_USER}:${password}@${EMBEDDED_DATABASE_INSTANCE}?${settings.toString()}`;
+  }
+
+  private buildEnvironment(port: number, token: string, databasePassword: string): NodeJS.ProcessEnv {
     const base = this.options.baseEnv ?? process.env;
     const env: NodeJS.ProcessEnv = {};
     for (const name of PASSTHROUGH_ENV) {
@@ -306,7 +345,7 @@ export class HindsightSupervisor {
       HINDSIGHT_API_HOST: LOOPBACK_HOST,
       HINDSIGHT_API_PORT: String(port),
       HINDSIGHT_API_LOG_LEVEL: "info",
-      HINDSIGHT_API_DATABASE_URL: `pg0://${EMBEDDED_DATABASE_INSTANCE}`,
+      HINDSIGHT_API_DATABASE_URL: HindsightSupervisor.embeddedDatabaseUrl(databasePassword, join(this.options.dataDir, DATABASE_SOCKET_DIR)),
       HINDSIGHT_API_TENANT_EXTENSION: "hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension",
       HINDSIGHT_API_TENANT_API_KEY: token,
       HARNESS_MEMORY_PG_DATA_DIR: this.pgDataDir,
@@ -322,6 +361,11 @@ export class HindsightSupervisor {
     this.setState("starting");
     try {
       await mkdir(join(this.options.dataDir, "home"), { recursive: true, mode: 0o700 });
+      if (this.platform !== "win32") await chmod(this.options.dataDir, 0o700);
+      await mkdir(join(this.options.dataDir, DATABASE_SOCKET_DIR), { recursive: true, mode: 0o700 });
+      await chmod(join(this.options.dataDir, DATABASE_SOCKET_DIR), 0o700).catch(() => undefined);
+      const databasePassword = await this.databasePassword();
+      this.redactions.add(databasePassword);
       // A previous run that died hard may have left its postmaster behind.
       if (await reapEmbeddedPostgres(this.pgDataDir, this.platform)) {
         this.options.logger?.warn("[hindsight] stopped a stale embedded Postgres from a previous run");
@@ -329,7 +373,7 @@ export class HindsightSupervisor {
       const port = await this.choosePort();
       const token = randomBytes(32).toString("base64url");
       this.redactions.add(token);
-      const env = this.buildEnvironment(port, token);
+      const env = this.buildEnvironment(port, token, databasePassword);
 
       const child = spawn(this.options.launch.command, this.options.launch.args, {
         cwd: join(this.options.dataDir, "home"),

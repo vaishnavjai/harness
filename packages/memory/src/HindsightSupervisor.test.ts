@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -124,11 +124,36 @@ describe("HindsightSupervisor", () => {
     expect(env.OTEL_SDK_DISABLED).toBe("true");
     expect(env.LITELLM_LOCAL_MODEL_COST_MAP).toBe("True");
     expect(env.HINDSIGHT_API_HOST).toBe("127.0.0.1");
-    expect(env.HINDSIGHT_API_DATABASE_URL).toBe("pg0://harness-memory");
+    // Never pg0's well-known default login, and never a socket in /tmp.
+    const password = (await readFile(join(dataDir, "database-password"), "utf8")).trim();
+    expect(password).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(env.HINDSIGHT_API_DATABASE_URL).toBe(HindsightSupervisor.embeddedDatabaseUrl(password, join(dataDir, "run")));
+    const databaseUrl = new URL(String(env.HINDSIGHT_API_DATABASE_URL).replace(/^pg0:/, "http:"));
+    expect(databaseUrl.username).toBe("hindsight");
+    expect(databaseUrl.password).not.toBe("hindsight");
+    expect(databaseUrl.searchParams.get("unix_socket_directories")).toBe(join(dataDir, "run"));
+    expect(databaseUrl.searchParams.get("unix_socket_permissions")).toBe("0700");
     expect(env.HARNESS_MEMORY_PG_DATA_DIR).toBe(join(dataDir, "postgres"));
     expect(env.HOME).toBe(join(dataDir, "home"));
     expect(env.HARNESS_MEMORY_EGRESS_ALLOW).toBe("");
     expect(env.HINDSIGHT_API_LLM_BASE_URL).toBe("http://127.0.0.1:11434/v1");
+  });
+
+  test("keeps one private database password per install, readable only by this user", async () => {
+    const { supervisor, dataDir, childEnv } = await fakeSupervisor();
+    await supervisor.start();
+    const first = (await childEnv()).HINDSIGHT_API_DATABASE_URL;
+    await supervisor.stop();
+    await supervisor.start();
+    expect((await childEnv()).HINDSIGHT_API_DATABASE_URL).toBe(first);
+    if (process.platform !== "win32") {
+      expect((await stat(join(dataDir, "database-password"))).mode & 0o777).toBe(0o600);
+      expect((await stat(join(dataDir, "run"))).mode & 0o777).toBe(0o700);
+      expect((await stat(dataDir)).mode & 0o777).toBe(0o700);
+    }
+    // Never echoed into logs.
+    const password = (await readFile(join(dataDir, "database-password"), "utf8")).trim();
+    expect(JSON.stringify(supervisor.status())).not.toContain(password);
   });
 
   test("stop() terminates the engine's whole process tree", async () => {

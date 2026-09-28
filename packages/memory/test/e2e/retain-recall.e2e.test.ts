@@ -7,7 +7,7 @@
 // root, so when the suite runs as root the engine is started as `nobody`.
 import { afterAll, describe, expect, test } from "bun:test";
 import { spawn } from "node:child_process";
-import { chown, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chown, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -133,7 +133,7 @@ afterAll(async () => {
 async function engineDataDir(): Promise<string> {
   const dataDir = await mkdtemp(join(tmpdir(), "harness-memory-e2e-"));
   cleanups.push(() => rm(dataDir, { recursive: true, force: true }));
-  for (const dir of [dataDir, join(dataDir, "home"), join(dataDir, "postgres")]) {
+  for (const dir of [dataDir, join(dataDir, "home"), join(dataDir, "postgres"), join(dataDir, "run")]) {
     await mkdir(dir, { recursive: true, mode: 0o700 });
     if (asRoot) await chown(dir, NOBODY, NOBODY);
   }
@@ -166,6 +166,55 @@ async function startEngine(provider: MemoryLlmProvider, modelBaseUrl: string, po
   return { supervisor, dataDir };
 }
 
+const OTHER_ACCOUNT = 1;
+
+/**
+ * Tries to open the engine's database as a different OS account: with pg0's
+ * well-known default login over TCP, through the engine's private socket, and
+ * through /tmp. Also tries the real password, so a pass proves authentication
+ * (not an unreachable server) is what keeps the other account out.
+ */
+async function probeDatabaseFromAnotherAccount(dataDir: string) {
+  if (!runtime) throw new Error("no runtime");
+  const postmaster = (await readFile(join(dataDir, "postgres", "postmaster.pid"), "utf8")).split("\n");
+  const port = Number(postmaster[3]);
+  const password = (await readFile(join(dataDir, "database-password"), "utf8")).trim();
+  const script = [
+    "import asyncio, json, sys",
+    "import asyncpg",
+    "port, run_dir, password = int(sys.argv[1]), sys.argv[2], sys.argv[3]",
+    "async def attempt(**kwargs):",
+    "    try:",
+    "        conn = await asyncpg.connect(database='hindsight', timeout=5, port=port, ssl=False, **kwargs)",
+    "        await conn.fetchval('select 1')",
+    "        await conn.close()",
+    "        return 'connected'",
+    "    except Exception as error:",
+    "        return type(error).__name__",
+    "async def main():",
+    "    print(json.dumps({",
+    "        'defaultLoginTcp': await attempt(host='127.0.0.1', user='hindsight', password='hindsight'),",
+    "        'privateSocket': await attempt(host=run_dir, user='hindsight', password='hindsight'),",
+    "        'tmpSocket': await attempt(host='/tmp', user='hindsight', password='hindsight'),",
+    "        'realPasswordTcp': await attempt(host='127.0.0.1', user='hindsight', password=password),",
+    "    }))",
+    "asyncio.run(main())",
+  ].join("\n");
+  const python = runtime.launch.command;
+  const child = spawn("setpriv", [`--reuid=${OTHER_ACCOUNT}`, `--regid=${OTHER_ACCOUNT}`, "--clear-groups", python, "-I", "-c", script, String(port), join(dataDir, "run"), password], {
+    stdio: ["ignore", "pipe", "pipe"],
+    // The other account's own environment: nothing of this user's HOME.
+    env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: "/nonexistent", PYTHONNOUSERSITE: "1" },
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (chunk) => { stdout += chunk; });
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  await new Promise((resolveExit) => child.once("close", resolveExit));
+  if (!stdout.trim()) throw new Error(`database probe failed: ${stderr}`);
+  return { port, results: JSON.parse(stdout) as Record<string, string> };
+}
+
 describe.skipIf(!runtime)("embedded Hindsight engine (real)", () => {
   for (const provider of ["openai-compatible", "ollama"] as const) {
     test(`retain then recall through a local ${provider} endpoint, fully on loopback`, async () => {
@@ -190,6 +239,17 @@ describe.skipIf(!runtime)("embedded Hindsight engine (real)", () => {
       const paths = new Set(models.calls.map((call) => call.path));
       expect(paths.has("/v1/embeddings")).toBe(true);
       expect(paths.has(provider === "ollama" ? "/api/chat" : "/v1/chat/completions")).toBe(true);
+
+      if (asRoot && provider === "openai-compatible") {
+        // Another OS account cannot open the memory database.
+        const probe = await probeDatabaseFromAnotherAccount(dataDir);
+        expect(probe.results.defaultLoginTcp).toBe("InvalidPasswordError");
+        expect(probe.results.privateSocket).toBe("PermissionError");
+        expect(probe.results.tmpSocket).not.toBe("connected");
+        expect(probe.results.realPasswordTcp).toBe("connected");
+        await expect(stat(`/tmp/.s.PGSQL.${probe.port}`)).rejects.toThrow();
+        expect((await stat(join(dataDir, "run", `.s.PGSQL.${probe.port}`))).isSocket()).toBe(true);
+      }
 
       // Stopping takes the embedded Postgres down with the engine.
       const postmaster = await readPostmasterPid(join(dataDir, "postgres"));
