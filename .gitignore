@@ -81,3 +81,9 @@ evals/results/
 
 # Warden local run logs
 .warden/logs/
+
+# Hindsight memory engine runtime (built by scripts/hindsight/prepare-runtime.mjs)
+.hindsight-runtime/
+apps/desktop/resources/hindsight-runtime/
+__pycache__/
+*.pyc

@@ -228,7 +228,7 @@ if (process.env.HARNESS_ELECTRON_SKIP_SHARED_PREPARE !== "1") {
 // Build workspace packages that Electron imports from their dist output.
 if (process.env.HARNESS_ELECTRON_SKIP_WORKSPACE_BUILD !== "1") {
   console.log("[electron-dev] Building Electron workspace dependencies...");
-  runSync(pnpmCmd, ["--filter", "@harness/headless-threads", "build"], { cwd: repoRoot });
+  runSync(pnpmCmd, ["--filter", "@harness/headless-threads", "--filter", "@harness/memory", "--filter", "@harness/audit", "build"], { cwd: repoRoot });
   runSync(pnpmCmd, ["--filter", "@harness/server", "build"], { cwd: repoRoot });
 }
 

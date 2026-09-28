@@ -1,0 +1,58 @@
+export {
+  HindsightSupervisor,
+  type HindsightEndpoint,
+  type HindsightLaunchCommand,
+  type HindsightSupervisorOptions,
+  type HindsightSupervisorState,
+  type HindsightSupervisorStatus,
+  type MemoryLogger,
+  type ProcessHookTarget,
+} from "./HindsightSupervisor.js";
+export {
+  assertLoopbackBaseUrl,
+  HindsightMemoryClient,
+  HindsightRequestError,
+  type HindsightEndpointRef,
+  type MemoryBank,
+  type MemoryFactType,
+  type MemoryPage,
+  type MemoryUnit,
+  type RecallHit,
+  type RecallOptions,
+  type RetainItemInput,
+  type RetainResult,
+} from "./hindsight-client.js";
+export { findFreeLoopbackPort, isLoopbackPortFree, LOOPBACK_HOST } from "./loopback-port.js";
+export {
+  buildModelEnvironment,
+  DEFAULT_LOCAL_EMBEDDINGS_MODEL,
+  DEFAULT_LOCAL_LLM_BASE_URL,
+  DEFAULT_LOCAL_LLM_MODEL,
+  DEFAULT_MEMORY_BANK_ID,
+  DEFAULT_MEMORY_PORT,
+  DEFAULT_MEMORY_SETTINGS,
+  isLocalProvider,
+  isLoopbackHostname,
+  KNOWN_EMBEDDING_DIMENSIONS,
+  MEMORY_LLM_PROVIDERS,
+  memoryEgressHosts,
+  memorySettingsSchema,
+  parseMemorySettings,
+  providerRequiresApiKey,
+  resolveEmbeddingDimensions,
+  resolveEmbeddingsBaseUrl,
+  resolveLlmBaseUrl,
+  type HarnessMemorySettings,
+  type MemoryLlmProvider,
+  type MemorySecrets,
+} from "./memory-settings.js";
+export { isProcessAlive, reapEmbeddedPostgres, signalProcessTree, waitForExit } from "./process-tree.js";
+export {
+  developmentRuntimeRoot,
+  LAUNCHER_SCRIPT_NAME,
+  resolveHindsightRuntime,
+  runtimePythonPath,
+  type HindsightRuntime,
+  type HindsightRuntimeSource,
+  type ResolveHindsightRuntimeOptions,
+} from "./runtime.js";

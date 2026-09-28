@@ -1,0 +1,3 @@
+[test]
+# Keeps tests from appending to the developer's real ~/.config/harness/audit.log.
+preload = ["./src/test-preload.ts"]

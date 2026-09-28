@@ -1,0 +1,15 @@
+export {
+  AUDIT_FORMAT_VERSION,
+  createAuditLogger,
+  hashRecord,
+  readAuditTail,
+  redactSecrets,
+  verifyAuditLog,
+  type AuditDetailValue,
+  type AuditEvent,
+  type AuditLogger,
+  type AuditLoggerOptions,
+  type AuditRecord,
+  type AuditSource,
+  type AuditVerification,
+} from "./audit-log.js";

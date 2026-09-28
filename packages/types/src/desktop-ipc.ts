@@ -404,6 +404,102 @@ export type RunningAppsResult = {
 };
 
 // ---------------------------------------------------------------------------
+// Local memory (embedded Hindsight) and the audit log
+// ---------------------------------------------------------------------------
+
+export type HarnessMemoryProvider =
+  | "ollama"
+  | "openai-compatible"
+  | "lmstudio"
+  | "openai"
+  | "anthropic"
+  | "gemini"
+  | "groq";
+
+export type HarnessMemorySettings = {
+  enabled: boolean;
+  port: number;
+  bankId: string;
+  llm: { provider: HarnessMemoryProvider; baseUrl?: string; model: string };
+  embeddings: { baseUrl?: string; model: string; dimensions?: number };
+};
+
+export type HarnessMemorySettingsPatch = {
+  enabled?: boolean;
+  port?: number;
+  bankId?: string;
+  llm?: { provider?: HarnessMemoryProvider; baseUrl?: string; model?: string };
+  embeddings?: { baseUrl?: string; model?: string; dimensions?: number };
+};
+
+export type HarnessMemoryEngineState = "stopped" | "starting" | "ready" | "stopping" | "failed";
+
+export type HarnessMemoryStatus = {
+  settings: HarnessMemorySettings;
+  engine: {
+    state: HarnessMemoryEngineState;
+    pid: number | null;
+    baseUrl: string | null;
+    port: number | null;
+    startedAt: string | null;
+    lastError: string | null;
+    restarts: number;
+    recentLogs: string[];
+  };
+  runtimeAvailable: boolean;
+  dataDir: string;
+  apiKeys: { llm: boolean; embeddings: boolean };
+  /** Remote hosts the engine may contact: exactly the configured endpoints. */
+  egressHosts: string[];
+  llmBaseUrl: string;
+  embeddingsBaseUrl: string;
+};
+
+export type HarnessMemoryHit = {
+  id: string;
+  text: string;
+  type?: string | null;
+  context?: string | null;
+  occurred_start?: string | null;
+  mentioned_at?: string | null;
+  tags?: string[] | null;
+};
+
+export type HarnessMemoryUnit = {
+  id: string;
+  text: string;
+  context?: string | null;
+  date?: string | null;
+  fact_type?: string | null;
+  tags?: string[] | null;
+};
+
+export type HarnessMemoryPage = { items: HarnessMemoryUnit[]; total: number; limit: number; offset: number };
+
+export type HarnessMemoryProbe = { reachable: boolean; ok: boolean; status: number | null; url: string; error?: string };
+
+export type HarnessAuditRecord = {
+  v: number;
+  ts: string;
+  seq: number;
+  session: string;
+  source: "desktop" | "server" | "engine" | "memory";
+  kind: string;
+  actor: "agent" | "user" | "harness";
+  subject?: string;
+  detail?: Record<string, string | number | boolean | null>;
+  prev: string;
+  hash: string;
+};
+
+export type HarnessAuditVerification = {
+  ok: boolean;
+  records: number;
+  sessions: number;
+  firstBreak?: { line: number; reason: string };
+};
+
+// ---------------------------------------------------------------------------
 // The command map
 // ---------------------------------------------------------------------------
 
@@ -472,6 +568,17 @@ export type DesktopCommandMap = {
     args: [input: DesktopNotificationInput];
     result: DesktopNotificationResult;
   };
+  memoryStatus: { args: []; result: HarnessMemoryStatus };
+  memoryUpdateSettings: { args: [patch: HarnessMemorySettingsPatch]; result: HarnessMemoryStatus };
+  memorySetApiKey: { args: [input: { kind: "llm" | "embeddings"; value: string | null }]; result: HarnessMemoryStatus };
+  memoryStart: { args: []; result: HarnessMemoryStatus };
+  memoryStop: { args: []; result: HarnessMemoryStatus };
+  memoryRecall: { args: [input: { query: string; maxTokens?: number }]; result: HarnessMemoryHit[] };
+  memoryRetain: { args: [input: { content: string; context?: string }]; result: { success: boolean; items_count: number } };
+  memoryList: { args: [input?: { limit?: number; offset?: number; query?: string }]; result: HarnessMemoryPage };
+  memoryProbeEndpoint: { args: []; result: HarnessMemoryProbe };
+  auditLogRead: { args: [input?: { limit?: number }]; result: { path: string; records: HarnessAuditRecord[] } };
+  auditLogVerify: { args: []; result: HarnessAuditVerification };
   desktopIntegrationStatus: { args: []; result: DesktopIntegrationStatus };
   desktopIntegrationInstall: {
     args: [options?: { useExternalLauncher?: boolean }];

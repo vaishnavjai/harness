@@ -1,6 +1,7 @@
 import { dirname, join } from "node:path";
 import { appendFile, readFile } from "node:fs/promises";
-import { harnessServerDataDir } from "@harness/paths";
+import { createAuditLogger, type AuditLogger } from "@harness/audit";
+import { harnessAuditLogPath, harnessServerDataDir } from "@harness/paths";
 import type { AuditEntry } from "./types.js";
 import { ensureDir, exists } from "./utils.js";
 
@@ -24,7 +25,30 @@ async function resolveReadableAuditPath(workspaceRoot: string, workspaceId: stri
   return null;
 }
 
+let globalAudit: AuditLogger | null = null;
+
+/** The chained, machine-wide audit log (~/.config/harness/audit.log). */
+function globalAuditLog(): AuditLogger {
+  globalAudit ??= createAuditLogger({
+    filePath: harnessAuditLogPath(),
+    source: "server",
+    onError: (error) => console.warn("[harness-server] could not write the audit log:", error),
+  });
+  return globalAudit;
+}
+
 export async function recordAudit(workspaceRoot: string, entry: AuditEntry): Promise<void> {
+  globalAuditLog().record({
+    kind: `server.${entry.action}`,
+    actor: entry.actor.type === "host" ? "user" : "harness",
+    subject: entry.target,
+    detail: {
+      workspace: entry.workspaceId || null,
+      summary: entry.summary,
+      client: entry.actor.clientId ?? null,
+      tokenHash: entry.actor.tokenHash ?? null,
+    },
+  });
   const workspaceId = entry.workspaceId?.trim();
   if (!workspaceId) {
     const path = legacyAuditLogPath(workspaceRoot);

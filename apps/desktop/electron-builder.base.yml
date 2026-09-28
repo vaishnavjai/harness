@@ -16,6 +16,10 @@ extraResources:
     to: harness-ui-mcp
     filter:
       - "*.mjs"
+  # Self-contained Python + vendored Hindsight memory engine, built by
+  # scripts/hindsight/prepare-runtime.mjs (npm run package does this).
+  - from: resources/hindsight-runtime
+    to: hindsight-runtime
   - from: server/dist/opencode-plugins
     to: opencode-plugins
     filter:

@@ -40,6 +40,7 @@ export const harnessOfficeAttachmentsPluginPath = () => harnessPluginPath("harne
 export const harnessSpreadsheetsPluginPath = () => harnessPluginPath("harness-spreadsheets");
 export const harnessPdfAttachmentsPluginPath = () => harnessPluginPath("harness-pdf-attachments");
 export const harnessTitleRecoveryPluginPath = () => harnessPluginPath("harness-title-recovery");
+export const harnessAuditPluginPath = () => harnessPluginPath("harness-audit");
 export const harnessGatewayQuotaPluginPath = () => harnessPluginPath("harness-gateway-quota");
 export const harnessGatewayQuotaV2PluginPath = () => harnessPluginPath("harness-gateway-quota-v2");
 export const harnessContextV2PluginPath = () => harnessPluginPath("harness-context-v2");

@@ -18,7 +18,8 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { globalOpencodeConfigDir, workspaceOpencodeConfigCandidates } from "@harness/paths";
+import { readAuditTail, verifyAuditLog } from "@harness/audit";
+import { globalOpencodeConfigDir, harnessAuditLogPath, harnessConfigDir, harnessMemoryDataDir, workspaceOpencodeConfigCandidates } from "@harness/paths";
 
 import { configureFakeMediaForTests, installMediaPermissionHandlers } from "./media-permissions.mjs";
 import { registerMigrationIpc } from "./migration.mjs";
@@ -89,6 +90,9 @@ import {
   runDetachedTask,
 } from "./process-resilience.mjs";
 import { createQuitSequencer } from "./quit-sequence.mjs";
+import { createDesktopAudit } from "./desktop-audit.mjs";
+import { createMemoryService } from "./memory-service.mjs";
+import { createSecretStore } from "./secret-store.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(__dirname, "../../..");
@@ -1357,6 +1361,26 @@ const runtimeManager = createRuntimeManager({
         loadSafeStorage: () => require("electron").safeStorage,
       }),
 });
+// Tamper-evident audit trail (~/.config/harness/audit.log), OS-keychain-backed
+// credentials, and the local-only Hindsight memory engine.
+const harnessAudit = createDesktopAudit({ filePath: harnessAuditLogPath() });
+const harnessSecretStore = createSecretStore({
+  filePath: path.join(app.getPath("userData"), "harness-secrets.json"),
+  getKey: createDesktopVaultKeyProvider({
+    filePath: path.join(app.getPath("userData"), "harness-secrets-key.bin"),
+    loadSafeStorage: () => require("electron").safeStorage,
+  }),
+});
+const memoryService = createMemoryService({
+  settingsPath: path.join(harnessConfigDir(), "memory.json"),
+  dataDir: harnessMemoryDataDir(),
+  secretStore: harnessSecretStore,
+  runtimeOptions: app.isPackaged
+    ? { bundledRoot: path.join(process.resourcesPath, "hindsight-runtime") }
+    : { repoRoot: path.resolve(__dirname, "../../..") },
+  audit: harnessAudit,
+  logger: { info: (message) => console.log(message), warn: (message) => console.warn(message) },
+});
 const initialRunnerBootstrap = workspaceStore.readDesktopBootstrapConfigSync();
 const legacyRunnerBaseUrls = [
   initialRunnerBootstrap.apiBaseUrl,
@@ -1456,7 +1480,9 @@ const quitSequencer = createQuitSequencer({
     await Promise.all([
       disposeRuntimeBeforeQuit(),
       uiControlServer.stop(),
+      memoryService.shutdown(),
     ]);
+    await harnessAudit.flush();
   },
   quit: () => {
     scheduleBlankSlateProfileCleanup();
@@ -1957,6 +1983,41 @@ const desktopCommandHandlers = {
       } catch {
         return null;
       }
+  },
+  "memoryStatus": async (event, ...args) => {
+      return memoryService.status();
+  },
+  "memoryUpdateSettings": async (event, ...args) => {
+      return memoryService.updateSettings(args[0]);
+  },
+  "memorySetApiKey": async (event, ...args) => {
+      return memoryService.setApiKey(args[0]);
+  },
+  "memoryStart": async (event, ...args) => {
+      return memoryService.start();
+  },
+  "memoryStop": async (event, ...args) => {
+      return memoryService.stop();
+  },
+  "memoryRecall": async (event, ...args) => {
+      return memoryService.recall(args[0]);
+  },
+  "memoryRetain": async (event, ...args) => {
+      return memoryService.retain(args[0]);
+  },
+  "memoryList": async (event, ...args) => {
+      return memoryService.list(args[0] ?? {});
+  },
+  "memoryProbeEndpoint": async (event, ...args) => {
+      return memoryService.probeModelEndpoint();
+  },
+  "auditLogRead": async (event, ...args) => {
+      const requested = Number(args[0]?.limit);
+      const limit = Number.isFinite(requested) ? Math.min(Math.max(Math.floor(requested), 1), 1_000) : 200;
+      return { path: harnessAuditLogPath(), records: await readAuditTail(harnessAuditLogPath(), limit) };
+  },
+  "auditLogVerify": async (event, ...args) => {
+      return verifyAuditLog(harnessAuditLogPath());
   },
   "getHarnessUiMcpCommand": async (event, ...args) => {
       return resolveHarnessUiMcpCommand();
@@ -2568,9 +2629,13 @@ async function handleDesktopInvoke(event, command, ...args) {
     throw new Error(`Electron desktop bridge method is not implemented yet: ${command}`);
   }
   try {
-    return await handler(event, ...args);
+    const result = await handler(event, ...args);
+    harnessAudit.command(command, args, { ok: true });
+    return result;
   } catch (error) {
-    throw new Error(desktopErrorMessageWithCauses(error), { cause: error });
+    const message = desktopErrorMessageWithCauses(error);
+    harnessAudit.command(command, args, { ok: false, error: message });
+    throw new Error(message, { cause: error });
   }
 }
 
@@ -2801,14 +2866,18 @@ ipcMain.handle("harness:terminal:create", async (event, options = {}) => {
     },
   });
 
-  terminalProcesses.set(terminalId, { process: child, webContentsId: event.sender.id });
+  const commandRecorder = harnessAudit.terminalRecorder(terminalId);
+  harnessAudit.terminalStarted({ terminalId, shell: shellPath, cwd });
+  terminalProcesses.set(terminalId, { process: child, webContentsId: event.sender.id, commandRecorder });
   event.sender.once("destroyed", () => killTerminalsForWebContents(event.sender.id));
   child.onData((data) => {
+    commandRecorder.output(data);
     if (event.sender.isDestroyed()) return;
     event.sender.send("harness:terminal:data", { terminalId, data });
   });
   child.onExit(({ exitCode, signal }) => {
     terminalProcesses.delete(terminalId);
+    harnessAudit.terminalExited({ terminalId, exitCode, signal });
     if (event.sender.isDestroyed()) return;
     event.sender.send("harness:terminal:exit", { terminalId, exitCode, signal });
   });
@@ -2818,6 +2887,7 @@ ipcMain.handle("harness:terminal:create", async (event, options = {}) => {
 ipcMain.handle("harness:terminal:write", (event, terminalId, data) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal || typeof data !== "string") return;
+  terminal.commandRecorder?.input(data);
   terminal.process.write(data);
 });
 ipcMain.handle("harness:terminal:resize", (event, terminalId, cols, rows) => {
@@ -2972,7 +3042,11 @@ or use: pnpm dev:worktree`);
     applicationMenu.install();
     if (!desktopActivationRequired(DESKTOP_DISTRIBUTION, bootstrapConfig)) {
       await runtimeManager.prepareFreshRuntime().catch(() => undefined);
+      // Memory runs migrations before it reports ready; the chat surface does
+      // not wait for it, and memory calls fail fast until it is up.
+      void memoryService.startIfEnabled();
     }
+    harnessAudit.event("app.started", { version: app.getVersion(), packaged: app.isPackaged });
 
     // Use Tauri's existing workspace state file as canonical so rollback and
     // Electron see the same workspace list. Import the short-lived

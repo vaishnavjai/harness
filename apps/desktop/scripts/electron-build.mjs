@@ -52,7 +52,7 @@ if (!process.argv.includes("--server-built")) {
 // automation-runner.mjs imports @harness/headless-threads through its
 // published "default" export (dist/index.js); build it so plain-node
 // consumers resolve it in packaged layouts.
-run(pnpmCmd, ["--filter", "@harness/headless-threads", "build"], repoRoot);
+run(pnpmCmd, ["--filter", "@harness/headless-threads", "--filter", "@harness/memory", "--filter", "@harness/audit", "build"], repoRoot);
 // HARNESS_ELECTRON_BUILD tells Vite to emit relative asset paths so
 // index.html resolves /assets/* correctly when loaded via file:// from
 // inside the packaged .app bundle.

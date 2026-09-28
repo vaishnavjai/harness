@@ -325,6 +325,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@harness/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@harness/browser-logins':
         specifier: workspace:*
         version: link:../../packages/browser-logins
@@ -337,6 +340,9 @@ importers:
       '@harness/headless-threads':
         specifier: workspace:*
         version: link:../../packages/headless-threads
+      '@harness/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@harness/paths':
         specifier: workspace:*
         version: link:../../packages/paths
@@ -441,6 +447,9 @@ importers:
       '@ai-sdk/provider':
         specifier: 3.0.12
         version: 3.0.12
+      '@harness/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@harness/enterprise-mcp-client':
         specifier: workspace:*
         version: link:../../packages/enterprise-mcp-client
@@ -545,6 +554,21 @@ importers:
       vite:
         specifier: ^7.1.12
         version: 7.3.6(@types/node@25.6.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0)
+
+  packages/audit:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.7
+      bun-types:
+        specifier: ^1.3.6
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.23)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/automations:
     dependencies:
@@ -798,6 +822,25 @@ importers:
       vite-plugin-singlefile:
         specifier: ^2.3.0
         version: 2.3.3(rollup@4.59.0)(vite@6.4.3(@types/node@25.6.0)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.1)(yaml@2.9.0))
+
+  packages/memory:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.7
+      bun-types:
+        specifier: ^1.3.6
+        version: 1.3.14
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.23)(tsx@4.23.1)(typescript@5.9.3)(yaml@2.9.0)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/paths:
     devDependencies:
@@ -8817,7 +8860,7 @@ snapshots:
       '@stoplight/spectral-rulesets': 1.22.7
       '@stoplight/spectral-runtime': 1.1.6
       '@stoplight/types': 13.20.0
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
       pony-cause: 1.1.1
       rollup: 2.80.0
       tslib: 2.8.1
@@ -8834,7 +8877,7 @@ snapshots:
       '@stoplight/spectral-runtime': 1.1.6
       '@stoplight/types': 13.20.0
       '@stoplight/yaml': 4.2.3
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
       ajv: 8.20.0
       ast-types: 0.14.2
       astring: 1.9.0
@@ -9057,12 +9100,12 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.2.0
       '@types/keyv': 3.1.4
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
       '@types/responselike': 1.0.3
 
   '@types/cors@2.8.19':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/d3-array@3.2.2': {}
 
@@ -9187,7 +9230,7 @@ snapshots:
 
   '@types/es-aggregate-error@1.0.6':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/estree@0.0.39': {}
 
@@ -9197,7 +9240,7 @@ snapshots:
 
   '@types/fs-extra@9.0.13':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/geojson@7946.0.16': {}
 
@@ -9211,7 +9254,7 @@ snapshots:
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/markdown-escape@1.1.3': {}
 
@@ -9241,7 +9284,7 @@ snapshots:
 
   '@types/nodemailer@8.0.0':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
@@ -9253,13 +9296,13 @@ snapshots:
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/sarif@2.1.7': {}
 
   '@types/set-cookie-parser@2.4.10':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@types/statuses@2.0.6': {}
 
@@ -9276,7 +9319,7 @@ snapshots:
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   '@ungap/structured-clone@1.3.1': {}
 
@@ -9583,7 +9626,7 @@ snapshots:
 
   buffer-image-size@0.6.4:
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   builder-util-runtime@9.7.0:
     dependencies:
@@ -9615,7 +9658,7 @@ snapshots:
 
   bun-types@1.3.14:
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
 
   bun-types@1.3.6:
     dependencies:
@@ -10346,7 +10389,7 @@ snapshots:
   engine.io@6.6.7:
     dependencies:
       '@types/cors': 2.8.19
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
       '@types/ws': 8.18.1
       accepts: 1.3.8
       base64id: 2.0.0
@@ -10928,7 +10971,7 @@ snapshots:
 
   happy-dom@20.12.0:
     dependencies:
-      '@types/node': 20.12.12
+      '@types/node': 25.6.0
       '@types/whatwg-mimetype': 3.0.2
       '@types/ws': 8.18.1
       buffer-image-size: 0.6.4

@@ -25,6 +25,7 @@ import {
   harnessAnthropicAdaptiveThinkingPluginPath,
   harnessAnthropicToolSchemaPluginPath,
   harnessTitleRecoveryPluginPath,
+  harnessAuditPluginPath,
   harnessGatewayQuotaPluginPath,
   harnessOfficeAttachmentsPluginPath,
   harnessSpreadsheetsPluginPath,
@@ -98,6 +99,8 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
       },
     },
     plugin: [
+      // First, so every tool call is on record before other plugins act on it.
+      harnessAuditPluginPath(),
       harnessChromeDevtoolsPluginPath(),
       // Registration order is prompt order: the knowledge plugin appends the
       // operating rules first, then the extensions plugin adds app-control
