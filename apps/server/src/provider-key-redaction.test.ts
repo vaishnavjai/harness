@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { REDACTED, canonicalEnginePath, proxyPathCarriesCredentials, redactProviderSecrets, redactSecretsDeep } from "./provider-key-redaction.js";
+import { REDACTED, canonicalEnginePath, environmentSecretValues, proxyPathCarriesCredentials, redactProviderSecrets, redactSecretsDeep } from "./provider-key-redaction.js";
 
 const KEY = "sk-live-0123456789abcdef";
 
@@ -109,5 +109,53 @@ describe("provider key redaction", () => {
 
   test("ignores very short secrets that would corrupt ordinary text", () => {
     expect(JSON.stringify(redactSecretsDeep({ a: "abc abc" }, []))).toBe('{"a":"abc abc"}');
+  });
+});
+
+describe("keys that are not in the vault", () => {
+  test("the engine's top-level key field is scrubbed on credential routes", async () => {
+    const providers = { all: [{ id: "anthropic", source: "env", key: "sk-ant-not-in-the-vault", env: ["ANTHROPIC_API_KEY"] }, { id: "groq", source: "api", key: "gsk-legacy-auth-file" }] };
+    const response = new Response(JSON.stringify(providers), { headers: { "content-type": "application/json" } });
+    const text = await (await redactProviderSecrets(response, { method: "GET", normalizedPath: "/provider", loadSecrets: async () => [] })).text();
+    expect(text).not.toContain("sk-ant-not-in-the-vault");
+    expect(text).not.toContain("gsk-legacy-auth-file");
+    expect(text).toContain("ANTHROPIC_API_KEY");
+  });
+
+  test("credential-named environment values are collected, and other variables are not", () => {
+    const values = environmentSecretValues([
+      ["ANTHROPIC_API_KEY", "sk-ant-from-env-0000"], ["GITHUB_TOKEN", "ghp_from_env_00000"], ["DB_PASSWORD", "hunter2hunter2"], ["AWS_SECRET_ACCESS_KEY", "aws-secret-value-1"],
+      ["PATH", "/usr/local/bin:/usr/bin"], ["SSH_AUTH_SOCK", "/tmp/ssh-abcdef/agent.123"], ["OPENAI_API_KEY", "short"], ["EMPTY_TOKEN", ""], ["HOME", "/home/someone-long"],
+    ]);
+    expect(values.sort()).toEqual(["aws-secret-value-1", "ghp_from_env_00000", "hunter2hunter2", "sk-ant-from-env-0000"]);
+  });
+
+  test("an environment key is scrubbed from any JSON route by value", async () => {
+    const envKey = "sk-ant-from-env-0000";
+    const response = new Response(JSON.stringify({ messages: [{ text: `use ${envKey} for it` }] }), { headers: { "content-type": "application/json" } });
+    const text = await (await redactProviderSecrets(response, { method: "GET", normalizedPath: "/session/x/message", loadSecrets: async () => environmentSecretValues([["ANTHROPIC_API_KEY", envKey]]) })).text();
+    expect(text).not.toContain(envKey);
+  });
+});
+
+describe("edge cases", () => {
+  test("a key with characters JSON escapes is still found", async () => {
+    const odd = 'sk-"quoted"\\back\tslash-0000';
+    const response = new Response(JSON.stringify({ note: `key is ${odd}` }), { headers: { "content-type": "application/json" } });
+    const text = await (await redactProviderSecrets(response, { method: "GET", normalizedPath: "/session", loadSecrets: async () => [odd] })).text();
+    expect(text).not.toContain("quoted");
+    expect(JSON.parse(text).note).toBe(`key is ${REDACTED}`);
+  });
+
+  test("a key used as a property name is scrubbed too", () => {
+    const key = "sk-live-0123456789abcdef";
+    expect(JSON.stringify(redactSecretsDeep({ [key]: 1, nested: { [`x-${key}`]: 2 } }, [key]))).not.toContain(key);
+  });
+
+  test("bodyless statuses pass through untouched, so they can never throw when rebuilt", async () => {
+    for (const status of [204, 205, 304]) {
+      const response = new Response(null, { status, headers: { "content-type": "application/json" } });
+      expect(await redactProviderSecrets(response, { method: "GET", normalizedPath: "/config", loadSecrets: async () => [KEY] })).toBe(response);
+    }
   });
 });

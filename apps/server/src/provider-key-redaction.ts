@@ -8,7 +8,24 @@ export const REDACTED = "[redacted]";
 /** Engine routes whose JSON can carry provider credentials, whatever the HTTP method. */
 const CREDENTIAL_BEARING_PATHS = new Set(["/config", "/config/providers", "/provider", "/global/config"]);
 
-const SECRET_FIELD_NAME = /^(api[-_]?key|access[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password)$/i;
+// `key` is how the engine reports a provider's key when it came from the environment or a legacy auth file.
+const SECRET_FIELD_NAME = /^(key|api[-_]?key|token|access[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password|authorization|credentials?)$/i;
+
+/** Environment variable names that hold a credential. Plain "AUTH" is left out: SSH_AUTH_SOCK is a path. */
+const CREDENTIAL_ENV_NAME = /(api[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|credential)/i;
+
+/**
+ * The values of credential-named environment variables. Provider keys reach
+ * the engine through its environment as well as through the vault, so the
+ * vault's values alone are not the whole set.
+ */
+export function environmentSecretValues(entries: Iterable<readonly [string, string | undefined]>): string[] {
+  const values = new Set<string>();
+  for (const [name, value] of entries) {
+    if (value && value.length >= MIN_SECRET_LENGTH && CREDENTIAL_ENV_NAME.test(name)) values.add(value);
+  }
+  return [...values];
+}
 
 /** Short strings would match innocent text; real keys are longer than this. */
 const MIN_SECRET_LENGTH = 8;
@@ -76,7 +93,7 @@ export function redactSecretsDeep(value: unknown, secrets: readonly string[], op
   if (typeof value !== "object" || value === null) return value;
   const result: Record<string, unknown> = {};
   for (const [name, item] of Object.entries(value)) {
-    result[name] = byName && typeof item === "string" && item && SECRET_FIELD_NAME.test(name) ? REDACTED : redactSecretsDeep(item, secrets, options);
+    result[scrubString(name, secrets)] = byName && typeof item === "string" && item && SECRET_FIELD_NAME.test(name) ? REDACTED : redactSecretsDeep(item, secrets, options);
   }
   return result;
 }
@@ -105,6 +122,8 @@ export async function redactProviderSecrets(
   input: { method: string; normalizedPath: string; loadSecrets: () => Promise<readonly string[]> },
 ): Promise<Response> {
   if (!JSON_CONTENT_TYPE.test(response.headers.get("content-type") ?? "")) return response;
+  // A response with no body cannot carry a key, and a Response with one of these statuses cannot be rebuilt with a body.
+  if (response.body === null || response.status === 204 || response.status === 205 || response.status === 304) return response;
   const credentialRoute = proxyPathCarriesCredentials(input.method, input.normalizedPath);
   let secrets: string[] = [];
   try {
@@ -118,7 +137,9 @@ export async function redactProviderSecrets(
   const headers = new Headers(response.headers);
   headers.delete("content-length");
   const init = { status: response.status, statusText: response.statusText, headers };
-  if (!credentialRoute && !secrets.some((secret) => text.includes(secret))) return new Response(text, init);
+  // A key with a quote, backslash or control character sits in the JSON text in its escaped form.
+  const appearsIn = (secret: string) => text.includes(secret) || text.includes(JSON.stringify(secret).slice(1, -1));
+  if (!credentialRoute && !secrets.some(appearsIn)) return new Response(text, init);
   try {
     return new Response(JSON.stringify(redactSecretsDeep(JSON.parse(text), secrets, { fieldNames: credentialRoute })), init);
   } catch {

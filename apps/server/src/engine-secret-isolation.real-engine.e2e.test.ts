@@ -21,6 +21,11 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
       await mkdir(join(root, dir), { recursive: true });
     }
     const secretKey = `sk-e2e-${randomBytes(12).toString("hex")}`;
+    // Keys that never went through the vault: one in the environment the engine inherits, one in the engine's own auth store.
+    const envKey = `sk-ant-env-${randomBytes(10).toString("hex")}`;
+    const legacyKey = `gsk-legacy-${randomBytes(10).toString("hex")}`;
+    const previousEnvKey = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = envKey;
     const { startEmbeddedServer } = await import("./embedded.js");
     const handle = await startEmbeddedServer({
       configPath: join(root, "server.json"), host: "127.0.0.1", port: 0,
@@ -38,6 +43,7 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
       const engine = (path: string, init: RequestInit = {}) => fetch(`${engineUrl}${path}${path.includes("?") ? "&" : "?"}${dir}`, {
         ...init, headers: { authorization: engineAuth, "content-type": "application/json", ...(init.headers ?? {}) },
       });
+      expect((await engine("/auth/groq", { method: "PUT", body: JSON.stringify({ type: "api", key: legacyKey }) })).ok).toBe(true);
       expect((await engine("/instance/dispose", { method: "POST" })).ok).toBe(true);
 
       // Harness's proxy of the engine's config and provider reads never carries a key.
@@ -45,7 +51,10 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
       for (const path of ["/opencode/config", "/opencode/provider", "/opencode/%63onfig", "/opencode//config", "/opencode/%70rovider", "/opencode/config/%70roviders", "/opencode/global/%63onfig",
         "/opencode/CONFIG", "/opencode/Config", "/opencode/PROVIDER", "/opencode/pRoViDeR", "/opencode/config/PROVIDERS", "/opencode/config;a=b", "/opencode/config;", "/opencode/CoNfIg;x", "/opencode/provider;a", "/opencode/config/providers;a"]) {
         const response = await fetch(`${handle.url}${path}?${dir}`, { headers: { authorization: "Bearer client-token" } });
-        expect(await response.text(), path).not.toContain(secretKey);
+        const body = await response.text();
+        expect(body, path).not.toContain(secretKey);
+        expect(body, path).not.toContain(envKey);
+        expect(body, path).not.toContain(legacyKey);
       }
       // The engine's own API refuses anyone without its password.
       expect((await fetch(`${engineUrl}/config?${dir}`)).status).toBe(401);
@@ -72,6 +81,8 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
         expect(failures).toEqual([]);
       }
     } finally {
+      if (previousEnvKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = previousEnvKey;
       await handle.stop();
       for (const [name, value] of saved) {
         if (value === undefined) delete process.env[name];

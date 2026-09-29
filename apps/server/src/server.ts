@@ -1,5 +1,5 @@
 import { createV2SessionHomes, nativeSession, nativeSessionDirectory } from "./opencode-v2-session-home.js";
-import { redactProviderSecrets } from "./provider-key-redaction.js";
+import { environmentSecretValues, redactProviderSecrets } from "./provider-key-redaction.js";
 import { createNativeCloudMcpResolver, createRoutedCloudMcpRegistrar } from "./cloud-mcp-v2.js";
 import { managedDesktopPolicy } from "./managed-desktop-policy.js";
 import { createTaskRecovery, setTaskRecovery } from "./task-recovery.js";
@@ -1888,7 +1888,12 @@ function protectProxiedSecrets(config: ServerConfig, method: string, proxyPath: 
   return redactProviderSecrets(response, {
     method,
     normalizedPath: normalizeOpencodeProxyPath(proxyPath),
-    loadSecrets: () => readProviderKeyValues(config),
+    loadSecrets: async () => [
+      ...(await readProviderKeyValues(config)),
+      // Keys also reach the engine as environment variables (the process's own and the user's env store).
+      ...environmentSecretValues(Object.entries(process.env)),
+      ...environmentSecretValues((await envServiceForConfig(config)?.list() ?? []).map((record) => [record.key, record.value] as const)),
+    ],
   });
 }
 

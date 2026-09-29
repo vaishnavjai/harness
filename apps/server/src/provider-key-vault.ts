@@ -110,7 +110,14 @@ export async function readProviderKeyValues(config: ServerConfig): Promise<strin
   }
   const cached = keyValueCache.get(config);
   if (cached?.stamp === stamp) return cached.values;
-  const values = Object.values(await readProviderKeys(config));
+  let values: string[];
+  try {
+    values = Object.values(await readProviderKeys(config));
+  } catch (error) {
+    // A vault that cannot be read right now still held these keys a moment ago; keep scrubbing them.
+    if (cached) return cached.values;
+    throw error;
+  }
   keyValueCache.set(config, { stamp, values });
   return values;
 }
