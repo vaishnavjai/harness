@@ -48,8 +48,10 @@ describe("external-open capture", () => {
     const urls = ["http://127.0.0.1:3005/dashboard/your-connections", "http://127.0.0.1:3005/dashboard/mcp-connections?value=\"quoted\"\nnext"];
     for (const url of urls) assert.deepEqual(await openExternalUrl(url, deps), { ok: true });
     const path = join(userData, EXTERNAL_OPEN_CAPTURE_FILENAME);
-    assert.equal(await readFile(path, "utf8"), urls.map((url) => `${JSON.stringify(url)}\n`).join(""));
-    assert.deepEqual(writes, urls.map((url) => ({ path, data: `${JSON.stringify(url)}\n`, options: { encoding: "utf8", mode: 0o600 } })));
+    // The link is opened as the URL parser reads it, so the quote and line break are percent-encoded.
+    const opened = urls.map((url) => new URL(url).href);
+    assert.equal(await readFile(path, "utf8"), opened.map((url) => `${JSON.stringify(url)}\n`).join(""));
+    assert.deepEqual(writes, opened.map((url) => ({ path, data: `${JSON.stringify(url)}\n`, options: { encoding: "utf8", mode: 0o600 } })));
     assert.equal(shellCalls, 0);
     assert.equal(fallbackCalls, 0);
   });
@@ -138,7 +140,7 @@ describe("openExternalUrl", () => {
     });
 
     assert.deepEqual(result, { ok: true });
-    assert.equal(openedUrl, "https://example.com");
+    assert.equal(openedUrl, "https://example.com/");
   });
 
   it("attempts rundll32 fallback on Windows after shell.openExternal rejects", async () => {
@@ -166,7 +168,7 @@ describe("openExternalUrl", () => {
     assert.equal(result.error, "association broken");
     assert.deepEqual(spawnCall, {
       command: "rundll32",
-      args: ["url.dll,FileProtocolHandler", "https://example.com"],
+      args: ["url.dll,FileProtocolHandler", "https://example.com/"],
       options: { detached: true, stdio: "ignore" },
     });
     assert.equal(unrefCalled, true);
@@ -225,5 +227,30 @@ describe("openExternalUrl", () => {
     assert.deepEqual(result, { ok: false, error: "simulated failure" });
     assert.equal(opened, false);
     assert.equal(spawnCalled, false);
+  });
+});
+
+describe("openExternalUrl refuses links that would run code", () => {
+  it("never reaches the opener or the Windows fallback for a disallowed link", async () => {
+    for (const url of ["file:///C:/Windows/System32/calc.exe", "ms-msdt:/id PCWDiagnostic", "javascript:alert(1)", "\\\\attacker\\share\\x.exe", ""]) {
+      let openerCalls = 0;
+      let fallbackCalls = 0;
+      const result = await openExternalUrl(url, {
+        env: {},
+        platform: "win32",
+        openExternal: async () => { openerCalls += 1; },
+        spawnProcess: () => { fallbackCalls += 1; return { unref() {} }; },
+      });
+      assert.equal(result.ok, false, url);
+      assert.equal(openerCalls, 0, url);
+      assert.equal(fallbackCalls, 0, url);
+    }
+  });
+
+  it("gives the opener the normalised URL", async () => {
+    const opened = [];
+    const result = await openExternalUrl("https://example.com/a b", { env: {}, openExternal: async (value) => { opened.push(value); } });
+    assert.deepEqual(result, { ok: true });
+    assert.deepEqual(opened, ["https://example.com/a%20b"]);
   });
 });

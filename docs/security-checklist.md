@@ -38,7 +38,8 @@ command output or a linked report.
 
 ## From the OWASP assessment (`docs/owasp-assessment.md`)
 
-- [ ] **F1 (High):** allowlist schemes for `openExternal`; confine `openPath` to workspace and app folders and refuse executable types. Fix first.
+- [x] **F1 (High):** `openExternal` allows only https, http and mailto; local paths that would run code are shown in their folder, never opened (`external-open-policy.mjs`).
+- [ ] F1b: `__openWithApp` on Linux spawns the renderer-supplied app path; restrict it to discovered apps.
 - [ ] F2: turn on `sandbox` for the main window if the preload does not need Node.
 - [ ] F3: upgrade `fast-uri`, `undici` and `ip-address` (2 high, 4 moderate).
 - [ ] F4: add a CSP to the app window.

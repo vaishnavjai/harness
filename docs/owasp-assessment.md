@@ -11,7 +11,7 @@ Not compliant with either standard, and one finding is high severity.
 
 | # | Finding | Severity |
 |---|---|---|
-| F1 | `openExternal` and `openPath` accept any scheme or path | **High** |
+| F1 | `openExternal` and `openPath` accept any scheme or path | **High, fixed** (F1b open) |
 | F2 | Main window runs with `sandbox: false` | Medium |
 | F3 | Vulnerable npm dependencies (2 high, 4 moderate) | Medium |
 | F4 | No Content-Security-Policy on the app window | Medium |
@@ -25,9 +25,9 @@ Not compliant with either standard, and one finding is high severity.
 
 | Risk | Status | Evidence |
 |---|---|---|
-| A01 Broken access control | Partial | Per-launch tokens, loopback binding, engine-secret routes, symlink and path checks all hold. Gaps: F1, F9, and the agent runs as the user with no OS sandbox (checklist item 3). |
+| A01 Broken access control | Partial | Per-launch tokens, loopback binding, engine-secret routes, symlink and path checks all hold. Gaps: F9, F1b, and the agent runs as the user with no OS sandbox (checklist item 3). |
 | A02 Cryptographic failures | Partial | Provider keys use the OS keychain or AES-256-GCM. MCP OAuth tokens are plaintext (checklist gap B). Windows Postgres is password-only. |
-| A03 Injection | Partial | Spawns use argument vectors; markdown output is sanitised with DOMPurify (`markdown-primitive.ts`). F1 is the open hole. Prompt injection is untested. |
+| A03 Injection | Partial | Spawns use argument vectors; markdown output is sanitised with DOMPurify (`markdown-primitive.ts`). Prompt injection is untested. |
 | A04 Insecure design | Fail | No threat model. |
 | A05 Security misconfiguration | Fail | F2, F4, F7, F8. |
 | A06 Vulnerable components | Partial | Python: `pip-audit` on the 191 hashed packages found nothing. npm: F3. No SBOM. |
@@ -38,12 +38,13 @@ Not compliant with either standard, and one finding is high severity.
 
 ## Findings
 
-**F1 (High). `shell.openExternal` and `shell.openPath` with unvalidated input.**
-- `apps/desktop/electron/open-external.mjs:30` has no scheme check.
-- The IPC handler `harness:shell:openExternal` (`main.mjs:2847`) passes any string to it.
-- The window-open handler (`main.mjs:2780`) sends any non-http(s) URL there, and hands `file://` URLs to `shell.openPath`, which opens the file with its default program.
-- Impact: on Windows, dangerous protocol handlers and executable files can run. Any renderer code path that passes a URL reaches this, including URLs a remote MCP server supplies for OAuth. I did not trace every caller.
-- Fix: allow only `https:`, `http:` and `mailto:` for `openExternal`. For `openPath`, require the path to sit inside a workspace or the app's data folders and refuse executable types (`.exe`, `.bat`, `.cmd`, `.ps1`, `.lnk`, `.app`, `.sh`, `.desktop` and similar). Test with hostile URLs.
+**F1 (High, fixed). `shell.openExternal` and `shell.openPath` with unvalidated input.**
+- Found: `open-external.mjs` had no scheme check; the IPC handler `harness:shell:openExternal`, the window-open handler and the Windows `rundll32 url.dll,FileProtocolHandler` fallback all took any string; `__openPath` and `file://` popups passed any path to `shell.openPath`. On Windows that runs protocol handlers and executables. Any renderer path that passes a URL reached it, including OAuth URLs a remote MCP server supplies.
+- Fixed in `apps/desktop/electron/external-open-policy.mjs`:
+  - `openExternal` accepts only `https:`, `http:` and `mailto:`, refuses credentials, control characters and oversized input, and opens the URL as the parser normalises it (this covers the `rundll32` fallback too).
+  - Local paths open only if they are folders or files that would not run code. Executable, script, installer, shortcut and app-bundle types (and symlinks to them, and Windows names with trailing dots or spaces) are shown in their folder instead. Applies to `__openPath`, `file://` popups and workspace file links.
+- Tests: `external-open-policy.test.mjs` (13) plus new cases in `open-external.test.mjs`.
+- Still open, related (F1b): `__openWithApp` on Linux spawns the app path the renderer sends. It is chosen from a discovered list, so exploiting it needs a compromised renderer, but the path is not validated. Restrict it to the discovered apps or refuse paths inside a workspace.
 
 **F2 (Medium).** `main.mjs:2718` sets `sandbox: false` for the main window (context isolation is on, Node integration is off). Check whether the preload really needs Node; if not, turn the sandbox on. The browser panel already uses `sandbox: true`.
 
@@ -67,7 +68,7 @@ Not compliant with either standard, and one finding is high severity.
 |---|---|
 | LLM01 Prompt injection | Untested. No eval exists (checklist item 5). |
 | LLM02 Sensitive information disclosure | Partial. Keys are isolated from agent shells and redacted from proxied reads; same-user gap A remains. |
-| LLM05 Improper output handling | Partial. Markdown is sanitised; F1 is the open path. |
+| LLM05 Improper output handling | Partial. Markdown is sanitised and external opens are allowlisted (F1). |
 | LLM06 Excessive agency | Open. The agent has the user's shell and file access; approval prompts exist, no OS sandbox. |
 | LLM03 Supply chain | Open. Plugins and MCP servers are unsigned and user-installed. |
 

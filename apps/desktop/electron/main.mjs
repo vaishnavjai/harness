@@ -57,6 +57,7 @@ import {
 } from "./connect-link-branding.mjs";
 import { resolveConnectLinkPublicKeys } from "./connect-link-keys.mjs";
 import { openExternalUrl } from "./open-external.mjs";
+import { checkOpenablePath } from "./external-open-policy.mjs";
 import { resolveWorkspaceFileLaunch } from "./workspace-file-access.mjs";
 import { resolveAppIdentifier, resolveUserDataPath } from "./dev-profile.mjs";
 import { fetchAgentContextDiagnosticsResponse } from "./agent-context-diagnostics-fetch.mjs";
@@ -1361,6 +1362,21 @@ function validateSkillName(raw) {
   return trimmed;
 }
 
+/**
+ * Open a local file or folder with its default program, unless that would run
+ * code (see external-open-policy.mjs); those are shown in their folder instead.
+ * Resolves to an error message, or an empty string on success, like shell.openPath.
+ */
+async function openPathGuarded(target) {
+  const decision = await checkOpenablePath(target);
+  if (decision.ok === true) return shell.openPath(decision.path);
+  if (decision.reason === "unsafe-type" && decision.path) {
+    shell.showItemInFolder(decision.path);
+    return "";
+  }
+  return decision.error;
+}
+
 const runtimeManager = createRuntimeManager({
   app,
   desktopRoot: path.resolve(__dirname, ".."),
@@ -2318,9 +2334,7 @@ const desktopCommandHandlers = {
       return undefined;
   },
   "__openPath": async (event, ...args) => {
-      const target = String(args[0] ?? "").trim();
-      if (!target) return "Path is required.";
-      return shell.openPath(target);
+      return openPathGuarded(String(args[0] ?? "").trim());
   },
   "__harnessspaceFile": async (event, ...args) => {
       // Chat links are renderer-derived text. Resolve them on disk here so only a real
@@ -2329,7 +2343,13 @@ const desktopCommandHandlers = {
       const target = String(args[1] ?? "").trim();
       const decision = await resolveWorkspaceFileLaunch(workspaceRoot, target);
       if (decision.ok === true) {
-        const error = await shell.openPath(decision.path);
+        // A file in the workspace may still be a program the agent wrote; those are shown, never run.
+        const openable = await checkOpenablePath(decision.path);
+        if (!openable.ok) {
+          shell.showItemInFolder(decision.path);
+          return { ok: true, action: "revealed" };
+        }
+        const error = await shell.openPath(openable.path);
         if (error && error.trim()) return { ok: false, error };
         return { ok: true, action: "opened" };
       }
@@ -2780,9 +2800,10 @@ async function createMainWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("file://")) {
       try {
-        runDetachedTask("open local file", () => shell.openPath(fileURLToPath(url)));
+        const localPath = fileURLToPath(url);
+        runDetachedTask("open local file", () => openPathGuarded(localPath));
       } catch {
-        runDetachedTask("open local file externally", () => openExternalUrl(url));
+        console.error("[shell] refused a file link that is not a local path");
       }
 
       return { action: "deny" };

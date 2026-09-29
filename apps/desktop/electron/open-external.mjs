@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { checkExternalUrl } from "./external-open-policy.mjs";
+
 const DEFAULT_TIMEOUT_MS = 4000;
 export const EXTERNAL_OPEN_CAPTURE_FILENAME = "harness-eval-external-opens.jsonl";
 
@@ -36,6 +38,14 @@ export async function openExternalUrl(url, deps = {}) {
     return { ok: false, error: message };
   }
 
+  // Only web and mail links go to another program; see external-open-policy.mjs.
+  const checked = checkExternalUrl(url);
+  if (checked.ok === false) {
+    console.error("[shell] refused to open link:", checked.error);
+    return { ok: false, error: checked.error };
+  }
+  const safeUrl = checked.url;
+
   const timeoutMs = Number.isFinite(deps.timeoutMs) ? deps.timeoutMs : DEFAULT_TIMEOUT_MS;
   let timeoutId = null;
   let capture = false;
@@ -46,7 +56,7 @@ export async function openExternalUrl(url, deps = {}) {
     const openExternal = deps.openExternal ?? ((value) => defaultOpenExternal(value, electron, capture, deps.appendCapture ?? appendFile));
     // why: shell.openExternal can hang forever on Windows machines with broken https URL associations; silence is the bug we're fixing.
     await Promise.race([
-      Promise.resolve().then(() => openExternal(url)),
+      Promise.resolve().then(() => openExternal(safeUrl)),
       new Promise((_, reject) => {
         timeoutId = setTimeout(() => {
           reject(new Error(`timed out after ${timeoutMs}ms`));
@@ -63,7 +73,7 @@ export async function openExternalUrl(url, deps = {}) {
       const spawnProcess = deps.spawnProcess ?? spawn;
       try {
         console.error("[shell] attempting rundll32 browser fallback");
-        const child = spawnProcess("rundll32", ["url.dll,FileProtocolHandler", url], {
+        const child = spawnProcess("rundll32", ["url.dll,FileProtocolHandler", safeUrl], {
           detached: true,
           stdio: "ignore",
         });
