@@ -3,11 +3,12 @@
 Base: `fix/windows-memory` (`32f2897`). Tick a box only with evidence: a test, a
 command output or a linked report.
 
-- [ ] **1. Keys unreachable from the agent's shell**
-  - [ ] Stop passing `HARNESS_SERVER_TOKEN` and `OPENCODE_SERVER_PASSWORD` into shells the agent runs.
-  - [ ] Never return provider keys from the server's `/opencode/config` and `/opencode/provider` routes or the engine's `/config` and `/provider` routes. Redact them, or broker model calls so a key never leaves the server.
-  - [ ] Move MCP OAuth tokens (`mcp-auth.json`) into the OS keychain or the AES-256-GCM vault.
-  - [ ] Test: from a real agent shell, no reachable route or file yields a provider key or token.
+- [ ] **1. Keys unreachable from the agent's shell** (mostly done; two gaps below)
+  - [x] Shells and terminals the agent starts no longer receive `HARNESS_SERVER_TOKEN`, `HARNESS_HOST_TOKEN`, `OPENCODE_SERVER_PASSWORD` and the other Harness credentials (`harness-shell-env` plugin, `shell.env` hook).
+  - [x] Harness's proxy of the engine's `/config`, `/config/providers`, `/provider` and `/global/config` redacts provider keys by field name and by exact value, and withholds output it cannot check.
+  - [x] Real-engine test (`engine-secret-isolation.real-engine.e2e.test.ts`): from an agent shell no credential is present, unauthenticated routes return 401, and no Harness route returns the key. Fails without either half of the fix.
+  - [ ] **Gap A, needs item 3:** a process running as the same OS user can still read the engine's own environment (`/proc/<pid>/environ` on Linux) and so its password, and the engine's own `/config` still returns keys to whoever holds that password. Closing it means the agent's processes must not be able to inspect the engine (the OS sandbox), or the engine must stop holding keys in its config.
+  - [ ] **Gap B, needs engine support:** MCP OAuth tokens live in the engine's `mcp-auth.json` (written 0600 by the engine, read directly by it). Moving them into the keychain or vault needs the engine to read tokens from somewhere else. Encrypting the file while the engine is stopped would still leave plaintext while it runs.
 
 - ~~[x] **2. Windows memory works**~~ Done on `fix/windows-memory`.
 

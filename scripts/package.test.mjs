@@ -79,7 +79,7 @@ test("a runnable build must carry the engine, the memory runtime and the license
 
 test("a build must carry the audit, provider-key and memory engine plugins and ship no tests", () => {
   const linux = requiredArtifactPaths("linux");
-  for (const plugin of ["harness-audit.js", "harness-provider-keys.js", "harness-memory.js"]) {
+  for (const plugin of ["harness-audit.js", "harness-provider-keys.js", "harness-memory.js", "harness-shell-env.js"]) {
     assert.ok(linux.includes(join("opencode-plugins", plugin)), plugin);
   }
   const resources = mkdtempSync(join(tmpdir(), "harness-resources-"));

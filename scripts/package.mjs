@@ -126,6 +126,7 @@ export function requiredArtifactPaths(platform = process.platform) {
     join("opencode-plugins", "harness-audit.js"),
     join("opencode-plugins", "harness-provider-keys.js"),
     join("opencode-plugins", "harness-memory.js"),
+    join("opencode-plugins", "harness-shell-env.js"),
   ];
 }
 

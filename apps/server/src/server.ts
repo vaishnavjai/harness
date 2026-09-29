@@ -1,4 +1,5 @@
 import { createV2SessionHomes, nativeSession, nativeSessionDirectory } from "./opencode-v2-session-home.js";
+import { redactProviderSecrets } from "./provider-key-redaction.js";
 import { createNativeCloudMcpResolver, createRoutedCloudMcpRegistrar } from "./cloud-mcp-v2.js";
 import { managedDesktopPolicy } from "./managed-desktop-policy.js";
 import { createTaskRecovery, setTaskRecovery } from "./task-recovery.js";
@@ -1872,13 +1873,22 @@ export async function proxyOpencodeRequest(input: {
         if (isEngineConnectionFailure(error)) throw opencodeUnreachableError(error, proxyPath);
         throw error;
       }
-      return sanitizeProxyResponse(fallbackResponse);
+      return protectProxiedSecrets(input.config, method, proxyPath, sanitizeProxyResponse(fallbackResponse));
     }
 
-    return sanitizeProxyResponse(response);
+    return protectProxiedSecrets(input.config, method, proxyPath, sanitizeProxyResponse(response));
   };
 
   return forward();
+}
+
+/** Keys the engine holds in memory must not leave through Harness's proxy of its config and provider reads. */
+function protectProxiedSecrets(config: ServerConfig, method: string, proxyPath: string, response: Response): Promise<Response> {
+  return redactProviderSecrets(response, {
+    method,
+    normalizedPath: normalizeOpencodeProxyPath(proxyPath),
+    loadSecrets: async () => Object.values(await readProviderKeys(config)),
+  });
 }
 
 function isEngineEventPath(proxyPath: string): boolean {

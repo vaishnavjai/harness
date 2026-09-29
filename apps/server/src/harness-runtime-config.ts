@@ -28,6 +28,7 @@ import {
   harnessAuditPluginPath,
   harnessProviderKeysPluginPath,
   harnessMemoryPluginPath,
+  harnessShellEnvPluginPath,
   harnessGatewayQuotaPluginPath,
   harnessOfficeAttachmentsPluginPath,
   harnessSpreadsheetsPluginPath,
@@ -113,6 +114,8 @@ export function buildHarnessRuntimeConfigObjectFromSnapshot(
       harnessProviderKeysPluginPath(),
       // Long-term memory tools, reaching the local memory engine via the server.
       harnessMemoryPluginPath(),
+      // Harness's own credentials never reach a shell the agent starts.
+      harnessShellEnvPluginPath(),
       harnessChromeDevtoolsPluginPath(),
       // Registration order is prompt order: the knowledge plugin appends the
       // operating rules first, then the extensions plugin adds app-control
