@@ -111,7 +111,8 @@ allowBuilds:
   # @scarf/scarf is install analytics; never run it.
   "@scarf/scarf": false
   "@whiskeysockets/baileys": true
-  better-sqlite3: true
+  # Ships prebuilt binaries for every platform; compiling it needs Visual Studio on Windows.
+  better-sqlite3: false
   electron: true
   electron-winstaller: true
   esbuild: true
