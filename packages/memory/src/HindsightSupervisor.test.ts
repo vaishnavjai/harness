@@ -282,4 +282,26 @@ describe("HindsightSupervisor", () => {
     expect(await waitForExit(engine, 10_000)).toBe(true);
     expect(await waitForExit(grandchild, 10_000)).toBe(true);
   }, 30_000);
+
+  test("a host that simply finishes stops the engine through beforeExit and exits", async () => {
+    const dataDir = await tempDir();
+    const pidFile = join(dataDir, "host-pids.json");
+    const host = spawn(process.execPath, [supervisorHost, dataDir, pidFile, "drain"], { stdio: ["ignore", "pipe", "pipe"] });
+    cleanups.push(() => {
+      if (host.exitCode === null) host.kill("SIGKILL");
+    });
+    const exited = new Promise<number | null>((resolve) => host.once("exit", (code) => resolve(code)));
+    await new Promise<void>((resolve, reject) => {
+      host.stdout.on("data", (chunk: Buffer) => {
+        if (chunk.toString().includes('"ready":true')) resolve();
+      });
+      void exited.then((code) => reject(new Error(`host exited before ready with ${code}`)));
+    });
+    const { engine, grandchild } = JSON.parse(await readFile(pidFile, "utf8")) as { engine: number; grandchild: number };
+    // Nothing signals the host: it must drain, stop the engine and exit by itself.
+    const code = await Promise.race([exited, new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 15_000))]);
+    expect(code).toBe(0);
+    expect(await waitForExit(engine, 5_000)).toBe(true);
+    expect(await waitForExit(grandchild, 5_000)).toBe(true);
+  }, 40_000);
 });

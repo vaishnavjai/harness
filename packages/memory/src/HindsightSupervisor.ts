@@ -159,6 +159,29 @@ const EMBEDDED_DATABASE_USER = "hindsight";
 const DATABASE_PASSWORD_FILE = "database-password";
 const DATABASE_SOCKET_DIR = "run";
 
+/**
+ * Whether the engine and its stdio pipes keep the host's event loop alive.
+ * A ready engine is a background service: holding the loop would mean Node
+ * never emits `beforeExit`, so a host that simply finishes would keep the
+ * engine running forever. Every stop holds the loop again until it is done.
+ */
+function holdEventLoop(child: ChildProcess, hold: boolean): void {
+  if (hold) child.ref();
+  else child.unref();
+  for (const stream of [child.stdin, child.stdout, child.stderr]) {
+    if (!hasLoopRef(stream)) continue;
+    if (hold) stream.ref();
+    else stream.unref();
+  }
+}
+
+/** Node's stdio pipes are sockets; Bun's are plain streams with the same ref()/unref(). */
+function hasLoopRef(stream: unknown): stream is { ref(): unknown; unref(): unknown } {
+  return typeof stream === "object" && stream !== null
+    && "ref" in stream && typeof stream.ref === "function"
+    && "unref" in stream && typeof stream.unref === "function";
+}
+
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -186,6 +209,8 @@ export class HindsightSupervisor {
   private hooksInstalled = false;
   private readonly onSignal = (signal: unknown) => this.handleSignal(signal === "SIGINT" ? "SIGINT" : "SIGTERM");
   private readonly onBeforeExit = () => {
+    // The host has nothing left to do. shutdown() holds the loop open until
+    // the engine is gone; the next beforeExit finds no hook and Node exits.
     void this.stop();
   };
   private readonly onExit = () => this.terminateNow("SIGTERM");
@@ -405,6 +430,7 @@ export class HindsightSupervisor {
       child.once("exit", (code, signal) => this.handleExit(child, code, signal));
 
       await this.waitUntilReady(child, endpoint);
+      holdEventLoop(child, false);
       this.endpoint = endpoint;
       this.startedAt = new Date().toISOString();
       this.setState("ready", "");
@@ -471,6 +497,7 @@ export class HindsightSupervisor {
     const child = this.child;
     if (child && child.exitCode === null && child.signalCode === null) {
       this.setState("stopping");
+      holdEventLoop(child, true);
       const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
       // Closing stdin alone makes the launcher stop gracefully; the group
       // SIGTERM is the POSIX fast path. Windows has no SIGTERM for console

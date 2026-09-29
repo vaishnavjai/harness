@@ -1,11 +1,12 @@
 // Runs a supervisor in its own process so a test can SIGKILL it and check
-// that the engine it started does not outlive it.
+// that the engine it started does not outlive it. In "drain" mode the host
+// does nothing after start(), so only the beforeExit hook can stop the engine.
 import { fileURLToPath } from "node:url";
 
 import { HindsightSupervisor } from "../HindsightSupervisor.js";
 import { parseMemorySettings } from "../memory-settings.js";
 
-const [dataDir, pidFile] = process.argv.slice(2);
+const [dataDir, pidFile, mode = "hold"] = process.argv.slice(2);
 if (!dataDir || !pidFile) throw new Error("usage: supervisor-host <dataDir> <pidFile>");
 
 const supervisor = new HindsightSupervisor({
@@ -21,4 +22,4 @@ const supervisor = new HindsightSupervisor({
 
 const endpoint = await supervisor.start();
 console.log(JSON.stringify({ ready: true, port: endpoint.port }));
-setInterval(() => undefined, 60_000);
+if (mode === "hold") setInterval(() => undefined, 60_000);
