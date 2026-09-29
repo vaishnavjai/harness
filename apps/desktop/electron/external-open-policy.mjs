@@ -78,6 +78,17 @@ export function effectiveExtension(filePath) {
   return index < 0 ? "" : name.slice(index + 1).toLowerCase();
 }
 
+/**
+ * A UNC path (\\\\host\\share or //host/share) names another computer. Merely
+ * resolving it makes Windows contact that host, sending the user's
+ * credentials hash, so it is never touched.
+ *
+ * @param {string} value
+ */
+export function isNetworkPath(value) {
+  return /^[\\/]{2}[^\\/]/.test(String(value).trim());
+}
+
 /** @param {string} filePath */
 export function isCodeLaunchingType(filePath) {
   return LAUNCHES_CODE.has(effectiveExtension(filePath));
@@ -100,6 +111,9 @@ export async function checkOpenablePath(target, deps = {}) {
   const platform = deps.platform ?? process.platform;
   const requested = String(target ?? "").trim();
   if (!requested) return { ok: false, reason: "invalid", error: "Path is required." };
+  if (platform === "win32" && isNetworkPath(requested)) {
+    return { ok: false, reason: "invalid", error: "Network paths are not opened from Harness." };
+  }
   if (!path.isAbsolute(requested)) return { ok: false, reason: "invalid", error: "Path must be absolute." };
   let resolved;
   try {

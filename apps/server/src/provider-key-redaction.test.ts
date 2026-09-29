@@ -34,6 +34,7 @@ describe("provider key redaction", () => {
     for (const path of [
       "/%63onfig", "//config", "///config/", "/config/%70roviders", "/%70rovider", "/%67lobal/config", "/global//config", "/./config",
       "/session/../config", "/config/./providers", "/%2e/config", "/%252e%252e/config", "/%2563onfig", "/config?x=1", "/%2Fconfig", "/config%2fproviders",
+      "/CONFIG", "/Config", "/PROVIDER", "/pRoViDeR", "/config/PROVIDERS", "/config;a=b", "/config;", "/CoNfIg;x", "/provider;a", "/config/providers;a", "/global;x/config",
     ]) {
       expect(proxyPathCarriesCredentials("GET", path)).toBe(true);
     }
@@ -48,6 +49,8 @@ describe("provider key redaction", () => {
     expect(canonicalEnginePath("/%252e%252e/config")).toBe("/config");
     expect(canonicalEnginePath("/%E0%A4%A")).toBeNull();
     expect(canonicalEnginePath("/")).toBe("/");
+    expect(canonicalEnginePath("/config;a=b")).toBe("/config");
+    expect(canonicalEnginePath("/global;x/config;y")).toBe("/global/config");
   });
 
   test("rewrites a JSON config response and leaves other responses alone", async () => {
@@ -64,9 +67,37 @@ describe("provider key redaction", () => {
       expect(await scrubbed.text(), normalizedPath).not.toContain(KEY);
     }
 
-    const session = new Response(`{"note":"${KEY}"}`, { headers: { "content-type": "application/json" } });
-    const same = await redactProviderSecrets(session, { method: "GET", normalizedPath: "/session", loadSecrets: async () => [KEY] });
-    expect(await same.text()).toContain(KEY);
+    // Any other JSON route is scrubbed by value too: the engine's spelling of a path is not ours to predict.
+    const session = new Response(`{"note":"${KEY}","password":"kept-on-non-credential-routes"}`, { headers: { "content-type": "application/json" } });
+    const scrubbedSession = await redactProviderSecrets(session, { method: "GET", normalizedPath: "/session", loadSecrets: async () => [KEY] });
+    const scrubbedText = await scrubbedSession.text();
+    expect(scrubbedText).not.toContain(KEY);
+    expect(scrubbedText).toContain("kept-on-non-credential-routes");
+  });
+
+  test("leaves responses alone when there is nothing to look for", async () => {
+    const body = new Response('{"a":1}', { headers: { "content-type": "application/json" } });
+    expect(await redactProviderSecrets(body, { method: "GET", normalizedPath: "/session", loadSecrets: async () => [] })).toBe(body);
+    const stream = new Response("data: x\n\n", { headers: { "content-type": "text/event-stream" } });
+    expect(await redactProviderSecrets(stream, { method: "GET", normalizedPath: "/event", loadSecrets: async () => [KEY] })).toBe(stream);
+    const lines = new Response('{"a":1}\n', { headers: { "content-type": "application/x-ndjson" } });
+    expect(await redactProviderSecrets(lines, { method: "GET", normalizedPath: "/stream", loadSecrets: async () => [KEY] })).toBe(lines);
+  });
+
+  test("returns an ordinary JSON body unchanged when it holds no key", async () => {
+    const response = new Response('{"messages":[{"text":"hello"}]}', { status: 201, headers: { "content-type": "application/json; charset=utf-8", "content-length": "31" } });
+    const result = await redactProviderSecrets(response, { method: "GET", normalizedPath: "/session/ses_1/message", loadSecrets: async () => [KEY] });
+    expect(result.status).toBe(201);
+    expect(await result.text()).toBe('{"messages":[{"text":"hello"}]}');
+    expect(result.headers.get("content-length")).toBeNull();
+  });
+
+  test("an unreadable vault withholds credential routes and leaves the rest alone", async () => {
+    const failing = async () => { throw new Error("vault unreadable"); };
+    const config = new Response('{"x":1}', { headers: { "content-type": "application/json" } });
+    expect((await redactProviderSecrets(config, { method: "GET", normalizedPath: "/config", loadSecrets: failing })).status).toBe(502);
+    const other = new Response('{"x":1}', { headers: { "content-type": "application/json" } });
+    expect(await redactProviderSecrets(other, { method: "GET", normalizedPath: "/session", loadSecrets: failing })).toBe(other);
   });
 
   test("withholds output it cannot check instead of leaking it", async () => {

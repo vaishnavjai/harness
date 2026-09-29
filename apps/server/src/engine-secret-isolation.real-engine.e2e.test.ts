@@ -42,7 +42,8 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
 
       // Harness's proxy of the engine's config and provider reads never carries a key.
       // Including spellings the engine decodes to the same route: a viewer must not get a key by encoding a letter.
-      for (const path of ["/opencode/config", "/opencode/provider", "/opencode/%63onfig", "/opencode//config", "/opencode/%70rovider", "/opencode/config/%70roviders", "/opencode/global/%63onfig"]) {
+      for (const path of ["/opencode/config", "/opencode/provider", "/opencode/%63onfig", "/opencode//config", "/opencode/%70rovider", "/opencode/config/%70roviders", "/opencode/global/%63onfig",
+        "/opencode/CONFIG", "/opencode/Config", "/opencode/PROVIDER", "/opencode/pRoViDeR", "/opencode/config/PROVIDERS", "/opencode/config;a=b", "/opencode/config;", "/opencode/CoNfIg;x", "/opencode/provider;a", "/opencode/config/providers;a"]) {
         const response = await fetch(`${handle.url}${path}?${dir}`, { headers: { authorization: "Bearer client-token" } });
         expect(await response.text(), path).not.toContain(secretKey);
       }

@@ -69,6 +69,7 @@ import {
   isValidProviderId,
   listProviderKeyIds,
   readProviderKeys,
+  readProviderKeyValues,
   setProviderKey,
 } from "./provider-key-vault.js";
 import { ReloadEventStore } from "./events.js";
@@ -1887,7 +1888,7 @@ function protectProxiedSecrets(config: ServerConfig, method: string, proxyPath: 
   return redactProviderSecrets(response, {
     method,
     normalizedPath: normalizeOpencodeProxyPath(proxyPath),
-    loadSecrets: async () => Object.values(await readProviderKeys(config)),
+    loadSecrets: () => readProviderKeyValues(config),
   });
 }
 

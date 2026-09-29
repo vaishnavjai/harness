@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes, timingSafeEqual } from "node:crypto";
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import { localSecretVaultKey } from "./local-managed-mcp.js";
@@ -91,6 +91,28 @@ export async function readProviderKeys(config: ServerConfig): Promise<ProviderKe
   decipher.setAuthTag(Buffer.from(envelope.tag, "base64"));
   const plaintext = Buffer.concat([decipher.update(Buffer.from(envelope.data, "base64")), decipher.final()]).toString("utf8");
   return parseKeys(JSON.parse(plaintext));
+}
+
+const keyValueCache = new WeakMap<ServerConfig, { stamp: string; values: string[] }>();
+
+/**
+ * The stored key values, for scrubbing them out of responses. Cached until the
+ * vault file changes (every write replaces the file, so its identity changes).
+ */
+export async function readProviderKeyValues(config: ServerConfig): Promise<string[]> {
+  let stamp: string;
+  try {
+    const info = await stat(vaultPath(config));
+    stamp = `${info.ino}:${info.size}:${info.mtimeMs}`;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+  const cached = keyValueCache.get(config);
+  if (cached?.stamp === stamp) return cached.values;
+  const values = Object.values(await readProviderKeys(config));
+  keyValueCache.set(config, { stamp, values });
+  return values;
 }
 
 /** Provider ids that have a stored key. Never returns key material. */

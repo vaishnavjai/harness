@@ -31,7 +31,9 @@ export function canonicalEnginePath(path: string): string | null {
     current = decoded;
   }
   const parts: string[] = [];
-  for (const segment of current.split("/")) {
+  for (const raw of current.split("/")) {
+    // The engine ignores ";parameters" on a segment.
+    const segment = raw.split(";")[0] ?? "";
     if (!segment || segment === ".") continue;
     if (segment === "..") parts.pop();
     else parts.push(segment);
@@ -48,9 +50,10 @@ export function canonicalEnginePath(path: string): string | null {
 export function proxyPathCarriesCredentials(_method: string, path: string): boolean {
   const canonical = canonicalEnginePath(path);
   if (canonical === null) return true;
-  if (CREDENTIAL_BEARING_PATHS.has(canonical)) return true;
+  // The engine routes case-insensitively.
+  if (CREDENTIAL_BEARING_PATHS.has(canonical.toLowerCase())) return true;
   const plain = `/${(path ?? "").split(/[?#]/)[0]?.split("/").filter(Boolean).join("/") ?? ""}`;
-  return canonical !== plain || /%|\/\/|\/\.\.?(\/|$)/.test((path ?? "").split(/[?#]/)[0] ?? "");
+  return canonical !== plain || /%|;|\/\/|\/\.\.?(\/|$)/.test((path ?? "").split(/[?#]/)[0] ?? "");
 }
 
 function scrubString(value: string, secrets: readonly string[]): string {
@@ -61,36 +64,65 @@ function scrubString(value: string, secrets: readonly string[]): string {
   return next;
 }
 
-/** Redact by field name and by exact value, so a key is caught wherever the engine puts it. */
-export function redactSecretsDeep(value: unknown, secrets: readonly string[]): unknown {
+/**
+ * Redact by exact value, and (unless told not to) by field name, so a key is
+ * caught wherever the engine puts it. Field names are only safe to scrub on
+ * routes that are about credentials; elsewhere a "password" field can be data.
+ */
+export function redactSecretsDeep(value: unknown, secrets: readonly string[], options: { fieldNames?: boolean } = {}): unknown {
+  const byName = options.fieldNames !== false;
   if (typeof value === "string") return scrubString(value, secrets);
-  if (Array.isArray(value)) return value.map((item) => redactSecretsDeep(item, secrets));
+  if (Array.isArray(value)) return value.map((item) => redactSecretsDeep(item, secrets, options));
   if (typeof value !== "object" || value === null) return value;
   const result: Record<string, unknown> = {};
   for (const [name, item] of Object.entries(value)) {
-    result[name] = typeof item === "string" && item && SECRET_FIELD_NAME.test(name) ? REDACTED : redactSecretsDeep(item, secrets);
+    result[name] = byName && typeof item === "string" && item && SECRET_FIELD_NAME.test(name) ? REDACTED : redactSecretsDeep(item, secrets, options);
   }
   return result;
 }
 
-/** Returns the response unchanged unless it is a JSON read of a credential-bearing engine path. */
+/** application/json and application/*+json, but not streaming variants such as ndjson. */
+const JSON_CONTENT_TYPE = /^application\/(?:[\w.-]+\+)?json\b/i;
+
+function withheld(): Response {
+  return new Response(JSON.stringify({ error: "response withheld: could not be checked for credentials" }), {
+    status: 502,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Removes stored provider keys from a proxied engine response.
+ *
+ * Every JSON response is scrubbed by the exact key values, whatever the path:
+ * the engine decodes and normalises paths its own way (percent-escapes, case,
+ * ";" parameters), so a list of routes is a list of spellings to miss. Routes
+ * known to be about credentials are also scrubbed by field name. A response is
+ * only buffered when there is something to look for.
+ */
 export async function redactProviderSecrets(
   response: Response,
   input: { method: string; normalizedPath: string; loadSecrets: () => Promise<readonly string[]> },
 ): Promise<Response> {
-  if (!proxyPathCarriesCredentials(input.method, input.normalizedPath)) return response;
-  if (!response.ok || !(response.headers.get("content-type") ?? "").includes("json")) return response;
+  if (!JSON_CONTENT_TYPE.test(response.headers.get("content-type") ?? "")) return response;
+  const credentialRoute = proxyPathCarriesCredentials(input.method, input.normalizedPath);
+  let secrets: string[] = [];
+  try {
+    secrets = (await input.loadSecrets()).filter((secret) => secret.length >= MIN_SECRET_LENGTH);
+  } catch {
+    // An unreadable vault holds no keys to leak; on a credential route the output cannot be vouched for.
+    if (credentialRoute) return withheld();
+  }
+  if (!credentialRoute && secrets.length === 0) return response;
   const text = await response.text();
   const headers = new Headers(response.headers);
   headers.delete("content-length");
-  let body = text;
+  const init = { status: response.status, statusText: response.statusText, headers };
+  if (!credentialRoute && !secrets.some((secret) => text.includes(secret))) return new Response(text, init);
   try {
-    const secrets = (await input.loadSecrets()).filter((secret) => secret.length >= MIN_SECRET_LENGTH);
-    body = JSON.stringify(redactSecretsDeep(JSON.parse(text), secrets));
+    return new Response(JSON.stringify(redactSecretsDeep(JSON.parse(text), secrets, { fieldNames: credentialRoute })), init);
   } catch {
-    // Unparseable output cannot be inspected, so withhold it rather than risk a key.
-    body = JSON.stringify({ error: "response withheld: could not be checked for credentials" });
-    return new Response(body, { status: 502, headers: { "Content-Type": "application/json" } });
+    // Output that cannot be parsed cannot be inspected, so withhold it rather than risk a key.
+    return withheld();
   }
-  return new Response(body, { status: response.status, statusText: response.statusText, headers });
 }

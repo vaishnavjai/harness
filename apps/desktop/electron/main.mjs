@@ -57,7 +57,7 @@ import {
 } from "./connect-link-branding.mjs";
 import { resolveConnectLinkPublicKeys } from "./connect-link-keys.mjs";
 import { openExternalUrl } from "./open-external.mjs";
-import { checkOpenablePath } from "./external-open-policy.mjs";
+import { checkOpenablePath, isNetworkPath } from "./external-open-policy.mjs";
 import { resolveMainWindowSecurity } from "./main-window-security.mjs";
 import { installAppCsp } from "./content-security-policy.mjs";
 import { discoverOpenWithApps, isDiscoveredOpenWithApp } from "./open-with-apps.mjs";
@@ -2345,6 +2345,9 @@ const desktopCommandHandlers = {
       // file inside the real workspace launches; anything else is revealed, never run.
       const workspaceRoot = String(args[0] ?? "").trim();
       const target = String(args[1] ?? "").trim();
+      if (process.platform === "win32" && (isNetworkPath(target) || isNetworkPath(workspaceRoot))) {
+        return { ok: false, error: "Network paths are not opened from Harness." };
+      }
       const decision = await resolveWorkspaceFileLaunch(workspaceRoot, target);
       if (decision.ok === true) {
         // A file in the workspace may still be a program the agent wrote; those are shown, never run.
@@ -2366,6 +2369,7 @@ const desktopCommandHandlers = {
   "__revealItemInDir": async (event, ...args) => {
       const target = String(args[0] ?? "").trim();
       if (!target) return "Path is required.";
+      if (process.platform === "win32" && isNetworkPath(target)) return "Network paths are not opened from Harness.";
       if (existsSync(target)) {
         shell.showItemInFolder(target);
         return undefined;

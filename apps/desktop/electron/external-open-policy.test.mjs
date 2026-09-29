@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 
-import { checkExternalUrl, checkOpenablePath, effectiveExtension, isCodeLaunchingType } from "./external-open-policy.mjs";
+import { checkExternalUrl, checkOpenablePath, effectiveExtension, isCodeLaunchingType, isNetworkPath } from "./external-open-policy.mjs";
 
 describe("checkExternalUrl", () => {
   it("allows web and mail links and returns the normalised URL", () => {
@@ -144,6 +144,22 @@ describe("checkOpenablePath", () => {
         assert.equal((await checkOpenablePath(join(dir, "Makefile"))).ok, true);
       }
     });
+  });
+
+  it("never resolves a network path on Windows", async () => {
+    for (const value of ["\\\\attacker\\share\\x.txt", "//attacker/share/x.txt", "\\\\?\\UNC\\host\\share"]) {
+      assert.equal(isNetworkPath(value), true, value);
+    }
+    let touched = 0;
+    const result = await checkOpenablePath("\\\\attacker\\share\\x.txt", {
+      platform: /** @type {NodeJS.Platform} */ ("win32"),
+      realpath: async (value) => { touched += 1; return value; },
+      stat: async () => { touched += 1; throw new Error("no"); },
+    });
+    assert.equal(reasonOf(result), "invalid");
+    assert.equal(touched, 0);
+    assert.equal(isNetworkPath("C:\\work\\x.txt"), false);
+    assert.equal(isNetworkPath("/home/u/x.txt"), false);
   });
 
   it("rejects relative, empty and missing paths", async () => {
