@@ -36,6 +36,16 @@ command output or a linked report.
   - [ ] A `verify` command that checks the chain and the anchors.
   - [ ] Tamper test: rewrite the whole log locally and show verification fails.
 
+## From the OWASP assessment (`docs/owasp-assessment.md`)
+
+- [ ] **F1 (High):** allowlist schemes for `openExternal`; confine `openPath` to workspace and app folders and refuse executable types. Fix first.
+- [ ] F2: turn on `sandbox` for the main window if the preload does not need Node.
+- [ ] F3: upgrade `fast-uri`, `undici` and `ip-address` (2 high, 4 moderate).
+- [ ] F4: add a CSP to the app window.
+- [ ] F5: constant-time host-token comparison.
+- [ ] F6: JSON body size limit and general rate limiting.
+- [ ] F7: default CORS to the app's origin, not `*`.
+
 ## Also tracked (found during validation)
 
 - [ ] Windows database isolation is weaker (127.0.0.1 with a password only; Linux and macOS use a private socket). Look for a named pipe or a restricted ACL.
