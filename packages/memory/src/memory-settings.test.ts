@@ -62,6 +62,17 @@ describe("memory settings", () => {
     expect(() => parseMemorySettings({ port: 80 })).toThrow();
   });
 
+  test("drop trailing slashes from endpoints so Ollama's native /api/chat URL is built correctly", () => {
+    const settings = parseMemorySettings({
+      enabled: true,
+      llm: { provider: "ollama", baseUrl: "http://127.0.0.1:11434/v1/", model: "llama3.1:8b" },
+      embeddings: { baseUrl: " http://127.0.0.1:11434/v1// ", model: "nomic-embed-text" },
+    });
+    expect(settings.llm.baseUrl).toBe("http://127.0.0.1:11434/v1");
+    expect(settings.embeddings.baseUrl).toBe("http://127.0.0.1:11434/v1");
+    expect(buildModelEnvironment(settings, {}).HINDSIGHT_API_LLM_BASE_URL).toBe("http://127.0.0.1:11434/v1");
+  });
+
   test("embedding dimensions come from settings, then the known-model table", () => {
     expect(resolveEmbeddingDimensions(parseMemorySettings({ embeddings: { model: "nomic-embed-text:latest" } }))).toBe(768);
     expect(resolveEmbeddingDimensions(parseMemorySettings({ embeddings: { model: "custom", dimensions: 512 } }))).toBe(512);

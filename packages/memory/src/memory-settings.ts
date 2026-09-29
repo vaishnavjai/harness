@@ -59,7 +59,10 @@ const httpUrl = z
   .trim()
   .url()
   .refine((value) => ["http:", "https:"].includes(new URL(value).protocol), "Endpoint must use http or https")
-  .refine((value) => !new URL(value).username && !new URL(value).password, "Put credentials in the API key field, not the URL");
+  .refine((value) => !new URL(value).username && !new URL(value).password, "Put credentials in the API key field, not the URL")
+  // Hindsight decides how to reach Ollama's native API by testing whether the
+  // URL ends in "/v1"; with a trailing slash it appends /api/chat to ".../v1/".
+  .transform((value) => value.replace(/\/+$/, ""));
 
 const llmSchema = z.object({
   provider: z.enum(MEMORY_LLM_PROVIDERS).default("ollama"),
