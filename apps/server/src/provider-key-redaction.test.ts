@@ -130,6 +130,31 @@ describe("keys that are not in the vault", () => {
     expect(values.sort()).toEqual(["aws-secret-value-1", "ghp_from_env_00000", "hunter2hunter2", "sk-ant-from-env-0000"]);
   });
 
+  test("provider key variables that do not say API_KEY are collected too", () => {
+    const values = environmentSecretValues([
+      ["ABLIT_KEY", "ablit-key-value-0001"], ["CLARIFAI_PAT", "clarifai-pat-value-01"], ["AICORE_SERVICE_KEY", "aicore-service-key-01"], ["KEYMAP", "us-international-layout"], ["MONKEY", "banana-banana-banana"],
+    ]);
+    expect(values.sort()).toEqual(["ablit-key-value-0001", "aicore-service-key-01", "clarifai-pat-value-01"]);
+  });
+
+  test("variables that hold a location are not treated as keys", () => {
+    const values = environmentSecretValues([
+      ["CLAUDE_SESSION_INGRESS_TOKEN_FILE", "session-ingress-token-file-name"], ["GOOGLE_APPLICATION_CREDENTIALS", "/home/someone/service-account.json"], ["AWS_SHARED_CREDENTIALS_FILE", "credentials-file-name"],
+      ["PASSWORD_STORE_DIR", "password-store-directory"], ["PIP_INDEX_TOKEN_URL", "index-token-url-value"], ["WIN_CREDENTIAL", "C:\\Users\\someone\\cred.json"], ["PROXY_TOKEN", "https://user@proxy.example/token"],
+    ]);
+    expect(values).toEqual([]);
+  });
+
+  test("an unreadable vault still scrubs the keys that are known elsewhere on ordinary routes", async () => {
+    const envKey = "ablit-key-value-0001";
+    const failing = async () => { throw new Error("vault unreadable"); };
+    const ordinary = new Response(JSON.stringify({ text: `printenv says ${envKey}` }), { headers: { "content-type": "application/json" } });
+    const text = await (await redactProviderSecrets(ordinary, { method: "GET", normalizedPath: "/session/x/message", loadSecrets: failing, loadFallbackSecrets: async () => [envKey] })).text();
+    expect(text).not.toContain(envKey);
+    const credential = new Response('{"x":1}', { headers: { "content-type": "application/json" } });
+    expect((await redactProviderSecrets(credential, { method: "GET", normalizedPath: "/config", loadSecrets: failing, loadFallbackSecrets: async () => [envKey] })).status).toBe(502);
+  });
+
   test("an environment key is scrubbed from any JSON route by value", async () => {
     const envKey = "sk-ant-from-env-0000";
     const response = new Response(JSON.stringify({ messages: [{ text: `use ${envKey} for it` }] }), { headers: { "content-type": "application/json" } });

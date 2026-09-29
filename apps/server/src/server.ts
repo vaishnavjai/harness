@@ -1888,13 +1888,17 @@ function protectProxiedSecrets(config: ServerConfig, method: string, proxyPath: 
   return redactProviderSecrets(response, {
     method,
     normalizedPath: normalizeOpencodeProxyPath(proxyPath),
-    loadSecrets: async () => [
-      ...(await readProviderKeyValues(config)),
-      // Keys also reach the engine as environment variables (the process's own and the user's env store).
-      ...environmentSecretValues(Object.entries(process.env)),
-      ...environmentSecretValues((await envServiceForConfig(config)?.list() ?? []).map((record) => [record.key, record.value] as const)),
-    ],
+    loadSecrets: async () => [...(await readProviderKeyValues(config)), ...(await loadEnvironmentSecrets(config))],
+    loadFallbackSecrets: () => loadEnvironmentSecrets(config),
   });
+}
+
+/** Keys also reach the engine as environment variables (the process's own and the user's env store). */
+async function loadEnvironmentSecrets(config: ServerConfig): Promise<string[]> {
+  return [
+    ...environmentSecretValues(Object.entries(process.env)),
+    ...environmentSecretValues((await envServiceForConfig(config)?.list() ?? []).map((record) => [record.key, record.value] as const)),
+  ];
 }
 
 function isEngineEventPath(proxyPath: string): boolean {

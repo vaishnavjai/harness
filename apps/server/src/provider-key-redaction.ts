@@ -12,7 +12,11 @@ const CREDENTIAL_BEARING_PATHS = new Set(["/config", "/config/providers", "/prov
 const SECRET_FIELD_NAME = /^(key|api[-_]?key|token|access[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password|authorization|credentials?)$/i;
 
 /** Environment variable names that hold a credential. Plain "AUTH" is left out: SSH_AUTH_SOCK is a path. */
-const CREDENTIAL_ENV_NAME = /(api[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|credential)/i;
+// Providers name their key variable in many ways (ANTHROPIC_API_KEY, ABLIT_KEY, CLARIFAI_PAT), so a trailing _KEY or _PAT counts too.
+const CREDENTIAL_ENV_NAME = /(api[_-]?key|access[_-]?key|secret|token|passw(?:or)?d|credential|(?:^|[_-])(?:key|pat)$)/i;
+// A variable that names a place (TOKEN_FILE, GOOGLE_APPLICATION_CREDENTIALS_DIR) holds a location, not a credential.
+const LOCATION_ENV_NAME = /(?:^|[_-])(?:file|dir|path|url|uri|host|endpoint)$/i;
+const LOCATION_VALUE = /^(?:\/|~|[A-Za-z]:[\\/])|:\/\//;
 
 /**
  * The values of credential-named environment variables. Provider keys reach
@@ -22,7 +26,10 @@ const CREDENTIAL_ENV_NAME = /(api[_-]?key|access[_-]?key|secret|token|passw(?:or
 export function environmentSecretValues(entries: Iterable<readonly [string, string | undefined]>): string[] {
   const values = new Set<string>();
   for (const [name, value] of entries) {
-    if (value && value.length >= MIN_SECRET_LENGTH && CREDENTIAL_ENV_NAME.test(name)) values.add(value);
+    if (!value || value.length < MIN_SECRET_LENGTH || !CREDENTIAL_ENV_NAME.test(name)) continue;
+    // Blanking a path or URL from every response would corrupt ordinary output for no gain.
+    if (LOCATION_ENV_NAME.test(name) || LOCATION_VALUE.test(value)) continue;
+    values.add(value);
   }
   return [...values];
 }
@@ -119,7 +126,13 @@ function withheld(): Response {
  */
 export async function redactProviderSecrets(
   response: Response,
-  input: { method: string; normalizedPath: string; loadSecrets: () => Promise<readonly string[]> },
+  input: {
+    method: string;
+    normalizedPath: string;
+    loadSecrets: () => Promise<readonly string[]>;
+    /** Keys still worth scrubbing when `loadSecrets` fails (for example the environment's, when the vault cannot be read). */
+    loadFallbackSecrets?: () => Promise<readonly string[]>;
+  },
 ): Promise<Response> {
   if (!JSON_CONTENT_TYPE.test(response.headers.get("content-type") ?? "")) return response;
   // A response with no body cannot carry a key, and a Response with one of these statuses cannot be rebuilt with a body.
@@ -129,8 +142,9 @@ export async function redactProviderSecrets(
   try {
     secrets = (await input.loadSecrets()).filter((secret) => secret.length >= MIN_SECRET_LENGTH);
   } catch {
-    // An unreadable vault holds no keys to leak; on a credential route the output cannot be vouched for.
+    // On a credential route the output cannot be vouched for; elsewhere, scrub with whatever keys are still known.
     if (credentialRoute) return withheld();
+    secrets = (await (input.loadFallbackSecrets?.() ?? Promise.resolve([])).catch(() => [])).filter((secret) => secret.length >= MIN_SECRET_LENGTH);
   }
   if (!credentialRoute && secrets.length === 0) return response;
   const text = await response.text();
