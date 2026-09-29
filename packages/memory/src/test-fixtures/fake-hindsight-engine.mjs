@@ -59,10 +59,15 @@ if (mode === "crash-once-after-ready" && process.env.FAKE_ENGINE_CRASH_MARKER) {
   }
 }
 
+// Stalls before listening, as an engine blocked on a dependency would.
+if (mode === "never-ready" && !process.env.FAKE_ENGINE_QUIET) console.log("loading the embeddings model");
+
 const bootDelay = mode === "slow-boot" ? 400 : 0;
-setTimeout(() => {
-  server.listen(port, host, () => console.log(`fake engine listening on ${host}:${port}`));
-}, bootDelay);
+if (mode !== "never-ready") {
+  setTimeout(() => {
+    server.listen(port, host, () => console.log(`fake engine listening on ${host}:${port}`));
+  }, bootDelay);
+}
 
 // The orphan guard: EOF on the supervisor's pipe means the parent is gone.
 process.stdin.on("data", () => undefined);

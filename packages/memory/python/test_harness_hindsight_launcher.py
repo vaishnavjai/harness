@@ -5,6 +5,7 @@ Run with: python -m unittest discover -s packages/memory/python
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import shlex
 import socket
@@ -109,6 +110,94 @@ class GuardedSocketTests(unittest.TestCase):
         self.assertEqual(result.stdout.strip(), "disabled", result.stderr)
 
 
+class OrphanGuardTests(unittest.TestCase):
+    """The stdin watcher must notice a closed supervisor pipe without ever blocking a read on it."""
+
+    CHILD = (
+        "import os, signal, sys, time\n"
+        "sys.path.insert(0, %r)\n"
+        "import harness_hindsight_launcher as l\n"
+        "signal.signal(signal.SIGINT, lambda *a: os._exit(0))\n"
+        "signal.signal(signal.SIGTERM, lambda *a: os._exit(0))\n"
+        "l.install_orphan_guard()\n"
+        "%s\n"
+        "print('loaded', flush=True)\n"
+        "time.sleep(60)\n"
+    )
+
+    def start_child(self, body: str = "") -> subprocess.Popen[str]:
+        program = self.CHILD % (str(Path(__file__).resolve().parent), body)
+        env = {**os.environ, "HARNESS_MEMORY_PARENT_WATCH": "stdin", "HARNESS_MEMORY_SHUTDOWN_GRACE_S": "10"}
+        child = subprocess.Popen(
+            [sys.executable, "-c", program], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, env=env,
+        )
+        self.addCleanup(self.reap, child)
+        return child
+
+    @staticmethod
+    def reap(child: subprocess.Popen[str]) -> None:
+        child.kill()
+        child.wait(timeout=20)
+        for stream in (child.stdin, child.stdout, child.stderr):
+            if stream:
+                stream.close()
+
+    def loaded(self, child: subprocess.Popen[str], timeout: float = 20) -> None:
+        """Wait for the child to report it finished loading; fail rather than hang."""
+        line: list[str] = []
+        reader = threading.Thread(target=lambda: line.append(child.stdout.readline().strip()), daemon=True)
+        reader.start()
+        reader.join(timeout)
+        self.assertEqual(line, ["loaded"], f"the child did not finish loading within {timeout}s")
+
+    def test_shuts_down_when_the_supervisor_closes_the_pipe(self) -> None:
+        child = self.start_child()
+        self.loaded(child)
+        time.sleep(0.6)
+        self.assertIsNone(child.poll(), "the engine must stay up while the supervisor holds the pipe")
+        child.stdin.close()
+        self.assertEqual(child.wait(timeout=20), 0)
+        self.assertIn("supervisor pipe closed", child.stderr.read())
+
+    def test_data_written_to_the_pipe_is_not_a_shutdown(self) -> None:
+        child = self.start_child()
+        self.loaded(child)
+        child.stdin.write("x" * 10_000)
+        child.stdin.flush()
+        time.sleep(0.8)
+        self.assertIsNone(child.poll())
+
+    @unittest.skipUnless(importlib.util.find_spec("numpy"), "needs numpy, whose native extensions the hang showed up on")
+    @unittest.skipUnless(sys.platform == "win32", "a blocked pipe read only stalls the loader on Windows")
+    def test_loading_native_extensions_is_not_blocked_by_the_watcher(self) -> None:
+        # A blocking stdin read on another thread once made `import numpy` wait
+        # until the pipe closed, so the engine never started.
+        child = self.start_child("time.sleep(0.5); import numpy")
+        self.loaded(child, timeout=20)
+        self.assertIsNone(child.poll())
+
+
+class Utf8OutputTests(unittest.TestCase):
+    def test_piped_output_survives_characters_the_ansi_code_page_lacks(self) -> None:
+        # Hindsight prints a banner drawn with U+2584; cp1252 cannot encode it.
+        program = (
+            "import sys; sys.path.insert(0, %r)\n"
+            "import harness_hindsight_launcher as l\n"
+            "l.use_utf8_output()\n"
+            "print('\\u2584 banner')\n"
+            "print('\\u2584 log', file=sys.stderr)\n" % str(Path(__file__).resolve().parent)
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", program], capture_output=True, timeout=30,
+            env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", "replace"))
+        self.assertEqual(result.stdout.decode("utf-8").strip(), "▄ banner")
+        self.assertEqual(result.stderr.decode("utf-8").strip(), "▄ log")
+
+
+@unittest.skipIf(sys.platform == "win32", "closes POSIX descriptors; the launcher does nothing on Windows")
 class InheritedDescriptorTests(unittest.TestCase):
     def test_closes_descriptors_the_parent_leaked(self):
         import socket
@@ -201,7 +290,7 @@ class PrivatePostgresOptionTests(unittest.TestCase):
                     os.environ[name] = value
         self.assertNotIn("PGHOST", env)
         self.assertEqual(env["PGPASSWORD"], "secret")
-        self.assertEqual(env["LD_LIBRARY_PATH"], f"/install/lib{os.pathsep}/opt/lib")
+        self.assertEqual(env["LD_LIBRARY_PATH"], f"{os.path.join('/install', 'lib')}{os.pathsep}/opt/lib")
         self.assertNotIn("PGPASSWORD", launcher.postgres_environment("/install"))
 
     def test_installation_needs_pgvector_and_matches_the_cluster_version(self) -> None:

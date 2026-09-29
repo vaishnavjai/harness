@@ -27,7 +27,8 @@ async function tempDir(): Promise<string> {
 }
 
 interface FakeOptions {
-  mode?: "normal" | "crash-on-boot" | "slow-boot" | "crash-once-after-ready";
+  mode?: "normal" | "crash-on-boot" | "slow-boot" | "crash-once-after-ready" | "never-ready";
+  readyTimeoutMs?: number;
   port?: number;
   allowPortFallback?: boolean;
   baseEnv?: NodeJS.ProcessEnv;
@@ -57,7 +58,7 @@ async function fakeSupervisor(options: FakeOptions = {}) {
     settings: parseMemorySettings({ enabled: true, port: options.port ?? 18_990 }),
     allowPortFallback: options.allowPortFallback ?? true,
     baseEnv: options.baseEnv ?? process.env,
-    readyTimeoutMs: 15_000,
+    readyTimeoutMs: options.readyTimeoutMs ?? 15_000,
     stopTimeoutMs: 5_000,
     installExitHooks: options.installExitHooks ?? false,
     ...(options.handleSignals === undefined ? {} : { handleSignals: options.handleSignals }),
@@ -146,8 +147,12 @@ describe("HindsightSupervisor", () => {
     const databaseUrl = new URL(String(env.HINDSIGHT_API_DATABASE_URL).replace(/^pg0:/, "http:"));
     expect(databaseUrl.username).toBe("hindsight");
     expect(databaseUrl.password).not.toBe("hindsight");
-    expect(databaseUrl.searchParams.get("unix_socket_directories")).toBe(join(dataDir, "run"));
-    expect(databaseUrl.searchParams.get("unix_socket_permissions")).toBe("0700");
+    if (process.platform === "win32") {
+      expect(databaseUrl.searchParams.has("unix_socket_directories")).toBe(false);
+    } else {
+      expect(databaseUrl.searchParams.get("unix_socket_directories")).toBe(join(dataDir, "run"));
+      expect(databaseUrl.searchParams.get("unix_socket_permissions")).toBe("0700");
+    }
     expect(env.HARNESS_MEMORY_PG_DATA_DIR).toBe(join(dataDir, "postgres"));
     expect(env.HOME).toBe(join(dataDir, "home"));
     expect(env.HARNESS_MEMORY_EGRESS_ALLOW).toBe("");
@@ -203,6 +208,31 @@ describe("HindsightSupervisor", () => {
     await expect(supervisor.start()).rejects.toThrow("could not initialise the database");
     expect(supervisor.status().state).toBe("failed");
     expect(supervisor.status().lastError).toContain("code 7");
+  });
+
+  test("puts the engine's recent output in the error when it never becomes ready", async () => {
+    const { supervisor } = await fakeSupervisor({ mode: "never-ready", readyTimeoutMs: 1_500 });
+    const error = await supervisor.start().then(() => null, (reason: Error) => reason);
+    expect(error?.message).toContain("did not become ready within 2s:\nloading the embeddings model");
+    expect(supervisor.status().lastError).toContain("loading the embeddings model");
+    expect(supervisor.status().state).toBe("failed");
+  });
+
+  test("says so when the engine printed nothing before the ready timeout", async () => {
+    const { supervisor } = await fakeSupervisor({
+      mode: "never-ready",
+      readyTimeoutMs: 1_500,
+      launchEnv: { FAKE_ENGINE_QUIET: "1" },
+    });
+    await expect(supervisor.start()).rejects.toThrow("did not become ready within 2s (the engine printed no output)");
+  });
+
+  test("asks for a Unix socket on POSIX only: Windows serves on loopback and a long socket path would stop Postgres", () => {
+    const long = join("C:", "Users", "someone-with-a-very-long-name", "AppData", "Roaming", "com.example.harness", "data", "hindsight", "run");
+    const posix = new URL(HindsightSupervisor.embeddedDatabaseUrl("pw", "/run/x", "linux").replace(/^pg0:/, "http:"));
+    expect(posix.searchParams.get("unix_socket_directories")).toBe("/run/x");
+    expect(posix.searchParams.get("unix_socket_permissions")).toBe("0700");
+    expect(HindsightSupervisor.embeddedDatabaseUrl("pw", long, "win32")).toBe("pg0://hindsight:pw@harness-memory");
   });
 
   test("exit hooks signal the engine tree and keep default signal semantics", async () => {

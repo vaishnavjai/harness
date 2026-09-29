@@ -237,11 +237,58 @@ def request_shutdown(reason: str) -> None:
         os._exit(3)
 
 
+ERROR_BROKEN_PIPE = 109
+ERROR_NO_DATA = 232
+STDIN_POLL_S = 0.25
+
+
+def stdin_pipe_closed_windows(poll_s: float = STDIN_POLL_S) -> bool:
+    """Block until the supervisor's end of the stdin pipe closes, without reading it.
+
+    A thread parked in a blocking read on a synchronous Windows pipe handle
+    serializes every other operation on that handle, and the loader queries the
+    standard handles while loading native extensions: ``import numpy`` then
+    hangs until the pipe closes, so the engine never starts. Polling with
+    PeekNamedPipe never holds the handle. Returns False when stdin is not a
+    pipe (a console, a file), which says nothing about the supervisor.
+    """
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.PeekNamedPipe.argtypes = [
+        wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+    ]
+    kernel32.PeekNamedPipe.restype = wintypes.BOOL
+    try:
+        handle = msvcrt.get_osfhandle(0)
+    except OSError:
+        return False
+    while not _shutdown_started.is_set():
+        available = wintypes.DWORD(0)
+        if not kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
+            return ctypes.get_last_error() in (ERROR_BROKEN_PIPE, ERROR_NO_DATA)
+        if available.value:
+            try:
+                os.read(0, min(available.value, 4096))  # data is waiting: returns at once
+            except OSError:
+                return True
+        else:
+            time.sleep(poll_s)
+    return False
+
+
 def install_orphan_guard() -> None:
     watch = {part.strip() for part in env("HARNESS_MEMORY_PARENT_WATCH").split(",") if part.strip()}
     if "stdin" in watch:
 
         def watch_stdin() -> None:
+            if sys.platform == "win32":
+                if stdin_pipe_closed_windows():
+                    request_shutdown("supervisor pipe closed")
+                return
             try:
                 while sys.stdin.buffer.read(4096):
                     pass
@@ -514,7 +561,22 @@ def close_inherited_descriptors() -> None:
         return
 
 
+def use_utf8_output() -> None:
+    """Windows encodes piped stdout/stderr with the ANSI code page (cp1252).
+
+    Hindsight prints a Unicode banner at startup, and a UnicodeEncodeError there
+    kills the engine before it listens. POSIX already defaults to UTF-8.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main() -> None:
+    if sys.platform == "win32":
+        use_utf8_output()
     close_inherited_descriptors()
     host = env("HINDSIGHT_API_HOST", LOOPBACK_HOST)
     if host != LOOPBACK_HOST:

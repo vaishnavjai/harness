@@ -349,10 +349,17 @@ export class HindsightSupervisor {
     }
   }
 
-  /** The pg0 URL: private credentials, and a Unix socket only this OS user can reach. */
-  static embeddedDatabaseUrl(password: string, socketDir: string): string {
+  /**
+   * The pg0 URL: private credentials, and a Unix socket only this OS user can
+   * reach. Windows serves on 127.0.0.1 instead and nothing connects over a
+   * socket there, but Postgres would still refuse to start when the socket path
+   * exceeds 107 bytes (a long profile path), so no socket is requested.
+   */
+  static embeddedDatabaseUrl(password: string, socketDir: string, platform: NodeJS.Platform = process.platform): string {
+    const base = `pg0://${EMBEDDED_DATABASE_USER}:${password}@${EMBEDDED_DATABASE_INSTANCE}`;
+    if (platform === "win32") return base;
     const settings = new URLSearchParams({ unix_socket_directories: socketDir, unix_socket_permissions: "0700" });
-    return `pg0://${EMBEDDED_DATABASE_USER}:${password}@${EMBEDDED_DATABASE_INSTANCE}?${settings.toString()}`;
+    return `${base}?${settings.toString()}`;
   }
 
   private buildEnvironment(port: number, token: string, databasePassword: string): NodeJS.ProcessEnv {
@@ -376,7 +383,7 @@ export class HindsightSupervisor {
       HINDSIGHT_API_HOST: LOOPBACK_HOST,
       HINDSIGHT_API_PORT: String(port),
       HINDSIGHT_API_LOG_LEVEL: "info",
-      HINDSIGHT_API_DATABASE_URL: HindsightSupervisor.embeddedDatabaseUrl(databasePassword, join(this.options.dataDir, DATABASE_SOCKET_DIR)),
+      HINDSIGHT_API_DATABASE_URL: HindsightSupervisor.embeddedDatabaseUrl(databasePassword, join(this.options.dataDir, DATABASE_SOCKET_DIR), this.platform),
       HINDSIGHT_API_TENANT_EXTENSION: "hindsight_api.extensions.builtin.tenant:ApiKeyTenantExtension",
       HINDSIGHT_API_TENANT_API_KEY: token,
       HARNESS_MEMORY_PG_DATA_DIR: this.pgDataDir,
@@ -454,10 +461,7 @@ export class HindsightSupervisor {
     child.once("exit", onExit);
     try {
       while (Date.now() < deadline) {
-        if (exited) {
-          const tail = this.recentLogs.slice(-8).join("\n");
-          throw new Error(`the engine ${exited} before becoming ready${tail ? `:\n${tail}` : ""}`);
-        }
+        if (exited) throw new Error(`the engine ${exited} before becoming ready${this.logTail()}`);
         // /health turns 200 only after migrations ran and the database answers.
         if (await client.health()) {
           await client.listBanks(); // proves the bearer token is enforced and accepted
@@ -465,10 +469,18 @@ export class HindsightSupervisor {
         }
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
-      throw new Error(`the engine did not become ready within ${Math.round(this.options.readyTimeoutMs / 1000)}s`);
+      throw new Error(
+        `the engine did not become ready within ${Math.round(this.options.readyTimeoutMs / 1000)}s${this.logTail() || " (the engine printed no output)"}`,
+      );
     } finally {
       child.off("exit", onExit);
     }
+  }
+
+  /** The engine's latest output, ready to append to an error; empty when it printed nothing. */
+  private logTail(): string {
+    const tail = this.recentLogs.slice(-8).join("\n");
+    return tail ? `:\n${tail}` : "";
   }
 
   private handleExit(child: ChildProcess, code: number | null, signal: NodeJS.Signals | null): void {
