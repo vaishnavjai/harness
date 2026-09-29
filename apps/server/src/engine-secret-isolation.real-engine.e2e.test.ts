@@ -41,10 +41,10 @@ describe.skipIf(!opencodeBin)("Harness credentials with the real engine", () => 
       expect((await engine("/instance/dispose", { method: "POST" })).ok).toBe(true);
 
       // Harness's proxy of the engine's config and provider reads never carries a key.
-      for (const path of ["/opencode/config", "/opencode/provider"]) {
+      // Including spellings the engine decodes to the same route: a viewer must not get a key by encoding a letter.
+      for (const path of ["/opencode/config", "/opencode/provider", "/opencode/%63onfig", "/opencode//config", "/opencode/%70rovider", "/opencode/config/%70roviders", "/opencode/global/%63onfig"]) {
         const response = await fetch(`${handle.url}${path}?${dir}`, { headers: { authorization: "Bearer client-token" } });
-        expect(response.status).toBe(200);
-        expect(await response.text()).not.toContain(secretKey);
+        expect(await response.text(), path).not.toContain(secretKey);
       }
       // The engine's own API refuses anyone without its password.
       expect((await fetch(`${engineUrl}/config?${dir}`)).status).toBe(401);

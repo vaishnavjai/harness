@@ -69,6 +69,23 @@ Not compliant with either standard, and one finding is high severity.
 
 **F9 (Info, fixed for privileged channels).** The 13 `harness:` IPC handlers did not check their sender. They are now registered through `ipc-trust.mjs`, so only the main window's main frame can call them; anything else is rejected, or receives a harmless default for the synchronous channels. A test fails if a new `harness:` channel is registered without the wrapper. The browser panel's own channels use a separate preload and are unchanged.
 
+## Verification loop, round 2 (HEAD `b689f6e`)
+
+The independent security validator broke three of the fixes above. All three are fixed, with tests.
+
+- **Key redaction bypass (blocking).** The proxy matched the raw path, but the engine decodes it: `GET /opencode/%63onfig`, `//config`, `/%70rovider` and `/config/%70roviders` returned the plaintext key, also to a read-only viewer token. Fixed: the path is decoded (repeatedly), slashes collapsed and dot segments resolved before matching; any path that does not decode to itself is scrubbed as well, and every HTTP method on those routes is covered. The real-engine test now requests the disguised paths and fails against the old matcher. Residual: only JSON responses are scrubbed, not event streams.
+- **Reveal fallback (blocking).** `__revealItemInDir` opened the parent of a missing file without the F1 check, so `payload.sh/missing` opened the script. It now goes through `checkOpenablePath` and requires a real folder.
+- **Leading-dot names on Windows (blocking).** `.bat`, `.exe`, `.lnk` and similar have an empty extension to `path.extname`, so they passed. A leading-dot name now carries that extension. More types added (`rdp`, `jnlp`, `pyz`, `wsc`, `xbap`, `vsto`, `website` and others).
+- **Also fixed:** the browser panel's "open externally" now goes through the same URL check; `file://host/share` links are refused (they would start an SMB request on Windows); the UI-control discovery file holding a token is written 0600.
+- **Launcher (backend validator).** `signal.raise_signal` from the watcher thread does not wake a main thread parked in a long wait, so graceful shutdown could wait for the 20 second hard-exit timer and leave Postgres behind. On POSIX the launcher now signals the process (`os.kill`), with a regression test that fails on the old launcher. Its own orphan-guard test had the same flaw and failed on Linux; fixed.
+
+Still open, recorded rather than fixed:
+- Only shells and terminals get the credentials emptied. Other engine children (local MCP servers, language servers, formatters) still inherit `OPENCODE_SERVER_PASSWORD` and `HARNESS_SERVER_TOKEN`.
+- About 90 other `harness:` IPC channels (updater, browser logins, recovery, migration) still use raw `ipcMain`, some with their own sender checks. No path from a non-main frame was found.
+- On `file://`, CSP `'self'` matches every `file:` URL in Chromium; a custom protocol for the app would close that.
+- The code-type check is a denylist. An allowlist of safe document types would be stronger. `mailto:` links pass any query string.
+- On Windows the launcher's orphan guard quietly turns off if stdin is not a pipe.
+
 ## OWASP Top 10 for LLM apps
 
 | Risk | Status |

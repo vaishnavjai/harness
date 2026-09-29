@@ -60,7 +60,9 @@ const LAUNCHES_CODE = new Set([
   "osax", "prefpane", "saver", "service", "qlgenerator", "bundle", "framework", "kext", "webloc", "inetloc",
   // Linux and scripting languages that a default program association may run
   "sh", "bash", "zsh", "csh", "ksh", "fish", "run", "appimage", "desktop", "deb", "rpm", "bin", "out", "elf", "so",
-  "py", "pyw", "pl", "rb", "php",
+  "py", "pyw", "pyz", "pl", "rb", "php",
+  // Also run or connect things when opened
+  "rdp", "jnlp", "wsc", "shs", "msh", "msh1", "msh2", "mshxml", "xbap", "vsto", "job", "website", "pyc", "pyo",
 ]);
 
 /**
@@ -72,7 +74,8 @@ const LAUNCHES_CODE = new Set([
 export function effectiveExtension(filePath) {
   const name = path.basename(String(filePath)).replace(/[. ]+$/, "");
   const index = name.lastIndexOf(".");
-  return index <= 0 ? "" : name.slice(index + 1).toLowerCase();
+  // A name that is only a dot and an extension (".bat") still carries that extension for the operating system.
+  return index < 0 ? "" : name.slice(index + 1).toLowerCase();
 }
 
 /** @param {string} filePath */

@@ -5,7 +5,7 @@
 
 export const REDACTED = "[redacted]";
 
-/** Engine reads whose JSON can carry provider credentials. */
+/** Engine routes whose JSON can carry provider credentials, whatever the HTTP method. */
 const CREDENTIAL_BEARING_PATHS = new Set(["/config", "/config/providers", "/provider", "/global/config"]);
 
 const SECRET_FIELD_NAME = /^(api[-_]?key|access[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password)$/i;
@@ -13,9 +13,44 @@ const SECRET_FIELD_NAME = /^(api[-_]?key|access[-_]?token|refresh[-_]?token|clie
 /** Short strings would match innocent text; real keys are longer than this. */
 const MIN_SECRET_LENGTH = 8;
 
-export function proxyPathCarriesCredentials(method: string, normalizedPath: string): boolean {
-  const verb = method.toUpperCase();
-  return (verb === "GET" || verb === "HEAD") && CREDENTIAL_BEARING_PATHS.has(normalizedPath);
+/**
+ * The path the engine will route: percent-escapes decoded (repeatedly, in case
+ * of double encoding), repeated and trailing slashes collapsed, dot segments
+ * resolved. Returns null when the path cannot be decoded.
+ */
+export function canonicalEnginePath(path: string): string | null {
+  let current = (path ?? "").split(/[?#]/)[0] ?? "";
+  for (let round = 0; round < 4; round += 1) {
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(current);
+    } catch {
+      return null;
+    }
+    if (decoded === current) break;
+    current = decoded;
+  }
+  const parts: string[] = [];
+  for (const segment of current.split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") parts.pop();
+    else parts.push(segment);
+  }
+  return `/${parts.join("/")}`;
+}
+
+/**
+ * Whether the response to this request must be scrubbed. The engine decodes
+ * and normalises the path itself, so matching the raw spelling would miss
+ * `/%63onfig` or `//config`. Any path that does not decode to itself is
+ * treated as credential-bearing: scrubbing an innocent response costs nothing.
+ */
+export function proxyPathCarriesCredentials(_method: string, path: string): boolean {
+  const canonical = canonicalEnginePath(path);
+  if (canonical === null) return true;
+  if (CREDENTIAL_BEARING_PATHS.has(canonical)) return true;
+  const plain = `/${(path ?? "").split(/[?#]/)[0]?.split("/").filter(Boolean).join("/") ?? ""}`;
+  return canonical !== plain || /%|\/\/|\/\.\.?(\/|$)/.test((path ?? "").split(/[?#]/)[0] ?? "");
 }
 
 function scrubString(value: string, secrets: readonly string[]): string {

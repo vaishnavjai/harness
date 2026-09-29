@@ -44,6 +44,21 @@ describe("what counts as code", () => {
     }
   });
 
+  it("treats a name that is only a dot and an extension as having that extension", () => {
+    for (const name of [".bat", ".cmd", ".exe", ".lnk", ".ps1", "C:\\work\\.bat", "/w/.sh"]) {
+      assert.equal(isCodeLaunchingType(name), true, name);
+    }
+    assert.equal(effectiveExtension(".gitignore"), "gitignore");
+    assert.equal(isCodeLaunchingType(".gitignore"), false);
+    assert.equal(isCodeLaunchingType(".env"), false);
+  });
+
+  it("knows the less common types that run or connect when opened", () => {
+    for (const name of ["a.rdp", "a.jnlp", "a.pyz", "a.wsc", "a.shs", "a.msh", "a.xbap", "a.vsto", "a.website"]) {
+      assert.equal(isCodeLaunchingType(name), true, name);
+    }
+  });
+
   it("sees through the trailing dots and spaces Windows ignores", () => {
     assert.equal(effectiveExtension("payload.exe."), "exe");
     assert.equal(effectiveExtension("payload.exe  "), "exe");
@@ -90,6 +105,16 @@ describe("checkOpenablePath", () => {
         assert.equal(reasonOf(result), "unsafe-type");
         assert.ok(result.path);
       }
+    });
+  });
+
+  it("refuses a path under a program, which is what a reveal fallback would open", async () => {
+    await scratch(async (dir) => {
+      await writeFile(join(dir, "payload.sh"), "x");
+      const result = await checkOpenablePath(join(dir, "payload.sh"));
+      assert.equal(reasonOf(result), "unsafe-type");
+      await mkdir(join(dir, "Tool.app"));
+      assert.equal(reasonOf(await checkOpenablePath(join(dir, "Tool.app"))), "unsafe-type");
     });
   });
 

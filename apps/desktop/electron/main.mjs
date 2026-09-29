@@ -3,7 +3,7 @@ import { DESKTOP_POLICY_ENFORCEMENT_ENABLED } from "@harness/types/den/desktop-p
 import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import net from "node:net";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import {
   cp,
   mkdir,
@@ -2372,10 +2372,16 @@ const desktopCommandHandlers = {
       }
       // The exact file may not exist yet (or path is slightly off); fall back to
       // opening the containing directory so the user still lands in the right place.
+      // Only a real folder is opened, and only through the same check as any
+      // other open: a missing file under a program or an app bundle must not
+      // turn into launching that program.
       const parent = path.dirname(target);
       if (parent && parent !== target && existsSync(parent)) {
-        const error = await shell.openPath(parent);
-        return error && error.trim() ? error : undefined;
+        const openable = await checkOpenablePath(parent);
+        if (openable.ok === true && statSync(openable.path).isDirectory()) {
+          const error = await shell.openPath(openable.path);
+          return error && error.trim() ? error : undefined;
+        }
       }
       return `Could not find "${target}" on disk.`;
   },
@@ -2757,6 +2763,10 @@ async function createMainWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith("file://")) {
       try {
+        // file://host/share/x names a network share on Windows; touching it
+        // would start an SMB request to that host. Only this computer's paths open.
+        const { hostname } = new URL(url);
+        if (hostname && hostname !== "localhost") throw new Error("remote file link");
         const localPath = fileURLToPath(url);
         runDetachedTask("open local file", () => openPathGuarded(localPath));
       } catch {

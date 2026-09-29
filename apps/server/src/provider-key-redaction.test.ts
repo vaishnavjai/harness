@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { REDACTED, proxyPathCarriesCredentials, redactProviderSecrets, redactSecretsDeep } from "./provider-key-redaction.js";
+import { REDACTED, canonicalEnginePath, proxyPathCarriesCredentials, redactProviderSecrets, redactSecretsDeep } from "./provider-key-redaction.js";
 
 const KEY = "sk-live-0123456789abcdef";
 
@@ -20,12 +20,34 @@ describe("provider key redaction", () => {
     expect(text).toContain('"untouched":3');
   });
 
-  test("only credential-bearing reads are inspected", () => {
-    for (const path of ["/config", "/config/providers", "/provider", "/global/config"]) {
+  test("credential-bearing routes are inspected for any method", () => {
+    for (const path of ["/config", "/config/providers", "/provider", "/global/config", "/config/", "/provider/"]) {
+      for (const method of ["GET", "HEAD", "PATCH", "PUT", "POST"]) {
+        expect(proxyPathCarriesCredentials(method, path)).toBe(true);
+      }
+    }
+    expect(proxyPathCarriesCredentials("GET", "/session")).toBe(false);
+    expect(proxyPathCarriesCredentials("GET", "/session/ses_1/message")).toBe(false);
+  });
+
+  test("spellings the engine decodes to a credential route are inspected too", () => {
+    for (const path of [
+      "/%63onfig", "//config", "///config/", "/config/%70roviders", "/%70rovider", "/%67lobal/config", "/global//config", "/./config",
+      "/session/../config", "/config/./providers", "/%2e/config", "/%252e%252e/config", "/%2563onfig", "/config?x=1", "/%2Fconfig", "/config%2fproviders",
+    ]) {
       expect(proxyPathCarriesCredentials("GET", path)).toBe(true);
     }
-    expect(proxyPathCarriesCredentials("PATCH", "/config")).toBe(false);
-    expect(proxyPathCarriesCredentials("GET", "/session")).toBe(false);
+    // A path that cannot be decoded is checked rather than trusted.
+    expect(proxyPathCarriesCredentials("GET", "/%E0%A4%A")).toBe(true);
+  });
+
+  test("canonicalEnginePath resolves what the engine's router would", () => {
+    expect(canonicalEnginePath("/%63onfig")).toBe("/config");
+    expect(canonicalEnginePath("//global///config/")).toBe("/global/config");
+    expect(canonicalEnginePath("/a/b/../c/./d")).toBe("/a/c/d");
+    expect(canonicalEnginePath("/%252e%252e/config")).toBe("/config");
+    expect(canonicalEnginePath("/%E0%A4%A")).toBeNull();
+    expect(canonicalEnginePath("/")).toBe("/");
   });
 
   test("rewrites a JSON config response and leaves other responses alone", async () => {
@@ -35,6 +57,12 @@ describe("provider key redaction", () => {
     const safe = await redactProviderSecrets(config, { method: "GET", normalizedPath: "/config", loadSecrets: async () => [KEY] });
     expect(await safe.text()).not.toContain(KEY);
     expect(safe.headers.get("content-length")).toBeNull();
+
+    for (const normalizedPath of ["/%63onfig", "//config", "/config/%70roviders"]) {
+      const disguised = new Response(JSON.stringify({ provider: { openai: { options: { apiKey: KEY } } } }), { headers: { "content-type": "application/json" } });
+      const scrubbed = await redactProviderSecrets(disguised, { method: "GET", normalizedPath, loadSecrets: async () => [KEY] });
+      expect(await scrubbed.text(), normalizedPath).not.toContain(KEY);
+    }
 
     const session = new Response(`{"note":"${KEY}"}`, { headers: { "content-type": "application/json" } });
     const same = await redactProviderSecrets(session, { method: "GET", normalizedPath: "/session", loadSecrets: async () => [KEY] });

@@ -232,7 +232,13 @@ def request_shutdown(reason: str) -> None:
     threading.Thread(target=hard_exit, name="harness-hard-exit", daemon=True).start()
     try:
         # Hindsight's own SIGTERM/SIGINT handler stops the embedded Postgres.
-        signal.raise_signal(signal.SIGINT if sys.platform == "win32" else signal.SIGTERM)
+        if sys.platform == "win32":
+            signal.raise_signal(signal.SIGINT)
+        else:
+            # Signal the process, not this thread: raise_signal targets the calling
+            # (watcher) thread, so a main thread parked in a long wait would only run
+            # the handler when it next woke, possibly after the hard-exit timer below.
+            os.kill(os.getpid(), signal.SIGTERM)
     except (OSError, ValueError):
         os._exit(3)
 

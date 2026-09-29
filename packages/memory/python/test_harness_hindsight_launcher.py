@@ -164,6 +164,27 @@ class OrphanGuardTests(unittest.TestCase):
         self.assertEqual(child.wait(timeout=20), 0)
         self.assertIn("supervisor pipe closed", child.stderr.read())
 
+    def test_a_main_thread_parked_in_a_long_wait_still_shuts_down_promptly(self) -> None:
+        if sys.platform == "win32":
+            self.skipTest("POSIX signal delivery")
+        program = (
+            "import os, signal, sys, time\n"
+            f"sys.path.insert(0, {str(Path(__file__).resolve().parent)!r})\n"
+            "import harness_hindsight_launcher as l\n"
+            "signal.signal(signal.SIGTERM, lambda *a: os._exit(0))\n"
+            "l.install_orphan_guard()\n"
+            "print('loaded', flush=True)\n"
+            "time.sleep(60)\n"
+        )
+        env = {**os.environ, "HARNESS_MEMORY_PARENT_WATCH": "stdin", "HARNESS_MEMORY_SHUTDOWN_GRACE_S": "10"}
+        child = subprocess.Popen([sys.executable, "-c", program], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        self.addCleanup(self.reap, child)
+        self.loaded(child)
+        started = time.monotonic()
+        child.stdin.close()
+        self.assertEqual(child.wait(timeout=8), 0)
+        self.assertLess(time.monotonic() - started, 5, "the graceful path must not wait for the hard-exit timer")
+
     def test_data_written_to_the_pipe_is_not_a_shutdown(self) -> None:
         child = self.start_child()
         self.loaded(child)

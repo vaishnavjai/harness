@@ -5,7 +5,7 @@
 // (createRuntimeManager pattern).
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { rm, writeFile } from "node:fs/promises";
+import { rm, writeFile, chmod } from "node:fs/promises";
 import path from "node:path";
 
 export function createUiControlServer({
@@ -211,8 +211,10 @@ export function createUiControlServer({
     await writeFile(
       uiControlDiscoveryPath,
       `${JSON.stringify({ version: 2, app: appName, identifier: appIdentifier, platform: process.platform, baseUrl: `http://127.0.0.1:${port}`, token: uiControlToken }, null, 2)}\n`,
-      "utf8",
+      { encoding: "utf8", mode: 0o600 },
     );
+    // The file holds the bridge token; an older copy may have been created with looser permissions.
+    if (process.platform !== "win32") await chmod(uiControlDiscoveryPath, 0o600);
     // Make the discovery path available to child processes (server → managed OpenCode → plugin).
     process.env.HARNESS_UI_CONTROL_DISCOVERY = uiControlDiscoveryPath;
   }

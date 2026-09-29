@@ -50,6 +50,12 @@ command output or a linked report.
 
 ## Also tracked (found during validation)
 
+- [ ] Empty the Harness credentials for every engine child (MCP servers, language servers), not only shells and terminals.
+- [ ] Route the remaining `harness:` IPC channels (updater, browser logins, recovery, migration) through the trusted-sender wrapper.
+- [ ] Serve the app from a custom protocol instead of `file://`, so CSP `'self'` no longer matches every local file.
+- [ ] Replace the code-type denylist with an allowlist of safe document types; restrict `mailto:` query strings.
+- [ ] Scrub event-stream responses from the engine proxy as well as JSON.
+
 - [ ] Windows database isolation is weaker (127.0.0.1 with a password only; Linux and macOS use a private socket). Look for a named pipe or a restricted ACL.
 - [ ] Audit the engine's session-shell path (currently not recorded).
 - [ ] The architecture-mismatch check fetches from github.com unprompted. Make it opt-in or remove it.

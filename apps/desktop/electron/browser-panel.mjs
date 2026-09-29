@@ -550,7 +550,10 @@ export function createBrowserPanel({ getWindow, remoteDebugPort, onDeepLink, che
       case "open-external":
         if (request.url && isHttpUrl(request.url)) {
           await checkPolicy?.({ url: request.url, external: true });
-          if (isCurrent()) await shell.openExternal(request.url);
+          if (isCurrent()) {
+            const result = await openExternalUrl(request.url);
+            if (!result.ok) throw new Error(result.error);
+          }
         }
         break;
       case "close-tab":
