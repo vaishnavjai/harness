@@ -12,7 +12,7 @@ Not compliant with either standard, and one finding is high severity.
 | # | Finding | Severity |
 |---|---|---|
 | F1 | `openExternal` and `openPath` accept any scheme or path | **High, fixed** (F1b open) |
-| F2 | Main window runs with `sandbox: false` | Medium |
+| F2 | Main window runs with `sandbox: false` | Medium (fix is feasible, see below) |
 | F3 | Vulnerable npm dependencies (2 high, 4 moderate) | Medium, fixed |
 | F4 | No Content-Security-Policy on the app window | Medium |
 | F5 | Host token compared with `===`, not constant time | Low |
@@ -46,7 +46,12 @@ Not compliant with either standard, and one finding is high severity.
 - Tests: `external-open-policy.test.mjs` (13) plus new cases in `open-external.test.mjs`.
 - Still open, related (F1b): `__openWithApp` on Linux spawns the app path the renderer sends. It is chosen from a discovered list, so exploiting it needs a compromised renderer, but the path is not validated. Restrict it to the discovered apps or refuse paths inside a workspace.
 
-**F2 (Medium).** `main.mjs:2718` sets `sandbox: false` for the main window (context isolation is on, Node integration is off). Check whether the preload really needs Node; if not, turn the sandbox on. The browser panel already uses `sandbox: true`.
+**F2 (Medium, checked, not yet fixed).** `main.mjs:2718` sets `sandbox: false` for the main window (context isolation is on, Node integration is off). Check result:
+- The preload only uses Electron's renderer APIs (`contextBridge`, `ipcRenderer`, `webFrame`, `webUtils`), `process.platform`, `process.env`, `process.versions` and `process.isMainFrame`, plus one relative import. It needs no Node modules.
+- The blocker is its format. `preload.mjs` is an ES module, and a sandboxed preload cannot load one. With `sandbox: true` it fails with "Cannot use import statement outside a module" and the whole `__HARNESS_ELECTRON__` bridge is missing.
+- Bundling it to one CommonJS file works. Measured on Electron 43 as an unprivileged user with the real Chromium sandbox helper: the bundled preload under `sandbox: true` reports `process.sandboxed === true` and exposes the same 15 bridge members as today's unsandboxed preload. The three synchronous IPC calls at load work in both modes.
+- Fix: bundle `preload.mjs` (with `browser-shortcut-focus.mjs`) to CommonJS in the desktop build, point `preloadPath` at it, set `sandbox: true`. The browser panel already runs sandboxed with a CommonJS preload (`browser-content-preload.cjs`).
+- Not tested: the full app under the sandbox (PDF viewer with `plugins: true`, drag and drop through `webUtils`, the eval journeys) and macOS or Windows. Run the desktop journeys before shipping it.
 
 **F3 (Medium, fixed).** `pnpm audit --prod` reported `fast-uri` 3.1.6 (2 high: authority injection and host confusion), `undici` 6.28.0 and 7.29.0 (moderate: WebSocket denial of service) and `ip-address` 10.3.1 (moderate: address classification). Upgraded to `fast-uri` 3.1.8, `undici` 6.28.1 and 7.29.1, `ip-address` 10.7.2 through the workspace overrides and the two direct `undici` pins. `pnpm audit` now reports 0 vulnerabilities across production and dev dependencies, in the root and the `evals` workspace. Server (270), desktop (195) and app (369) core tests and typechecks pass. Reachability was never analysed, so the impact of the old versions is unknown.
 
