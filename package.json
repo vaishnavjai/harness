@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "scripts": {
     "package": "node scripts/package.mjs",
-    "test:packaging": "node --test scripts/package.test.mjs scripts/licenses/aggregate-licenses.test.mjs scripts/smoke/packaged-app-smoke.test.mjs",
+    "test:packaging": "node --test scripts/package.test.mjs scripts/hindsight/staged-python.test.mjs scripts/licenses/aggregate-licenses.test.mjs scripts/smoke/packaged-app-smoke.test.mjs",
     "smoke:packaged": "node scripts/smoke/packaged-app-smoke.mjs",
     "dev": "HARNESS_DEV_MODE=1 HARNESS_ELECTRON_REMOTE_DEBUG_PORT=${HARNESS_ELECTRON_REMOTE_DEBUG_PORT:-9823} pnpm --filter @harness/desktop dev",
     "dev:worktree": "HARNESS_DEV_MODE=1 HARNESS_DEV_PROFILE=auto HARNESS_ELECTRON_USE_MOCK_KEYCHAIN=${HARNESS_ELECTRON_USE_MOCK_KEYCHAIN:-1} HARNESS_ELECTRON_REMOTE_DEBUG_PORT=0 PORT=0 pnpm --filter @harness/desktop dev",

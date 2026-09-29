@@ -19,6 +19,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, r
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FORBIDDEN_MODULE_PROBE, REMOVED_RUNTIME_PACKAGES } from "./runtime-policy.mjs";
+import { pickInstalledPython } from "./staged-python.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const vendorRoot = join(repoRoot, "vendor", "hindsight");
@@ -110,10 +111,11 @@ function main() {
     // move into the app bundle as-is.
     const staging = join(options.outdir, ".uv-python");
     run("uv", ["python", "install", options.pythonVersion, "--install-dir", staging, "--no-bin"]);
-    const installed = readdirSync(staging).find((name) => name.startsWith("cpython-"));
+    const installed = pickInstalledPython(staging);
     if (!installed) throw new Error("uv did not install a CPython build");
     renameSync(join(staging, installed), join(options.outdir, "python"));
     rmSync(staging, { recursive: true, force: true });
+    if (!existsSync(pythonIn(options.outdir))) throw new Error(`The relocated Python is missing: ${relative(repoRoot, pythonIn(options.outdir))}`);
   }
 
   const python = pythonIn(options.outdir);
