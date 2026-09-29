@@ -13,7 +13,7 @@ Not compliant with either standard, and one finding is high severity.
 |---|---|---|
 | F1 | `openExternal` and `openPath` accept any scheme or path | **High, fixed** (F1b open) |
 | F2 | Main window runs with `sandbox: false` | Medium |
-| F3 | Vulnerable npm dependencies (2 high, 4 moderate) | Medium |
+| F3 | Vulnerable npm dependencies (2 high, 4 moderate) | Medium, fixed |
 | F4 | No Content-Security-Policy on the app window | Medium |
 | F5 | Host token compared with `===`, not constant time | Low |
 | F6 | JSON bodies have no size limit; no general rate limiting | Low |
@@ -48,7 +48,7 @@ Not compliant with either standard, and one finding is high severity.
 
 **F2 (Medium).** `main.mjs:2718` sets `sandbox: false` for the main window (context isolation is on, Node integration is off). Check whether the preload really needs Node; if not, turn the sandbox on. The browser panel already uses `sandbox: true`.
 
-**F3 (Medium).** `pnpm audit --prod`: `fast-uri` 3.1.6 (2 high: authority injection and host confusion), `undici` 6.28.0 and 7.29.0 (moderate: WebSocket denial of service), `ip-address` 10.3.1 (moderate: address classification). `undici` 6.28.0 is pinned directly by `apps/desktop` and `apps/server`. Reachability was not analysed. Fix by upgrading, subject to the repo's supply-chain policy.
+**F3 (Medium, fixed).** `pnpm audit --prod` reported `fast-uri` 3.1.6 (2 high: authority injection and host confusion), `undici` 6.28.0 and 7.29.0 (moderate: WebSocket denial of service) and `ip-address` 10.3.1 (moderate: address classification). Upgraded to `fast-uri` 3.1.8, `undici` 6.28.1 and 7.29.1, `ip-address` 10.7.2 through the workspace overrides and the two direct `undici` pins. `pnpm audit` now reports 0 vulnerabilities across production and dev dependencies, in the root and the `evals` workspace. Server (270), desktop (195) and app (369) core tests and typechecks pass. Reachability was never analysed, so the impact of the old versions is unknown.
 
 **F4 (Medium).** `apps/app/index.html` has no CSP. Markdown is sanitised, but a CSP would limit the damage of any miss.
 
