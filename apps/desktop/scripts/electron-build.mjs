@@ -34,6 +34,8 @@ function run(command, args, cwd, env) {
 
 run(nodeCmd, [resolve(__dirname, "prepare-sidecar.mjs"), "--force", "--outdir", electronSidecarDir], desktopRoot);
 run(nodeCmd, [resolve(__dirname, "prepare-computer-use-helper.mjs"), "--force", "--outdir", electronHelperDir], desktopRoot);
+// The main window is sandboxed, so its preload ships as one CommonJS bundle.
+run(nodeCmd, [resolve(__dirname, "build-preload.mjs")], desktopRoot);
 run(nodeCmd, [resolve(__dirname, "prepare-runtime-node-modules.mjs"), "--outdir", packagedRuntimeRoot], desktopRoot);
 // Ship the UI-control MCP as one self-contained file so packaged builds run
 // it on Electron's Node instead of resolving a package name through npx.
@@ -76,7 +78,7 @@ process.stdout.write(
       ok: true,
       renderer: "apps/app/dist",
       electronMain: "apps/desktop/electron/main.mjs",
-      electronPreload: "apps/desktop/electron/preload.mjs",
+      electronPreload: "apps/desktop/electron/preload.cjs",
     },
     null,
     2,

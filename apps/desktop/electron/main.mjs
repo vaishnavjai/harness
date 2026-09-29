@@ -58,6 +58,10 @@ import {
 import { resolveConnectLinkPublicKeys } from "./connect-link-keys.mjs";
 import { openExternalUrl } from "./open-external.mjs";
 import { checkOpenablePath } from "./external-open-policy.mjs";
+import { resolveMainWindowSecurity } from "./main-window-security.mjs";
+import { installAppCsp } from "./content-security-policy.mjs";
+import { discoverOpenWithApps, isDiscoveredOpenWithApp } from "./open-with-apps.mjs";
+import { createTrustedIpc } from "./ipc-trust.mjs";
 import { resolveWorkspaceFileLaunch } from "./workspace-file-access.mjs";
 import { resolveAppIdentifier, resolveUserDataPath } from "./dev-profile.mjs";
 import { fetchAgentContextDiagnosticsResponse } from "./agent-context-diagnostics-fetch.mjs";
@@ -2420,70 +2424,22 @@ const desktopCommandHandlers = {
   "__getApplicationsForFile": async (event, ...args) => {
       const target = String(args[0] ?? "").trim();
       if (!target) return [];
-      const platform = process.platform;
-      const results = [];
-
-      try {
-        if (platform === "darwin") {
-          // Scan /Applications and /System/Applications for .app bundles
-          const appDirs = ["/Applications", "/System/Applications", "/Applications/Utilities", `${os.homedir()}/Applications`];
-          const seen = new Set();
-          for (const dir of appDirs) {
-            let entries;
-            try { entries = await readdir(dir); } catch { continue; }
-            for (const entry of entries) {
-              if (!entry.endsWith(".app")) continue;
-              const appPath = path.join(dir, entry);
-              if (seen.has(appPath)) continue;
-              seen.add(appPath);
-              const name = entry.replace(/\.app$/i, "");
-              let icon = null;
-              try {
-                const img = await app.getFileIcon(appPath, { size: "small" });
-                icon = img.isEmpty() ? null : img.toDataURL();
-              } catch {}
-              results.push({ name, appPath, icon });
-            }
-          }
-        } else if (platform === "linux") {
-          // Parse .desktop files in standard directories
-          const desktopDirs = ["/usr/share/applications", "/usr/local/share/applications", `${os.homedir()}/.local/share/applications`];
-          const seen = new Set();
-          for (const dir of desktopDirs) {
-            let entries;
-            try { entries = await readdir(dir); } catch { continue; }
-            for (const entry of entries) {
-              if (!entry.endsWith(".desktop")) continue;
-              const filePath = path.join(dir, entry);
-              if (seen.has(filePath)) continue;
-              seen.add(filePath);
-              try {
-                const content = await readFile(filePath, "utf-8");
-                const nameMatch = content.match(/^Name=(.+)$/m);
-                const execMatch = content.match(/^Exec=(.+)$/m);
-                if (!nameMatch || !execMatch) continue;
-                const name = nameMatch[1].trim();
-                const appPath = execMatch[1].trim().replace(/%[fFuU]/g, "").trim();
-                if (!appPath) continue;
-                let icon = null;
-                try {
-                  const img = await app.getFileIcon(filePath, { size: "small" });
-                  icon = img.isEmpty() ? null : img.toDataURL();
-                } catch {}
-                results.push({ name, appPath, icon });
-              } catch {}
-            }
-          }
-        }
-      } catch {}
-
-      return results;
+      return discoverOpenWithApps({
+        platform: process.platform,
+        homedir: os.homedir(),
+        readdir,
+        readFile,
+        getFileIcon: (file) => app.getFileIcon(file, { size: "small" }),
+      });
   },
   "__openWithApp": async (event, ...args) => {
       const requested = String(args[0] ?? "").trim();
       const appPath = String(args[1] ?? "").trim();
       const workspaceRoot = String(args[2] ?? "").trim();
       if (!requested || !appPath) return "Target and app path are required.";
+      if (!(await isDiscoveredOpenWithApp(appPath, { platform: process.platform, homedir: os.homedir(), readdir, readFile }))) {
+        return "That application is not one Harness found on this computer.";
+      }
       const decision = await resolveWorkspaceFileLaunch(workspaceRoot, requested);
       if (decision.ok === false) return decision.error;
       const target = decision.path;
@@ -2685,7 +2641,8 @@ async function handleDesktopInvoke(event, command, ...args) {
 async function createMainWindow() {
   if (mainWindow) return mainWindow;
 
-  const preloadPath = path.join(__dirname, "preload.mjs");
+  const mainWindowSecurity = resolveMainWindowSecurity({ dirname: __dirname, isPackaged: app.isPackaged });
+  if (mainWindowSecurity.warning) console.warn(`[security] ${mainWindowSecurity.warning}`);
   const windowAppearanceOptions = {};
   if (process.platform === "darwin") {
     Object.assign(windowAppearanceOptions, {
@@ -2732,10 +2689,10 @@ async function createMainWindow() {
       // The renderer owns session dispatch + event streams; keep it running
       // while hidden/minimized so background tasks are not interrupted.
       backgroundThrottling: false,
-      preload: preloadPath,
+      preload: mainWindowSecurity.preload,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: mainWindowSecurity.sandbox,
       // Enable Chromium's built-in PDF viewer so PDFs render inside the
       // artifact panel (<embed> pointed at a blob URL).
       plugins: true,
@@ -2849,38 +2806,53 @@ async function createMainWindow() {
   } else {
     const packagedIndexPath = path.join(process.resourcesPath, "app-dist", "index.html");
     const devIndexPath = path.resolve(__dirname, "../../app/dist/index.html");
-    await mainWindow.loadFile(app.isPackaged ? packagedIndexPath : devIndexPath);
+    const indexPath = app.isPackaged ? packagedIndexPath : devIndexPath;
+    // Attach the Content-Security-Policy to the app's own document. A live dev
+    // server (startUrl above) is exempt: Vite needs inline and eval'd scripts.
+    // HARNESS_CSP_MODE=report-only logs violations without blocking, for testing.
+    try {
+      await installAppCsp(session.defaultSession, {
+        indexPath,
+        mode: process.env.HARNESS_CSP_MODE === "report-only" ? "report-only" : "enforce",
+      });
+    } catch (error) {
+      if (app.isPackaged) throw error;
+      console.warn("[security] could not apply the Content-Security-Policy:", error instanceof Error ? error.message : error);
+    }
+    await mainWindow.loadFile(indexPath);
   }
 
   return mainWindow;
 }
 
-ipcMain.on("harness:desktop-bootstrap-sync", (event) => {
+// Privileged channels answer only the Harness window's own main frame.
+const trustedIpc = createTrustedIpc(ipcMain, () => mainWindow);
+trustedIpc.on("harness:desktop-bootstrap-sync", null, (event) => {
   event.returnValue = workspaceStore.readDesktopBootstrapConfigSync();
 });
-ipcMain.on("harness:desktop-distribution-sync", (event) => {
+trustedIpc.on("harness:desktop-distribution-sync", null, (event) => {
   event.returnValue = DESKTOP_DISTRIBUTION;
 });
-ipcMain.on("harness:window-fullscreen-sync", (event) => {
+trustedIpc.on("harness:window-fullscreen-sync", false, (event) => {
   event.returnValue = BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false;
 });
-ipcMain.handle("harness:desktop", handleDesktopInvoke);
-ipcMain.handle("harness:shell:openExternal", async (_event, url) => {
+trustedIpc.handle("harness:desktop", handleDesktopInvoke);
+trustedIpc.handle("harness:shell:openExternal", async (_event, url) => {
   if (typeof url !== "string" || url.trim().length === 0) {
     return { ok: false, error: "empty url" };
   }
   return openExternalUrl(url.trim());
 });
-ipcMain.handle("harness:shell:relaunch", async () => {
+trustedIpc.handle("harness:shell:relaunch", async () => {
   app.relaunch();
   app.quit();
 });
-ipcMain.handle("harness:system:architecture", async () => resolveArchitectureInfo());
-ipcMain.handle("harness:system:microphoneStatus", async () => {
+trustedIpc.handle("harness:system:architecture", async () => resolveArchitectureInfo());
+trustedIpc.handle("harness:system:microphoneStatus", async () => {
   if (process.platform !== "darwin") return { platform: process.platform, status: "not-mac" };
   return { platform: process.platform, status: systemPreferences.getMediaAccessStatus("microphone") };
 });
-ipcMain.handle("harness:system:askMicrophoneAccess", async () => {
+trustedIpc.handle("harness:system:askMicrophoneAccess", async () => {
   if (process.platform !== "darwin") return { platform: process.platform, granted: true, status: "not-mac" };
   const before = systemPreferences.getMediaAccessStatus("microphone");
   const granted = await systemPreferences.askForMediaAccess("microphone");
@@ -2889,7 +2861,7 @@ ipcMain.handle("harness:system:askMicrophoneAccess", async () => {
 });
 
 // ── Terminal IPC ────────────────────────────────────────────────────────
-ipcMain.handle("harness:terminal:create", async (event, options = {}) => {
+trustedIpc.handle("harness:terminal:create", async (event, options = {}) => {
   assertDesktopActivation();
   const cwd = await resolveTerminalCwd(options?.cwd);
   const cols = Number.isFinite(options?.cols) ? Math.max(20, Math.floor(options.cols)) : 80;
@@ -2927,18 +2899,18 @@ ipcMain.handle("harness:terminal:create", async (event, options = {}) => {
 
   return { terminalId };
 });
-ipcMain.handle("harness:terminal:write", (event, terminalId, data) => {
+trustedIpc.handle("harness:terminal:write", (event, terminalId, data) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal || typeof data !== "string") return;
   terminal.commandRecorder?.input(data);
   terminal.process.write(data);
 });
-ipcMain.handle("harness:terminal:resize", (event, terminalId, cols, rows) => {
+trustedIpc.handle("harness:terminal:resize", (event, terminalId, cols, rows) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal || !Number.isFinite(cols) || !Number.isFinite(rows)) return;
   terminal.process.resize(Math.max(20, Math.floor(cols)), Math.max(5, Math.floor(rows)));
 });
-ipcMain.handle("harness:terminal:kill", (event, terminalId) => {
+trustedIpc.handle("harness:terminal:kill", (event, terminalId) => {
   const terminal = terminalForSender(event, terminalId);
   if (!terminal) return;
   killTerminal(String(terminalId));
@@ -2948,7 +2920,7 @@ browserPanel.registerIpc(ipcMain);
 // Native popups cannot be seen or clicked over CDP. In development only, let the
 // app's main frame read the open/last menu as plain data and choose an item.
 if (isDevMode && !app.isPackaged) {
-  const fromMainFrame = (event) => Boolean(mainWindow) && event.sender === mainWindow.webContents && event.senderFrame === mainWindow.webContents.mainFrame;
+  const fromMainFrame = (event) => trustedIpc.isTrusted(event);
   ipcMain.handle("harness:context-menu:inspect", (event) => (fromMainFrame(event) ? nativeContextMenus.inspect() : null));
   ipcMain.handle("harness:context-menu:choose", (event, id) => fromMainFrame(event) && nativeContextMenus.choose(id));
   ipcMain.handle("harness:context-menu:dismiss", (event) => {

@@ -39,10 +39,11 @@ command output or a linked report.
 ## From the OWASP assessment (`docs/owasp-assessment.md`)
 
 - [x] **F1 (High):** `openExternal` allows only https, http and mailto; local paths that would run code are shown in their folder, never opened (`external-open-policy.mjs`).
-- [ ] F1b: `__openWithApp` on Linux spawns the renderer-supplied app path; restrict it to discovered apps.
-- [ ] F2: checked, feasible. The preload needs no Node modules but is an ES module, which a sandboxed preload cannot load. Bundle it to CommonJS, set `sandbox: true`, then run the desktop journeys (PDF viewer, drag and drop).
+- [x] F1b: `__openWithApp` only launches applications Harness discovered itself.
+- [x] F2: main window sandboxed with a bundled CommonJS preload. Checked on Linux under the real Chromium sandbox. Still to check on Windows and macOS: PDF viewer, drag and drop, the desktop journeys.
 - [x] F3: upgraded `fast-uri`, `undici` and `ip-address`; `pnpm audit` is clean in the root and `evals`.
-- [ ] F4: add a CSP to the app window.
+- [x] F4: CSP on the app window (scripts locked to the app). Follow-up: tighten `connect-src` and `img-src` after watching real traffic; remote images are a prompt-injection leak channel.
+- [x] F9: privileged IPC channels answer only the main window (`ipc-trust.mjs`).
 - [ ] F5: constant-time host-token comparison.
 - [ ] F6: JSON body size limit and general rate limiting.
 - [ ] F7: default CORS to the app's origin, not `*`.
@@ -50,7 +51,6 @@ command output or a linked report.
 ## Also tracked (found during validation)
 
 - [ ] Windows database isolation is weaker (127.0.0.1 with a password only; Linux and macOS use a private socket). Look for a named pipe or a restricted ACL.
-- [ ] Add a Content-Security-Policy to the app window.
 - [ ] Audit the engine's session-shell path (currently not recorded).
 - [ ] The architecture-mismatch check fetches from github.com unprompted. Make it opt-in or remove it.
 - [ ] The standalone `harness-server` binary depends on the user's own `DO_NOT_TRACK` outside Docker. Set it in code.

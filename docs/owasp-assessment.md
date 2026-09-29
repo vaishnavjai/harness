@@ -11,21 +11,21 @@ Not compliant with either standard, and one finding is high severity.
 
 | # | Finding | Severity |
 |---|---|---|
-| F1 | `openExternal` and `openPath` accept any scheme or path | **High, fixed** (F1b open) |
-| F2 | Main window runs with `sandbox: false` | Medium (fix is feasible, see below) |
+| F1 | `openExternal` and `openPath` accept any scheme or path (and F1b, `__openWithApp`) | **High, fixed** |
+| F2 | Main window runs with `sandbox: false` | Medium, fixed |
 | F3 | Vulnerable npm dependencies (2 high, 4 moderate) | Medium, fixed |
-| F4 | No Content-Security-Policy on the app window | Medium |
+| F4 | No Content-Security-Policy on the app window | Medium, fixed (connections and images still open) |
 | F5 | Host token compared with `===`, not constant time | Low |
 | F6 | JSON bodies have no size limit; no general rate limiting | Low |
 | F7 | Default CORS is `*`; the Docker image also binds `0.0.0.0` | Low |
 | F8 | API responses lack `nosniff` and similar headers | Low |
-| F9 | Most IPC handlers do not check who sent the message | Info |
+| F9 | Most IPC handlers do not check who sent the message | Info, fixed |
 
 ## OWASP Top 10 (2021)
 
 | Risk | Status | Evidence |
 |---|---|---|
-| A01 Broken access control | Partial | Per-launch tokens, loopback binding, engine-secret routes, symlink and path checks all hold. Gaps: F9, F1b, and the agent runs as the user with no OS sandbox (checklist item 3). |
+| A01 Broken access control | Partial | Per-launch tokens, loopback binding, engine-secret routes, symlink and path checks all hold. Gap: the agent runs as the user with no OS sandbox (checklist item 3). |
 | A02 Cryptographic failures | Partial | Provider keys use the OS keychain or AES-256-GCM. MCP OAuth tokens are plaintext (checklist gap B). Windows Postgres is password-only. |
 | A03 Injection | Partial | Spawns use argument vectors; markdown output is sanitised with DOMPurify (`markdown-primitive.ts`). Prompt injection is untested. |
 | A04 Insecure design | Fail | No threat model. |
@@ -44,18 +44,20 @@ Not compliant with either standard, and one finding is high severity.
   - `openExternal` accepts only `https:`, `http:` and `mailto:`, refuses credentials, control characters and oversized input, and opens the URL as the parser normalises it (this covers the `rundll32` fallback too).
   - Local paths open only if they are folders or files that would not run code. Executable, script, installer, shortcut and app-bundle types (and symlinks to them, and Windows names with trailing dots or spaces) are shown in their folder instead. Applies to `__openPath`, `file://` popups and workspace file links.
 - Tests: `external-open-policy.test.mjs` (13) plus new cases in `open-external.test.mjs`.
-- Still open, related (F1b): `__openWithApp` on Linux spawns the app path the renderer sends. It is chosen from a discovered list, so exploiting it needs a compromised renderer, but the path is not validated. Restrict it to the discovered apps or refuse paths inside a workspace.
+- F1b (fixed): `__openWithApp` spawned whatever app path the renderer sent. It now re-derives the list of applications Harness discovers (`open-with-apps.mjs`) and refuses any path not on it. Residual: on Linux the list includes `~/.local/share/applications`, which the agent can write to.
 
-**F2 (Medium, checked, not yet fixed).** `main.mjs:2718` sets `sandbox: false` for the main window (context isolation is on, Node integration is off). Check result:
-- The preload only uses Electron's renderer APIs (`contextBridge`, `ipcRenderer`, `webFrame`, `webUtils`), `process.platform`, `process.env`, `process.versions` and `process.isMainFrame`, plus one relative import. It needs no Node modules.
-- The blocker is its format. `preload.mjs` is an ES module, and a sandboxed preload cannot load one. With `sandbox: true` it fails with "Cannot use import statement outside a module" and the whole `__HARNESS_ELECTRON__` bridge is missing.
-- Bundling it to one CommonJS file works. Measured on Electron 43 as an unprivileged user with the real Chromium sandbox helper: the bundled preload under `sandbox: true` reports `process.sandboxed === true` and exposes the same 15 bridge members as today's unsandboxed preload. The three synchronous IPC calls at load work in both modes.
-- Fix: bundle `preload.mjs` (with `browser-shortcut-focus.mjs`) to CommonJS in the desktop build, point `preloadPath` at it, set `sandbox: true`. The browser panel already runs sandboxed with a CommonJS preload (`browser-content-preload.cjs`).
-- Not tested: the full app under the sandbox (PDF viewer with `plugins: true`, drag and drop through `webUtils`, the eval journeys) and macOS or Windows. Run the desktop journeys before shipping it.
+**F2 (Medium, fixed).** The main window ran with `sandbox: false`, because `preload.mjs` is an ES module and a sandboxed preload cannot load one (it fails with "Cannot use import statement outside a module").
+- Fix: `apps/desktop/scripts/build-preload.mjs` bundles the preload and what it imports into one CommonJS file, `electron/preload.cjs`, and fails the build if the bundle requires anything but `electron`. It runs in the desktop build, the dev script and `pnpm electron`. `main-window-security.mjs` gives the main window that preload with `sandbox: true`. A packaged app refuses to start without it; only an unbuilt development checkout falls back, with a warning.
+- Verified on Linux with the packaged app, as an unprivileged user and without `--no-sandbox`: the renderer process shows `Seccomp: 2`, the bridge exposes all 15 members, `require` and `process` are absent from the page, and the app renders its session view.
+- Not verified: Windows and macOS, and the PDF viewer and drag and drop under the sandbox.
 
 **F3 (Medium, fixed).** `pnpm audit --prod` reported `fast-uri` 3.1.6 (2 high: authority injection and host confusion), `undici` 6.28.0 and 7.29.0 (moderate: WebSocket denial of service) and `ip-address` 10.3.1 (moderate: address classification). Upgraded to `fast-uri` 3.1.8, `undici` 6.28.1 and 7.29.1, `ip-address` 10.7.2 through the workspace overrides and the two direct `undici` pins. `pnpm audit` now reports 0 vulnerabilities across production and dev dependencies, in the root and the `evals` workspace. Server (270), desktop (195) and app (369) core tests and typechecks pass. Reachability was never analysed, so the impact of the old versions is unknown.
 
-**F4 (Medium).** `apps/app/index.html` has no CSP. Markdown is sanitised, but a CSP would limit the damage of any miss.
+**F4 (Medium, fixed for scripts).** The app window had no CSP. `content-security-policy.mjs` now attaches one to the app's own document from the main process (Electron's header hook fires for `file://`), so no frontend file changed.
+- Scripts: `'self'`, `'wasm-unsafe-eval'` and the SHA-256 of each inline script, computed from the shipped `index.html`. No `'unsafe-inline'`, no `'unsafe-eval'`. Plugins, workers, frames, base URI and form targets are locked to the app. A live dev server is exempt, and a packaged build fails if the policy cannot be built.
+- Verified on Linux with the packaged app: the app boots and renders with zero CSP violations and zero console errors; a script injected into the page is blocked.
+- Deliberately left open: `connect-src` (any http, https, ws or wss address) and `img-src` (any https address). The renderer talks to user-configured model endpoints, and chat shows remote images, so closing them blind could break the UI. Remote images are also a data-leak channel for prompt injection. Tighten both after watching real traffic.
+- To test on another machine without blocking anything, start the app with `HARNESS_CSP_MODE=report-only` and read the console.
 
 **F5 (Low).** `server.ts:2249` and `:2257` compare the host token with `===`. Use `timingSafeEqual`. Loopback only, so low.
 
@@ -65,7 +67,7 @@ Not compliant with either standard, and one finding is high severity.
 
 **F8 (Low).** Only the MCP-app routes set `nosniff`, `Referrer-Policy` and a CSP.
 
-**F9 (Info).** 13 `ipcMain.handle` handlers; only the Computer Use handler checks the sender frame (`main.mjs:2047`). Navigation is restricted, so risk is low today.
+**F9 (Info, fixed for privileged channels).** The 13 `harness:` IPC handlers did not check their sender. They are now registered through `ipc-trust.mjs`, so only the main window's main frame can call them; anything else is rejected, or receives a harmless default for the synchronous channels. A test fails if a new `harness:` channel is registered without the wrapper. The browser panel's own channels use a separate preload and are unchanged.
 
 ## OWASP Top 10 for LLM apps
 
@@ -80,7 +82,7 @@ Not compliant with either standard, and one finding is high severity.
 ## SOC 2
 
 SOC 2 attests a company's controls over months, performed by a CPA firm; code cannot be SOC 2 compliant. Controls this codebase could support, and where it stands:
-- Logical access (CC6): tokens and keychain in place; F1, F5, F9 open.
+- Logical access (CC6): tokens and keychain in place, IPC and external opens locked down; F5 open.
 - Monitoring (CC7): audit log exists; no alerting, no off-machine anchoring.
 - Change management (CC8): not met. Changes went straight to `dev`, without required CI or independent human review.
 - Risk assessment (CC3), incident response, vendor management: none exist.

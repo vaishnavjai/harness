@@ -270,6 +270,7 @@ if (process.env.HARNESS_ELECTRON_SKIP_NATIVE_REBUILD === "1") {
   console.log("[electron-dev] Using prebuilt Electron native dependencies.");
 } else {
   console.log("[electron-dev] Rebuilding native dependencies for Electron...");
+  runSync(process.execPath, [resolve(desktopRoot, "scripts", "build-preload.mjs")], { cwd: repoRoot });
   runSync(pnpmCmd, ["--filter", "@harness/desktop", "run", "rebuild:electron-native"], { cwd: repoRoot });
 }
 
