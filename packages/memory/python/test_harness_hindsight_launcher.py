@@ -122,7 +122,11 @@ class OrphanGuardTests(unittest.TestCase):
         "l.install_orphan_guard()\n"
         "%s\n"
         "print('loaded', flush=True)\n"
-        "time.sleep(60)\n"
+        # An event loop wakes constantly. A single long sleep never lets the main thread run the
+        # Python-level handler for a signal the watcher thread raises, so on POSIX the test would
+        # sit until the launcher's hard-exit timer fired.
+        "for _ in range(1200):\n"
+        "    time.sleep(0.05)\n"
     )
 
     def start_child(self, body: str = "") -> subprocess.Popen[str]:
