@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+  "readWrite": [
+    "C:\\Users\\me\\proj",
+    "D:\\work"
+  ],
+  "readOnly": [
+    "C:\\Users\\me\\.bun\\bin",
+    "C:\\Users\\me\\AppData\\Roaming\\npm"
+  ],
+  "protect": [
+    "C:\\Users\\me\\AppData\\Roaming\\harness"
+  ],
+  "network": "none"
+}

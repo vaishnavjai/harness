@@ -6,7 +6,6 @@
 //! access to folders under the temp directory only.
 #![cfg(windows)]
 
-use std::io::Write as _;
 use std::net::TcpListener;
 use std::os::windows::process::CommandExt as _;
 use std::path::{Path, PathBuf};
@@ -397,58 +396,98 @@ fn cannot_kill_another_process_of_the_same_user() {
     );
 }
 
-/// A script that appends a line to `heartbeat.txt` once a second for a minute. Watching that file grow is how the
-/// tests tell whether a background process is alive: it needs no process listing, which a sandboxed process may not
-/// appear in for another process.
+/// A background worker that appends to `heartbeat.txt` in a tight loop until a file named `stop` appears. Watching that
+/// file grow is how the tests tell whether it is alive: it needs no process listing (which a sandboxed process may not
+/// appear in for another process), no NUL device and no network, none of which a container can be assumed to have.
 fn write_heartbeat_script(f: &Fixture) {
-    let mut script = std::fs::File::create(f.workspace.join("beat.cmd")).unwrap();
-    write!(script, "@echo off\r\nfor /l %%i in (1,1,60) do (\r\n  echo tick>>heartbeat.txt\r\n  ping -n 2 127.0.0.1 >NUL\r\n)\r\n").unwrap();
+    let script =
+        "@echo off\r\n:a\r\nif exist stop exit /b\r\necho tick>>heartbeat.txt\r\ngoto a\r\n";
+    std::fs::write(f.workspace.join("beat.cmd"), script).unwrap();
 }
 
-fn beats(f: &Fixture) -> usize {
-    std::fs::read_to_string(f.workspace.join("heartbeat.txt"))
-        .map(|t| t.lines().count())
+fn heartbeat_bytes(f: &Fixture) -> u64 {
+    std::fs::metadata(f.workspace.join("heartbeat.txt"))
+        .map(|m| m.len())
         .unwrap_or(0)
 }
 
-/// Starts the heartbeat in the background from a sandboxed command and reports whether it is still beating after
-/// the command has returned: (beats just after return, beats a few seconds later).
-fn background_beats(f: &Fixture) -> (usize, usize) {
+/// Runs `command` through the helper with a stdin pipe held open for `hold`, so a foreground `findstr` keeps the
+/// command alive that long, then lets it finish. Output goes to files rather than pipes: a background process that
+/// survives (keepBackground) would otherwise hold a pipe open and block the wait.
+fn run_holding_stdin(f: &Fixture, command: &str, hold: Duration) -> std::process::ExitStatus {
+    let out = std::fs::File::create(f.root.join("out.txt")).unwrap();
+    let err = std::fs::File::create(f.root.join("err.txt")).unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_harness-sandbox"))
+        .args(["-c", command])
+        .env("HARNESS_SANDBOX_POLICY", &f.policy)
+        .current_dir(&f.workspace)
+        .stdin(Stdio::piped())
+        .stdout(out)
+        .stderr(err)
+        .spawn()
+        .unwrap();
+    std::thread::sleep(hold);
+    drop(child.stdin.take());
+    child.wait().unwrap()
+}
+
+/// Starts the worker in the background, keeps the command alive for a few seconds, and reports the heartbeat size
+/// just after the helper exited and again a few seconds later.
+fn background_heartbeat(f: &Fixture) -> (u64, u64) {
     write_heartbeat_script(f);
-    let out = f.run("start /b \"\" cmd /d /c beat.cmd >NUL 2>&1 & echo started");
-    assert!(text(&out).contains("started"), "{}", describe(&out));
-    std::thread::sleep(Duration::from_secs(2));
-    let first = beats(f);
-    std::thread::sleep(Duration::from_secs(4));
-    (first, beats(f))
+    let status = run_holding_stdin(
+        f,
+        "start /b \"\" cmd /d /c beat.cmd & findstr x",
+        Duration::from_secs(3),
+    );
+    let stderr = std::fs::read_to_string(f.root.join("err.txt")).unwrap_or_default();
+    assert!(
+        status.code().is_some(),
+        "the helper did not exit normally: {status:?} {stderr}"
+    );
+    std::thread::sleep(Duration::from_secs(1));
+    let first = heartbeat_bytes(f);
+    std::thread::sleep(Duration::from_secs(3));
+    let later = heartbeat_bytes(f);
+    std::fs::write(f.workspace.join("stop"), "").unwrap();
+    std::thread::sleep(Duration::from_secs(1));
+    (first, later)
 }
 
 #[test]
 fn background_processes_die_with_the_command() {
     let f = cmd_fixture();
-    let (first, later) = background_beats(&f);
+    let (first, later) = background_heartbeat(&f);
+    // Without this the test could pass because the worker never ran at all, which is what an earlier version did.
+    assert!(
+        first > 0,
+        "the background worker never ran, so this test proves nothing: {}",
+        std::fs::read_to_string(f.root.join("err.txt")).unwrap_or_default()
+    );
     assert_eq!(
         later, first,
-        "a background process kept running after the command returned ({first} -> {later} beats)"
+        "a background process kept running after the command returned ({first} -> {later} bytes)"
     );
 }
 
 #[test]
 fn keep_background_lets_them_live_on() {
-    // The control for the test above: with keepBackground the same script keeps beating, so "it stopped" means something.
+    // The control for the test above: with keepBackground the same worker keeps going, so "it stopped" means something.
     let f = Fixture::new();
     f.write_policy(
         &cmd_exe(),
         "none",
         json!({ "limits": { "keepBackground": true } }),
     );
-    let (first, later) = background_beats(&f);
-    let _ = f.control(
-        "taskkill /F /IM ping.exe >NUL 2>&1 & taskkill /F /FI \"WINDOWTITLE eq beat*\" >NUL 2>&1",
+    let (first, later) = background_heartbeat(&f);
+    assert!(
+        first > 0,
+        "the background worker never ran: {}",
+        std::fs::read_to_string(f.root.join("err.txt")).unwrap_or_default()
     );
     assert!(
         later > first,
-        "with keepBackground the background process must keep running ({first} -> {later} beats)"
+        "with keepBackground the background process must keep running ({first} -> {later} bytes)"
     );
 }
 
@@ -669,84 +708,109 @@ fn compat_a_tool_outside_program_files_needs_a_read_grant() {
     );
 }
 
-/// Runs `command` with a pipe as stdin instead of NUL, closed straight away.
-fn run_with_piped_stdin(f: &Fixture, command: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_harness-sandbox"))
-        .args(["-c", command])
+fn helper(f: &Fixture, flag: &str) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_harness-sandbox"))
+        .arg(flag)
         .env("HARNESS_SANDBOX_POLICY", &f.policy)
-        .current_dir(&f.workspace)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    drop(child.stdin.take());
-    child.wait_with_output().unwrap()
+        .output()
+        .unwrap()
+}
+
+fn powershell_5() -> String {
+    windows_dir()
+        .join("System32")
+        .join("WindowsPowerShell")
+        .join("v1.0")
+        .join("powershell.exe")
+        .to_string_lossy()
+        .into_owned()
+}
+
+fn powershell_7() -> Option<String> {
+    tool(r"C:\Program Files\PowerShell\7\pwsh.exe").map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Prints what the container can and cannot do, for reading in a CI log. It asserts nothing: it exists to explain
-/// a compatibility failure, so it only runs with `--ignored`.
+/// a compatibility failure, so it only runs with `--ignored`. The runner is an administrator, which lets it also try
+/// the one-time `--setup` step and show what changes.
 #[test]
 #[ignore = "diagnostic output: run with --ignored --nocapture"]
 fn diagnose_the_container() {
     let f = cmd_fixture();
     let show = |title: &str, output: Output| println!("\n===== {title}\n{}", describe(&output));
-    show("identity (groups)", f.run("whoami /groups"));
-    show(
-        "open NUL for writing",
-        f.run("echo x> NUL & echo nul_rc=%errorlevel%"),
-    );
-    show(
-        "read NUL",
-        f.run("type NUL & echo type_nul_rc=%errorlevel%"),
-    );
-    show("curl runs", f.run(&format!("\"{}\" --version", curl())));
-    if let Some(git) = where_is("git.exe") {
-        println!("\n(git found at {})", git.display());
-        let extra: Vec<PathBuf> = grant_for(&git).into_iter().collect();
-        f.write_policy(&cmd_exe(), "none", json!({ "readOnly": extra }));
+    let git = where_is("git.exe");
+    let extra: Vec<PathBuf> = git.iter().filter_map(|g| grant_for(g)).collect();
+    let policy_for = |shell: &str| f.write_policy(shell, "none", json!({ "readOnly": extra }));
+
+    let nul_modes = "foreach ($a in 'Read','Write','ReadWrite') { try { $s = [IO.File]::Open('\\\\.\\NUL','Open',$a,'ReadWrite'); $s.Close(); \"$a OK\" } catch { \"$a FAIL: $($_.Exception.Message)\" } }";
+    let ps_basics = |git: &Option<PathBuf>| {
+        let git_line = git
+            .as_ref()
+            .map(|g| format!("& '{}' --version; ", g.display()))
+            .unwrap_or_default();
+        format!("Get-Location; Set-Content -Path x.txt -Value hi; Get-Content x.txt; (Get-PSDrive -PSProvider FileSystem).Name -join ','; {git_line}Get-ChildItem -Name | Select-Object -First 3")
+    };
+
+    let stage = |label: &str| {
+        println!("\n\n################ {label}");
+        policy_for(&cmd_exe());
         show(
-            "git --version, stdin=NUL",
-            f.run(&format!("\"{}\" --version", git.display())),
+            "cmd: write NUL",
+            f.run("echo x> NUL & echo rc=%errorlevel%"),
         );
-        show(
-            "git --version, stdin=pipe",
-            run_with_piped_stdin(&f, &format!("\"{}\" --version", git.display())),
-        );
-        let mingw = git
-            .parent()
-            .and_then(|p| p.parent())
-            .map(|root| root.join("mingw64").join("bin").join("git.exe"));
-        if let Some(mingw) = mingw.filter(|p| p.exists()) {
+        show("cmd: read NUL", f.run("type NUL & echo rc=%errorlevel%"));
+        policy_for(&powershell_5());
+        show("PowerShell 5.1: NUL open modes", f.run(nul_modes));
+        show("PowerShell 5.1: basics", f.run(&ps_basics(&git)));
+        if let Some(pwsh) = powershell_7() {
+            policy_for(&pwsh);
+            show("PowerShell 7: NUL open modes", f.run(nul_modes));
+            show("PowerShell 7: basics", f.run(&ps_basics(&git)));
+        }
+        policy_for(&cmd_exe());
+        if let Some(git) = &git {
             show(
-                "mingw64 git.exe directly",
-                f.run(&format!("\"{}\" --version", mingw.display())),
+                "cmd: git --version",
+                f.run(&format!("\"{}\" --version", git.display())),
+            );
+            show(
+                "cmd: git init + status in the workspace",
+                f.run(&format!(
+                    "\"{}\" init -q & \"{}\" status --short & echo done",
+                    git.display(),
+                    git.display()
+                )),
             );
         }
-        let ps = windows_dir()
-            .join("System32")
-            .join("WindowsPowerShell")
-            .join("v1.0")
-            .join("powershell.exe");
-        f.write_policy(&ps.to_string_lossy(), "none", json!({ "readOnly": extra }));
         show(
-            "git --version from PowerShell",
-            f.run(&format!("& \"{}\" --version", git.display())),
+            "cmd: curl --version",
+            f.run(&format!("\"{}\" --version", curl())),
         );
-        show(
-            "git --version from PowerShell, stdin=pipe",
-            run_with_piped_stdin(&f, &format!("& \"{}\" --version", git.display())),
-        );
-    }
-    if let Some(node) = where_is("node.exe") {
-        println!(
-            "\n(node found at {}; real folder {:?})",
-            node.display(),
-            grant_for(&node)
-        );
-        show(
-            "reparse point at Program Files\\nodejs (unsandboxed)",
-            f.control("fsutil reparsepoint query \"C:\\Program Files\\nodejs\""),
-        );
-    }
+    };
+
+    show("the container's SID", helper(&f, "--probe"));
+    show(
+        "NUL's permissions (icacls, unsandboxed)",
+        f.control("icacls \\\\.\\NUL"),
+    );
+    show(
+        "Program Files\\nodejs permissions (icacls, unsandboxed)",
+        f.control(
+            "icacls \"C:\\Program Files\\nodejs\\node.exe\" & icacls \"C:\\Program Files\\nodejs\"",
+        ),
+    );
+    stage("BEFORE setup");
+    show(
+        "harness-sandbox --setup (grants the container the NUL device)",
+        helper(&f, "--setup"),
+    );
+    show(
+        "NUL's permissions after setup",
+        f.control("icacls \\\\.\\NUL"),
+    );
+    stage("AFTER setup");
+    show(
+        "cmd: a file redirect to NUL inside a for loop",
+        f.run("for /l %i in (1,1,3) do @echo hi> NUL"),
+    );
 }

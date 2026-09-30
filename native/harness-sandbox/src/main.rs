@@ -81,8 +81,15 @@ fn run(invocation: Invocation) -> Result<u8, String> {
             let profile = load_policy()
                 .map(|p| p.profile)
                 .unwrap_or_else(|_| "Harness.AgentShell".to_string());
-            win::probe(&profile).map_err(|e| e.to_string())?;
-            println!("{{\"ok\":true,\"backend\":\"appcontainer\"}}");
+            let sid = win::probe(&profile).map_err(|e| e.to_string())?;
+            println!("{{\"ok\":true,\"backend\":\"appcontainer\",\"sid\":\"{sid}\"}}");
+            Ok(0)
+        }
+        Invocation::Setup => {
+            let profile = load_policy()
+                .map(|p| p.profile)
+                .unwrap_or_else(|_| "Harness.AgentShell".to_string());
+            win::setup(&profile).map_err(|e| e.to_string())?;
             Ok(0)
         }
         Invocation::Revoke => {

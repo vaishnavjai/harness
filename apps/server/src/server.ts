@@ -11,6 +11,7 @@ import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { resolveGlobalOpencodeConfigPath } from "@harness/paths";
 import type { ApprovalRequest, Capabilities, ServerConfig, WorkspaceInfo, Actor, ReloadReason, ReloadTrigger, TokenScope } from "./types.js";
 import { agentContextDiagnosticsRequestSchema } from "./agent-context-diagnostics-schema.js";
+import { refreshActiveAgentSandbox } from "./agent-sandbox.js";
 import { ApprovalService } from "./approvals.js";
 import {
   BoundedSseFrameBuffer,
@@ -857,12 +858,19 @@ export async function startServer(
     // workspace has no engine to reload.
     if (config.workspaces.length > 0 || enginePoolForConfig(config)) cloudProviderSync.markReloadPending();
   };
+  // A new or removed workspace changes what the agent's shell may touch, so the sandbox policy is rewritten with it.
+  const onWorkspacesChanged = () => {
+    restartReloadWatchers();
+    refreshActiveAgentSandbox().catch((error: unknown) => {
+      logger.log("error", "Could not update the agent sandbox policy; commands in new folders will be refused until it is", { error: error instanceof Error ? error.message : String(error) });
+    });
+  };
   const routes = createRoutes(
     config,
     approvals,
     tokens,
     env,
-    restartReloadWatchers,
+    onWorkspacesChanged,
     engineMcpServerState,
     logger,
     cloudProviderSync,

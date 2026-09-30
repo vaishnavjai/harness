@@ -40,6 +40,17 @@ fn mask(access: Access) -> u32 {
     }
 }
 
+/// Read and write on a device object such as `\\.\NUL`. Not inheritable: a device has no children.
+pub fn grant_device(path: &str, sid: &Sid) -> Result<(), Error> {
+    edit(
+        path,
+        sid,
+        FILE_GENERIC_READ.0 | FILE_GENERIC_WRITE.0,
+        SET_ACCESS,
+        true,
+    )
+}
+
 pub fn grant(path: &str, sid: &Sid, access: Access) -> Result<(), Error> {
     edit(path, sid, mask(access), SET_ACCESS, true)
 }

@@ -11,6 +11,8 @@ pub enum Invocation {
     Probe,
     /// Take back the folder grants the policy made.
     Revoke,
+    /// One-time, elevated preparation of the machine (lets the container use the NUL device).
+    Setup,
     Version,
 }
 
@@ -19,10 +21,11 @@ pub fn parse_args(args: &[String]) -> Result<Invocation, String> {
         [] => Ok(Invocation::Run { command: None }),
         [flag] if flag == "--probe" => Ok(Invocation::Probe),
         [flag] if flag == "--revoke" => Ok(Invocation::Revoke),
+        [flag] if flag == "--setup" => Ok(Invocation::Setup),
         [flag] if flag == "--version" => Ok(Invocation::Version),
         // `-lc` is what some callers pass to ask for a login shell; the sandbox never loads profiles, so it is the same.
         [flag, command] if flag == "-c" || flag == "-lc" => Ok(Invocation::Run { command: Some(command.clone()) }),
-        _ => Err(format!("unrecognised arguments {args:?}; expected -c <command>, --probe, --revoke or --version")),
+        _ => Err(format!("unrecognised arguments {args:?}; expected -c <command>, --probe, --revoke, --setup or --version")),
     }
 }
 
@@ -65,6 +68,7 @@ mod tests {
     fn maintenance_flags_take_no_command() {
         assert_eq!(parse_args(&args(&["--probe"])), Ok(Invocation::Probe));
         assert_eq!(parse_args(&args(&["--revoke"])), Ok(Invocation::Revoke));
+        assert_eq!(parse_args(&args(&["--setup"])), Ok(Invocation::Setup));
         assert_eq!(parse_args(&args(&["--version"])), Ok(Invocation::Version));
     }
 

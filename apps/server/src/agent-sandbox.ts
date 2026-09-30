@@ -1,14 +1,14 @@
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { win32 } from "node:path";
 
 /**
  * Runs the agent's shell commands inside an OS sandbox (checklist item 3).
  *
  * The engine runs every shell command as `$SHELL -c <command>`. When the sandbox is on, `SHELL` is the
- * `harness-sandbox` helper, which reads a policy file and starts the real shell inside a Windows AppContainer.
- * This module decides what the policy says and keeps the file current; the helper enforces it.
+ * `harness-sandbox` helper (`native/harness-sandbox`), which reads a policy file and starts the real shell inside
+ * a Windows AppContainer. This module decides what the policy says and keeps the file current; the helper
+ * enforces it and has the last word on what it accepts.
  *
  * Off by default. Turning it on with no working helper is an error, never a silent fall back to no sandbox.
  */
@@ -31,7 +31,6 @@ export type AgentSandboxPolicy = {
   readWrite: string[];
   readOnly: string[];
   protect: string[];
-  tempDir: string;
   network: SandboxNetwork;
 };
 
@@ -69,29 +68,28 @@ function within(parent: string, path: string): boolean {
 
 /** A drive-absolute Windows path in canonical form (single backslashes, no trailing one), or null. */
 export function windowsPath(raw: string | undefined): string | null {
-  if (!raw || !/^[A-Za-z]:[\\/]/.test(raw)) return null;
-  const normal = win32.normalize(raw).replace(/[\\/]+$/, "");
+  const plain = raw?.startsWith("\\\\?\\") ? raw.slice(4) : raw;
+  if (!plain || !/^[A-Za-z]:[\\/]/.test(plain)) return null;
+  const normal = win32.normalize(plain).replace(/[\\/]+$/, "");
   return /^[A-Za-z]:$/.test(normal) ? `${normal}\\` : normal;
 }
+
+const isPath = (path: string | null): path is string => path !== null;
 
 function unique(paths: string[]): string[] {
   const seen = new Set<string>();
   return paths.filter((path) => (seen.has(key(path)) ? false : (seen.add(key(path)), true)));
 }
 
-type WindowsEnv = { systemDrive: string; systemRoot: string; programFiles: string[]; programData: string; profile: string | null; sensitive: string[] };
+type WindowsEnv = { systemRoot: string; programFiles: string[]; programData: string; sensitive: string[] };
 
 function windowsEnv(env: NodeJS.ProcessEnv): WindowsEnv {
   const systemDrive = (env.SystemDrive ?? "C:").replace(/[\\/]+$/, "");
-  const systemRoot = windowsPath(env.SystemRoot) ?? `${systemDrive}\\Windows`;
-  const profile = windowsPath(env.USERPROFILE);
   return {
-    systemDrive,
-    systemRoot,
-    programFiles: [env.ProgramFiles, env["ProgramFiles(x86)"], `${systemDrive}\\Program Files`, `${systemDrive}\\Program Files (x86)`].map(windowsPath).filter((p): p is string => p !== null),
+    systemRoot: windowsPath(env.SystemRoot) ?? `${systemDrive}\\Windows`,
+    programFiles: [env.ProgramFiles, env["ProgramFiles(x86)"], `${systemDrive}\\Program Files`, `${systemDrive}\\Program Files (x86)`].map(windowsPath).filter(isPath),
     programData: windowsPath(env.ProgramData) ?? `${systemDrive}\\ProgramData`,
-    profile,
-    sensitive: [profile, windowsPath(env.APPDATA), windowsPath(env.LOCALAPPDATA), `${systemDrive}\\Users`].filter((p): p is string => p !== null),
+    sensitive: [windowsPath(env.USERPROFILE), windowsPath(env.APPDATA), windowsPath(env.LOCALAPPDATA), `${systemDrive}\\Users`].filter(isPath),
   };
 }
 
@@ -108,76 +106,89 @@ export function whyNotGrantable(path: string, env: NodeJS.ProcessEnv): string | 
   return null;
 }
 
-export type BuiltPolicy = { policy: AgentSandboxPolicy; skipped: Array<{ path: string; reason: string }> };
+/** Shells that start inside an AppContainer. Git bash and other MSYS2 shells do not (measured on Windows). */
+const SANDBOXABLE_SHELL = /\\(?:powershell|pwsh|cmd)\.exe$/i;
 
 /**
- * The shell the engine would pick on Windows: Git's bash when it is installed, then PowerShell, then cmd.
- * Kept identical to the engine's choice so turning the sandbox on does not change which shell the agent gets.
+ * The shell commands run in when the sandbox is on: PowerShell 7, then Windows PowerShell, then cmd. Never Git
+ * bash, which the engine prefers when it is installed, because MSYS2 dies at startup inside the container.
  */
 export function windowsShell(env: NodeJS.ProcessEnv, exists: (path: string) => boolean = existsSync): string | null {
   const w = windowsEnv(env);
+  const requested = env[AGENT_SANDBOX_SHELL_ENV];
+  const override = windowsPath(requested);
+  if (requested && (!override || !SANDBOXABLE_SHELL.test(override))) {
+    throw new AgentSandboxUnavailableError(
+      `${AGENT_SANDBOX_SHELL_ENV}=${JSON.stringify(requested)} must be the absolute path of powershell.exe, pwsh.exe or cmd.exe (Git bash cannot run in the sandbox)`,
+    );
+  }
   const candidates = [
-    env[AGENT_SANDBOX_SHELL_ENV],
-    env.OPENCODE_GIT_BASH_PATH,
-    ...w.programFiles.map((dir) => `${dir}\\Git\\bin\\bash.exe`),
-    env.LOCALAPPDATA ? `${env.LOCALAPPDATA}\\Programs\\Git\\bin\\bash.exe` : undefined,
+    override,
+    ...w.programFiles.map((dir) => `${dir}\\PowerShell\\7\\pwsh.exe`),
     `${w.systemRoot}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`,
     `${w.systemRoot}\\System32\\cmd.exe`,
   ];
   for (const candidate of candidates) {
-    const path = windowsPath(candidate);
+    const path = windowsPath(candidate ?? undefined);
     if (path && exists(path)) return path;
   }
   return null;
 }
 
+function realFolder(path: string): string {
+  try {
+    return windowsPath(realpathSync.native(path)) ?? path;
+  } catch {
+    return path;
+  }
+}
+
 /**
  * Folders on PATH the agent's tools live in that the container could not otherwise read. Program Files and
  * Windows are already readable to an AppContainer, and the helper refuses them as grants, so they are left out.
+ * Each entry is followed through junctions first: a runner's `C:\Program Files\nodejs` is a link into a folder
+ * the container cannot read, and it is that real folder that needs the grant.
  */
-export function toolFolders(env: NodeJS.ProcessEnv, exists: (path: string) => boolean = existsSync): string[] {
+export function toolFolders(env: NodeJS.ProcessEnv, exists: (path: string) => boolean = existsSync, resolve: (path: string) => string = realFolder): string[] {
   const w = windowsEnv(env);
-  const entries = (env.Path ?? env.PATH ?? "").split(";").map(windowsPath).filter((p): p is string => p !== null);
-  return unique(entries.filter((dir) => exists(dir) && !inSystemFolder(dir, w) && whyNotGrantable(dir, env) === null));
+  const entries = (env.Path ?? env.PATH ?? "").split(";").map(windowsPath).filter(isPath);
+  const real = entries.filter((dir) => exists(dir)).map((dir) => windowsPath(resolve(dir)) ?? dir);
+  return unique(real.filter((dir) => !inSystemFolder(dir, w) && whyNotGrantable(dir, env) === null));
 }
+
+export type BuiltPolicy = { policy: AgentSandboxPolicy; skipped: Array<{ path: string; reason: string }> };
 
 export function buildAgentSandboxPolicy(input: {
   /** Workspace folders and any other folder the person has authorized, as configured. */
   roots: string[];
   /** Harness's own data: config, runtime database, vault, audit log, memory. Never reachable from the sandbox. */
   protect: string[];
-  tempDir: string;
   shell: string;
   network: SandboxNetwork;
   env: NodeJS.ProcessEnv;
   exists?: (path: string) => boolean;
+  resolve?: (path: string) => string;
 }): BuiltPolicy {
   const exists = input.exists ?? existsSync;
+  const resolve = input.resolve ?? realFolder;
   const skipped: BuiltPolicy["skipped"] = [];
+  const protect = unique(input.protect.map(windowsPath).filter(isPath));
   const readWrite: string[] = [];
   for (const raw of input.roots) {
     const path = windowsPath(raw);
-    const reason = path === null ? "it is not a local drive folder" : whyNotGrantable(path, input.env) ?? (exists(path) ? null : "it does not exist");
-    if (path !== null && reason === null) readWrite.push(path);
-    else skipped.push({ path: raw, reason: reason ?? "unusable" });
+    if (path === null) {
+      skipped.push({ path: raw, reason: "it is not a local drive folder" });
+      continue;
+    }
+    // Judged as the folder it really is, so a junction to the profile cannot pass as a workspace.
+    const real = exists(path) ? (windowsPath(resolve(path)) ?? path) : path;
+    const clash = protect.find((dir) => within(dir, real) || within(real, dir));
+    const why = whyNotGrantable(real, input.env) ?? (exists(path) ? null : "it does not exist") ?? (clash ? `it overlaps Harness's own data at ${clash}` : null);
+    if (why === null) readWrite.push(real);
+    else skipped.push({ path: raw, reason: why });
   }
-  const protect = unique(input.protect.map(windowsPath).filter((p): p is string => p !== null));
-  // A folder that reaches Harness's own data would let the agent rewrite the audit log and read the vault.
-  const safe = readWrite.filter((path) => {
-    const clash = protect.find((dir) => within(dir, path) || within(path, dir));
-    if (clash) skipped.push({ path, reason: `it overlaps Harness's own data at ${clash}` });
-    return !clash;
-  });
   return {
-    policy: {
-      version: 1,
-      shell: input.shell,
-      readWrite: unique(safe),
-      readOnly: toolFolders(input.env, exists),
-      protect,
-      tempDir: windowsPath(input.tempDir) ?? input.tempDir,
-      network: input.network,
-    },
+    policy: { version: 1, shell: input.shell, readWrite: unique(readWrite), readOnly: toolFolders(input.env, exists, resolve), protect, network: input.network },
     skipped,
   };
 }
@@ -201,13 +212,15 @@ export type AgentSandbox = {
 export type AgentSandboxInput = {
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
-  /** Folder for the policy file and scratch space, under Harness's own data. */
+  /** Harness's runtime storage folder: holds the policy file, and is itself protected. */
   storageDir: string;
   /** Current workspace folders and authorized roots. Read again on every refresh. */
   roots: () => string[];
   /** Harness's own data folders. */
   protect: () => string[];
   exists?: (path: string) => boolean;
+  resolve?: (path: string) => string;
+  writePolicy?: (path: string, policy: AgentSandboxPolicy) => Promise<void>;
 };
 
 /** Prepares the sandbox, or returns null when it is not requested. Throws when it is requested but cannot work. */
@@ -223,26 +236,36 @@ export async function prepareAgentSandbox(input: AgentSandboxInput): Promise<Age
   if (!helper) throw new AgentSandboxUnavailableError(`${AGENT_SANDBOX_HELPER_ENV} must name harness-sandbox.exe (an absolute path)`);
   if (!exists(helper)) throw new AgentSandboxUnavailableError(`the helper is missing at ${helper}`);
   const shell = windowsShell(env, exists);
-  if (!shell) throw new AgentSandboxUnavailableError("no shell was found to run commands in");
+  if (!shell) throw new AgentSandboxUnavailableError("no PowerShell or cmd was found to run commands in");
   const network = agentSandboxNetwork(env);
 
   const policyPath = win32.join(input.storageDir, "sandbox", "policy.json");
-  // Scratch space lives in the user's temp folder, not under Harness's data: the data is protected, and a grant may not overlap it.
-  const tempDir = win32.join(windowsPath(env.TEMP ?? env.TMP) ?? tmpdir(), "harness-agent-sandbox");
   const extraProtect = (env[AGENT_SANDBOX_PROTECT_ENV] ?? "").split(";").filter(Boolean);
+  const write = input.writePolicy ?? writeAgentSandboxPolicy;
   const refresh = async (): Promise<BuiltPolicy> => {
     const built = buildAgentSandboxPolicy({
       roots: input.roots(),
       protect: [...input.protect(), ...extraProtect, input.storageDir],
-      tempDir,
       shell,
       network,
       env,
       exists,
+      resolve: input.resolve,
     });
-    await writeAgentSandboxPolicy(policyPath, built.policy);
+    await write(policyPath, built.policy);
     return built;
   };
   await refresh();
   return { env: { SHELL: helper, [SANDBOX_POLICY_ENV]: policyPath }, policyPath, refresh };
+}
+
+let active: AgentSandbox | null = null;
+
+/** The sandbox of the running server, so code that changes workspaces can keep the policy current. */
+export function setActiveAgentSandbox(sandbox: AgentSandbox | null): void {
+  active = sandbox;
+}
+
+export async function refreshActiveAgentSandbox(): Promise<BuiltPolicy | null> {
+  return active ? active.refresh() : null;
 }

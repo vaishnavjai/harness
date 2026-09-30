@@ -2,7 +2,7 @@
 
 use windows::core::{HRESULT, PCWSTR};
 use windows::Win32::Foundation::{LocalFree, ERROR_ALREADY_EXISTS, HLOCAL};
-use windows::Win32::Security::Authorization::ConvertStringSidToSidW;
+use windows::Win32::Security::Authorization::{ConvertSidToStringSidW, ConvertStringSidToSidW};
 use windows::Win32::Security::Isolation::{
     CreateAppContainerProfile, DeriveAppContainerSidFromAppContainerName,
 };
@@ -43,6 +43,21 @@ impl Drop for Sid {
                 }
             }
         }
+    }
+}
+
+impl Sid {
+    /// The `S-1-15-2-...` form, for logs and for `icacls`.
+    pub fn to_string(&self) -> Result<String, Error> {
+        let mut text = windows::core::PWSTR::null();
+        // SAFETY: `psid` is a valid SID; on success `text` holds a LocalAlloc'd string freed below.
+        unsafe { ConvertSidToStringSidW(self.psid, &mut text) }
+            .map_err(|e| Error::new("sid text", e))?;
+        // SAFETY: `text` is a NUL-terminated wide string returned by the call above.
+        let result = unsafe { text.to_string() }.map_err(|e| Error::new("sid text", e));
+        // SAFETY: allocated by ConvertSidToStringSidW with LocalAlloc.
+        unsafe { LocalFree(Some(HLOCAL(text.0.cast()))) };
+        result
     }
 }
 

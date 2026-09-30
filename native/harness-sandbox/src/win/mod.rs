@@ -45,9 +45,18 @@ pub(crate) fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// Whether an AppContainer can be created here. Used by the app to decide if the sandbox is available.
-pub fn probe(profile: &str) -> Result<(), Error> {
-    appcontainer::profile_sid(profile).map(|_| ())
+/// Whether an AppContainer can be created here, and its SID. Used by the app to decide if the sandbox is available.
+pub fn probe(profile: &str) -> Result<String, Error> {
+    appcontainer::profile_sid(profile)?.to_string()
+}
+
+/// Lets the container open the NUL device. Windows denies an AppContainer read access to it, and git (which opens
+/// `/dev/null` read-write on every start), Python's `subprocess.DEVNULL`, Node's `stdio: "ignore"` and `cmd`'s own
+/// `> NUL` all need it. Changing a device's permissions needs an administrator, so this is a one-time step that
+/// grants only this container's SID and nothing else.
+pub fn setup(profile: &str) -> Result<(), Error> {
+    let sid = appcontainer::profile_sid(profile)?;
+    acl::grant_device("\\\\.\\NUL", &sid)
 }
 
 /// Take back the grants the policy made. The profile itself stays: it holds no rights of its own.

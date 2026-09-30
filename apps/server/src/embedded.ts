@@ -8,7 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { stopTaskRecovery } from "./task-recovery.js";
 import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { resolveServerConfig, type CliArgs } from "./config.js";
 import {
   buildEngineAuthProbeHeader,
@@ -34,6 +34,7 @@ import {
 } from "./server.js";
 import { ensureLocalWorkspaceFiles } from "./workspace-init.js";
 import { findManagedEngineWorkspace, resolveManagedEngineCwd, shouldStartManagedEngine } from "./workspaces.js";
+import { prepareAgentSandbox, setActiveAgentSandbox } from "./agent-sandbox.js";
 import { runtimeStorageDir } from "./runtime-db.js";
 import { keepHarnessRuntimeConfigFileFresh, writeHarnessRuntimeConfigFile } from "./harness-runtime-config.js";
 import { migrateHarnessCloudMcpRuntimeConfig } from "./cloud-mcp-health.js";
@@ -221,8 +222,20 @@ export async function startEmbeddedServer(options: EmbeddedServerOptions): Promi
     const opencodeBin = options.opencodeBin || process.env.HARNESS_OPENCODE_BIN;
     // Shared by the first spawn and by any later rollover standby, so a
     // replacement engine is identical apart from its port.
+    // Opt-in (HARNESS_AGENT_SANDBOX=1). When on, the engine's shell is the sandbox helper. When it is on but cannot
+    // work this throws, and the engine does not start: there is no unsandboxed fallback.
+    const agentSandbox = await duringStartup(() => prepareAgentSandbox({
+      storageDir: runtimeStorageDir(config),
+      roots: () => [
+        ...config.workspaces.filter((entry) => entry.workspaceType !== "remote").map((entry) => entry.path),
+        ...config.authorizedRoots,
+      ],
+      protect: () => (config.configPath ? [dirname(config.configPath)] : []),
+    }));
+    setActiveAgentSandbox(agentSandbox);
     const engineEnv: Record<string, string | undefined> = {
       ...(process.env.HARNESS_DEV_MODE ? { HARNESS_DEV_MODE: process.env.HARNESS_DEV_MODE } : {}),
+      ...agentSandbox?.env,
       ...(process.env.HARNESS_UI_CONTROL_DISCOVERY ? { HARNESS_UI_CONTROL_DISCOVERY: process.env.HARNESS_UI_CONTROL_DISCOVERY } : {}),
       HARNESS_SERVER_URL: serverUrl,
       HARNESS_SERVER_TOKEN: config.token,
