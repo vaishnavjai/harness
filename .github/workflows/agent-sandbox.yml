@@ -31,6 +31,7 @@ jobs:
   core:
     name: Policy, quoting and Windows type-check (Linux)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,12 +54,19 @@ jobs:
   windows:
     name: Escape tests (Windows)
     runs-on: windows-latest
+    # A test that hangs would otherwise run for six hours on a machine billed at twice the Linux rate.
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Escape and compatibility tests
         run: cargo test --release -- --test-threads=1 --nocapture
+
+      - name: Known compatibility gaps (informational, not a gate)
+        if: always()
+        continue-on-error: true
+        run: cargo test --release --test windows_escape -- --ignored --nocapture --test-threads=1 compat_
 
       - name: Diagnostics (what the container can and cannot do)
         if: always()

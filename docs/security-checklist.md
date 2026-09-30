@@ -18,6 +18,7 @@ command output or a linked report.
   - [ ] Processes: the agent's children cannot signal, trace or read the app's processes.
   - [ ] Linux (Landlock, seccomp or bubblewrap), macOS (Seatbelt), Windows (restricted token plus job object or AppContainer).
   - [ ] Escape tests per platform: read `~/.ssh`, open an outside socket, kill the app.
+  - Status: a Windows AppContainer helper is built, opt-in, and escape-tested on a real Windows runner (files, network, loopback, killing other processes, background processes); Linux and macOS have no backend. It is not the default because ordinary tools (git above all) do not yet work inside it. See `docs/agent-sandbox.md`.
 
 - [ ] **4. Signed builds and provenance**
   - [ ] Code-sign the Windows build and sign and notarize the macOS build.
