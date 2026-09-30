@@ -1,0 +1,3 @@
+# A statically linked C runtime, so the helper runs on a machine without the Visual C++ redistributable.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

@@ -1,0 +1,77 @@
+name: agent-sandbox
+
+# The native helper that puts an agent's shell in an OS sandbox (native/harness-sandbox). The Windows job runs
+# real escape tests on a real Windows machine: it reads files it must not, opens sockets it must not, and tries
+# to kill processes it must not, and each has a control showing the action works without the sandbox.
+
+on:
+  push:
+    branches: [dev, harness-update]
+    paths:
+      - "native/harness-sandbox/**"
+      - ".github/workflows/agent-sandbox.yml"
+  pull_request:
+    paths:
+      - "native/harness-sandbox/**"
+      - ".github/workflows/agent-sandbox.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-sandbox-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: native/harness-sandbox
+
+jobs:
+  core:
+    name: Policy, quoting and Windows type-check (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add the Windows target
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Lint (Linux)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Lint and type-check the Windows backend
+        run: cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --lib
+
+  windows:
+    name: Escape tests (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Escape and compatibility tests
+        run: cargo test --release -- --test-threads=1 --nocapture
+
+      - name: Build the helper
+        run: cargo build --release
+
+      - name: Record the helper's hash
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash target/release/harness-sandbox.exe -Algorithm SHA256).Hash.ToLower()
+          "harness-sandbox.exe sha256: ``$hash``" | Out-File -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload the helper
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-sandbox-windows-x64
+          path: native/harness-sandbox/target/release/harness-sandbox.exe
+          retention-days: 14
