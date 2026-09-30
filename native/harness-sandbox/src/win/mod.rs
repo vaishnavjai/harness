@@ -53,12 +53,7 @@ pub fn probe(profile: &str) -> Result<(), Error> {
 /// Take back the grants the policy made. The profile itself stays: it holds no rights of its own.
 pub fn revoke(policy: &ValidPolicy) -> Result<(), Error> {
     let sid = appcontainer::profile_sid(&policy.profile)?;
-    for path in policy
-        .read_write
-        .iter()
-        .chain(&policy.read_only)
-        .chain(std::iter::once(&policy.temp_dir))
-    {
+    for path in policy.read_write.iter().chain(&policy.read_only) {
         if std::path::Path::new(path).exists() {
             acl::revoke(path, &sid)?;
         }
@@ -91,7 +86,6 @@ pub fn run(policy: &ValidPolicy, command: Option<&str>) -> Result<u32, Error> {
         .read_write
         .iter()
         .chain(&policy.read_only)
-        .chain(std::iter::once(&policy.temp_dir))
         .any(|root| within(root, &cwd));
     if !usable {
         return Err(Error::new(
@@ -101,15 +95,12 @@ pub fn run(policy: &ValidPolicy, command: Option<&str>) -> Result<u32, Error> {
     }
 
     let sid = appcontainer::profile_sid(&policy.profile)?;
-    std::fs::create_dir_all(&policy.temp_dir)
-        .map_err(|e| Error::new("temp folder", format!("{}: {e}", policy.temp_dir)))?;
     for path in &policy.read_write {
         if !std::path::Path::new(path).is_dir() {
             return Err(Error::new("folder", format!("{path} does not exist")));
         }
         acl::grant(path, &sid, acl::Access::ReadWrite)?;
     }
-    acl::grant(&policy.temp_dir, &sid, acl::Access::ReadWrite)?;
     for path in &policy.read_only {
         // A toolchain folder that is not installed on this machine is skipped, not fatal.
         if std::path::Path::new(path).exists() {

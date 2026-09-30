@@ -119,7 +119,9 @@ pub struct Launch<'a> {
     pub cwd: &'a str,
 }
 
-/// The environment the command sees: ours, minus the sandbox's own settings, with the scratch folder as TEMP.
+/// The environment the command sees: ours, minus the sandbox's own settings. Windows itself points TEMP and TMP
+/// at the container's private folder, so they are not set here. `SHELL` names the real shell, so a tool that runs
+/// `$SHELL -c` does not start this helper a second time.
 fn environment(policy: &ValidPolicy) -> Vec<u16> {
     let mut vars: BTreeMap<String, (std::ffi::OsString, std::ffi::OsString)> = BTreeMap::new();
     for (name, value) in std::env::vars_os() {
@@ -130,8 +132,7 @@ fn environment(policy: &ValidPolicy) -> Vec<u16> {
         vars.insert(upper, (name, value));
     }
     for (name, value) in [
-        ("TEMP", policy.temp_dir.as_str()),
-        ("TMP", policy.temp_dir.as_str()),
+        ("SHELL", policy.shell.as_str()),
         ("HARNESS_SANDBOXED", "appcontainer"),
     ] {
         vars.insert(name.to_string(), (name.into(), value.into()));

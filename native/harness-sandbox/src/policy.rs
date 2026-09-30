@@ -41,7 +41,8 @@ pub struct Policy {
     pub version: u32,
     /// AppContainer profile name. One profile serves every workspace.
     pub profile: Option<String>,
-    /// The shell that actually runs the command, for example `C:\Program Files\Git\bin\bash.exe`.
+    /// The shell that actually runs the command: `powershell.exe`, `pwsh.exe` or `cmd.exe`. Git bash and other
+    /// MSYS2 shells cannot run in an AppContainer (they need `\BaseNamedObjects`, which it denies).
     pub shell: String,
     /// Folders the command may read and write.
     pub read_write: Vec<String>,
@@ -51,8 +52,6 @@ pub struct Policy {
     /// Folders no grant may reach, whatever else is listed (Harness's own data, the audit log, the key vault).
     #[serde(default)]
     pub protect: Vec<String>,
-    /// Scratch space: granted read-write and exported as TEMP and TMP.
-    pub temp_dir: String,
     pub network: Network,
     #[serde(default)]
     pub limits: Limits,
@@ -84,7 +83,7 @@ impl std::fmt::Display for PolicyError {
             Self::Profile(p) => write!(f, "profile name {p:?} is not allowed (use letters, digits, '.', '_' or '-', up to 64)"),
             Self::Path { field, path, why } => write!(f, "{field}: {path:?} {why}"),
             Self::Conflict { path, protected } => write!(f, "{path:?} would give access to protected folder {protected:?}"),
-            Self::Shell(s) => write!(f, "shell {s:?} is not a supported absolute shell path (bash, sh, zsh, powershell, pwsh or cmd)"),
+            Self::Shell(s) => write!(f, "shell {s:?} is not usable: it must be the absolute path of powershell.exe, pwsh.exe or cmd.exe (Git bash and other MSYS2 shells cannot run inside an AppContainer)"),
             Self::Limit(why) => write!(f, "limits: {why}"),
         }
     }
@@ -99,7 +98,6 @@ pub struct ValidPolicy {
     pub shell: String,
     pub read_write: Vec<String>,
     pub read_only: Vec<String>,
-    pub temp_dir: String,
     pub network: Network,
     pub max_processes: u32,
     pub memory_mb: Option<u64>,
@@ -176,7 +174,6 @@ impl Policy {
         out.read_write = many("readWrite", &self.read_write)?;
         out.read_only = many("readOnly", &self.read_only)?;
         out.protect = many("protect", &self.protect)?;
-        out.temp_dir = one("tempDir", &self.temp_dir)?;
         Ok(out)
     }
 
@@ -226,8 +223,6 @@ impl Policy {
         };
         let read_write = grants("readWrite", &self.read_write)?;
         let read_only = grants("readOnly", &self.read_only)?;
-        let temp = require("tempDir", &self.temp_dir)?;
-        check_grant("tempDir", &temp, &system, &ancestors, &protect)?;
         if read_write.is_empty() {
             return Err(PolicyError::Path {
                 field: "readWrite",
@@ -238,10 +233,10 @@ impl Policy {
 
         let shell =
             require("shell", &self.shell).map_err(|_| PolicyError::Shell(self.shell.clone()))?;
-        if !shell.to_ascii_lowercase().ends_with(".exe")
-            || crate::shell::ShellKind::from_path(&shell).is_none()
-        {
-            return Err(PolicyError::Shell(self.shell.clone()));
+        match crate::shell::ShellKind::from_path(&shell) {
+            Some(kind)
+                if kind.runs_in_appcontainer() && shell.to_ascii_lowercase().ends_with(".exe") => {}
+            _ => return Err(PolicyError::Shell(self.shell.clone())),
         }
 
         let max_processes = self.limits.max_processes.unwrap_or(DEFAULT_MAX_PROCESSES);
@@ -262,7 +257,6 @@ impl Policy {
             shell,
             read_write,
             read_only,
-            temp_dir: temp,
             network: self.network,
             max_processes,
             memory_mb: self.limits.memory_mb,
@@ -401,7 +395,7 @@ mod tests {
     }
 
     fn base() -> String {
-        r#"{"version":1,"shell":"C:\\Program Files\\Git\\bin\\bash.exe","readWrite":["C:\\Users\\me\\proj"],"tempDir":"C:\\Users\\me\\AppData\\Local\\harness\\tmp","network":"none","protect":["C:\\Users\\me\\AppData\\Roaming\\harness"]}"#.to_string()
+        r#"{"version":1,"shell":"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe","readWrite":["C:\\Users\\me\\proj"],"network":"none","protect":["C:\\Users\\me\\AppData\\Roaming\\harness"]}"#.to_string()
     }
 
     fn sensitive() -> Vec<String> {
@@ -526,29 +520,33 @@ mod tests {
         );
     }
 
+    const POWERSHELL: &str =
+        "C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe";
+
     #[test]
-    fn refuses_a_shell_that_is_not_a_known_absolute_exe() {
+    fn refuses_a_shell_that_cannot_run_in_the_container() {
         for shell in [
             "bash",
             "C:\\tools\\evil.exe",
-            "C:\\Program Files\\Git\\bin\\bash",
-            "\\\\server\\share\\bash.exe",
+            "C:\\Windows\\System32\\cmd",
+            "\\\\server\\share\\cmd.exe",
+            // Git bash and the rest of MSYS2 die at startup inside an AppContainer.
+            "C:\\Program Files\\Git\\bin\\bash.exe",
+            "C:\\Program Files\\Git\\usr\\bin\\sh.exe",
+            "C:\\msys64\\usr\\bin\\zsh.exe",
         ] {
-            let json = base().replace(
-                "C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe",
-                &shell.replace('\\', "\\\\"),
+            let json = base().replace(POWERSHELL, &shell.replace('\\', "\\\\"));
+            assert!(
+                matches!(check(&json), Err(PolicyError::Shell(_))),
+                "{shell} must be refused as a shell"
             );
-            assert!(check(&json).is_err(), "{shell} must be refused");
         }
         for shell in [
             "C:\\Windows\\System32\\cmd.exe",
             "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
             "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
         ] {
-            let json = base().replace(
-                "C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe",
-                &shell.replace('\\', "\\\\"),
-            );
+            let json = base().replace(POWERSHELL, &shell.replace('\\', "\\\\"));
             assert!(check(&json).is_ok(), "{shell} must be accepted");
         }
     }

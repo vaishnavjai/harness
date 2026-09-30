@@ -60,6 +60,11 @@ jobs:
       - name: Escape and compatibility tests
         run: cargo test --release -- --test-threads=1 --nocapture
 
+      - name: Diagnostics (what the container can and cannot do)
+        if: always()
+        continue-on-error: true
+        run: cargo test --release --test windows_escape -- --ignored --nocapture diagnose
+
       - name: Build the helper
         run: cargo build --release
 

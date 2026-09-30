@@ -6,7 +6,9 @@
 //! access to folders under the temp directory only.
 #![cfg(windows)]
 
+use std::io::Write as _;
 use std::net::TcpListener;
+use std::os::windows::process::CommandExt as _;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -33,7 +35,6 @@ fn cmd_exe() -> String {
 struct Fixture {
     root: PathBuf,
     workspace: PathBuf,
-    temp: PathBuf,
     outside: PathBuf,
     policy: PathBuf,
 }
@@ -47,7 +48,6 @@ impl Fixture {
         let root = base.join(format!("hs-sandbox-{}-{n}", std::process::id()));
         let fixture = Fixture {
             workspace: root.join("workspace"),
-            temp: root.join("scratch"),
             outside: root.join("outside"),
             policy: root.join("policy.json"),
             root,
@@ -64,7 +64,6 @@ impl Fixture {
             "profile": PROFILE,
             "shell": shell,
             "readWrite": [self.workspace],
-            "tempDir": self.temp,
             "network": network,
         });
         if let (Some(map), Some(extra)) = (policy.as_object_mut(), extra.as_object()) {
@@ -86,8 +85,10 @@ impl Fixture {
 
     /// Same command with the sandbox's shell but no sandbox: the control that shows the action is possible.
     fn control(&self, command: &str) -> Output {
+        // `/s` makes cmd strip one outer pair of quotes and run the rest as written. Passing the command through
+        // `.args()` would let Rust re-escape its quotes, and cmd does not read them that way.
         Command::new(cmd_exe())
-            .args(["/d", "/c", command])
+            .raw_arg(format!("/d /s /c \"{command}\""))
             .current_dir(&self.workspace)
             .stdin(Stdio::null())
             .output()
@@ -396,76 +397,77 @@ fn cannot_kill_another_process_of_the_same_user() {
     );
 }
 
-fn pings_with_marker(marker: &str) -> usize {
-    let script = format!("@(Get-CimInstance Win32_Process -Filter \"Name='PING.EXE'\" | Where-Object {{ $_.CommandLine -like '*{marker}*' }}).Count");
-    let out = Command::new(
-        windows_dir()
-            .join("System32")
-            .join("WindowsPowerShell")
-            .join("v1.0")
-            .join("powershell.exe"),
-    )
-    .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-    .output()
-    .unwrap();
-    String::from_utf8_lossy(&out.stdout)
-        .trim()
-        .parse()
-        .unwrap_or(usize::MAX)
+/// A script that appends a line to `heartbeat.txt` once a second for a minute. Watching that file grow is how the
+/// tests tell whether a background process is alive: it needs no process listing, which a sandboxed process may not
+/// appear in for another process.
+fn write_heartbeat_script(f: &Fixture) {
+    let mut script = std::fs::File::create(f.workspace.join("beat.cmd")).unwrap();
+    write!(script, "@echo off\r\nfor /l %%i in (1,1,60) do (\r\n  echo tick>>heartbeat.txt\r\n  ping -n 2 127.0.0.1 >NUL\r\n)\r\n").unwrap();
 }
 
-fn kill_pings_with_marker(marker: &str) {
-    let script = format!("Get-CimInstance Win32_Process -Filter \"Name='PING.EXE'\" | Where-Object {{ $_.CommandLine -like '*{marker}*' }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force }}");
-    let _ = Command::new(
-        windows_dir()
-            .join("System32")
-            .join("WindowsPowerShell")
-            .join("v1.0")
-            .join("powershell.exe"),
-    )
-    .args(["-NoProfile", "-Command", &script])
-    .output();
+fn beats(f: &Fixture) -> usize {
+    std::fs::read_to_string(f.workspace.join("heartbeat.txt"))
+        .map(|t| t.lines().count())
+        .unwrap_or(0)
+}
+
+/// Starts the heartbeat in the background from a sandboxed command and reports whether it is still beating after
+/// the command has returned: (beats just after return, beats a few seconds later).
+fn background_beats(f: &Fixture) -> (usize, usize) {
+    write_heartbeat_script(f);
+    let out = f.run("start /b \"\" cmd /d /c beat.cmd >NUL 2>&1 & echo started");
+    assert!(text(&out).contains("started"), "{}", describe(&out));
+    std::thread::sleep(Duration::from_secs(2));
+    let first = beats(f);
+    std::thread::sleep(Duration::from_secs(4));
+    (first, beats(f))
 }
 
 #[test]
 fn background_processes_die_with_the_command() {
     let f = cmd_fixture();
-    let marker = "-n 6101 127.0.0.1";
-    f.run(&format!("start /b ping {marker} > NUL 2>&1 & echo started"));
-    std::thread::sleep(Duration::from_secs(1));
-    let left = pings_with_marker(marker);
-    kill_pings_with_marker(marker);
-    assert_eq!(left, 0, "a background process outlived the command");
+    let (first, later) = background_beats(&f);
+    assert_eq!(
+        later, first,
+        "a background process kept running after the command returned ({first} -> {later} beats)"
+    );
 }
 
 #[test]
 fn keep_background_lets_them_live_on() {
+    // The control for the test above: with keepBackground the same script keeps beating, so "it stopped" means something.
     let f = Fixture::new();
     f.write_policy(
         &cmd_exe(),
         "none",
         json!({ "limits": { "keepBackground": true } }),
     );
-    let marker = "-n 6102 127.0.0.1";
-    f.run(&format!("start /b ping {marker} > NUL 2>&1 & echo started"));
-    std::thread::sleep(Duration::from_secs(1));
-    let left = pings_with_marker(marker);
-    kill_pings_with_marker(marker);
-    assert_eq!(left, 1, "control: with keepBackground the process must survive, or the previous test proves nothing");
+    let (first, later) = background_beats(&f);
+    let _ = f.control(
+        "taskkill /F /IM ping.exe >NUL 2>&1 & taskkill /F /FI \"WINDOWTITLE eq beat*\" >NUL 2>&1",
+    );
+    assert!(
+        later > first,
+        "with keepBackground the background process must keep running ({first} -> {later} beats)"
+    );
 }
 
 #[test]
-fn the_sandbox_settings_do_not_leak_into_the_command() {
+fn the_command_sees_a_private_temp_folder_and_no_sandbox_settings() {
     let f = cmd_fixture();
-    let out = f.run("set HARNESS_SANDBOX & echo TEMP=%TEMP%");
+    let out = f.run("set HARNESS_SANDBOX & echo TEMP=%TEMP% & echo SHELL=%SHELL%");
     let shown = text(&out);
     assert!(!shown.contains("HARNESS_SANDBOX_POLICY"), "{shown}");
     assert!(shown.contains("HARNESS_SANDBOXED=appcontainer"), "{shown}");
+    // Windows itself points TEMP at the container's private folder, which the container owns.
+    let lowered = shown.to_lowercase();
     assert!(
-        shown
-            .to_lowercase()
-            .contains(&format!("temp={}", f.temp.display()).to_lowercase()),
+        lowered.contains(&format!("packages\\{}\\ac\\temp", PROFILE.to_lowercase())),
         "{shown}"
+    );
+    assert!(
+        lowered.contains("shell=c:\\windows\\system32\\cmd.exe"),
+        "SHELL must name the real shell\n{shown}"
     );
 }
 
@@ -481,15 +483,15 @@ fn a_bad_policy_runs_nothing() {
     };
     // The whole profile is far too broad to grant.
     attempt(
-        json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [std::env::var("USERPROFILE").unwrap()], "tempDir": f.temp, "network": "none" }),
+        json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [std::env::var("USERPROFILE").unwrap()], "network": "none" }),
     );
     // An unknown field is a typo that must not be ignored.
     attempt(
-        json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [f.workspace], "tempDir": f.temp, "network": "none", "netwrok": "internet" }),
+        json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [f.workspace], "network": "none", "netwrok": "internet" }),
     );
     // A shell that is not a shell.
     attempt(
-        json!({ "version": 1, "profile": PROFILE, "shell": windows_dir().join("System32").join("notepad.exe"), "readWrite": [f.workspace], "tempDir": f.temp, "network": "none" }),
+        json!({ "version": 1, "profile": PROFILE, "shell": windows_dir().join("System32").join("notepad.exe"), "readWrite": [f.workspace], "network": "none" }),
     );
     // No policy at all.
     let out = Command::new(env!("CARGO_BIN_EXE_harness-sandbox"))
@@ -516,7 +518,7 @@ fn a_workspace_that_is_a_junction_to_the_profile_is_refused() {
         "control: junction created\n{}",
         describe(&made)
     );
-    std::fs::write(&f.policy, json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [junction], "tempDir": f.temp, "network": "none" }).to_string()).unwrap();
+    std::fs::write(&f.policy, json!({ "version": 1, "profile": PROFILE, "shell": cmd_exe(), "readWrite": [junction], "network": "none" }).to_string()).unwrap();
     let out = f.run("echo x > ran.txt");
     assert_eq!(
         out.status.code(),
@@ -548,16 +550,20 @@ fn tool(path: &str) -> Option<PathBuf> {
 }
 
 #[test]
-fn compat_git_bash_as_the_shell() {
+fn git_bash_is_refused_with_a_reason_the_person_can_act_on() {
     let Some(bash) = tool(r"C:\Program Files\Git\bin\bash.exe") else {
         return eprintln!("SKIP: Git for Windows is not installed");
     };
     let f = Fixture::new();
     f.write_policy(&bash.to_string_lossy(), "none", json!({}));
-    let out = f.run("echo from-bash && pwd && uname -s && echo 'quoted \"arg\" $HOME' && exit 3");
-    assert!(text(&out).contains("from-bash"), "{}", describe(&out));
-    assert!(text(&out).contains("quoted \"arg\""), "{}", describe(&out));
-    assert_eq!(out.status.code(), Some(3), "{}", describe(&out));
+    let out = f.run("echo should-not-run");
+    assert_eq!(out.status.code(), Some(126), "{}", describe(&out));
+    assert!(!text(&out).contains("should-not-run"), "{}", describe(&out));
+    assert!(
+        text(&out).contains("MSYS2"),
+        "the refusal must say why\n{}",
+        describe(&out)
+    );
 }
 
 #[test]
@@ -574,12 +580,38 @@ fn compat_powershell_as_the_shell() {
     assert_eq!(out.status.code(), Some(4), "{}", describe(&out));
 }
 
+/// The folder a program really lives in (junctions followed), as a grant the policy would accept, or None when it
+/// is already readable to every container (Windows and Program Files).
+fn grant_for(exe: &Path) -> Option<PathBuf> {
+    let real = std::fs::canonicalize(exe).ok()?;
+    let dir = PathBuf::from(real.parent()?.to_string_lossy().trim_start_matches(r"\\?\"));
+    let lowered = dir.to_string_lossy().to_lowercase();
+    let readable_anyway = ["c:\\windows", "c:\\program files"]
+        .iter()
+        .any(|root| lowered.starts_with(root));
+    (!readable_anyway).then_some(dir)
+}
+
+fn where_is(name: &str) -> Option<PathBuf> {
+    let out = Command::new(windows_dir().join("System32").join("where.exe"))
+        .arg(name)
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .next()
+        .map(|line| PathBuf::from(line.trim()))
+        .filter(|p| p.exists())
+}
+
 #[test]
 fn compat_git_runs_inside_the_container() {
-    let Some(git) = tool(r"C:\Program Files\Git\cmd\git.exe") else {
+    let Some(git) = where_is("git.exe") else {
         return eprintln!("SKIP: git is not installed");
     };
-    let f = cmd_fixture();
+    let f = Fixture::new();
+    let extra: Vec<PathBuf> = grant_for(&git).into_iter().collect();
+    f.write_policy(&cmd_exe(), "none", json!({ "readOnly": extra }));
     let out = f.run(&format!(
         "\"{}\" --version & \"{}\" init -q & \"{}\" status --short & echo done",
         git.display(),
@@ -596,10 +628,14 @@ fn compat_git_runs_inside_the_container() {
 
 #[test]
 fn compat_node_runs_inside_the_container() {
-    let Some(node) = tool(r"C:\Program Files\nodejs\node.exe") else {
+    // On a runner `C:\Program Files\nodejs` is a junction into a folder no container can read, so this also checks
+    // that granting a tool's real folder (junctions followed) is enough.
+    let Some(node) = where_is("node.exe") else {
         return eprintln!("SKIP: node is not installed");
     };
-    let f = cmd_fixture();
+    let f = Fixture::new();
+    let extra: Vec<PathBuf> = grant_for(&node).into_iter().collect();
+    f.write_policy(&cmd_exe(), "none", json!({ "readOnly": extra }));
     let out = f.run(&format!("\"{}\" -e \"require('fs').writeFileSync('n.txt', process.version); console.log('node-ok', process.version)\"", node.display()));
     assert!(text(&out).contains("node-ok"), "{}", describe(&out));
     assert!(f.workspace.join("n.txt").exists(), "{}", describe(&out));
@@ -631,4 +667,86 @@ fn compat_a_tool_outside_program_files_needs_a_read_grant() {
         "a readOnly grant must make the tool runnable\n{}",
         describe(&allowed)
     );
+}
+
+/// Runs `command` with a pipe as stdin instead of NUL, closed straight away.
+fn run_with_piped_stdin(f: &Fixture, command: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_harness-sandbox"))
+        .args(["-c", command])
+        .env("HARNESS_SANDBOX_POLICY", &f.policy)
+        .current_dir(&f.workspace)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    drop(child.stdin.take());
+    child.wait_with_output().unwrap()
+}
+
+/// Prints what the container can and cannot do, for reading in a CI log. It asserts nothing: it exists to explain
+/// a compatibility failure, so it only runs with `--ignored`.
+#[test]
+#[ignore = "diagnostic output: run with --ignored --nocapture"]
+fn diagnose_the_container() {
+    let f = cmd_fixture();
+    let show = |title: &str, output: Output| println!("\n===== {title}\n{}", describe(&output));
+    show("identity (groups)", f.run("whoami /groups"));
+    show(
+        "open NUL for writing",
+        f.run("echo x> NUL & echo nul_rc=%errorlevel%"),
+    );
+    show(
+        "read NUL",
+        f.run("type NUL & echo type_nul_rc=%errorlevel%"),
+    );
+    show("curl runs", f.run(&format!("\"{}\" --version", curl())));
+    if let Some(git) = where_is("git.exe") {
+        println!("\n(git found at {})", git.display());
+        let extra: Vec<PathBuf> = grant_for(&git).into_iter().collect();
+        f.write_policy(&cmd_exe(), "none", json!({ "readOnly": extra }));
+        show(
+            "git --version, stdin=NUL",
+            f.run(&format!("\"{}\" --version", git.display())),
+        );
+        show(
+            "git --version, stdin=pipe",
+            run_with_piped_stdin(&f, &format!("\"{}\" --version", git.display())),
+        );
+        let mingw = git
+            .parent()
+            .and_then(|p| p.parent())
+            .map(|root| root.join("mingw64").join("bin").join("git.exe"));
+        if let Some(mingw) = mingw.filter(|p| p.exists()) {
+            show(
+                "mingw64 git.exe directly",
+                f.run(&format!("\"{}\" --version", mingw.display())),
+            );
+        }
+        let ps = windows_dir()
+            .join("System32")
+            .join("WindowsPowerShell")
+            .join("v1.0")
+            .join("powershell.exe");
+        f.write_policy(&ps.to_string_lossy(), "none", json!({ "readOnly": extra }));
+        show(
+            "git --version from PowerShell",
+            f.run(&format!("& \"{}\" --version", git.display())),
+        );
+        show(
+            "git --version from PowerShell, stdin=pipe",
+            run_with_piped_stdin(&f, &format!("& \"{}\" --version", git.display())),
+        );
+    }
+    if let Some(node) = where_is("node.exe") {
+        println!(
+            "\n(node found at {}; real folder {:?})",
+            node.display(),
+            grant_for(&node)
+        );
+        show(
+            "reparse point at Program Files\\nodejs (unsandboxed)",
+            f.control("fsutil reparsepoint query \"C:\\Program Files\\nodejs\""),
+        );
+    }
 }

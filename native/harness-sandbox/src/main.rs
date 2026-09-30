@@ -66,9 +66,6 @@ fn load_policy() -> Result<ValidPolicy, String> {
     policy
         .validate(&system_drive, &sensitive)
         .map_err(|e| e.to_string())?;
-    // The scratch folder has to exist before it can be resolved.
-    std::fs::create_dir_all(&policy.temp_dir)
-        .map_err(|e| format!("cannot create the temp folder {}: {e}", policy.temp_dir))?;
     // Then everything is checked again as the folders it really names, so a junction cannot smuggle in a broad grant.
     policy
         .resolved(&real_path)

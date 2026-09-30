@@ -16,6 +16,13 @@ pub enum ShellKind {
 }
 
 impl ShellKind {
+    /// Whether the shell starts inside an AppContainer. MSYS2 shells (Git bash) do not: their runtime creates
+    /// `\BaseNamedObjects\msys-2.0S5-*` at startup and an AppContainer is denied that (0xC0000022), so they
+    /// die before running a single command. Measured on a real Windows machine, not assumed.
+    pub fn runs_in_appcontainer(self) -> bool {
+        !matches!(self, Self::Posix)
+    }
+
     pub fn from_path(path: &str) -> Option<Self> {
         let name = path.rsplit(['\\', '/']).next()?.to_ascii_lowercase();
         match name.strip_suffix(".exe").unwrap_or(&name) {
